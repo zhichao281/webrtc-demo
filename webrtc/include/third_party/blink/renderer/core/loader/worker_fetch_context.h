@@ -7,10 +7,14 @@
 
 #include <memory>
 #include "base/single_thread_task_runner.h"
-#include "services/network/public/mojom/request_context_frame_type.mojom-blink.h"
-#include "third_party/blink/public/mojom/service_worker/service_worker_object.mojom-blink.h"
+#include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink-forward.h"
+#include "third_party/blink/public/mojom/loader/content_security_notifier.mojom-blink.h"
+#include "third_party/blink/public/mojom/loader/request_context_frame_type.mojom-blink-forward.h"
+#include "third_party/blink/public/mojom/service_worker/service_worker_object.mojom-blink-forward.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/loader/base_fetch_context.h"
+#include "third_party/blink/renderer/platform/loader/fetch/resource_loader_options.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 
 namespace blink {
@@ -18,7 +22,7 @@ namespace blink {
 class CoreProbeSink;
 class SubresourceFilter;
 class WebWorkerFetchContext;
-class WorkerContentSettingsClient;
+class WorkerResourceTimingNotifier;
 class WorkerSettings;
 class WorkerOrWorkletGlobalScope;
 enum class ResourceType : uint8_t;
@@ -31,14 +35,16 @@ enum class ResourceType : uint8_t;
 // For more details, see core/workers/README.md.
 class WorkerFetchContext final : public BaseFetchContext {
  public:
-  WorkerFetchContext(WorkerOrWorkletGlobalScope&,
+  WorkerFetchContext(const DetachableResourceFetcherProperties&,
+                     WorkerOrWorkletGlobalScope&,
                      scoped_refptr<WebWorkerFetchContext>,
                      SubresourceFilter*,
-                     ContentSecurityPolicy&);
+                     ContentSecurityPolicy&,
+                     WorkerResourceTimingNotifier&);
   ~WorkerFetchContext() override;
 
   // BaseFetchContext implementation:
-  KURL GetSiteForCookies() const override;
+  net::SiteForCookies GetSiteForCookies() const override;
   scoped_refptr<const SecurityOrigin> GetTopFrameOrigin() const override;
 
   SubresourceFilter* GetSubresourceFilter() const override;
@@ -50,7 +56,8 @@ class WorkerFetchContext final : public BaseFetchContext {
                                const FetchInitiatorInfo&,
                                ResourceRequestBlockedReason,
                                ResourceType) const override;
-  bool ShouldBypassMainWorldCSP() const override;
+  const ContentSecurityPolicy* GetContentSecurityPolicyForWorld(
+      const DOMWrapperWorld* world) const override;
   bool IsSVGImageChromeClient() const override;
   void CountUsage(WebFeature) const override;
   void CountDeprecation(WebFeature) const override;
@@ -58,10 +65,11 @@ class WorkerFetchContext final : public BaseFetchContext {
   std::unique_ptr<WebSocketHandshakeThrottle> CreateWebSocketHandshakeThrottle()
       override;
   bool ShouldBlockFetchByMixedContentCheck(
-      mojom::RequestContextType,
-      ResourceRequest::RedirectStatus,
-      const KURL&,
-      SecurityViolationReportingPolicy) const override;
+      mojom::blink::RequestContextType request_context,
+      const base::Optional<ResourceRequest::RedirectInfo>& redirect_info,
+      const KURL& url,
+      ReportingDisposition reporting_disposition,
+      const base::Optional<String>& devtools_id) const override;
   bool ShouldBlockFetchAsCredentialedSubresource(const ResourceRequest&,
                                                  const KURL&) const override;
   const KURL& Url() const override;
@@ -71,7 +79,7 @@ class WorkerFetchContext final : public BaseFetchContext {
 
   // FetchContext implementation:
   void PrepareRequest(ResourceRequest&,
-                      const FetchInitiatorInfo&,
+                      ResourceLoaderOptions&,
                       WebScopedVirtualTimePauser&,
                       ResourceType) override;
   void AddAdditionalRequestHeaders(ResourceRequest&) override;
@@ -79,16 +87,25 @@ class WorkerFetchContext final : public BaseFetchContext {
   void PopulateResourceRequest(ResourceType,
                                const ClientHintsPreferences&,
                                const FetchParameters::ResourceWidth&,
-                               ResourceRequest&) override;
+                               ResourceRequest&,
+                               const ResourceLoaderOptions&) override;
+  mojo::PendingReceiver<mojom::blink::WorkerTimingContainer>
+  TakePendingWorkerTimingReceiver(int request_id) override;
 
-  SecurityContext& GetSecurityContext() const;
+  std::unique_ptr<ResourceLoadInfoNotifierWrapper>
+  CreateResourceLoadInfoNotifierWrapper() override;
+
   WorkerSettings* GetWorkerSettings() const;
-  WorkerContentSettingsClient* GetWorkerContentSettingsClient() const;
   WebWorkerFetchContext* GetWebWorkerFetchContext() const {
     return web_context_.get();
   }
 
-  void Trace(blink::Visitor*) override;
+  bool AllowRunningInsecureContent(bool enabled_per_settings,
+                                   const KURL& url) const;
+
+  mojom::blink::ContentSecurityNotifier& GetContentSecurityNotifier();
+
+  void Trace(Visitor*) const override;
 
  private:
   void SetFirstPartyCookie(ResourceRequest&);
@@ -107,6 +124,12 @@ class WorkerFetchContext final : public BaseFetchContext {
   // WorkerGlobalScope::GetContentSecurityPolicy(), not bound to
   // WorkerGlobalScope and owned by this WorkerFetchContext.
   const Member<ContentSecurityPolicy> content_security_policy_;
+
+  HeapMojoRemote<mojom::blink::ContentSecurityNotifier>
+      content_security_notifier_;
+
+  const CrossThreadPersistent<WorkerResourceTimingNotifier>
+      resource_timing_notifier_;
 
   // The value of |save_data_enabled_| is read once per frame from
   // NetworkStateNotifier, which is guarded by a mutex lock, and cached locally

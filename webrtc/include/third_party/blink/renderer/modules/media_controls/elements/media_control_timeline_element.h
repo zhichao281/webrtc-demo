@@ -6,7 +6,6 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_MEDIA_CONTROLS_ELEMENTS_MEDIA_CONTROL_TIMELINE_ELEMENT_H_
 
 #include "third_party/blink/renderer/modules/media_controls/elements/media_control_slider_element.h"
-#include "third_party/blink/renderer/modules/media_controls/elements/media_control_timeline_metrics.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 
 namespace blink {
@@ -24,10 +23,8 @@ class MediaControlTimelineElement : public MediaControlSliderElement {
 
   // FIXME: An "earliest possible position" will be needed once that concept
   // is supported by HTMLMediaElement, see https://crbug.com/137275
-  void SetPosition(double);
+  void SetPosition(double, bool suppress_aria = false);
   void SetDuration(double);
-
-  void OnPlaying();
 
   void OnMediaKeyboardEvent(Event* event) { DefaultEventHandler(*event); }
 
@@ -37,7 +34,7 @@ class MediaControlTimelineElement : public MediaControlSliderElement {
   void OnControlsShown();
   void OnControlsHidden();
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  protected:
   const char* GetNameForHistograms() const override;
@@ -53,7 +50,7 @@ class MediaControlTimelineElement : public MediaControlSliderElement {
   bool BeginScrubbingEvent(Event&);
   bool EndScrubbingEvent(Event&);
 
-  MediaControlTimelineMetrics metrics_;
+  void UpdateAria();
 
   bool is_touching_ = false;
 

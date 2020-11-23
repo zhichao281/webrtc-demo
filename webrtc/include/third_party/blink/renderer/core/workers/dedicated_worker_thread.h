@@ -58,12 +58,13 @@ class CORE_EXPORT DedicatedWorkerThread : public WorkerThread {
   WorkerOrWorkletGlobalScope* CreateWorkerGlobalScope(
       std::unique_ptr<GlobalScopeCreationParams>) override;
 
-  WebThreadType GetThreadType() const override {
-    return WebThreadType::kDedicatedWorkerThread;
+  ThreadType GetThreadType() const override {
+    return ThreadType::kDedicatedWorkerThread;
   }
 
   std::unique_ptr<WorkerBackingThread> worker_backing_thread_;
   DedicatedWorkerObjectProxy& worker_object_proxy_;
+  ukm::SourceId ukm_source_id_;
 };
 
 }  // namespace blink

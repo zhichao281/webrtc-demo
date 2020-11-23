@@ -14,6 +14,7 @@
 #include "third_party/blink/renderer/platform/loader/fetch/response_body_loader_client.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
+#include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace base {
 class SingleThreadTaskRunner;
@@ -26,7 +27,7 @@ class ResponseBodyLoader;
 // See ResponseBodyLoader for details. This is a virtual interface to expose
 // only Drain functions.
 class PLATFORM_EXPORT ResponseBodyLoaderDrainableInterface
-    : public GarbageCollectedFinalized<ResponseBodyLoaderDrainableInterface> {
+    : public GarbageCollected<ResponseBodyLoaderDrainableInterface> {
  public:
   virtual ~ResponseBodyLoaderDrainableInterface() = default;
 
@@ -53,7 +54,7 @@ class PLATFORM_EXPORT ResponseBodyLoaderDrainableInterface
   // them back to the associated client asynchronously.
   virtual BytesConsumer& DrainAsBytesConsumer() = 0;
 
-  virtual void Trace(Visitor*) {}
+  virtual void Trace(Visitor*) const {}
 };
 
 // ResponseBodyLoader reads the response body and reports the contents to the
@@ -70,8 +71,6 @@ class PLATFORM_EXPORT ResponseBodyLoader final
     : public ResponseBodyLoaderDrainableInterface,
       private ResponseBodyLoaderClient,
       private BytesConsumer::Client {
-  USING_GARBAGE_COLLECTED_MIXIN(ResponseBodyLoader);
-
  public:
   ResponseBodyLoader(BytesConsumer&,
                      ResponseBodyLoaderClient&,
@@ -100,7 +99,7 @@ class PLATFORM_EXPORT ResponseBodyLoader final
   bool IsSuspended() const { return suspended_; }
   bool IsDrained() const { return drained_; }
 
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
 
   // The maximal number of bytes consumed in a task. When there are more bytes
   // in the data pipe, they will be consumed in following tasks. Setting a too
@@ -110,6 +109,7 @@ class PLATFORM_EXPORT ResponseBodyLoader final
   static constexpr size_t kMaxNumConsumedBytesInTask = 64 * 1024;
 
  private:
+  class Buffer;
   class DelegatingBytesConsumer;
 
   // ResponseBodyLoaderClient implementation.
@@ -121,7 +121,9 @@ class PLATFORM_EXPORT ResponseBodyLoader final
   // BytesConsumer::Client implementation.
   void OnStateChange() override;
   String DebugName() const override { return "ResponseBodyLoader"; }
-
+  // When |buffer_data_while_suspended_| is true, we'll save the response body
+  // read when suspended.
+  Member<Buffer> body_buffer_;
   Member<BytesConsumer> bytes_consumer_;
   Member<DelegatingBytesConsumer> delegating_bytes_consumer_;
   const Member<ResponseBodyLoaderClient> client_;
@@ -134,6 +136,7 @@ class PLATFORM_EXPORT ResponseBodyLoader final
   bool fail_signal_is_pending_ = false;
   bool cancel_signal_is_pending_ = false;
   bool in_two_phase_read_ = false;
+  const bool buffer_data_while_suspended_;
 };
 
 }  // namespace blink

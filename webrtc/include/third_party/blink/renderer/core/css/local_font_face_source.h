@@ -7,7 +7,7 @@
 
 #include "base/memory/weak_ptr.h"
 #include "third_party/blink/renderer/core/css/css_font_face_source.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 
 namespace blink {
@@ -26,8 +26,6 @@ class FontSelector;
 // synchronously and a relayout is triggered.
 class LocalFontFaceSource final : public CSSFontFaceSource,
                                   public GarbageCollectedMixin {
-  USING_GARBAGE_COLLECTED_MIXIN(LocalFontFaceSource);
-
  public:
   LocalFontFaceSource(CSSFontFace*, FontSelector*, const String& font_name);
   ~LocalFontFaceSource() override;
@@ -44,11 +42,9 @@ class LocalFontFaceSource final : public CSSFontFaceSource,
 
   void BeginLoadIfNeeded() override;
 
-  void Trace(blink::Visitor* visitor) override;
+  void Trace(Visitor* visitor) const override;
 
   void NotifyFontUniqueNameLookupReady();
-
-  base::WeakPtr<LocalFontFaceSource> GetWeakPtr();
 
  protected:
   scoped_refptr<SimpleFontData> CreateLoadingFallbackFontData(
@@ -58,6 +54,10 @@ class LocalFontFaceSource final : public CSSFontFaceSource,
   scoped_refptr<SimpleFontData> CreateFontData(
       const FontDescription&,
       const FontSelectionCapabilities&) override;
+
+  void ReportFontLookup(const FontDescription& font_description,
+                        SimpleFontData* font_data,
+                        bool is_loading_fallback = false) override;
 
   class LocalFontHistograms {
     DISALLOW_NEW();
@@ -73,10 +73,8 @@ class LocalFontFaceSource final : public CSSFontFaceSource,
   Member<CSSFontFace> face_;
   Member<FontSelector> font_selector_;
 
-  bool was_resolved_ = false;
   AtomicString font_name_;
   LocalFontHistograms histograms_;
-  base::WeakPtrFactory<LocalFontFaceSource> weak_factory_;
 };
 
 }  // namespace blink

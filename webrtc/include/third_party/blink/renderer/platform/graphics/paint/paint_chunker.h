@@ -7,12 +7,13 @@
 
 #include "base/macros.h"
 #include "base/optional.h"
+#include "third_party/blink/renderer/platform/geometry/region.h"
 #include "third_party/blink/renderer/platform/graphics/paint/display_item.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_artifact.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_chunk.h"
 #include "third_party/blink/renderer/platform/graphics/paint/property_tree_state.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
@@ -24,50 +25,64 @@ class PLATFORM_EXPORT PaintChunker final {
   DISALLOW_NEW();
 
  public:
-  PaintChunker();
-  ~PaintChunker();
+  explicit PaintChunker(Vector<PaintChunk>& chunks) { ResetChunks(&chunks); }
+
+  // Finishes current chunks if any, and makes it ready to create chunks into
+  // the given vector if not null.
+  void ResetChunks(Vector<PaintChunk>*);
 
 #if DCHECK_IS_ON()
   bool IsInInitialState() const;
 #endif
 
-  const PropertyTreeState& CurrentPaintChunkProperties() const {
+  const PropertyTreeStateOrAlias& CurrentPaintChunkProperties() const {
     return current_properties_;
   }
-  void UpdateCurrentPaintChunkProperties(const base::Optional<PaintChunk::Id>&,
-                                         const PropertyTreeState&);
+  void UpdateCurrentPaintChunkProperties(const PaintChunk::Id*,
+                                         const PropertyTreeStateOrAlias&);
 
-  void ForceNewChunk();
+  // Sets the forcing new chunk status on or off. If the status is on, even the
+  // properties haven't change, we'll force a new paint chunk for the next
+  // display item and then automatically resets the status. Some special display
+  // item (e.g. ForeignLayerDisplayItem) also automatically sets the status on
+  // before and after the item to force a dedicated paint chunk.
+  void SetWillForceNewChunk(bool force) {
+    will_force_new_chunk_ = force;
+    next_chunk_id_ = base::nullopt;
+  }
+  bool WillForceNewChunk() const { return will_force_new_chunk_; }
+
+  void AppendByMoving(PaintChunk&&);
 
   // Returns true if a new chunk is created.
   bool IncrementDisplayItemIndex(const DisplayItem&);
 
-  const Vector<PaintChunk>& PaintChunks() const { return chunks_; }
+  // The id will be used when we need to create a new current chunk.
+  // Otherwise it's ignored. Returns true if a new chunk is added.
+  bool AddHitTestDataToCurrentChunk(const PaintChunk::Id&,
+                                    const IntRect&,
+                                    TouchAction,
+                                    bool blocking_wheel);
+  void CreateScrollHitTestChunk(
+      const PaintChunk::Id&,
+      const TransformPaintPropertyNode* scroll_translation,
+      const IntRect&);
 
-  PaintChunk& PaintChunkAt(wtf_size_t i) { return chunks_[i]; }
-  wtf_size_t LastChunkIndex() const {
-    return chunks_.IsEmpty() ? kNotFound : chunks_.size() - 1;
-  }
-  PaintChunk& LastChunk() { return chunks_.back(); }
+  // Returns true if a new chunk is created.
+  bool ProcessBackgroundColorCandidate(const PaintChunk::Id& id,
+                                       Color color,
+                                       float area);
 
-  PaintChunk& FindChunkByDisplayItemIndex(size_t index) {
-    auto* chunk = FindChunkInVectorByDisplayItemIndex(chunks_, index);
-    DCHECK(chunk != chunks_.end());
-    return *chunk;
-  }
-
-  // Releases the generated paint chunk list and raster invalidations and
-  // resets the state of this object.
-  Vector<PaintChunk> ReleasePaintChunks();
+  // Returns true if a new chunk is created.
+  bool EnsureChunk() { return EnsureCurrentChunk(*next_chunk_id_); }
 
  private:
-  size_t ChunkIndex(const PaintChunk& chunk) const {
-    size_t index = &chunk - &chunks_.front();
-    DCHECK_LT(index, chunks_.size());
-    return index;
-  }
+  // Returns true if a new chunk is created.
+  bool EnsureCurrentChunk(const PaintChunk::Id&);
 
-  Vector<PaintChunk> chunks_;
+  void FinalizeLastChunkProperties();
+
+  Vector<PaintChunk>* chunks_ = nullptr;
 
   // The id specified by UpdateCurrentPaintChunkProperties(). If it is not
   // nullopt, we will use it as the id of the next new chunk. Otherwise we will
@@ -77,12 +92,18 @@ class PLATFORM_EXPORT PaintChunker final {
   // forced to create a new chunk).
   base::Optional<PaintChunk::Id> next_chunk_id_;
 
-  PropertyTreeState current_properties_;
+  PropertyTreeStateOrAlias current_properties_ =
+      PropertyTreeState::Uninitialized();
+
+  Region last_chunk_known_to_be_opaque_region_;
 
   // True when an item forces a new chunk (e.g., foreign display items), and for
   // the item following a forced chunk. PaintController also forces new chunks
   // before and after subsequences by calling ForceNewChunk().
-  bool force_new_chunk_;
+  bool will_force_new_chunk_ = true;
+
+  Color candidate_background_color_ = Color::kTransparent;
+  float candidate_background_area_ = 0;
 
   DISALLOW_COPY_AND_ASSIGN(PaintChunker);
 };

@@ -22,7 +22,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_CSS_CSS_RULE_LIST_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_CSS_RULE_LIST_H_
 
-#include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
@@ -33,10 +32,15 @@ namespace blink {
 class CSSRule;
 class CSSStyleSheet;
 
+using RuleIndexList = HeapVector<std::pair<Member<CSSRule>, int>>;
+
 class CSSRuleList : public ScriptWrappable {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
+  CSSRuleList(const CSSRuleList&) = delete;
+  CSSRuleList& operator=(const CSSRuleList&) = delete;
+
   virtual unsigned length() const = 0;
   virtual CSSRule* item(unsigned index) const = 0;
 
@@ -44,28 +48,6 @@ class CSSRuleList : public ScriptWrappable {
 
  protected:
   CSSRuleList() = default;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(CSSRuleList);
-};
-
-class StaticCSSRuleList final : public CSSRuleList {
- public:
-  StaticCSSRuleList();
-
-  HeapVector<Member<CSSRule>>& Rules() { return rules_; }
-
-  CSSStyleSheet* GetStyleSheet() const override { return nullptr; }
-
-  void Trace(blink::Visitor*) override;
-
- private:
-  unsigned length() const override { return rules_.size(); }
-  CSSRule* item(unsigned index) const override {
-    return index < rules_.size() ? rules_[index].Get() : nullptr;
-  }
-
-  HeapVector<Member<CSSRule>> rules_;
 };
 
 template <class Rule>
@@ -73,7 +55,7 @@ class LiveCSSRuleList final : public CSSRuleList {
  public:
   LiveCSSRuleList(Rule* rule) : rule_(rule) {}
 
-  void Trace(blink::Visitor* visitor) override {
+  void Trace(Visitor* visitor) const override {
     visitor->Trace(rule_);
     CSSRuleList::Trace(visitor);
   }

@@ -1,6 +1,7 @@
 /*
  * Copyright © 2007,2008,2009,2010  Red Hat, Inc.
  * Copyright © 2012,2018  Google, Inc.
+ * Copyright © 2019  Facebook, Inc.
  *
  *  This is part of HarfBuzz, a text shaping library.
  *
@@ -24,6 +25,7 @@
  *
  * Red Hat Author(s): Behdad Esfahbod
  * Google Author(s): Behdad Esfahbod
+ * Facebook Author(s): Behdad Esfahbod
  */
 
 #ifndef HB_SERIALIZE_HH
@@ -32,6 +34,7 @@
 #include "hb.hh"
 #include "hb-blob.hh"
 #include "hb-map.hh"
+#include "hb-pool.hh"
 
 
 /*
@@ -42,21 +45,22 @@ struct hb_serialize_context_t
 {
   typedef unsigned objidx_t;
 
-  struct range_t
-  {
-    char *head, *tail;
-  };
+  enum whence_t {
+     Head,	/* Relative to the current object head (default). */
+     Tail,	/* Relative to the current object tail after packed. */
+     Absolute	/* Absolute: from the start of the serialize buffer. */
+   };
 
-  struct object_t : range_t
+  struct object_t
   {
     void fini () { links.fini (); }
 
     bool operator == (const object_t &o) const
     {
       return (tail - head == o.tail - o.head)
-	  && (links.length != o.links.length)
-	  && 0 == memcmp (head, o.head, tail - head)
-	  && 0 == memcmp (&links, &o.links, links.get_size ());
+	  && (links.length == o.links.length)
+	  && 0 == hb_memcmp (head, o.head, tail - head)
+	  && links.as_bytes () == o.links.as_bytes ();
     }
     uint32_t hash () const
     {
@@ -66,28 +70,51 @@ struct hb_serialize_context_t
 
     struct link_t
     {
-      bool wide: 1;
-      unsigned position : 31;
+      bool is_wide: 1;
+      bool is_signed: 1;
+      unsigned whence: 2;
+      unsigned position: 28;
+      unsigned bias;
       objidx_t objidx;
     };
 
+    char *head;
+    char *tail;
     hb_vector_t<link_t> links;
+    object_t *next;
   };
 
-  range_t snapshot () { range_t s = {head, tail} ; return s; }
-
-
-  hb_serialize_context_t (void *start_, unsigned int size)
+  struct snapshot_t
   {
-    this->start = (char *) start_;
-    this->end = this->start + size;
-    reset ();
-  }
-  ~hb_serialize_context_t ()
+    char *head;
+    char *tail;
+    object_t *current; // Just for sanity check
+    unsigned num_links;
+  };
+
+  snapshot_t snapshot ()
+  { return snapshot_t { head, tail, current, current->links.length }; }
+
+  hb_serialize_context_t (void *start_, unsigned int size) :
+    start ((char *) start_),
+    end (start + size),
+    current (nullptr)
+  { reset (); }
+  ~hb_serialize_context_t () { fini (); }
+
+  void fini ()
   {
-    current.fini_deep ();
-    packed.fini_deep ();
-    packed_map.fini ();
+    for (object_t *_ : ++hb_iter (packed)) _->fini ();
+    packed.fini ();
+    this->packed_map.fini ();
+
+    while (current)
+    {
+      auto *_ = current;
+      current = current->next;
+      _->fini ();
+    }
+    object_pool.fini ();
   }
 
   bool in_error () const { return !this->successful; }
@@ -100,23 +127,27 @@ struct hb_serialize_context_t
     this->tail = this->end;
     this->debug_depth = 0;
 
-    this->current.reset ();
-    this->packed.reset ();
-    this->packed.push ()->head = this->end;
-    this->packed_map.reset ();
+    fini ();
+    this->packed.push (nullptr);
   }
 
-  bool propagate_error (bool e)
-  { return this->successful = this->successful && e; }
-  template <typename T> bool propagate_error (const T &obj)
-  { return this->successful = this->successful && !obj.in_error (); }
-  template <typename T> bool propagate_error (const T *obj)
-  { return this->successful = this->successful && !obj->in_error (); }
-  template <typename T1, typename T2> bool propagate_error (T1 &&o1, T2 &&o2)
-  { return propagate_error (o1) && propagate_error (o2); }
-  template <typename T1, typename T2, typename T3>
-  bool propagate_error (T1 &&o1, T2 &&o2, T3 &&o3)
-  { return propagate_error (o1) && propagate_error (o2, o3); }
+  bool check_success (bool success)
+  { return this->successful && (success || (err_other_error (), false)); }
+
+  template <typename T1, typename T2>
+  bool check_equal (T1 &&v1, T2 &&v2)
+  { return check_success ((long long) v1 == (long long) v2); }
+
+  template <typename T1, typename T2>
+  bool check_assign (T1 &v1, T2 &&v2)
+  { return check_equal (v1 = v2, v2); }
+
+  template <typename T> bool propagate_error (T &&obj)
+  { return check_success (!hb_deref (obj).in_error ()); }
+
+  template <typename T1, typename... Ts> bool propagate_error (T1 &&o1, Ts&&... os)
+  { return propagate_error (hb_forward<T1> (o1)) &&
+	   propagate_error (hb_forward<Ts> (os)...); }
 
   /* To be called around main operation. */
   template <typename Type>
@@ -127,7 +158,7 @@ struct hb_serialize_context_t
 		     this->start, this->end,
 		     (unsigned long) (this->end - this->start));
 
-    assert (!current.length);
+    assert (!current);
     return push<Type> ();
   }
   void end_serialize ()
@@ -138,117 +169,219 @@ struct hb_serialize_context_t
 		     (unsigned) (this->head - this->start),
 		     this->successful ? "successful" : "UNSUCCESSFUL");
 
-    /* TODO Propagate errors. */
+    propagate_error (packed, packed_map);
 
-    assert (current.length == 1);
+    if (unlikely (!current)) return;
+    if (unlikely (in_error())) return;
+
+    assert (!current->next);
 
     /* Only "pack" if there exist other objects... Otherwise, don't bother.
      * Saves a move. */
-    if (packed.length == 1)
+    if (packed.length <= 1)
       return;
 
-    pop_pack ();
+    pop_pack (false);
 
-    link ();
+    resolve_links ();
   }
 
-  template <typename Type>
+  template <typename Type = void>
   Type *push ()
   {
-    object_t obj;
-    obj.head = head;
-    obj.tail = tail;
-    current.push (obj);
+    if (unlikely (in_error ())) return start_embed<Type> ();
+
+    object_t *obj = object_pool.alloc ();
+    if (unlikely (!obj))
+      check_success (false);
+    else
+    {
+      obj->head = head;
+      obj->tail = tail;
+      obj->next = current;
+      current = obj;
+    }
     return start_embed<Type> ();
   }
   void pop_discard ()
   {
-    revert (current.pop ());
-  }
-  objidx_t pop_pack ()
-  {
-    object_t obj = current.pop ();
-    obj.tail = head;
-    unsigned len = obj.tail - obj.head;
+    object_t *obj = current;
+    if (unlikely (!obj)) return;
+    if (unlikely (in_error())) return;
 
-    objidx_t objidx = packed_map.get (&obj);
-    if (objidx)
+    current = current->next;
+    revert (obj->head, obj->tail);
+    obj->fini ();
+    object_pool.free (obj);
+  }
+
+  /* Set share to false when an object is unlikely sharable with others
+   * so not worth an attempt, or a contiguous table is serialized as
+   * multiple consecutive objects in the reverse order so can't be shared.
+   */
+  objidx_t pop_pack (bool share=true)
+  {
+    object_t *obj = current;
+    if (unlikely (!obj)) return 0;
+    if (unlikely (in_error())) return 0;
+
+    current = current->next;
+    obj->tail = head;
+    obj->next = nullptr;
+    unsigned len = obj->tail - obj->head;
+    head = obj->head; /* Rewind head. */
+
+    if (!len)
     {
-      obj.fini ();
-      return objidx;
+      assert (!obj->links.length);
+      return 0;
+    }
+
+    objidx_t objidx;
+    if (share)
+    {
+      objidx = packed_map.get (obj);
+      if (objidx)
+      {
+	obj->fini ();
+	return objidx;
+      }
     }
 
     tail -= len;
-    memmove (tail, obj.head, len);
-    head = obj.head;
+    memmove (tail, obj->head, len);
 
-    if (!len)
+    obj->head = tail;
+    obj->tail = tail + len;
+
+    packed.push (obj);
+
+    if (unlikely (packed.in_error ())) {
+      // obj wasn't successfully added to packed, so clean it up otherwise it's
+      // links will be leaked.
+      propagate_error (packed);
+      obj->fini ();
       return 0;
-
-    obj.head = tail;
-    obj.tail = tail + len;
-
-    object_t *key = packed.push (hb_move (obj));
-
-    /* TODO Handle error. */
-    if (unlikely (packed.in_error ()))
-      return 0;
+    }
 
     objidx = packed.length - 1;
 
-    packed_map.set (key, objidx);
+    if (share) packed_map.set (obj, objidx);
+    propagate_error (packed_map);
 
     return objidx;
   }
 
-  void revert (range_t snap)
+  void revert (snapshot_t snap)
   {
-    assert (snap.head <= head);
-    assert (tail <= snap.tail);
-    head = snap.head;
-    tail = snap.tail;
+    if (unlikely (in_error ())) return;
+    assert (snap.current == current);
+    current->links.shrink (snap.num_links);
+    revert (snap.head, snap.tail);
+  }
+
+  void revert (char *snap_head,
+	       char *snap_tail)
+  {
+    if (unlikely (in_error ())) return;
+    assert (snap_head <= head);
+    assert (tail <= snap_tail);
+    head = snap_head;
+    tail = snap_tail;
     discard_stale_objects ();
   }
 
   void discard_stale_objects ()
   {
+    if (unlikely (in_error ())) return;
     while (packed.length > 1 &&
-	   packed.tail ().head < tail)
+	   packed.tail ()->head < tail)
+    {
+      packed_map.del (packed.tail ());
+      assert (!packed.tail ()->next);
+      packed.tail ()->fini ();
       packed.pop ();
-    assert (packed.tail ().head == tail);
+    }
+    if (packed.length > 1)
+      assert (packed.tail ()->head == tail);
   }
 
-  void link ()
+  template <typename T>
+  void add_link (T &ofs, objidx_t objidx,
+		 whence_t whence = Head,
+		 unsigned bias = 0)
   {
-    assert (!current.length);
+    static_assert (sizeof (T) == 2 || sizeof (T) == 4, "");
+    if (unlikely (in_error ())) return;
 
-    for (auto obj_it = packed.iter (); obj_it; ++obj_it)
-    {
-      const object_t &parent = *obj_it;
+    if (!objidx)
+      return;
 
-      for (auto link_it = parent.links.iter (); link_it; ++link_it)
+    assert (current);
+    assert (current->head <= (const char *) &ofs);
+
+    auto& link = *current->links.push ();
+
+    link.is_wide = sizeof (T) == 4;
+    link.is_signed = hb_is_signed (hb_unwrap_type (T));
+    link.whence = (unsigned) whence;
+    link.position = (const char *) &ofs - current->head;
+    link.bias = bias;
+    link.objidx = objidx;
+  }
+
+  unsigned to_bias (const void *base) const
+  {
+    if (unlikely (in_error ())) return 0;
+    if (!base) return 0;
+    assert (current);
+    assert (current->head <= (const char *) base);
+    return (const char *) base - current->head;
+  }
+
+  void resolve_links ()
+  {
+    if (unlikely (in_error ())) return;
+
+    assert (!current);
+    assert (packed.length > 1);
+
+    for (const object_t* parent : ++hb_iter (packed))
+      for (const object_t::link_t &link : parent->links)
       {
-        const object_t::link_t &link = *link_it;
-	const object_t &child = packed[link.objidx];
-	unsigned offset = child.head - parent.head;
+	const object_t* child = packed[link.objidx];
+	if (unlikely (!child)) { err_other_error(); return; }
+	unsigned offset = 0;
+	switch ((whence_t) link.whence) {
+	case Head:     offset = child->head - parent->head; break;
+	case Tail:     offset = child->head - parent->tail; break;
+	case Absolute: offset = (head - start) + (child->head - tail); break;
+	}
 
-	if (link.wide)
+	assert (offset >= link.bias);
+	offset -= link.bias;
+	if (link.is_signed)
 	{
-	  auto &off = * ((BEInt<uint32_t, 4> *) (parent.head + offset));
-	  off = offset;
-	  propagate_error (off == offset);
+	  if (link.is_wide)
+	    assign_offset<int32_t> (parent, link, offset);
+	  else
+	    assign_offset<int16_t> (parent, link, offset);
 	}
 	else
 	{
-	  auto &off = * ((BEInt<uint16_t, 2> *) (parent.head + offset));
-	  off = offset;
-	  propagate_error (off == offset);
+	  if (link.is_wide)
+	    assign_offset<uint32_t> (parent, link, offset);
+	  else
+	    assign_offset<uint16_t> (parent, link, offset);
 	}
       }
-    }
   }
 
-  unsigned int length () const { return this->head - current.tail ().head; }
+  unsigned int length () const
+  {
+    if (unlikely (!current)) return 0;
+    return this->head - current->head;
+  }
 
   void align (unsigned int alignment)
   {
@@ -257,12 +390,16 @@ struct hb_serialize_context_t
       allocate_size<void> (alignment - l);
   }
 
+  template <typename Type = void>
+  Type *start_embed (const Type *obj HB_UNUSED = nullptr) const
+  { return reinterpret_cast<Type *> (this->head); }
   template <typename Type>
-  Type *start_embed (const Type *_ HB_UNUSED = nullptr) const
-  {
-    Type *ret = reinterpret_cast<Type *> (this->head);
-    return ret;
-  }
+  Type *start_embed (const Type &obj) const
+  { return start_embed (hb_addressof (obj)); }
+
+  /* Following two functions exist to allow setting breakpoint on. */
+  void err_ran_out_of_room () { this->ran_out_of_room = true; }
+  void err_other_error () { this->successful = false; }
 
   template <typename Type>
   Type *allocate_size (unsigned int size)
@@ -271,7 +408,7 @@ struct hb_serialize_context_t
 
     if (this->tail - this->head < ptrdiff_t (size))
     {
-      this->ran_out_of_room = true;
+      err_ran_out_of_room ();
       this->successful = false;
       return nullptr;
     }
@@ -283,37 +420,78 @@ struct hb_serialize_context_t
 
   template <typename Type>
   Type *allocate_min ()
-  {
-    return this->allocate_size<Type> (Type::min_size);
-  }
+  { return this->allocate_size<Type> (Type::min_size); }
 
   template <typename Type>
-  Type *embed (const Type &obj)
+  Type *embed (const Type *obj)
   {
-    unsigned int size = obj.get_size ();
+    unsigned int size = obj->get_size ();
     Type *ret = this->allocate_size<Type> (size);
     if (unlikely (!ret)) return nullptr;
-    memcpy (ret, &obj, size);
+    memcpy (ret, obj, size);
     return ret;
   }
   template <typename Type>
-  hb_serialize_context_t &operator << (const Type &obj) { embed (obj); return *this; }
+  Type *embed (const Type &obj)
+  { return embed (hb_addressof (obj)); }
 
-  template <typename Type>
-  Type *extend_size (Type &obj, unsigned int size)
+  template <typename Type, typename ...Ts> auto
+  _copy (const Type &src, hb_priority<1>, Ts&&... ds) HB_RETURN
+  (Type *, src.copy (this, hb_forward<Ts> (ds)...))
+
+  template <typename Type> auto
+  _copy (const Type &src, hb_priority<0>) -> decltype (&(hb_declval<Type> () = src))
   {
-    assert (this->start <= (char *) &obj);
-    assert ((char *) &obj <= this->head);
-    assert ((char *) &obj + size >= this->head);
-    if (unlikely (!this->allocate_size<Type> (((char *) &obj) + size - this->head))) return nullptr;
-    return reinterpret_cast<Type *> (&obj);
+    Type *ret = this->allocate_size<Type> (sizeof (Type));
+    if (unlikely (!ret)) return nullptr;
+    *ret = src;
+    return ret;
   }
 
-  template <typename Type>
-  Type *extend_min (Type &obj) { return extend_size (obj, obj.min_size); }
+  /* Like embed, but active: calls obj.operator=() or obj.copy() to transfer data
+   * instead of memcpy(). */
+  template <typename Type, typename ...Ts>
+  Type *copy (const Type &src, Ts&&... ds)
+  { return _copy (src, hb_prioritize, hb_forward<Ts> (ds)...); }
+  template <typename Type, typename ...Ts>
+  Type *copy (const Type *src, Ts&&... ds)
+  { return copy (*src, hb_forward<Ts> (ds)...); }
+
+  template<typename Iterator,
+	   hb_requires (hb_is_iterator (Iterator)),
+	   typename ...Ts>
+  void copy_all (Iterator it, Ts&&... ds)
+  { for (decltype (*it) _ : it) copy (_, hb_forward<Ts> (ds)...); }
 
   template <typename Type>
-  Type *extend (Type &obj) { return extend_size (obj, obj.get_size ()); }
+  hb_serialize_context_t& operator << (const Type &obj) & { embed (obj); return *this; }
+
+  template <typename Type>
+  Type *extend_size (Type *obj, unsigned int size)
+  {
+    if (unlikely (in_error ())) return nullptr;
+
+    assert (this->start <= (char *) obj);
+    assert ((char *) obj <= this->head);
+    assert ((char *) obj + size >= this->head);
+    if (unlikely (!this->allocate_size<Type> (((char *) obj) + size - this->head))) return nullptr;
+    return reinterpret_cast<Type *> (obj);
+  }
+  template <typename Type>
+  Type *extend_size (Type &obj, unsigned int size)
+  { return extend_size (hb_addressof (obj), size); }
+
+  template <typename Type>
+  Type *extend_min (Type *obj) { return extend_size (obj, obj->min_size); }
+  template <typename Type>
+  Type *extend_min (Type &obj) { return extend_min (hb_addressof (obj)); }
+
+  template <typename Type, typename ...Ts>
+  Type *extend (Type *obj, Ts&&... ds)
+  { return extend_size (obj, obj->get_size (hb_forward<Ts> (ds)...)); }
+  template <typename Type, typename ...Ts>
+  Type *extend (Type &obj, Ts&&... ds)
+  { return extend (hb_addressof (obj), hb_forward<Ts> (ds)...); }
 
   /* Output routines. */
   hb_bytes_t copy_bytes () const
@@ -322,14 +500,12 @@ struct hb_serialize_context_t
     /* Copy both items from head side and tail side... */
     unsigned int len = (this->head - this->start)
 		     + (this->end  - this->tail);
+
     char *p = (char *) malloc (len);
-    if (p)
-    {
-      memcpy (p, this->start, this->head - this->start);
-      memcpy (p + (this->head - this->start), this->tail, this->end - this->tail);
-    }
-    else
-      return hb_bytes_t ();
+    if (unlikely (!p)) return hb_bytes_t ();
+
+    memcpy (p, this->start, this->head - this->start);
+    memcpy (p + (this->head - this->start), this->tail, this->end - this->tail);
     return hb_bytes_t (p, len);
   }
   template <typename Type>
@@ -343,6 +519,15 @@ struct hb_serialize_context_t
 			   (char *) b.arrayZ, free);
   }
 
+  private:
+  template <typename T>
+  void assign_offset (const object_t* parent, const object_t::link_t &link, unsigned offset)
+  {
+    auto &off = * ((BEInt<T, sizeof (T)> *) (parent->head + link.position));
+    assert (0 == off);
+    check_assign (off, offset);
+  }
+
   public: /* TODO Make private. */
   char *start, *head, *tail, *end;
   unsigned int debug_depth;
@@ -351,11 +536,14 @@ struct hb_serialize_context_t
 
   private:
 
+  /* Object memory pool. */
+  hb_pool_t<object_t> object_pool;
+
   /* Stack of currently under construction objects. */
-  hb_vector_t<object_t> current;
+  object_t *current;
 
   /* Stack of packed objects.  Object 0 is always nil object. */
-  hb_vector_t<object_t> packed;
+  hb_vector_t<object_t *> packed;
 
   /* Map view of packed objects. */
   hb_hashmap_t<const object_t *, objidx_t, nullptr, 0> packed_map;

@@ -36,7 +36,10 @@ class JPEGImageReader;
 
 class PLATFORM_EXPORT JPEGImageDecoder final : public ImageDecoder {
  public:
-  JPEGImageDecoder(AlphaOption, const ColorBehavior&, size_t max_decoded_bytes);
+  JPEGImageDecoder(AlphaOption,
+                   const ColorBehavior&,
+                   size_t max_decoded_bytes,
+                   size_t offset = 0);
   ~JPEGImageDecoder() override;
 
   // ImageDecoder:
@@ -44,12 +47,13 @@ class PLATFORM_EXPORT JPEGImageDecoder final : public ImageDecoder {
   void OnSetData(SegmentReader* data) override;
   IntSize DecodedSize() const override { return decoded_size_; }
   bool SetSize(unsigned width, unsigned height) override;
-  IntSize DecodedYUVSize(int component) const override;
-  size_t DecodedYUVWidthBytes(int component) const override;
-  bool CanDecodeToYUV() override;
+  cc::YUVSubsampling GetYUVSubsampling() const override;
+  IntSize DecodedYUVSize(cc::YUVIndex) const override;
+  size_t DecodedYUVWidthBytes(cc::YUVIndex) const override;
   void DecodeToYUV() override;
-  void SetImagePlanes(std::unique_ptr<ImagePlanes>) override;
-  std::vector<SkISize> GetSupportedDecodeSizes() const override;
+  SkYUVColorSpace GetYUVColorSpace() const override;
+  Vector<SkISize> GetSupportedDecodeSizes() const override;
+
   bool HasImagePlanes() const { return image_planes_.get(); }
 
   bool OutputScanlines();
@@ -60,28 +64,46 @@ class PLATFORM_EXPORT JPEGImageDecoder final : public ImageDecoder {
   void SetOrientation(ImageOrientation orientation) {
     orientation_ = orientation;
   }
+
+  void SetDensityCorrectedSize(const IntSize& size) {
+    density_corrected_size_ = size;
+  }
   void SetDecodedSize(unsigned width, unsigned height);
 
-  void SetSupportedDecodeSizes(std::vector<SkISize> sizes);
-  void SetDecodeToYuvForTesting(bool decode_to_yuv) {
-    decode_to_yuv_for_testing_ = decode_to_yuv;
-  }
+  void SetSupportedDecodeSizes(Vector<SkISize> sizes);
+
+  enum class DecodingMode {
+    // Stop decoding after calculating the image size and parsing the header.
+    kDecodeHeader,
+    // Assumes that YUV decoding is possible. Eg. image planes are set and
+    // CanDecodeToYUV is true.
+    kDecodeToYuv,
+    // For images that can be decoded as YUV, the caller may request
+    // non-YUV decoding anyway. Eg. when bitmap backing is needed.
+    kDecodeToBitmap,
+  };
 
  private:
   // ImageDecoder:
-  void DecodeSize() override { Decode(true); }
-  void Decode(size_t) override { Decode(false); }
+  void DecodeSize() override { Decode(DecodingMode::kDecodeHeader); }
+  void Decode(size_t) override {
+    // Use DecodeToYUV for YUV decoding.
+    Decode(DecodingMode::kDecodeToBitmap);
+  }
+  cc::ImageHeaderMetadata MakeMetadataForDecodeAcceleration() const override;
 
-  // Decodes the image.  If |only_size| is true, stops decoding after
-  // calculating the image size.  If decoding fails but there is no more
+  // Attempts to calculate the coded size of the JPEG image. Returns a zero
+  // initialized gfx::Size upon failure.
+  gfx::Size GetImageCodedSize() const;
+
+  // Decodes the image. If decoding fails but there is no more
   // data coming, sets the "decode failure" flag.
-  void Decode(bool only_size);
+  void Decode(DecodingMode decoding_mode);
 
   std::unique_ptr<JPEGImageReader> reader_;
-  std::unique_ptr<ImagePlanes> image_planes_;
+  const size_t offset_;
   IntSize decoded_size_;
-  std::vector<SkISize> supported_decode_sizes_;
-  bool decode_to_yuv_for_testing_ = false;
+  Vector<SkISize> supported_decode_sizes_;
 
   DISALLOW_COPY_AND_ASSIGN(JPEGImageDecoder);
 };

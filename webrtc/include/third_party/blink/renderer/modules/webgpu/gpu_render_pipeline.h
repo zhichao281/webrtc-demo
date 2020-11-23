@@ -9,18 +9,23 @@
 
 namespace blink {
 
+class GPUBindGroupLayout;
 class GPURenderPipelineDescriptor;
+class ScriptState;
 
-class GPURenderPipeline : public DawnObject<DawnRenderPipeline> {
+class GPURenderPipeline : public DawnObject<WGPURenderPipeline> {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
   static GPURenderPipeline* Create(
+      ScriptState* script_state,
       GPUDevice* device,
       const GPURenderPipelineDescriptor* webgpu_desc);
   explicit GPURenderPipeline(GPUDevice* device,
-                             DawnRenderPipeline render_pipeline);
+                             WGPURenderPipeline render_pipeline);
   ~GPURenderPipeline() override;
+
+  GPUBindGroupLayout* getBindGroupLayout(uint32_t index);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(GPURenderPipeline);

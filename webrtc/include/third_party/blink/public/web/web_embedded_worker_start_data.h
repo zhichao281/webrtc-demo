@@ -32,43 +32,45 @@
 #define THIRD_PARTY_BLINK_PUBLIC_WEB_WEB_EMBEDDED_WORKER_START_DATA_H_
 
 #include "base/unguessable_token.h"
-#include "third_party/blink/public/common/privacy_preferences.h"
-#include "third_party/blink/public/mojom/net/ip_address_space.mojom-shared.h"
+#include "services/metrics/public/cpp/ukm_source_id.h"
+#include "services/network/public/mojom/ip_address_space.mojom-shared.h"
+#include "third_party/blink/public/common/tokens/tokens.h"
+#include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_registration.mojom-shared.h"
-#include "third_party/blink/public/platform/web_content_security_policy.h"
+#include "third_party/blink/public/platform/web_fetch_client_settings_object.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/platform/web_url.h"
-#include "third_party/blink/public/web/web_settings.h"
 
 namespace blink {
 
 struct WebEmbeddedWorkerStartData {
-  enum PauseAfterDownloadMode {
-    kDontPauseAfterDownload,
-    kPauseAfterDownload,
-  };
   enum WaitForDebuggerMode { kDontWaitForDebugger, kWaitForDebugger };
 
   WebURL script_url;
   WebString user_agent;
+  UserAgentMetadata ua_metadata;
   mojom::ScriptType script_type;
-  PauseAfterDownloadMode pause_after_download_mode;
   // Whether to pause the initialization and wait for debugger to attach
   // before proceeding. This technique allows debugging worker startup.
   WaitForDebuggerMode wait_for_debugger_mode;
   // Unique worker token used by DevTools to attribute different instrumentation
   // to the same worker.
   base::UnguessableToken devtools_worker_token;
-  WebSettings::V8CacheOptions v8_cache_options;
+  ukm::SourceId ukm_source_id = ukm::kInvalidSourceId;
 
-  mojom::IPAddressSpace address_space;
+  network::mojom::IPAddressSpace address_space;
 
-  PrivacyPreferences privacy_preferences;
+  WebFetchClientSettingsObject outside_fetch_client_settings_object;
 
-  WebEmbeddedWorkerStartData()
-      : pause_after_download_mode(kDontPauseAfterDownload),
-        wait_for_debugger_mode(kDontWaitForDebugger),
-        v8_cache_options(WebSettings::V8CacheOptions::kDefault) {}
+  // Unique token that identifies this worker across the browser and renderer
+  // processes. This is not persistent across worker restarts.
+  blink::ServiceWorkerToken service_worker_token;
+
+  explicit WebEmbeddedWorkerStartData(
+      WebFetchClientSettingsObject outside_fetch_client_settings_object)
+      : wait_for_debugger_mode(kDontWaitForDebugger),
+        outside_fetch_client_settings_object(
+            std::move(outside_fetch_client_settings_object)) {}
 };
 
 }  // namespace blink

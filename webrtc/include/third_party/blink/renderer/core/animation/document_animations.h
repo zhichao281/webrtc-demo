@@ -31,31 +31,73 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_ANIMATION_DOCUMENT_ANIMATIONS_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_ANIMATION_DOCUMENT_ANIMATIONS_H_
 
-#include "base/optional.h"
-#include "third_party/blink/renderer/core/css/css_property_names.h"
+#include "third_party/blink/renderer/core/animation/animation.h"
 #include "third_party/blink/renderer/core/dom/document_lifecycle.h"
-#include "third_party/blink/renderer/platform/graphics/compositor_element_id.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/heap/member.h"
 
 namespace blink {
 
+class AnimationTimeline;
+class CSSScrollTimeline;
 class Document;
+class PaintArtifactCompositor;
 
-class DocumentAnimations {
-  STATIC_ONLY(DocumentAnimations);
-
+class CORE_EXPORT DocumentAnimations final
+    : public GarbageCollected<DocumentAnimations> {
  public:
-  static void UpdateAnimationTimingForAnimationFrame(Document&);
-  static bool NeedsAnimationTimingUpdate(const Document&);
-  static void UpdateAnimationTimingIfNeeded(Document&);
+  DocumentAnimations(Document*);
+  ~DocumentAnimations() = default;
+
+  uint64_t TransitionGeneration() const {
+    return current_transition_generation_;
+  }
+  void IncrementTrasitionGeneration() { current_transition_generation_++; }
+  void AddTimeline(AnimationTimeline&);
+  void UpdateAnimationTimingForAnimationFrame();
+  bool NeedsAnimationTimingUpdate();
+  void UpdateAnimationTimingIfNeeded();
+  void GetAnimationsTargetingTreeScope(HeapVector<Member<Animation>>&,
+                                       const TreeScope&);
 
   // Updates existing animations as part of generating a new (document
   // lifecycle) frame. Note that this considers and updates state for
   // both composited and non-composited animations.
-  static void UpdateAnimations(
-      Document&,
+  void UpdateAnimations(
       DocumentLifecycle::LifecycleState required_lifecycle_state,
-      const base::Optional<CompositorElementIdSet>&);
+      const PaintArtifactCompositor* paint_artifact_compositor);
+
+  size_t GetAnimationsCount();
+
+  void MarkAnimationsCompositorPending();
+
+  HeapVector<Member<Animation>> getAnimations(const TreeScope&);
+
+  void CacheCSSScrollTimeline(CSSScrollTimeline&);
+  CSSScrollTimeline* FindCachedCSSScrollTimeline(const AtomicString&);
+
+  const HeapHashSet<WeakMember<AnimationTimeline>>& GetTimelinesForTesting()
+      const {
+    return timelines_;
+  }
+  uint64_t current_transition_generation_;
+  void Trace(Visitor*) const;
+
+ protected:
+  using ReplaceableAnimationsMap =
+      HeapHashMap<Member<Element>, Member<HeapVector<Member<Animation>>>>;
+  void RemoveReplacedAnimations(ReplaceableAnimationsMap*);
+
+ private:
+  Member<Document> document_;
+  HeapHashSet<WeakMember<AnimationTimeline>> timelines_;
+
+  // We cache CSSScrollTimelines by name, such that multiple animations using
+  // the same timeline can use the same CSSScrollTimeline instance.
+  //
+  // Note that timelines present in |cached_css_timelines_| are also present
+  // in |timelines_|.
+  HeapHashMap<AtomicString, WeakMember<AnimationTimeline>>
+      cached_css_timelines_;
 };
 
 }  // namespace blink

@@ -15,14 +15,15 @@ enum class PaintInvalidationReason : uint8_t {
   kNone,
   kIncremental,
   kRectangle,
-  kSelection,
   // Hit test changes do not require raster invalidation.
   kHitTest,
   // The following reasons will all cause full paint invalidation.
   // Any unspecified reason of full invalidation.
   kFull,
+  kSelection,
   kStyle,
   // Layout or visual geometry change.
+  kBackplate,
   kGeometry,
   kCompositing,
   kAppeared,

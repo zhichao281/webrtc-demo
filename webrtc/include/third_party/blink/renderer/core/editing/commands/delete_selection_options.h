@@ -7,7 +7,7 @@
 
 #include "base/macros.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
@@ -43,6 +43,8 @@ class CORE_EXPORT DeleteSelectionOptions::Builder final {
 
  public:
   Builder();
+  Builder(const Builder&) = delete;
+  Builder& operator=(const Builder*) = delete;
 
   DeleteSelectionOptions Build() const;
 
@@ -53,8 +55,6 @@ class CORE_EXPORT DeleteSelectionOptions::Builder final {
 
  private:
   DeleteSelectionOptions options_;
-
-  DISALLOW_COPY_AND_ASSIGN(Builder);
 };
 
 }  // namespace blink

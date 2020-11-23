@@ -66,9 +66,9 @@ class LineLayoutInline : public LineLayoutBoxModel {
   LineBoxList* LineBoxes() { return ToInline()->MutableLineBoxes(); }
 
   bool HitTestCulledInline(HitTestResult& result,
-                           const HitTestLocation& location_in_container,
-                           const LayoutPoint& accumulated_offset) {
-    return ToInline()->HitTestCulledInline(result, location_in_container,
+                           const HitTestLocation& hit_test_location,
+                           const PhysicalOffset& accumulated_offset) {
+    return ToInline()->HitTestCulledInline(result, hit_test_location,
                                            accumulated_offset);
   }
 
@@ -83,10 +83,10 @@ class LineLayoutInline : public LineLayoutBoxModel {
   InlineFlowBox* LastLineBox() { return ToInline()->LastLineBox(); }
 
  protected:
-  LayoutInline* ToInline() { return ToLayoutInline(GetLayoutObject()); }
+  LayoutInline* ToInline() { return To<LayoutInline>(GetLayoutObject()); }
 
   const LayoutInline* ToInline() const {
-    return ToLayoutInline(GetLayoutObject());
+    return To<LayoutInline>(GetLayoutObject());
   }
 };
 

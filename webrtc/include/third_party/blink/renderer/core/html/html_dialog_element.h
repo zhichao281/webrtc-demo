@@ -27,6 +27,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_HTML_HTML_DIALOG_ELEMENT_H_
 
 #include "third_party/blink/renderer/core/html/html_element.h"
+#include "third_party/blink/renderer/platform/geometry/layout_unit.h"
 
 namespace blink {
 
@@ -38,8 +39,6 @@ class HTMLDialogElement final : public HTMLElement {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  DECLARE_NODE_FACTORY(HTMLDialogElement);
-
   explicit HTMLDialogElement(Document&);
 
   void close(const String& return_value = String());
@@ -47,17 +46,7 @@ class HTMLDialogElement final : public HTMLElement {
   void showModal(ExceptionState&);
   void RemovedFrom(ContainerNode&) override;
 
-  // NotCentered means do not center the dialog. Centered means the dialog has
-  // been centered and centeredPosition() is set. NeedsCentering means attempt
-  // to center on the next layout, then set to Centered or NotCentered.
-  enum CenteringMode { kNotCentered, kCentered, kNeedsCentering };
-  CenteringMode GetCenteringMode() const { return centering_mode_; }
-  LayoutUnit CenteredPosition() const {
-    DCHECK_EQ(centering_mode_, kCentered);
-    return centered_position_;
-  }
-  void SetCentered(LayoutUnit centered_position);
-  void SetNotCentered();
+  bool IsModal() const { return is_modal_; }
 
   String returnValue() const { return return_value_; }
   void setReturnValue(const String& return_value) {
@@ -68,12 +57,10 @@ class HTMLDialogElement final : public HTMLElement {
   bool IsPresentationAttribute(const QualifiedName&) const override;
   void DefaultEventHandler(Event&) override;
 
-  void ForceLayoutForCentering();
-
+  void SetIsModal(bool is_modal);
   void ScheduleCloseEvent();
 
-  CenteringMode centering_mode_;
-  LayoutUnit centered_position_;
+  bool is_modal_;
   String return_value_;
 };
 

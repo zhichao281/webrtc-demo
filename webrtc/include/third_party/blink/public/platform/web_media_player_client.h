@@ -31,10 +31,13 @@
 #ifndef THIRD_PARTY_BLINK_PUBLIC_PLATFORM_WEB_MEDIA_PLAYER_CLIENT_H_
 #define THIRD_PARTY_BLINK_PUBLIC_PLATFORM_WEB_MEDIA_PLAYER_CLIENT_H_
 
+#include "base/time/time.h"
+#include "third_party/blink/public/common/media/display_type.h"
 #include "third_party/blink/public/platform/web_common.h"
-#include "third_party/blink/public/platform/web_localized_string.h"
 #include "third_party/blink/public/platform/web_media_player.h"
 #include "ui/gfx/color_space.h"
+
+#include "third_party/blink/public/platform/web_texttrack_metadata.h"
 
 namespace cc {
 class Layer;
@@ -68,6 +71,8 @@ class BLINK_PLATFORM_EXPORT WebMediaPlayerClient {
     kAudioTrackKindCommentary
   };
 
+  static const int kMediaRemotingStopNoText = -1;
+
   virtual void NetworkStateChanged() = 0;
   virtual void ReadyStateChanged() = 0;
   virtual void TimeChanged() = 0;
@@ -98,11 +103,6 @@ class BLINK_PLATFORM_EXPORT WebMediaPlayerClient {
   // controls and go fullscreen.
   virtual void OnBecamePersistentVideo(bool) = 0;
 
-  // After the monitoring is activated, the client will inform WebMediaPlayer
-  // when the element becomes/stops being the dominant visible content by
-  // calling WebMediaPlayer::BecameDominantVisibleContent(bool).
-  virtual void ActivateViewportIntersectionMonitoring(bool) = 0;
-
   // Returns whether the media element has always been muted. This is used to
   // avoid take audio focus for elements that the user is not aware is playing.
   virtual bool WasAlwaysMuted() = 0;
@@ -120,12 +120,10 @@ class BLINK_PLATFORM_EXPORT WebMediaPlayerClient {
   virtual void MediaRemotingStarted(
       const WebString& remote_device_friendly_name) = 0;
 
-  // Informs that media stops being rendered remotely. |error_msg| corresponds
+  // Informs that media stops being rendered remotely. |error_code| corresponds
   // to a localized string that explains the reason as user-readable text.
-  virtual void MediaRemotingStopped(WebLocalizedString::Name error_msg) = 0;
-
-  // Informs that Picture-in-Picture mode has stopped for the media element.
-  virtual void PictureInPictureStopped() = 0;
+  // |error_code| should be IDS_FOO or kMediaRemotingStopNoText.
+  virtual void MediaRemotingStopped(int error_code) = 0;
 
   // Returns whether the media element has native controls. It does not mean
   // that the controls are currently visible.
@@ -135,11 +133,14 @@ class BLINK_PLATFORM_EXPORT WebMediaPlayerClient {
   virtual bool IsAudioElement() = 0;
 
   // Returns the current display type of the media element.
-  virtual WebMediaPlayer::DisplayType DisplayType() const = 0;
+  virtual DisplayType GetDisplayType() const = 0;
 
   // Returns the remote playback client associated with the media element, if
   // any.
   virtual WebRemotePlaybackClient* RemotePlaybackClient() { return nullptr; }
+
+  // Returns metadata for out-of-band text tracks declared as <track> elements.
+  virtual std::vector<TextTrackMetadata> GetTextTrackMetadata() = 0;
 
   // Returns the color space to render media into if.
   // Rendering media into this color space may avoid some conversions.
@@ -166,8 +167,11 @@ class BLINK_PLATFORM_EXPORT WebMediaPlayerClient {
   // Request the player to pause playback.
   virtual void RequestPause() = 0;
 
-  // Request the player to mute/unmute.
-  virtual void RequestMuted(bool muted) = 0;
+  // Request the player to enter picture-in-picture.
+  virtual void RequestEnterPictureInPicture() = 0;
+
+  // Request the player to exit picture-in-picture.
+  virtual void RequestExitPictureInPicture() = 0;
 
   // Notify the client that one of the state used by Picture-in-Picture has
   // changed. The client will then have to poll the states from the associated
@@ -177,6 +181,26 @@ class BLINK_PLATFORM_EXPORT WebMediaPlayerClient {
   //  - Surface ID;
   //  - Natural Size.
   virtual void OnPictureInPictureStateChange() = 0;
+
+  // Called when a video frame has been presented to the compositor, after a
+  // request was initiated via WebMediaPlayer::RequestVideoFrameCallback().
+  // See https://wicg.github.io/video-rvfc/.
+  virtual void OnRequestVideoFrameCallback() {}
+
+  struct Features {
+    WebString id;
+    WebString width;
+    WebString parent_id;
+    WebString alt_text;
+    bool is_page_visible;
+    bool is_in_main_frame;
+    WebString url_host;
+    WebString url_path;
+  };
+
+  // Compute and return features for this media element for the media local
+  // learning experiment.
+  virtual Features GetFeatures() = 0;
 
  protected:
   ~WebMediaPlayerClient() = default;

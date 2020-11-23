@@ -5,10 +5,10 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_CSSPAINT_PAINT_WORKLET_GLOBAL_SCOPE_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_CSSPAINT_PAINT_WORKLET_GLOBAL_SCOPE_H_
 
+#include "third_party/blink/public/common/tokens/tokens.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_value.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/workers/worklet_global_scope.h"
-#include "third_party/blink/renderer/modules/csspaint/paint_worklet_pending_generator_registry.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
@@ -17,20 +17,19 @@ namespace blink {
 
 class CSSPaintDefinition;
 class ExceptionState;
+class ScriptState;
 class V8NoArgumentConstructor;
 class WorkerReportingProxy;
 
 class MODULES_EXPORT PaintWorkletGlobalScope final : public WorkletGlobalScope {
   DEFINE_WRAPPERTYPEINFO();
-  USING_GARBAGE_COLLECTED_MIXIN(PaintWorkletGlobalScope);
 
  public:
   // Creates a main-thread bound PaintWorkletGlobalScope.
   static PaintWorkletGlobalScope* Create(
       LocalFrame*,
       std::unique_ptr<GlobalScopeCreationParams>,
-      WorkerReportingProxy&,
-      PaintWorkletPendingGeneratorRegistry*);
+      WorkerReportingProxy&);
 
   // Creates an worklet-thread bound PaintWorkletGlobalScope.
   static PaintWorkletGlobalScope* Create(
@@ -39,22 +38,29 @@ class MODULES_EXPORT PaintWorkletGlobalScope final : public WorkletGlobalScope {
 
   PaintWorkletGlobalScope(LocalFrame*,
                           std::unique_ptr<GlobalScopeCreationParams>,
-                          WorkerReportingProxy&,
-                          PaintWorkletPendingGeneratorRegistry*);
+                          WorkerReportingProxy&);
   PaintWorkletGlobalScope(std::unique_ptr<GlobalScopeCreationParams>,
                           WorkerThread*);
   ~PaintWorkletGlobalScope() override;
   void Dispose() final;
 
   bool IsPaintWorkletGlobalScope() const final { return true; }
-  void registerPaint(const String& name,
+  void registerPaint(const ScriptState* script_state,
+                     const String& name,
                      V8NoArgumentConstructor* paint_ctor,
                      ExceptionState&);
 
   CSSPaintDefinition* FindDefinition(const String& name);
   double devicePixelRatio() const;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
+
+  // Returns the token that uniquely identifies this worklet.
+  const PaintWorkletToken& GetPaintWorkletToken() const { return token_; }
+  WorkletToken GetWorkletToken() const final { return token_; }
+  ExecutionContextToken GetExecutionContextToken() const final {
+    return token_;
+  }
 
  private:
   // Registers the global scope with a proxy client, if not already done. Only
@@ -66,16 +72,13 @@ class MODULES_EXPORT PaintWorkletGlobalScope final : public WorkletGlobalScope {
   typedef HeapHashMap<String, Member<CSSPaintDefinition>> DefinitionMap;
   DefinitionMap paint_definitions_;
 
-  // Only used for main-thread bound PaintWorkletGlobalScopes.
-  // TODO(smcgruer): Move elsewhere for worklet-thread bound
-  // PaintWorkletGlobalScope.
-  Member<PaintWorkletPendingGeneratorRegistry> pending_generator_registry_ =
-      nullptr;
-
   // Tracks whether this PaintWorkletGlobalScope has been registered with a
   // PaintWorkletProxyClient. Only used in worklet-thread bound
   // PaintWorkletGlobalScopes.
   bool registered_ = false;
+
+  // Default initialized to generate a distinct token for this worklet.
+  const PaintWorkletToken token_;
 };
 
 template <>

@@ -7,7 +7,7 @@
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/media_values.h"
-#include "third_party/blink/renderer/platform/cross_thread_copier.h"
+#include "third_party/blink/renderer/platform/wtf/cross_thread_copier.h"
 
 namespace blink {
 
@@ -24,20 +24,24 @@ class CORE_EXPORT MediaValuesCached final : public MediaValues {
     float device_pixel_ratio;
     int color_bits_per_component;
     int monochrome_bits_per_component;
-    PointerType primary_pointer_type;
+    ui::PointerType primary_pointer_type;
     int available_pointer_types;
-    HoverType primary_hover_type;
+    ui::HoverType primary_hover_type;
     int available_hover_types;
     int default_font_size;
     bool three_d_enabled;
     bool immersive_mode;
     bool strict_mode;
     String media_type;
-    WebDisplayMode display_mode;
-    DisplayShape display_shape;
+    blink::mojom::DisplayMode display_mode;
     ColorSpaceGamut color_gamut;
-    PreferredColorScheme preferred_color_scheme;
+    mojom::blink::PreferredColorScheme preferred_color_scheme;
+    mojom::blink::PreferredContrast preferred_contrast;
     bool prefers_reduced_motion;
+    bool prefers_reduced_data = false;
+    ForcedColors forced_colors;
+    NavigationControls navigation_controls;
+    ScreenSpanning screen_spanning;
 
     MediaValuesCachedData();
     explicit MediaValuesCachedData(Document&);
@@ -61,10 +65,14 @@ class CORE_EXPORT MediaValuesCached final : public MediaValues {
       data.strict_mode = strict_mode;
       data.media_type = media_type.IsolatedCopy();
       data.display_mode = display_mode;
-      data.display_shape = display_shape;
       data.color_gamut = color_gamut;
       data.preferred_color_scheme = preferred_color_scheme;
+      data.preferred_contrast = preferred_contrast;
       data.prefers_reduced_motion = prefers_reduced_motion;
+      data.prefers_reduced_data = prefers_reduced_data;
+      data.forced_colors = forced_colors;
+      data.navigation_controls = navigation_controls;
+      data.screen_spanning = screen_spanning;
       return data;
     }
   };
@@ -88,9 +96,9 @@ class CORE_EXPORT MediaValuesCached final : public MediaValues {
   float DevicePixelRatio() const override;
   int ColorBitsPerComponent() const override;
   int MonochromeBitsPerComponent() const override;
-  PointerType PrimaryPointerType() const override;
+  ui::PointerType PrimaryPointerType() const override;
   int AvailablePointerTypes() const override;
-  HoverType PrimaryHoverType() const override;
+  ui::HoverType PrimaryHoverType() const override;
   int AvailableHoverTypes() const override;
   bool ThreeDEnabled() const override;
   bool InImmersiveMode() const override;
@@ -98,11 +106,15 @@ class CORE_EXPORT MediaValuesCached final : public MediaValues {
   Document* GetDocument() const override;
   bool HasValues() const override;
   const String MediaType() const override;
-  WebDisplayMode DisplayMode() const override;
-  DisplayShape GetDisplayShape() const override;
+  blink::mojom::DisplayMode DisplayMode() const override;
   ColorSpaceGamut ColorGamut() const override;
-  PreferredColorScheme GetPreferredColorScheme() const override;
+  mojom::blink::PreferredColorScheme GetPreferredColorScheme() const override;
+  mojom::blink::PreferredContrast GetPreferredContrast() const override;
   bool PrefersReducedMotion() const override;
+  bool PrefersReducedData() const override;
+  ForcedColors GetForcedColors() const override;
+  NavigationControls GetNavigationControls() const override;
+  ScreenSpanning GetScreenSpanning() const override;
 
   void OverrideViewportDimensions(double width, double height) override;
 
@@ -110,14 +122,16 @@ class CORE_EXPORT MediaValuesCached final : public MediaValues {
   MediaValuesCachedData data_;
 };
 
+}  // namespace blink
+
+namespace WTF {
+
 template <>
-struct CrossThreadCopier<MediaValuesCached::MediaValuesCachedData> {
-  typedef MediaValuesCached::MediaValuesCachedData Type;
-  static Type Copy(const MediaValuesCached::MediaValuesCachedData& data) {
-    return data.DeepCopy();
-  }
+struct CrossThreadCopier<blink::MediaValuesCached::MediaValuesCachedData> {
+  typedef blink::MediaValuesCached::MediaValuesCachedData Type;
+  static Type Copy(const Type& data) { return data.DeepCopy(); }
 };
 
-}  // namespace blink
+}  // namespace WTF
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_CSS_MEDIA_VALUES_CACHED_H_

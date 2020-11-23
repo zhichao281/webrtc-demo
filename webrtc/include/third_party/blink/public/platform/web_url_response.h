@@ -33,15 +33,24 @@
 
 #include <memory>
 
+#include "base/optional.h"
 #include "base/time/time.h"
+#include "net/base/ip_endpoint.h"
 #include "net/cert/ct_policy_status.h"
 #include "net/http/http_response_info.h"
-#include "services/network/public/mojom/fetch_api.mojom-shared.h"
-#include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-shared.h"
+#include "third_party/blink/public/common/security/security_style.h"
 #include "third_party/blink/public/platform/web_common.h"
-#include "third_party/blink/public/platform/web_security_style.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/platform/web_vector.h"
+
+namespace network {
+namespace mojom {
+enum class FetchResponseSource;
+enum class FetchResponseType : int32_t;
+enum class IPAddressSpace : int32_t;
+class LoadTimingInfo;
+}
+}  // namespace network
 
 namespace blink {
 
@@ -49,7 +58,6 @@ class ResourceResponse;
 class WebHTTPHeaderVisitor;
 class WebHTTPLoadInfo;
 class WebURL;
-class WebURLLoadTiming;
 
 class WebURLResponse {
  public:
@@ -168,10 +176,12 @@ class WebURLResponse {
 
   BLINK_PLATFORM_EXPORT void SetConnectionReused(bool);
 
-  BLINK_PLATFORM_EXPORT void SetLoadTiming(const WebURLLoadTiming&);
+  BLINK_PLATFORM_EXPORT void SetLoadTiming(
+      const network::mojom::LoadTimingInfo&);
 
   BLINK_PLATFORM_EXPORT void SetHTTPLoadInfo(const WebHTTPLoadInfo&);
 
+  BLINK_PLATFORM_EXPORT base::Time ResponseTime() const;
   BLINK_PLATFORM_EXPORT void SetResponseTime(base::Time);
 
   BLINK_PLATFORM_EXPORT WebString MimeType() const;
@@ -211,11 +221,14 @@ class WebURLResponse {
   BLINK_PLATFORM_EXPORT void SetHasMajorCertificateErrors(bool);
   BLINK_PLATFORM_EXPORT void SetCTPolicyCompliance(net::ct::CTPolicyCompliance);
   BLINK_PLATFORM_EXPORT void SetIsLegacyTLSVersion(bool);
+  BLINK_PLATFORM_EXPORT void SetHasRangeRequested(bool);
+  BLINK_PLATFORM_EXPORT void SetTimingAllowPassed(bool);
 
-  BLINK_PLATFORM_EXPORT void SetSecurityStyle(WebSecurityStyle);
+  BLINK_PLATFORM_EXPORT void SetSecurityStyle(SecurityStyle);
 
   BLINK_PLATFORM_EXPORT void SetSecurityDetails(const WebSecurityDetails&);
-  BLINK_PLATFORM_EXPORT WebSecurityDetails SecurityDetailsForTesting();
+  BLINK_PLATFORM_EXPORT base::Optional<WebSecurityDetails>
+  SecurityDetailsForTesting();
 
   BLINK_PLATFORM_EXPORT void SetAsyncRevalidationRequested(bool);
   BLINK_PLATFORM_EXPORT void SetNetworkAccessed(bool);
@@ -229,16 +242,22 @@ class WebURLResponse {
 
   // Flag whether this request was loaded via the SPDY protocol or not.
   // SPDY is an experimental web protocol, see http://dev.chromium.org/spdy
+  BLINK_PLATFORM_EXPORT bool WasFetchedViaSPDY() const;
   BLINK_PLATFORM_EXPORT void SetWasFetchedViaSPDY(bool);
 
   // Flag whether this request was loaded via a ServiceWorker. See
-  // ServiceWorkerResponseInfo::was_fetched_via_service_worker() for details.
+  // network::ResourceResponseInfo::was_fetched_via_service_worker for details.
   BLINK_PLATFORM_EXPORT bool WasFetchedViaServiceWorker() const;
   BLINK_PLATFORM_EXPORT void SetWasFetchedViaServiceWorker(bool);
 
-  // Flag whether the fallback request with skip service worker flag was
-  // required. See ServiceWorkerResponseInfo::was_fallback_required() for
-  // details.
+  // Set when this request was loaded via a ServiceWorker. See
+  // network::ResourceResponseInfo::service_worker_response_source for details.
+  BLINK_PLATFORM_EXPORT network::mojom::FetchResponseSource
+  GetServiceWorkerResponseSource() const;
+  BLINK_PLATFORM_EXPORT void SetServiceWorkerResponseSource(
+      network::mojom::FetchResponseSource);
+
+  // See network::ResourceResponseInfo::was_fallback_required_by_service_worker.
   BLINK_PLATFORM_EXPORT void SetWasFallbackRequiredByServiceWorker(bool);
 
   // https://fetch.spec.whatwg.org/#concept-response-type
@@ -246,8 +265,8 @@ class WebURLResponse {
   BLINK_PLATFORM_EXPORT network::mojom::FetchResponseType GetType() const;
 
   // The URL list of the Response object the ServiceWorker passed to
-  // respondWith(). See ServiceWorkerResponseInfo::url_list_via_service_worker()
-  // for details.
+  // respondWith(). See
+  // network::ResourceResponseInfo::url_list_via_service_worker for details.
   BLINK_PLATFORM_EXPORT void SetUrlListViaServiceWorker(
       const WebVector<WebURL>&);
   // Returns true if the URL list is not empty.
@@ -255,6 +274,7 @@ class WebURLResponse {
 
   // The cache name of the CacheStorage from where the response is served via
   // the ServiceWorker. Null if the response isn't from the CacheStorage.
+  BLINK_PLATFORM_EXPORT WebString CacheStorageCacheName() const;
   BLINK_PLATFORM_EXPORT void SetCacheStorageCacheName(const WebString&);
 
   // The headers that should be exposed according to CORS. Only guaranteed
@@ -264,21 +284,26 @@ class WebURLResponse {
       const WebVector<WebString>&);
 
   // Whether service worker navigation preload occurred.
-  // See ServiceWorkerResponseInfo::did_navigation_preload() for
-  // details.
+  // See network::ResourceResponseInfo::did_navigation_preload for details.
   BLINK_PLATFORM_EXPORT void SetDidServiceWorkerNavigationPreload(bool);
 
-  // Remote IP address of the socket which fetched this resource.
-  BLINK_PLATFORM_EXPORT WebString RemoteIPAddress() const;
-  BLINK_PLATFORM_EXPORT void SetRemoteIPAddress(const WebString&);
+  // Remote IP endpoint of the socket which fetched this resource.
+  BLINK_PLATFORM_EXPORT net::IPEndPoint RemoteIPEndpoint() const;
+  BLINK_PLATFORM_EXPORT void SetRemoteIPEndpoint(const net::IPEndPoint&);
 
-  // Remote port number of the socket which fetched this resource.
-  BLINK_PLATFORM_EXPORT uint16_t RemotePort() const;
-  BLINK_PLATFORM_EXPORT void SetRemotePort(uint16_t);
+  // Address space from which this resource was fetched.
+  BLINK_PLATFORM_EXPORT network::mojom::IPAddressSpace AddressSpace() const;
+  BLINK_PLATFORM_EXPORT void SetAddressSpace(network::mojom::IPAddressSpace);
 
   // ALPN negotiated protocol of the socket which fetched this resource.
+  BLINK_PLATFORM_EXPORT bool WasAlpnNegotiated() const;
+  BLINK_PLATFORM_EXPORT void SetWasAlpnNegotiated(bool);
   BLINK_PLATFORM_EXPORT WebString AlpnNegotiatedProtocol() const;
   BLINK_PLATFORM_EXPORT void SetAlpnNegotiatedProtocol(const WebString&);
+
+  // Whether the response could use alternate protocol.
+  BLINK_PLATFORM_EXPORT bool WasAlternateProtocolAvailable() const;
+  BLINK_PLATFORM_EXPORT void SetWasAlternateProtocolAvailable(bool);
 
   // Information about the type of connection used to fetch this resource.
   BLINK_PLATFORM_EXPORT net::HttpResponseInfo::ConnectionInfo ConnectionInfo()
@@ -289,7 +314,18 @@ class WebURLResponse {
   // Original size of the response before decompression.
   BLINK_PLATFORM_EXPORT void SetEncodedDataLength(int64_t);
 
+  // Original size of the response body before decompression.
+  BLINK_PLATFORM_EXPORT int64_t EncodedBodyLength() const;
+  BLINK_PLATFORM_EXPORT void SetEncodedBodyLength(int64_t);
+
   BLINK_PLATFORM_EXPORT void SetIsSignedExchangeInnerResponse(bool);
+  BLINK_PLATFORM_EXPORT void SetWasInPrefetchCache(bool);
+  BLINK_PLATFORM_EXPORT void SetWasCookieInRequest(bool);
+  BLINK_PLATFORM_EXPORT void SetRecursivePrefetchToken(
+      const base::Optional<base::UnguessableToken>&);
+
+  // Whether this resource is from a MHTML archive.
+  BLINK_PLATFORM_EXPORT bool FromArchive() const;
 
 #if INSIDE_BLINK
  protected:

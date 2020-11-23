@@ -26,11 +26,13 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_FONTS_FONT_DESCRIPTION_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_FONTS_FONT_DESCRIPTION_H_
 
-#include "SkFontStyle.h"
+#include <unicode/uscript.h>
+
 #include "base/memory/scoped_refptr.h"
 #include "third_party/blink/renderer/platform/font_family_names.h"
 #include "third_party/blink/renderer/platform/fonts/font_cache_key.h"
 #include "third_party/blink/renderer/platform/fonts/font_family.h"
+#include "third_party/blink/renderer/platform/fonts/font_optical_sizing.h"
 #include "third_party/blink/renderer/platform/fonts/font_orientation.h"
 #include "third_party/blink/renderer/platform/fonts/font_selection_types.h"
 #include "third_party/blink/renderer/platform/fonts/font_smoothing_mode.h"
@@ -41,10 +43,9 @@
 #include "third_party/blink/renderer/platform/fonts/text_rendering_mode.h"
 #include "third_party/blink/renderer/platform/fonts/typesetting_features.h"
 #include "third_party/blink/renderer/platform/text/layout_locale.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
-
-#include <unicode/uscript.h>
+#include "third_party/skia/include/core/SkFontStyle.h"
 
 namespace blink {
 
@@ -55,6 +56,12 @@ class PLATFORM_EXPORT FontDescription {
   USING_FAST_MALLOC(FontDescription);
 
  public:
+  enum HashCategory {
+    kHashEmptyValue = 0,
+    kHashDeletedValue,
+    kHashRegularValue
+  };
+
   enum GenericFamilyType {
     kNoFamily,
     kStandardFamily,
@@ -62,8 +69,7 @@ class PLATFORM_EXPORT FontDescription {
     kSansSerifFamily,
     kMonospaceFamily,
     kCursiveFamily,
-    kFantasyFamily,
-    kPictographFamily
+    kFantasyFamily
   };
   static String ToString(GenericFamilyType);
 
@@ -90,6 +96,9 @@ class PLATFORM_EXPORT FontDescription {
 
   FontDescription();
   FontDescription(const FontDescription&);
+
+  static FontDescription CreateHashTableEmptyValue();
+  explicit FontDescription(WTF::HashTableDeletedValueType);
 
   FontDescription& operator=(const FontDescription&);
 
@@ -206,6 +215,9 @@ class PLATFORM_EXPORT FontDescription {
   FontSmoothingMode FontSmoothing() const {
     return static_cast<FontSmoothingMode>(fields_.font_smoothing_);
   }
+  OpticalSizing FontOpticalSizing() const {
+    return static_cast<OpticalSizing>(fields_.font_optical_sizing_);
+  }
   TextRenderingMode TextRendering() const {
     return static_cast<TextRenderingMode>(fields_.text_rendering_);
   }
@@ -282,6 +294,9 @@ class PLATFORM_EXPORT FontDescription {
   void SetFontSmoothing(FontSmoothingMode smoothing) {
     fields_.font_smoothing_ = smoothing;
   }
+  void SetFontOpticalSizing(OpticalSizing font_optical_sizing) {
+    fields_.font_optical_sizing_ = font_optical_sizing;
+  }
   void SetTextRendering(TextRenderingMode rendering) {
     fields_.text_rendering_ = rendering;
     UpdateTypesettingFeatures();
@@ -322,7 +337,7 @@ class PLATFORM_EXPORT FontDescription {
   }
   static bool SubpixelPositioning() { return use_subpixel_text_positioning_; }
 
-  void SetSubpixelAscentDescent(bool sp) const {
+  void SetSubpixelAscentDescent(bool sp) {
     fields_.subpixel_ascent_descent_ = sp;
   }
 
@@ -330,10 +345,28 @@ class PLATFORM_EXPORT FontDescription {
     return fields_.subpixel_ascent_descent_;
   }
 
+  void SetHashCategory(HashCategory category) {
+    fields_.hash_category_ = category;
+  }
+
+  HashCategory GetHashCategory() const {
+    return static_cast<HashCategory>(fields_.hash_category_);
+  }
+
+  bool IsHashTableEmptyValue() const {
+    return GetHashCategory() == kHashEmptyValue;
+  }
+
+  bool IsHashTableDeletedValue() const {
+    return GetHashCategory() == kHashDeletedValue;
+  }
+
   static void SetDefaultTypesettingFeatures(TypesettingFeatures);
   static TypesettingFeatures DefaultTypesettingFeatures();
 
   unsigned StyleHashWithoutFamilyList() const;
+  unsigned GetHash() const;
+
   // TODO(drott): We should not expose internal structure here, but rather
   // introduce a hash function here.
   unsigned BitmapFields() const { return fields_as_unsigned_.parts[0]; }
@@ -342,6 +375,8 @@ class PLATFORM_EXPORT FontDescription {
   }
 
   SkFontStyle SkiaFontStyle() const;
+
+  void UpdateFromSkiaFontStyle(const SkFontStyle& font_style);
 
   int MinimumPrefixWidthToHyphenate() const;
 
@@ -412,7 +447,10 @@ class PLATFORM_EXPORT FontDescription {
     unsigned typesetting_features_ : 3;
     unsigned variant_numeric_ : 8;
     unsigned variant_east_asian_ : 6;
-    mutable unsigned subpixel_ascent_descent_ : 1;
+    unsigned subpixel_ascent_descent_ : 1;
+    unsigned font_optical_sizing_ : 1;
+
+    unsigned hash_category_ : 2;  // HashCategory
   };
 
   static_assert(sizeof(BitFields) == sizeof(FieldsAsUnsignedType),
@@ -427,6 +465,47 @@ class PLATFORM_EXPORT FontDescription {
   static bool use_subpixel_text_positioning_;
 };
 
+struct FontDescriptionHash {
+  STATIC_ONLY(FontDescriptionHash);
+
+  static unsigned GetHash(const FontDescription& description) {
+    return description.GetHash();
+  }
+
+  static bool Equal(const FontDescription& a, const FontDescription& b) {
+    return a == b;
+  }
+
+  // Empty and deleted FontDescriptions have different HashCategory flag values
+  // from all regular FontDescriptions.
+  static const bool safe_to_compare_to_empty_or_deleted = true;
+};
+
 }  // namespace blink
+
+namespace WTF {
+
+template <typename T>
+struct DefaultHash;
+template <>
+struct DefaultHash<blink::FontDescription> {
+  using Hash = blink::FontDescriptionHash;
+};
+
+template <typename T>
+struct HashTraits;
+template <>
+struct HashTraits<blink::FontDescription>
+    : SimpleClassHashTraits<blink::FontDescription> {
+  // FontDescription default constructor creates a regular value instead of the
+  // empty value.
+  static const blink::FontDescription& EmptyValue() {
+    DEFINE_STATIC_LOCAL(blink::FontDescription, empty_value,
+                        (blink::FontDescription::CreateHashTableEmptyValue()));
+    return empty_value;
+  }
+};
+
+}  // namespace WTF
 
 #endif

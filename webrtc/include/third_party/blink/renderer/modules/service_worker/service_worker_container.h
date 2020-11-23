@@ -32,36 +32,36 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_SERVICE_WORKER_SERVICE_WORKER_CONTAINER_H_
 
 #include <memory>
-#include <vector>
 
-#include "third_party/blink/public/mojom/service_worker/service_worker_registration.mojom-blink.h"
+#include "third_party/blink/public/mojom/service_worker/service_worker_registration.mojom-blink-forward.h"
 #include "third_party/blink/public/platform/modules/service_worker/web_service_worker_provider.h"
 #include "third_party/blink/public/platform/modules/service_worker/web_service_worker_provider_client.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_property.h"
-#include "third_party/blink/renderer/core/dom/document.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_registration_options.h"
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
-#include "third_party/blink/renderer/core/execution_context/context_lifecycle_observer.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/modules/service_worker/message_from_service_worker.h"
-#include "third_party/blink/renderer/modules/service_worker/registration_options.h"
 #include "third_party/blink/renderer/modules/service_worker/service_worker.h"
 #include "third_party/blink/renderer/modules/service_worker/service_worker_registration.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
+#include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
 
 class ExecutionContext;
+class ExceptionState;
+class LocalDOMWindow;
 
 class MODULES_EXPORT ServiceWorkerContainer final
     : public EventTargetWithInlineData,
-      public Supplement<Document>,
-      public ContextLifecycleObserver,
+      public Supplement<LocalDOMWindow>,
+      public ExecutionContextLifecycleObserver,
       public WebServiceWorkerProviderClient {
   DEFINE_WRAPPERTYPEINFO();
-  USING_GARBAGE_COLLECTED_MIXIN(ServiceWorkerContainer);
 
  public:
   using RegistrationCallbacks =
@@ -69,19 +69,19 @@ class MODULES_EXPORT ServiceWorkerContainer final
 
   static const char kSupplementName[];
 
-  static ServiceWorkerContainer* From(Document*);
+  static ServiceWorkerContainer* From(LocalDOMWindow&);
 
   static ServiceWorkerContainer* CreateForTesting(
-      Document*,
+      LocalDOMWindow&,
       std::unique_ptr<WebServiceWorkerProvider>);
 
-  explicit ServiceWorkerContainer(Document*);
+  explicit ServiceWorkerContainer(LocalDOMWindow&);
   ~ServiceWorkerContainer() override;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
   ServiceWorker* controller() { return controller_; }
-  ScriptPromise ready(ScriptState*);
+  ScriptPromise ready(ScriptState*, ExceptionState&);
 
   ScriptPromise registerServiceWorker(ScriptState*,
                                       const String& pattern,
@@ -91,7 +91,7 @@ class MODULES_EXPORT ServiceWorkerContainer final
 
   void startMessages();
 
-  void ContextDestroyed(ExecutionContext*) override;
+  void ContextDestroyed() override;
 
   // WebServiceWorkerProviderClient implementation.
   void SetController(WebServiceWorkerObjectInfo,
@@ -109,6 +109,8 @@ class MODULES_EXPORT ServiceWorkerContainer final
   void setOnmessage(EventListener* listener);
   EventListener* onmessage();
 
+  DEFINE_ATTRIBUTE_EVENT_LISTENER(messageerror, kMessageerror)
+
   // Returns the ServiceWorkerRegistration object described by the given info.
   // Creates a new object if needed, or else returns the existing one.
   ServiceWorkerRegistration* GetOrCreateServiceWorkerRegistration(
@@ -122,8 +124,7 @@ class MODULES_EXPORT ServiceWorkerContainer final
   class DomContentLoadedListener;
 
   using ReadyProperty =
-      ScriptPromiseProperty<Member<ServiceWorkerContainer>,
-                            Member<ServiceWorkerRegistration>,
+      ScriptPromiseProperty<Member<ServiceWorkerRegistration>,
                             Member<ServiceWorkerRegistration>>;
   ReadyProperty* CreateReadyProperty();
 
@@ -157,7 +158,7 @@ class MODULES_EXPORT ServiceWorkerContainer final
   // queue using this flag since the task runner is shared with other task
   // sources.
   bool is_client_message_queue_enabled_ = false;
-  std::vector<std::unique_ptr<MessageFromServiceWorker>> queued_messages_;
+  Vector<std::unique_ptr<MessageFromServiceWorker>> queued_messages_;
   Member<DomContentLoadedListener> dom_content_loaded_observer_;
 };
 

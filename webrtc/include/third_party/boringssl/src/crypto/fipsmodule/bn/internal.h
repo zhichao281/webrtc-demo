@@ -404,9 +404,19 @@ uint64_t bn_mont_n0(const BIGNUM *n);
 int bn_mod_exp_base_2_consttime(BIGNUM *r, unsigned p, const BIGNUM *n,
                                 BN_CTX *ctx);
 
-#if defined(OPENSSL_X86_64) && defined(_MSC_VER)
+#if defined(_MSC_VER)
+#if defined(OPENSSL_X86_64)
 #define BN_UMULT_LOHI(low, high, a, b) ((low) = _umul128((a), (b), &(high)))
+#elif defined(OPENSSL_AARCH64)
+#define BN_UMULT_LOHI(low, high, a, b) \
+  do {                                 \
+    const BN_ULONG _a = (a);           \
+    const BN_ULONG _b = (b);           \
+    (low) = _a * _b;                   \
+    (high) = __umulh(_a, _b);          \
+  } while (0)
 #endif
+#endif  // _MSC_VER
 
 #if !defined(BN_ULLONG) && !defined(BN_UMULT_LOHI)
 #error "Either BN_ULLONG or BN_UMULT_LOHI must be defined on every platform."
@@ -436,6 +446,40 @@ OPENSSL_EXPORT uint16_t bn_mod_u16_consttime(const BIGNUM *bn, uint16_t d);
 // bn_odd_number_is_obviously_composite returns one if |bn| is divisible by one
 // of the first several odd primes and zero otherwise.
 int bn_odd_number_is_obviously_composite(const BIGNUM *bn);
+
+// A BN_MILLER_RABIN stores state common to each Miller-Rabin iteration. It is
+// initialized within an existing |BN_CTX| scope and may not be used after
+// that scope is released with |BN_CTX_end|. Field names match those in FIPS
+// 186-4, section C.3.1.
+typedef struct {
+  // w1 is w-1.
+  BIGNUM *w1;
+  // m is (w-1)/2^a.
+  BIGNUM *m;
+  // one_mont is 1 (mod w) in Montgomery form.
+  BIGNUM *one_mont;
+  // w1_mont is w-1 (mod w) in Montgomery form.
+  BIGNUM *w1_mont;
+  // w_bits is BN_num_bits(w).
+  int w_bits;
+  // a is the largest integer such that 2^a divides w-1.
+  int a;
+} BN_MILLER_RABIN;
+
+// bn_miller_rabin_init initializes |miller_rabin| for testing if |mont->N| is
+// prime. It returns one on success and zero on error.
+OPENSSL_EXPORT int bn_miller_rabin_init(BN_MILLER_RABIN *miller_rabin,
+                                        const BN_MONT_CTX *mont, BN_CTX *ctx);
+
+// bn_miller_rabin_iteration performs one Miller-Rabin iteration, checking if
+// |b| is a composite witness for |mont->N|. |miller_rabin| must have been
+// initialized with |bn_miller_rabin_setup|. On success, it returns one and sets
+// |*out_is_possibly_prime| to one if |mont->N| may still be prime or zero if
+// |b| shows it is composite. On allocation or internal failure, it returns
+// zero.
+OPENSSL_EXPORT int bn_miller_rabin_iteration(
+    const BN_MILLER_RABIN *miller_rabin, int *out_is_possibly_prime,
+    const BIGNUM *b, const BN_MONT_CTX *mont, BN_CTX *ctx);
 
 // bn_rshift1_words sets |r| to |a| >> 1, where both arrays are |num| bits wide.
 void bn_rshift1_words(BN_ULONG *r, const BN_ULONG *a, size_t num);
@@ -613,10 +657,13 @@ void bn_to_montgomery_small(BN_ULONG *r, const BN_ULONG *a, size_t num,
                             const BN_MONT_CTX *mont);
 
 // bn_from_montgomery_small sets |r| to |a| translated out of the Montgomery
-// domain. |r| and |a| are |num| words long, which must be |mont->N.width|. |a|
-// must be fully-reduced and may alias |r|.
-void bn_from_montgomery_small(BN_ULONG *r, const BN_ULONG *a, size_t num,
-                              const BN_MONT_CTX *mont);
+// domain. |r| and |a| are |num_r| and |num_a| words long, respectively. |num_r|
+// must be |mont->N.width|. |a| must be at most |mont->N|^2 and may alias |r|.
+//
+// Unlike most of these functions, only |num_r| is bounded by
+// |BN_SMALL_MAX_WORDS|. |num_a| may exceed it, but must be at most 2 * |num_r|.
+void bn_from_montgomery_small(BN_ULONG *r, size_t num_r, const BN_ULONG *a,
+                              size_t num_a, const BN_MONT_CTX *mont);
 
 // bn_mod_mul_montgomery_small sets |r| to |a| * |b| mod |mont->N|. Both inputs
 // and outputs are in the Montgomery domain. Each array is |num| words long,
@@ -641,13 +688,13 @@ void bn_mod_exp_mont_small(BN_ULONG *r, const BN_ULONG *a, size_t num,
                            const BN_ULONG *p, size_t num_p,
                            const BN_MONT_CTX *mont);
 
-// bn_mod_inverse_prime_mont_small sets |r| to |a|^-1 mod |mont->N|. |mont->N|
-// must be a prime. |r| and |a| are |num| words long, which must be
-// |mont->N.width| and at most |BN_SMALL_MAX_WORDS|. |a| must be fully-reduced
-// and may alias |r|. This function runs in time independent of |a|, but
-// |mont->N| is a public value.
-void bn_mod_inverse_prime_mont_small(BN_ULONG *r, const BN_ULONG *a, size_t num,
-                                     const BN_MONT_CTX *mont);
+// bn_mod_inverse0_prime_mont_small sets |r| to |a|^-1 mod |mont->N|. If |a| is
+// zero, |r| is set to zero. |mont->N| must be a prime. |r| and |a| are |num|
+// words long, which must be |mont->N.width| and at most |BN_SMALL_MAX_WORDS|.
+// |a| must be fully-reduced and may alias |r|. This function runs in time
+// independent of |a|, but |mont->N| is a public value.
+void bn_mod_inverse0_prime_mont_small(BN_ULONG *r, const BN_ULONG *a,
+                                      size_t num, const BN_MONT_CTX *mont);
 
 
 #if defined(__cplusplus)

@@ -38,27 +38,51 @@ namespace blink {
 class DocumentFragment;
 class TemplateContentDocumentFragment;
 
+enum class DeclarativeShadowRootType {
+  kNone,
+  kOpen,
+  kClosed,
+};
+
 class CORE_EXPORT HTMLTemplateElement final : public HTMLElement {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  DECLARE_NODE_FACTORY(HTMLTemplateElement);
-
   explicit HTMLTemplateElement(Document&);
   ~HTMLTemplateElement() override;
 
   bool HasNonInBodyInsertionMode() const override { return true; }
 
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
 
   DocumentFragment* content() const;
+
+  // This gives direct access to ContentInternal, and should *only*
+  // be used by HTMLConstructionSite.
+  DocumentFragment* TemplateContentForHTMLConstructionSite() const {
+    return ContentInternal();
+  }
+
+  DocumentFragment* DeclarativeShadowContent() const;
+  void SetDeclarativeShadowRootType(DeclarativeShadowRootType val) {
+    declarative_shadow_root_type_ = val;
+  }
+  DeclarativeShadowRootType GetDeclarativeShadowRootType() const {
+    return declarative_shadow_root_type_;
+  }
+  bool IsDeclarativeShadowRoot() const {
+    return declarative_shadow_root_type_ != DeclarativeShadowRootType::kNone;
+  }
 
  private:
   void CloneNonAttributePropertiesFrom(const Element&,
                                        CloneChildrenFlag) override;
   void DidMoveToNewDocument(Document& old_document) override;
 
+  DocumentFragment* ContentInternal() const;
+
   mutable Member<TemplateContentDocumentFragment> content_;
+  DeclarativeShadowRootType declarative_shadow_root_type_;
 };
 
 }  // namespace blink

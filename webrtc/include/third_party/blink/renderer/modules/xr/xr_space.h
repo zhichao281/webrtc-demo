@@ -7,6 +7,8 @@
 
 #include <memory>
 
+#include "base/optional.h"
+#include "device/vr/public/mojom/vr_service.mojom-blink.h"
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
 #include "third_party/blink/renderer/core/typed_arrays/dom_typed_array.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
@@ -24,38 +26,81 @@ class XRSession;
 class XRSpace : public EventTargetWithInlineData {
   DEFINE_WRAPPERTYPEINFO();
 
+ protected:
+  explicit XRSpace(XRSession* session);
+
  public:
-  explicit XRSpace(XRSession*);
   ~XRSpace() override;
 
-  // Get a transform that maps from this space to mojo space.
-  // Returns nullptr if computing a transform is not possible.
-  virtual std::unique_ptr<TransformationMatrix> GetTransformToMojoSpace();
+  // Gets the pose of this space's native origin in mojo space. This transform
+  // maps from this space's native origin to mojo space (aka device space).
+  // Unless noted otherwise, all data returned over vr_service.mojom interfaces
+  // is expressed in mojo space coordinates.
+  // Returns nullopt if computing a transform is not possible.
+  virtual base::Optional<TransformationMatrix> MojoFromNative() = 0;
 
-  virtual std::unique_ptr<TransformationMatrix> DefaultPose();
-  virtual std::unique_ptr<TransformationMatrix> TransformBasePose(
-      const TransformationMatrix& base_pose);
-  virtual std::unique_ptr<TransformationMatrix> TransformBaseInputPose(
-      const TransformationMatrix& base_input_pose,
-      const TransformationMatrix& base_pose);
+  // Convenience method to try to get the inverse of the above. This will return
+  // the pose of the mojo origin in this space's native origin.
+  // Returns nullopt if computing a transform is not possible.
+  base::Optional<TransformationMatrix> NativeFromMojo();
 
-  virtual XRPose* getPose(
-      XRSpace* other_space,
-      std::unique_ptr<TransformationMatrix> base_pose_matrix);
-  std::unique_ptr<TransformationMatrix> GetViewerPoseMatrix(
-      std::unique_ptr<TransformationMatrix> base_pose_matrix);
+  // Gets the viewer pose in the native coordinates of this space, corresponding
+  // to a transform from viewer coordinates to this space's native coordinates.
+  // (The position elements of the transformation matrix are the viewer's
+  // location in this space's coordinates.)
+  // Prefer this helper method over querying NativeFromMojo and multiplying
+  // on the calling side, as this allows the viewer space to return identity
+  // instead of something near to, but not quite, identity.
+  // Returns nullopt if computing a transform is not possible.
+  virtual base::Optional<TransformationMatrix> NativeFromViewer(
+      const base::Optional<TransformationMatrix>& mojo_from_viewer);
+
+  // Convenience method for calling NativeFromViewer with the current
+  // MojoFromViewer of the session associated with this space. This also handles
+  // the multiplication of OffsetFromNative onto the result of NativeFromViewer.
+  // Returns nullopt if computing a transform is not possible.
+  base::Optional<TransformationMatrix> OffsetFromViewer();
+
+  // Return origin offset matrix, aka native_origin_from_offset_space.
+  virtual TransformationMatrix NativeFromOffsetMatrix();
+  virtual TransformationMatrix OffsetFromNativeMatrix();
+
+  // Returns transformation from offset space to mojo space. Convenience method,
+  // returns MojoFromNative() * NativeFromOffsetMatrix() or nullopt if computing
+  // a transform is not possible.
+  base::Optional<TransformationMatrix> MojoFromOffsetMatrix();
+
+  // Returns true when invoked on a space that is deemed stationary, false
+  // otherwise (this means that the space is considered dynamic). Stationary
+  // spaces are the spaces that should remain stable relative to the environment
+  // over longer periods (i.e. longer than a single frame). Examples of
+  // stationary spaces are for XRReferenceSpaces (with the exception of "viewer"
+  // space), anchor spaces, plane spaces. Examples of dynamic spaces are input
+  // source spaces and XRReference space of type "viewer".
+  virtual bool IsStationary() const = 0;
+
+  // Indicates whether or not the position portion of the native origin of this
+  // space is emulated.
+  virtual bool EmulatedPosition() const;
+
+  // Gets the pose of this space's origin in |other_space|. This is a transform
+  // that maps from this space to the other's space, or in other words:
+  // other_from_this.
+  virtual XRPose* getPose(XRSpace* other_space);
 
   XRSession* session() const { return session_; }
 
-  DEFINE_ATTRIBUTE_EVENT_LISTENER(reset, kReset)
+  // ToString() helper, used for debugging.
+  virtual std::string ToString() const = 0;
 
   // EventTarget overrides.
   ExecutionContext* GetExecutionContext() const override;
   const AtomicString& InterfaceName() const override;
 
-  virtual TransformationMatrix InverseOriginOffsetMatrix();
+  virtual base::Optional<device::mojom::blink::XRNativeOriginInformation>
+  NativeOrigin() const = 0;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor* visitor) const override;
 
  private:
   const Member<XRSession> session_;

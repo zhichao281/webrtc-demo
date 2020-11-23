@@ -28,6 +28,7 @@
 
 #include "base/gtest_prod_util.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/synchronization/waitable_event.h"
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
 #include "third_party/blink/renderer/modules/webaudio/audio_node.h"
@@ -51,7 +52,9 @@ class WaitableEvent;
 // periodically with an AudioProcessingEvent which has AudioBuffers for each
 // input and output.
 
-class ScriptProcessorHandler final : public AudioHandler {
+class ScriptProcessorHandler final
+    : public AudioHandler,
+      public base::SupportsWeakPtr<ScriptProcessorHandler> {
  public:
   static scoped_refptr<ScriptProcessorHandler> Create(
       AudioNode&,
@@ -87,7 +90,6 @@ class ScriptProcessorHandler final : public AudioHandler {
   double TailTime() const override;
   double LatencyTime() const override;
   bool RequiresTailProcessing() const final;
-  bool PropagatesSilence() const final;
 
   void FireProcessEvent(uint32_t);
   void FireProcessEventForOfflineAudioContext(uint32_t, base::WaitableEvent*);
@@ -119,7 +121,6 @@ class ScriptProcessorNode final
     : public AudioNode,
       public ActiveScriptWrappable<ScriptProcessorNode> {
   DEFINE_WRAPPERTYPEINFO();
-  USING_GARBAGE_COLLECTED_MIXIN(ScriptProcessorNode);
 
  public:
   // bufferSize must be one of the following values: 256, 512, 1024, 2048,
@@ -158,7 +159,11 @@ class ScriptProcessorNode final
   // ScriptWrappable
   bool HasPendingActivity() const final;
 
-  void Trace(blink::Visitor* visitor) override;
+  void Trace(Visitor* visitor) const override;
+
+  // InspectorHelperMixin
+  void ReportDidCreate() final;
+  void ReportWillBeDestroyed() final;
 
  private:
   HeapVector<Member<AudioBuffer>> input_buffers_;

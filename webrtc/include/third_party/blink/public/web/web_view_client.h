@@ -32,26 +32,23 @@
 #define THIRD_PARTY_BLINK_PUBLIC_WEB_WEB_VIEW_CLIENT_H_
 
 #include "base/strings/string_piece.h"
+#include "services/network/public/mojom/web_sandbox_flags.mojom-shared.h"
 #include "third_party/blink/public/common/dom_storage/session_storage_namespace_id.h"
-#include "third_party/blink/public/common/feature_policy/feature_policy.h"
+#include "third_party/blink/public/common/feature_policy/feature_policy_features.h"
+#include "third_party/blink/public/common/renderer_preferences/renderer_preferences.h"
+#include "third_party/blink/public/mojom/page/page_visibility_state.mojom-forward.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/web/web_ax_enums.h"
 #include "third_party/blink/public/web/web_frame.h"
-#include "third_party/blink/public/web/web_text_direction.h"
+#include "third_party/blink/public/web/web_navigation_policy.h"
 #include "third_party/blink/public/web/web_widget_client.h"
 
 namespace blink {
 
-class WebDateTimeChooserCompletion;
-class WebNode;
 class WebPagePopup;
-class WebURL;
 class WebURLRequest;
 class WebView;
-enum class WebSandboxFlags;
-struct WebDateTimeChooserParams;
 struct WebRect;
-struct WebSize;
 struct WebWindowFeatures;
 
 class WebViewClient {
@@ -72,10 +69,10 @@ class WebViewClient {
       const WebWindowFeatures& features,
       const WebString& name,
       WebNavigationPolicy policy,
-      bool suppress_opener,
-      WebSandboxFlags,
-      const FeaturePolicy::FeatureState&,
-      const SessionStorageNamespaceId& session_storage_namespace_id) {
+      network::mojom::WebSandboxFlags,
+      const FeaturePolicyFeatureState&,
+      const SessionStorageNamespaceId& session_storage_namespace_id,
+      bool& consumed_user_gesture) {
     return nullptr;
   }
 
@@ -89,11 +86,6 @@ class WebViewClient {
 
   // Misc ----------------------------------------------------------------
 
-  // Called when the window for this WebView should be closed. The WebView
-  // and its frame tree will be closed asynchronously as a result of this
-  // request.
-  virtual void CloseWindowSoon() {}
-
   // Called when a region of the WebView needs to be re-painted. This is only
   // for non-composited WebViews that exist to contribute to a "parent" WebView
   // painting. Otherwise invalidations are transmitted to the compositor through
@@ -106,42 +98,17 @@ class WebViewClient {
   // should be printed.
   virtual void PrintPage(WebLocalFrame*) {}
 
-  // Called when PageImportanceSignals for the WebView is updated.
-  virtual void PageImportanceSignalsChanged() {}
+  virtual void OnPageVisibilityChanged(mojom::PageVisibilityState visibility) {}
 
-  // Dialogs -------------------------------------------------------------
+  virtual void OnPageFrozenChanged(bool frozen) {}
 
-  // Ask users to choose date/time for the specified parameters. When a user
-  // chooses a value, an implementation of this function should call
-  // WebDateTimeChooserCompletion::didChooseValue or didCancelChooser. If the
-  // implementation opened date/time chooser UI successfully, it should return
-  // true. This function is used only if ExternalDateTimeChooser is used.
-  virtual bool OpenDateTimeChooser(const WebDateTimeChooserParams&,
-                                   WebDateTimeChooserCompletion*) {
-    return false;
-  }
+  virtual void DidUpdateRendererPreferences() {}
 
   // UI ------------------------------------------------------------------
-
-  // Called when hovering over an anchor with the given URL.
-  virtual void SetMouseOverURL(const WebURL&) {}
-
-  // Called when keyboard focus switches to an anchor with the given URL.
-  virtual void SetKeyboardFocusURL(const WebURL&) {}
 
   // Called to determine if drag-n-drop operations may initiate a page
   // navigation.
   virtual bool AcceptsLoadDrops() { return true; }
-
-  // Take focus away from the WebView by focusing an adjacent UI element
-  // in the containing window.
-  virtual void FocusNext() {}
-  virtual void FocusPrevious() {}
-
-  // Called when a new node gets focused. |fromNode| is the previously focused
-  // node, |toNode| is the newly focused node. Either can be null.
-  virtual void FocusedNodeChanged(const WebNode& from_node,
-                                  const WebNode& to_node) {}
 
   // Called to check if layout update should be processed.
   virtual bool CanUpdateLayout() { return false; }
@@ -155,7 +122,7 @@ class WebViewClient {
 
   // Return true to swallow the input event if the embedder will start a
   // disambiguation popup
-  virtual bool DidTapMultipleTargets(const WebSize& visual_viewport_offset,
+  virtual bool DidTapMultipleTargets(const gfx::Size& visual_viewport_offset,
                                      const WebRect& touch_rect,
                                      const WebVector<WebRect>& target_rects) {
     return false;
@@ -165,14 +132,19 @@ class WebViewClient {
   virtual WebString AcceptLanguages() { return WebString(); }
 
   // Called when the View has changed size as a result of an auto-resize.
-  virtual void DidAutoResize(const WebSize& new_size) {}
+  virtual void DidAutoResize(const gfx::Size& new_size) {}
 
   // Called when the View acquires focus.
-  virtual void DidFocus(WebLocalFrame* calling_frame) {}
+  virtual void DidFocus() {}
 
-  // Returns information about the screen where this view's widgets are being
-  // displayed.
-  virtual WebScreenInfo GetScreenInfo() = 0;
+  // Called when the View's zoom has changed.
+  virtual void ZoomLevelChanged() {}
+
+  // Notification that the output of a BeginMainFrame was committed to the
+  // compositor (thread), though would not be submitted to the display
+  // compositor yet. This will only be called for local main frames.
+  virtual void DidCommitCompositorFrameForLocalMainFrame(
+      base::TimeTicks commit_start_time) {}
 
   // Session history -----------------------------------------------------
 
@@ -190,24 +162,13 @@ class WebViewClient {
   virtual void DidUpdateInspectorSetting(const WebString& key,
                                          const WebString& value) {}
 
-  // Zoom ----------------------------------------------------------------
-
-  // Informs the browser that the zoom levels for this frame have changed from
-  // the default values.
-  virtual void ZoomLimitsChanged(double minimum_level, double maximum_level) {}
-
-  // Informs the browser that the page scale has changed and/or a pinch gesture
-  // has started or ended.
-  virtual void PageScaleFactorChanged(float page_scale_factor,
-                                      bool is_pinch_gesture_active) {}
-
   // Gestures -------------------------------------------------------------
 
   virtual bool CanHandleGestureEvent() { return false; }
 
-  // Policies -------------------------------------------------------------
-
-  virtual bool AllowPopupsDuringPageUnload() { return false; }
+  // History -------------------------------------------------------------
+  virtual void OnSetHistoryOffsetAndLength(int history_offset,
+                                           int history_length) {}
 };
 
 }  // namespace blink

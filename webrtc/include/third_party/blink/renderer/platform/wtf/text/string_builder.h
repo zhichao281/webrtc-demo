@@ -150,11 +150,23 @@ class WTF_EXPORT StringBuilder {
 
   void AppendNumber(double, unsigned precision = 6);
 
+  // Like WTF::String::Format, supports Latin-1 only.
+  PRINTF_FORMAT(2, 3)
+  void AppendFormat(const char* format, ...);
+
   void erase(unsigned);
 
   String ToString();
   AtomicString ToAtomicString();
   String Substring(unsigned start, unsigned length) const;
+
+  operator StringView() const {
+    if (Is8Bit()) {
+      return StringView(Characters8(), length());
+    } else {
+      return StringView(Characters16(), length());
+    }
+  }
 
   unsigned length() const { return length_; }
   bool IsEmpty() const { return !length_; }

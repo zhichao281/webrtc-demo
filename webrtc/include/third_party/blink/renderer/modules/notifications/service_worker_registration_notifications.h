@@ -9,9 +9,9 @@
 
 #include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
-#include "third_party/blink/public/mojom/notifications/notification.mojom-blink.h"
+#include "third_party/blink/public/mojom/notifications/notification.mojom-blink-forward.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
-#include "third_party/blink/renderer/core/execution_context/context_lifecycle_observer.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/heap/visitor.h"
@@ -32,9 +32,7 @@ class ServiceWorkerRegistration;
 class ServiceWorkerRegistrationNotifications final
     : public GarbageCollected<ServiceWorkerRegistrationNotifications>,
       public Supplement<ServiceWorkerRegistration>,
-      public ContextLifecycleObserver {
-  USING_GARBAGE_COLLECTED_MIXIN(ServiceWorkerRegistrationNotifications);
-
+      public ExecutionContextLifecycleObserver {
  public:
   static const char kSupplementName[];
 
@@ -50,10 +48,10 @@ class ServiceWorkerRegistrationNotifications final
   ServiceWorkerRegistrationNotifications(ExecutionContext*,
                                          ServiceWorkerRegistration*);
 
-  // ContextLifecycleObserver interface.
-  void ContextDestroyed(ExecutionContext* context) override;
+  // ExecutionContextLifecycleObserver interface.
+  void ContextDestroyed() override;
 
-  void Trace(blink::Visitor* visitor) override;
+  void Trace(Visitor* visitor) const override;
 
  private:
   static ServiceWorkerRegistrationNotifications& From(

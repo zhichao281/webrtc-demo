@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NGPhysicalLineBoxFragment_h
-#define NGPhysicalLineBoxFragment_h
+#ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_INLINE_NG_PHYSICAL_LINE_BOX_FRAGMENT_H_
+#define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_INLINE_NG_PHYSICAL_LINE_BOX_FRAGMENT_H_
 
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/layout/ng/inline/ng_line_height_metrics.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_physical_container_fragment.h"
-#include "third_party/blink/renderer/platform/fonts/font_baseline.h"
+#include "third_party/blink/renderer/platform/fonts/font_height.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
 
 namespace blink {
 
+class NGFragmentItem;
 class NGLineBoxFragmentBuilder;
 
 class CORE_EXPORT NGPhysicalLineBoxFragment final
@@ -31,8 +31,11 @@ class CORE_EXPORT NGPhysicalLineBoxFragment final
   static scoped_refptr<const NGPhysicalLineBoxFragment> Create(
       NGLineBoxFragmentBuilder* builder);
 
+  using PassKey = util::PassKey<NGPhysicalLineBoxFragment>;
+  NGPhysicalLineBoxFragment(PassKey, NGLineBoxFragmentBuilder* builder);
+
   ~NGPhysicalLineBoxFragment() {
-    for (const NGLinkStorage& child : Children())
+    for (const NGLink& child : Children())
       child.fragment->Release();
   }
 
@@ -41,51 +44,47 @@ class CORE_EXPORT NGPhysicalLineBoxFragment final
   }
   bool IsEmptyLineBox() const { return LineBoxType() == kEmptyLineBox; }
 
-  ChildLinkList Children() const final {
-    return ChildLinkList(num_children_, &children_[0]);
-  }
+  // True if descendants were propagated to outside of this fragment.
+  bool HasPropagatedDescendants() const { return has_propagated_descendants_; }
 
-  const ComputedStyle& Style() const { return *style_; }
-  const NGLineHeightMetrics& Metrics() const { return metrics_; }
+  // True if there is any hanging white-space or similar.
+  bool HasHanging() const { return has_hanging_; }
+
+  const FontHeight& Metrics() const { return metrics_; }
 
   // The base direction of this line. Also known as the paragraph direction.
   // This may be different from the direction of the container box when
   // first-line style is used, or when 'unicode-bidi: plaintext' is used.
   TextDirection BaseDirection() const {
-    return static_cast<TextDirection>(base_direction_);
+    return static_cast<TextDirection>(base_or_resolved_direction_);
   }
 
-  // Compute baseline for the specified baseline type.
-  NGLineHeightMetrics BaselineMetrics(FontBaseline) const;
+  // Compute the baseline metrics for this linebox.
+  FontHeight BaselineMetrics() const;
 
   // Scrollable overflow. including contents, in the local coordinate.
-  // ScrollableOverflow is not precomputed/cached because it cannot be computed
-  // when LineBox is generated because it needs container dimensions to
-  // resolve relative position of its children.
-  NGPhysicalOffsetRect ScrollableOverflow(
-      const LayoutObject* container,
-      const ComputedStyle* container_style,
-      NGPhysicalSize container_physical_size) const;
-
-  // Returns the first/last leaf fragment in the line in logical order. Returns
-  // nullptr if the line box is empty.
-  const NGPhysicalFragment* FirstLogicalLeaf() const;
-  const NGPhysicalFragment* LastLogicalLeaf() const;
-
-  // Returns a point at the visual start/end of the line.
-  // Encapsulates the handling of text direction and writing mode.
-  NGPhysicalOffset LineStartPoint() const;
-  NGPhysicalOffset LineEndPoint() const;
+  // |ScrollableOverflow| is not precomputed/cached because it cannot be
+  // computed when LineBox is generated because it needs container dimensions
+  // to resolve relative position of its children.
+  PhysicalRect ScrollableOverflow(const NGPhysicalBoxFragment& container,
+                                  const ComputedStyle& container_style,
+                                  TextHeightType height_type) const;
+  PhysicalRect ScrollableOverflowForLine(const NGPhysicalBoxFragment& container,
+                                         const ComputedStyle& container_style,
+                                         const NGFragmentItem& line,
+                                         const NGInlineCursor& cursor,
+                                         TextHeightType height_type) const;
 
   // Whether the content soft-wraps to the next line.
   bool HasSoftWrapToNextLine() const;
 
- private:
-  NGPhysicalLineBoxFragment(NGLineBoxFragmentBuilder* builder);
+  // Returns the |LayoutObject| of the container. |GetLayoutObject()| returns
+  // |nullptr| because line boxes do not have corresponding |LayoutObject|.
+  const LayoutObject* ContainerLayoutObject() const { return layout_object_; }
 
-  scoped_refptr<const ComputedStyle> style_;
-  NGLineHeightMetrics metrics_;
-  NGLinkStorage children_[];
+ private:
+  FontHeight metrics_;
+  NGLink children_[];
 };
 
 template <>
@@ -97,4 +96,4 @@ struct DowncastTraits<NGPhysicalLineBoxFragment> {
 
 }  // namespace blink
 
-#endif  // NGPhysicalBoxFragment_h
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_INLINE_NG_PHYSICAL_LINE_BOX_FRAGMENT_H_

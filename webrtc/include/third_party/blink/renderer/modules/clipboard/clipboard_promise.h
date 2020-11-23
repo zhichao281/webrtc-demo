@@ -11,54 +11,59 @@
 #include "base/sequence_checker.h"
 #include "third_party/blink/public/mojom/permissions/permission.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
-#include "third_party/blink/renderer/core/execution_context/context_lifecycle_observer.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/core/fileapi/blob.h"
+#include "third_party/blink/renderer/modules/clipboard/clipboard_item.h"
+#include "third_party/blink/renderer/modules/clipboard/clipboard_reader.h"
 #include "third_party/blink/renderer/modules/clipboard/clipboard_writer.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
 
 namespace blink {
 
 class ScriptPromiseResolver;
+class LocalFrame;
+class ExecutionContext;
+class ClipboardItemOptions;
 
-class ClipboardPromise final
-    : public GarbageCollectedFinalized<ClipboardPromise>,
-      public ContextLifecycleObserver {
-  USING_GARBAGE_COLLECTED_MIXIN(ClipboardPromise);
-
+class ClipboardPromise final : public GarbageCollected<ClipboardPromise>,
+                               public ExecutionContextLifecycleObserver {
  public:
-  explicit ClipboardPromise(ScriptState*);
+  // Creates promise to execute Clipboard API functions off the main thread.
+  static ScriptPromise CreateForRead(ExecutionContext*,
+                                     ScriptState*,
+                                     ClipboardItemOptions*);
+  static ScriptPromise CreateForReadText(ExecutionContext*, ScriptState*);
+  static ScriptPromise CreateForWrite(ExecutionContext*,
+                                      ScriptState*,
+                                      const HeapVector<Member<ClipboardItem>>&);
+  static ScriptPromise CreateForWriteText(ExecutionContext*,
+                                          ScriptState*,
+                                          const String&);
+
+  ClipboardPromise(ExecutionContext*, ScriptState*);
   virtual ~ClipboardPromise();
 
-  // Creates promise to execute Clipboard API functions off the main thread.
-  static ScriptPromise CreateForRead(ScriptState*);
-  static ScriptPromise CreateForReadText(ScriptState*);
-  static ScriptPromise CreateForWrite(
-      ScriptState*,
-      HeapVector<std::pair<String, Member<Blob>>>);
-  static ScriptPromise CreateForWriteText(ScriptState*, const String&);
-
+  // Completes current write and starts next write.
+  void CompleteWriteRepresentation();
   // For rejections originating from ClipboardWriter.
   void RejectFromReadOrDecodeFailure();
 
-  void WriteNextRepresentation();
+  // Adds the blob to the clipboard items.
+  void OnRead(Blob* blob);
 
-  void Trace(blink::Visitor*) override;
+  LocalFrame* GetLocalFrame() const;
+
+  void Trace(Visitor*) const override;
 
  private:
-  scoped_refptr<base::SingleThreadTaskRunner> GetTaskRunner();
-
-  bool IsFocusedDocument(ExecutionContext*);
-
-  // Checks for permissions (interacting with PermissionService).
-  mojom::blink::PermissionService* GetPermissionService();
-  void RequestReadPermission(
-      mojom::blink::PermissionService::RequestPermissionCallback);
-  void CheckWritePermission(
-      mojom::blink::PermissionService::HasPermissionCallback);
+  // Called to begin writing a type.
+  void WriteNextRepresentation();
 
   // Checks Read/Write permission (interacting with PermissionService).
-  void HandleRead();
+  void HandleRead(ClipboardItemOptions*);
   void HandleReadText();
-  void HandleWrite(HeapVector<std::pair<String, Member<Blob>>>*);
+  void HandleWrite(HeapVector<Member<ClipboardItem>>*);
   void HandleWriteText(const String&);
 
   // Reads/Writes after permission check.
@@ -67,20 +72,37 @@ class ClipboardPromise final
   void HandleWriteWithPermission(mojom::blink::PermissionStatus);
   void HandleWriteTextWithPermission(mojom::blink::PermissionStatus);
 
-  // Detects whether an image or text is on the clipboard, and
-  // returns all valid clipboard types on the clipboard.
-  Vector<String> TypesToRead();
+  void OnReadAvailableFormatNames(const Vector<String>& format_names);
+  void ReadNextRepresentation();
+  void OnRawRead(mojo_base::BigBuffer data);
+  void ResolveRead();
+
+  // Checks for permissions (interacting with PermissionService).
+  mojom::blink::PermissionService* GetPermissionService();
+  void RequestPermission(
+      mojom::blink::PermissionName permission,
+      bool allow_without_sanitization,
+      base::OnceCallback<void(::blink::mojom::PermissionStatus)> callback);
+
+  scoped_refptr<base::SingleThreadTaskRunner> GetTaskRunner();
+
+  // ExecutionContextLifecycleObserver
+  void ContextDestroyed() override;
 
   Member<ScriptState> script_state_;
   Member<ScriptPromiseResolver> script_promise_resolver_;
 
-  std::unique_ptr<ClipboardWriter> clipboard_writer_;
+  Member<ClipboardWriter> clipboard_writer_;
+
   // Checks for Read and Write permission.
-  mojom::blink::PermissionServicePtr permission_service_;
+  HeapMojoRemote<mojom::blink::PermissionService,
+                 HeapMojoWrapperMode::kWithoutContextObserver>
+      permission_service_;
 
   // Only for use in writeText().
   String plain_text_;
-  HeapVector<std::pair<String, Member<Blob>>> clipboard_item_;
+  HeapVector<std::pair<String, Member<Blob>>> clipboard_item_data_;
+  bool is_raw_;  // Corresponds to allowWithoutSanitization in ClipboardItem.
   // Index of clipboard representation currently being processed.
   wtf_size_t clipboard_representation_index_;
 

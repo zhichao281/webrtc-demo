@@ -12,7 +12,7 @@
 #include "third_party/blink/renderer/platform/fonts/shaping/run_segmenter.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_result.h"
 #include "third_party/blink/renderer/platform/text/text_direction.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 #include <unicode/ubidi.h>
 #include <unicode/uscript.h>
@@ -87,10 +87,6 @@ class CORE_EXPORT NGInlineItemSegments {
   void Append(Args&&... args) {
     segments_.emplace_back(std::forward<Args>(args)...);
   }
-
-  // Compute segments from the given |RunSegmenter|.
-  void ComputeSegments(RunSegmenter* segmenter,
-                       RunSegmenter::RunSegmenterRange* range);
 
   // Append mixed-vertical font orientation segments for the specified range.
   // This is separated from |ComputeSegments| because this result depends on

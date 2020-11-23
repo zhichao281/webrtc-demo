@@ -2,7 +2,7 @@
 #include "rtc_base/thread.h"
 #include <modules/desktop_capture/desktop_capture_options.h>
 #include <third_party/libyuv/include/libyuv.h>
-
+#include "modules\desktop_capture\cropping_window_capturer.h"
 MyCapturer::MyCapturer() {
 
 }
@@ -10,7 +10,16 @@ MyCapturer::MyCapturer() {
 void MyCapturer::startCapturer() {
   auto options = webrtc::DesktopCaptureOptions::CreateDefault();
   options.set_allow_directx_capturer(true);
-  capturer_ = webrtc::DesktopCapturer::CreateScreenCapturer(options);
+
+  capturer_ = webrtc::CroppingWindowCapturer::CreateCapturer(options);
+  webrtc::DesktopCapturer::SourceList sourceList;
+  capturer_->GetSourceList(&sourceList);
+  bool bfind = false;
+
+	 
+          capturer_->SelectSource(sourceList[1].id);
+	
+
   capturer_->Start(this);
   CaptureFrame();
 }
@@ -36,8 +45,11 @@ void MyCapturer::OnCaptureResult(webrtc::DesktopCapturer::Result result,
   if (result != webrtc::DesktopCapturer::Result::SUCCESS)
     return;
 
-  int width = frame->size().width();
-  int height = frame->size().height();
+ // int width = frame->size().width()+6;
+  //int height = frame->size().height()+3;
+  int width = frame->rect().width()+6;
+  int height = frame->rect().height()+3;
+
 
   if (!i420_buffer_.get() ||
       i420_buffer_->width() * i420_buffer_->height() < width * height) {
@@ -57,9 +69,10 @@ void MyCapturer::OnMessage(rtc::Message* msg) {
     CaptureFrame();
 }
 
-void MyCapturer::CaptureFrame() {
+void MyCapturer::CaptureFrame() 
+{
   capturer_->CaptureFrame();
 
-  rtc::Location loc(__FUNCTION__, __FILE__);
+  rtc::Location loc(__FUNCTION__, __FILE__,__LINE__);
   rtc::Thread::Current()->PostDelayed(loc, 33, this, 0);
 }

@@ -32,7 +32,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_BINDINGS_EXCEPTION_MESSAGES_H_
 
 #include "third_party/blink/renderer/platform/platform_export.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
@@ -52,7 +52,10 @@ class PLATFORM_EXPORT ExceptionMessages {
 
   static String ArgumentNullOrIncorrectType(int argument_index,
                                             const String& expected_type);
+  static String ArgumentNotOfType(int argument_index,
+                                  const char* expected_type);
   static String ConstructorNotCallableAsFunction(const char* type);
+  static String ConstructorCalledAsFunction();
 
   static String FailedToConvertJSValue(const char* type);
 
@@ -73,6 +76,9 @@ class PLATFORM_EXPORT ExceptionMessages {
   static String FailedToGetIndexed(const char* type, const String& detail);
   static String FailedToSetIndexed(const char* type, const String& detail);
   static String FailedToDeleteIndexed(const char* type, const String& detail);
+  static String FailedToGetNamed(const char* type, const String& detail);
+  static String FailedToSetNamed(const char* type, const String& detail);
+  static String FailedToDeleteNamed(const char* type, const String& detail);
 
   template <typename NumType>
   static String FormatNumber(NumType number) {

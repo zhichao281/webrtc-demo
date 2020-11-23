@@ -5,18 +5,18 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_PAINT_INLINE_FLOW_BOX_PAINTER_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_PAINT_INLINE_FLOW_BOX_PAINTER_H_
 
+#include "third_party/blink/renderer/core/layout/geometry/physical_rect.h"
 #include "third_party/blink/renderer/core/paint/box_model_object_painter.h"
 #include "third_party/blink/renderer/core/paint/inline_box_painter_base.h"
 #include "third_party/blink/renderer/core/style/shadow_data.h"
 #include "third_party/blink/renderer/platform/graphics/graphics_types.h"
 #include "third_party/blink/renderer/platform/text/text_direction.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
 class InlineFlowBox;
 class IntRect;
-class LayoutPoint;
 class LayoutRect;
 class LayoutUnit;
 struct PaintInfo;
@@ -28,38 +28,38 @@ class InlineFlowBoxPainter : public InlineBoxPainterBase {
   InlineFlowBoxPainter(const InlineFlowBox&);
 
   void Paint(const PaintInfo&,
-             const LayoutPoint& paint_offset,
+             const PhysicalOffset& paint_offset,
              const LayoutUnit line_top,
              const LayoutUnit line_bottom);
 
   LayoutRect FrameRectClampedToLineTopAndBottomIfNeeded() const;
 
- protected:
-  LayoutRect PaintRectForImageStrip(const LayoutRect&,
-                                    TextDirection) const override;
-  void PaintNormalBoxShadow(const PaintInfo&,
-                            const ComputedStyle&,
-                            const LayoutRect& paint_rect) override;
-  void PaintInsetBoxShadow(const PaintInfo&,
-                           const ComputedStyle&,
-                           const LayoutRect& paint_rect) override;
-
  private:
-  void PaintBackgroundBorderShadow(const PaintInfo&,
-                                   const LayoutPoint& paint_offset);
-  void PaintMask(const PaintInfo&, const LayoutPoint& paint_offset);
-
+  // LayoutNG version adapters.
+  PhysicalRect PaintRectForImageStrip(const PhysicalRect& rect,
+                                      TextDirection direction) const override;
+  void PaintNormalBoxShadow(const PaintInfo& info,
+                            const ComputedStyle& style,
+                            const PhysicalRect& rect) override;
+  void PaintInsetBoxShadow(const PaintInfo& info,
+                           const ComputedStyle& style,
+                           const PhysicalRect& rect) override;
   BorderPaintingType GetBorderPaintType(
-      const LayoutRect& adjusted_frame_rect,
+      const PhysicalRect& adjusted_frame_rect,
       IntRect& adjusted_clip_rect,
       bool object_has_multiple_boxes) const override;
 
-  LayoutRect AdjustedPaintRect(const LayoutPoint& paint_offset) const;
+  void PaintBackgroundBorderShadow(const PaintInfo&,
+                                   const PhysicalOffset& paint_offset);
+  void PaintMask(const PaintInfo&, const PhysicalOffset& paint_offset);
 
-  // Paint a hit test display item and record hit test data. This should be
-  // called when painting the background even if there is no other painted
-  // content.
-  void RecordHitTestData(const PaintInfo&, const LayoutPoint& paint_offset);
+  PhysicalRect AdjustedFrameRect(const PhysicalOffset& paint_offset) const;
+  IntRect VisualRect(const PhysicalRect& adjusted_frame_rect) const;
+
+  // Expands the bounds of the current paint chunk for hit test, and records
+  // special touch action if any. This should be called in the background paint
+  // phase even if there is no other painted content.
+  void RecordHitTestData(const PaintInfo&, const PhysicalOffset& paint_offset);
 
   const InlineFlowBox& inline_flow_box_;
 };

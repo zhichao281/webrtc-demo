@@ -28,33 +28,25 @@
 
 #include "third_party/blink/public/platform/web_worker_fetch_context.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/execution_context/execution_context.h"
-#include "third_party/blink/renderer/core/frame/navigator_concurrent_hardware.h"
-#include "third_party/blink/renderer/core/frame/navigator_device_memory.h"
-#include "third_party/blink/renderer/core/frame/navigator_id.h"
-#include "third_party/blink/renderer/core/frame/navigator_language.h"
-#include "third_party/blink/renderer/core/frame/navigator_on_line.h"
-#include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
+#include "third_party/blink/renderer/core/execution_context/navigator_base.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
 
+// TODO(japhet): Move classes that Supplement WorkerNavigator to use
+// NavigatorBase instead and remove Supplementable<WorkerNavigator> here.
 class CORE_EXPORT WorkerNavigator final
-    : public ScriptWrappable,
+    : public NavigatorBase,
       public AcceptLanguagesWatcher,
-      public NavigatorConcurrentHardware,
-      public NavigatorDeviceMemory,
-      public NavigatorID,
-      public NavigatorLanguage,
-      public NavigatorOnLine,
       public Supplementable<WorkerNavigator> {
   DEFINE_WRAPPERTYPEINFO();
-  USING_GARBAGE_COLLECTED_MIXIN(WorkerNavigator);
 
  public:
-  explicit WorkerNavigator(const String&, ExecutionContext* context);
+  WorkerNavigator(const String& user_agent,
+                  const UserAgentMetadata&,
+                  ExecutionContext* execution_context);
   ~WorkerNavigator() override;
 
   // NavigatorID override
@@ -66,10 +58,16 @@ class CORE_EXPORT WorkerNavigator final
   // AcceptLanguagesWatcher override
   void NotifyUpdate() override;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
+
+ protected:
+  UserAgentMetadata GetUserAgentMetadata() const override {
+    return ua_metadata_;
+  }
 
  private:
   String user_agent_;
+  UserAgentMetadata ua_metadata_;
 };
 
 }  // namespace blink

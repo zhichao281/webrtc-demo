@@ -6,7 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_ANIMATION_CSS_LENGTH_PAIR_INTERPOLATION_TYPE_H_
 
 #include "third_party/blink/renderer/core/animation/css_length_list_interpolation_type.h"
-#include "third_party/blink/renderer/core/animation/length_interpolation_functions.h"
+#include "third_party/blink/renderer/core/animation/interpolable_length.h"
 #include "third_party/blink/renderer/core/animation/list_interpolation_functions.h"
 #include "third_party/blink/renderer/core/css/css_value_pair.h"
 
@@ -21,10 +21,12 @@ class CSSLengthPairInterpolationType : public CSSLengthListInterpolationType {
   InterpolationValue MaybeConvertValue(const CSSValue& value,
                                        const StyleResolverState*,
                                        ConversionCheckers&) const final {
-    const auto& pair = To<CSSValuePair>(value);
+    const auto* pair = DynamicTo<CSSValuePair>(value);
+    if (!pair)
+      return nullptr;
     return ListInterpolationFunctions::CreateList(2, [&pair](size_t index) {
-      const CSSValue& item = index == 0 ? pair.First() : pair.Second();
-      return LengthInterpolationFunctions::MaybeConvertCSSValue(item);
+      const CSSValue& item = index == 0 ? pair->First() : pair->Second();
+      return InterpolationValue(InterpolableLength::MaybeConvertCSSValue(item));
     });
   }
 };

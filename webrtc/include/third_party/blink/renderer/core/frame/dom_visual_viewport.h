@@ -47,14 +47,10 @@ class CORE_EXPORT DOMVisualViewport final : public EventTargetWithInlineData {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static DOMVisualViewport* Create(LocalDOMWindow* window) {
-    return MakeGarbageCollected<DOMVisualViewport>(window);
-  }
-
   explicit DOMVisualViewport(LocalDOMWindow*);
   ~DOMVisualViewport() override;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
   // EventTarget overrides:
   const AtomicString& InterfaceName() const override;

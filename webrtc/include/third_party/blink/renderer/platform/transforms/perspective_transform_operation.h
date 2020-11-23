@@ -27,6 +27,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_TRANSFORMS_PERSPECTIVE_TRANSFORM_OPERATION_H_
 
 #include "third_party/blink/renderer/platform/transforms/transform_operation.h"
+#include "third_party/blink/renderer/platform/wtf/casting.h"
 
 namespace blink {
 
@@ -38,10 +39,6 @@ class PLATFORM_EXPORT PerspectiveTransformOperation final
   }
 
   double Perspective() const { return p_; }
-
-  bool CanBlendWith(const TransformOperation& other) const override {
-    return IsSameType(other);
-  }
 
   static bool IsMatchingOperationType(OperationType type) {
     return type == kPerspective;
@@ -62,18 +59,29 @@ class PLATFORM_EXPORT PerspectiveTransformOperation final
     transform.ApplyPerspective(p_);
   }
 
+  scoped_refptr<TransformOperation> Accumulate(
+      const TransformOperation& other) override;
   scoped_refptr<TransformOperation> Blend(
       const TransformOperation* from,
       double progress,
       bool blend_to_identity = false) override;
   scoped_refptr<TransformOperation> Zoom(double factor) final;
 
+  // Perspective does not, by itself, specify a 3D transform.
+  bool HasNonTrivial3DComponent() const override { return false; }
+
   PerspectiveTransformOperation(double p) : p_(p) {}
 
   double p_;
 };
 
-DEFINE_TRANSFORM_TYPE_CASTS(PerspectiveTransformOperation);
+template <>
+struct DowncastTraits<PerspectiveTransformOperation> {
+  static bool AllowFrom(const TransformOperation& transform) {
+    return PerspectiveTransformOperation::IsMatchingOperationType(
+        transform.GetType());
+  }
+};
 
 }  // namespace blink
 

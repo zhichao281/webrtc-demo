@@ -15,6 +15,7 @@
 #define PC_STATS_COLLECTOR_H_
 
 #include <stdint.h>
+
 #include <map>
 #include <memory>
 #include <string>
@@ -26,6 +27,7 @@
 #include "api/stats_types.h"
 #include "p2p/base/port.h"
 #include "pc/peer_connection_internal.h"
+#include "pc/stats_collector_interface.h"
 #include "rtc_base/network_constants.h"
 #include "rtc_base/ssl_certificate.h"
 
@@ -43,7 +45,7 @@ const char* AdapterTypeToStatsType(rtc::AdapterType type);
 // A mapping between track ids and their StatsReport.
 typedef std::map<std::string, StatsReport*> TrackIdMap;
 
-class StatsCollector {
+class StatsCollector : public StatsCollectorInterface {
  public:
   // The caller is responsible for ensuring that the pc outlives the
   // StatsCollector instance.
@@ -56,11 +58,13 @@ class StatsCollector {
   void AddTrack(MediaStreamTrackInterface* track);
 
   // Adds a local audio track that is used for getting some voice statistics.
-  void AddLocalAudioTrack(AudioTrackInterface* audio_track, uint32_t ssrc);
+  void AddLocalAudioTrack(AudioTrackInterface* audio_track,
+                          uint32_t ssrc) override;
 
   // Removes a local audio tracks that is used for getting some voice
   // statistics.
-  void RemoveLocalAudioTrack(AudioTrackInterface* audio_track, uint32_t ssrc);
+  void RemoveLocalAudioTrack(AudioTrackInterface* audio_track,
+                             uint32_t ssrc) override;
 
   // Gather statistics from the session and store them for future use.
   void UpdateStats(PeerConnectionInterface::StatsOutputLevel level);
@@ -73,7 +77,8 @@ class StatsCollector {
   // of filling in |reports|.  As is, there's a requirement that the caller
   // uses |reports| immediately without allowing any async activity on
   // the thread (message handling etc) and then discard the results.
-  void GetStats(MediaStreamTrackInterface* track, StatsReports* reports);
+  void GetStats(MediaStreamTrackInterface* track,
+                StatsReports* reports) override;
 
   // Prepare a local or remote SSRC report for the given ssrc. Used internally
   // in the ExtractStatsFromList template.
@@ -83,6 +88,8 @@ class StatsCollector {
                              const StatsReport::Id& transport_id,
                              StatsReport::Direction direction);
 
+  StatsReport* PrepareADMReport();
+
   // A track is invalid if there is no report data for it.
   bool IsValidTrack(const std::string& track_id);
 
@@ -90,6 +97,8 @@ class StatsCollector {
   // that occur less than kMinGatherStatsPeriod number of ms apart will be
   // ignored.
   void ClearUpdateStatsCacheForTest();
+
+  bool UseStandardBytesStats() const { return use_standard_bytes_stats_; }
 
  private:
   friend class StatsCollectorTest;
@@ -140,6 +149,7 @@ class StatsCollector {
   // Raw pointer to the peer connection the statistics are gathered from.
   PeerConnectionInternal* const pc_;
   double stats_gathering_started_;
+  const bool use_standard_bytes_stats_;
 
   // TODO(tommi): We appear to be holding on to raw pointers to reference
   // counted objects?  We should be using scoped_refptr here.

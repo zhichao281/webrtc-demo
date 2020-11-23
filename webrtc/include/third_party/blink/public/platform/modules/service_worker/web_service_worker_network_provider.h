@@ -34,7 +34,10 @@
 #include <memory>
 
 #include "base/memory/scoped_refptr.h"
+#include "third_party/blink/public/mojom/frame/frame.mojom-shared.h"
 #include "third_party/blink/public/mojom/service_worker/controller_service_worker_mode.mojom-shared.h"
+#include "third_party/blink/public/mojom/timing/worker_timing_container.mojom-shared.h"
+#include "third_party/blink/public/platform/cross_variant_mojo_util.h"
 #include "third_party/blink/public/platform/scheduler/web_resource_loading_task_runner_handle.h"
 #include "third_party/blink/public/platform/web_url_loader.h"
 
@@ -48,11 +51,8 @@ class WebURLRequest;
 //
 // It is owned by DocumentLoader and only used on the main thread.
 //
-// Currently the Blink embedder has implementations for service worker clients
-// (frames and shared workers), and service workers themselves. Note that for
-// workers, the interface is only used for requests from the shadow page
-// (WorkerShadowPage). For hooking into off-the-main-thread loading from
-// workers, the embedder can implement WebWorkerFetchContext.
+// Currently the Blink embedder has implementations for frames. For hooking
+// into loading from workers, the embedder can implement WebWorkerFetchContext.
 class WebServiceWorkerNetworkProvider {
  public:
   virtual ~WebServiceWorkerNetworkProvider() = default;
@@ -66,11 +66,13 @@ class WebServiceWorkerNetworkProvider {
   // to the default loading behavior.
   virtual std::unique_ptr<WebURLLoader> CreateURLLoader(
       const WebURLRequest& request,
-      std::unique_ptr<scheduler::WebResourceLoadingTaskRunnerHandle>) = 0;
+      std::unique_ptr<scheduler::WebResourceLoadingTaskRunnerHandle>,
+      std::unique_ptr<scheduler::WebResourceLoadingTaskRunnerHandle>,
+      CrossVariantMojoRemote<blink::mojom::KeepAliveHandleInterfaceBase>) = 0;
 
   // For service worker clients.
   virtual blink::mojom::ControllerServiceWorkerMode
-  IsControlledByServiceWorker() = 0;
+  GetControllerServiceWorkerMode() = 0;
 
   // For service worker clients. Returns an identifier of the controller service
   // worker associated with the loading context.
@@ -79,6 +81,12 @@ class WebServiceWorkerNetworkProvider {
   // For service worker clients. Called when IdlenessDetector emits its network
   // idle signal.
   virtual void DispatchNetworkQuiet() = 0;
+
+  // Returns the blink::mojom::WorkerTimingContainer receiver for the
+  // blink::ResourceResponse with the given |request_id|. Null if the request
+  // has not been intercepted by a service worker.
+  virtual CrossVariantMojoReceiver<mojom::WorkerTimingContainerInterfaceBase>
+  TakePendingWorkerTimingReceiver(int request_id) = 0;
 };
 
 }  // namespace blink

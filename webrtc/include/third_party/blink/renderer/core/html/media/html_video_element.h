@@ -26,11 +26,13 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_HTML_MEDIA_HTML_VIDEO_ELEMENT_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_HTML_MEDIA_HTML_VIDEO_ELEMENT_H_
 
+#include "third_party/blink/public/common/media/display_type.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_image_source.h"
 #include "third_party/blink/renderer/core/html/html_image_loader.h"
 #include "third_party/blink/renderer/core/html/media/html_media_element.h"
 #include "third_party/blink/renderer/core/imagebitmap/image_bitmap_source.h"
+#include "third_party/blink/renderer/core/paint/compositing/paint_layer_compositor.h"
 #include "third_party/khronos/GLES2/gl2.h"
 
 namespace gpu {
@@ -47,18 +49,18 @@ class MediaRemotingInterstitial;
 class PictureInPictureInterstitial;
 class VideoWakeLock;
 
-class CORE_EXPORT HTMLVideoElement final : public HTMLMediaElement,
-                                           public CanvasImageSource,
-                                           public ImageBitmapSource {
+class CORE_EXPORT HTMLVideoElement final
+    : public HTMLMediaElement,
+      public CanvasImageSource,
+      public ImageBitmapSource,
+      public Supplementable<HTMLVideoElement> {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
   static const int kNoAlreadyUploadedFrame = -1;
 
-  static HTMLVideoElement* Create(Document&);
-
-  HTMLVideoElement(Document&);
-  void Trace(Visitor*) override;
+  explicit HTMLVideoElement(Document&);
+  void Trace(Visitor*) const override;
 
   bool HasPendingActivity() const final;
 
@@ -71,7 +73,6 @@ class CORE_EXPORT HTMLVideoElement final : public HTMLMediaElement,
 
   IntSize videoVisibleSize() const;
 
-  IntSize GetOverriddenIntrinsicSize() const;
   bool IsDefaultIntrinsicSize() const {
     return is_default_overridden_intrinsic_size_;
   }
@@ -147,10 +148,8 @@ class CORE_EXPORT HTMLVideoElement final : public HTMLMediaElement,
       gpu::gles2::GLES2Interface*,
       GLenum target,
       GLuint texture,
-      bool already_uploaded_id,
+      int already_uploaded_id,
       WebMediaPlayer::VideoFrameUploadMetadata* out_metadata);
-
-  bool ShouldDisplayPosterImage() const { return GetDisplayMode() == kPoster; }
 
   bool HasAvailableVideoFrame() const;
 
@@ -158,11 +157,11 @@ class CORE_EXPORT HTMLVideoElement final : public HTMLMediaElement,
 
   // CanvasImageSource implementation
   scoped_refptr<Image> GetSourceImageForCanvas(SourceImageStatus*,
-                                               AccelerationHint,
                                                const FloatSize&) override;
   bool IsVideoElement() const override { return true; }
   bool WouldTaintOrigin() const override;
-  FloatSize ElementSize(const FloatSize&) const override;
+  FloatSize ElementSize(const FloatSize&,
+                        const RespectImageOrientationEnum) const override;
   const KURL& SourceURL() const override { return currentSrc(); }
   bool IsHTMLVideoElement() const override { return true; }
   // Video elements currently always go through RAM when used as a canvas image
@@ -172,13 +171,13 @@ class CORE_EXPORT HTMLVideoElement final : public HTMLMediaElement,
   // ImageBitmapSource implementation
   IntSize BitmapSourceSize() const override;
   ScriptPromise CreateImageBitmap(ScriptState*,
-                                  EventTarget&,
                                   base::Optional<IntRect> crop_rect,
-                                  const ImageBitmapOptions*) override;
+                                  const ImageBitmapOptions*,
+                                  ExceptionState&) override;
 
   // WebMediaPlayerClient implementation.
   void OnBecamePersistentVideo(bool) final;
-  void ActivateViewportIntersectionMonitoring(bool) final;
+  void OnRequestVideoFrameCallback() final;
 
   bool IsPersistent() const;
 
@@ -186,10 +185,11 @@ class CORE_EXPORT HTMLVideoElement final : public HTMLMediaElement,
 
   void MediaRemotingStarted(const WebString& remote_device_friendly_name) final;
   bool SupportsPictureInPicture() const final;
-  void PictureInPictureStopped() final;
-  void MediaRemotingStopped(WebLocalizedString::Name error_msg) final;
-  WebMediaPlayer::DisplayType DisplayType() const final;
+  void MediaRemotingStopped(int error_code) final;
+  DisplayType GetDisplayType() const final;
   bool IsInAutoPIP() const final;
+  void RequestEnterPictureInPicture() final;
+  void RequestExitPictureInPicture() final;
   void OnPictureInPictureStateChange() final;
 
   // Used by the PictureInPictureController as callback when the video element
@@ -198,11 +198,7 @@ class CORE_EXPORT HTMLVideoElement final : public HTMLMediaElement,
   void OnExitedPictureInPicture();
 
   void SetIsEffectivelyFullscreen(blink::WebFullscreenVideoStatus);
-
-  void SetImageForTest(ImageResourceContent* content) {
-    DCHECK(image_loader_);
-    image_loader_->SetImageForTest(content);
-  }
+  void SetIsDominantVisibleContent(bool is_dominant);
 
   VideoWakeLock* wake_lock_for_tests() const { return wake_lock_; }
 
@@ -211,18 +207,23 @@ class CORE_EXPORT HTMLVideoElement final : public HTMLMediaElement,
   void AddedEventListener(const AtomicString& event_type,
                           RegisteredEventListener&) override;
 
+  void OnWebMediaPlayerCreated() final;
+
+  void AttributeChanged(const AttributeModificationParams& params) override;
+
  private:
   friend class MediaCustomControlsFullscreenDetectorTest;
   friend class HTMLMediaElementEventListenersTest;
   friend class HTMLVideoElementPersistentTest;
   friend class VideoFillingViewportTest;
 
-  // ContextLifecycleStateObserver functions.
-  void ContextDestroyed(ExecutionContext*) final;
+  // ExecutionContextLifecycleStateObserver functions.
+  void ContextDestroyed() final;
 
   bool LayoutObjectIsNeeded(const ComputedStyle&) const override;
   LayoutObject* CreateLayoutObject(const ComputedStyle&, LegacyLayout) override;
   void AttachLayoutTree(AttachContext&) override;
+  void UpdatePosterImage();
   void ParseAttribute(const AttributeModificationParams&) override;
   bool IsPresentationAttribute(const QualifiedName&) const override;
   void CollectStyleForPresentationAttribute(
@@ -232,15 +233,13 @@ class CORE_EXPORT HTMLVideoElement final : public HTMLMediaElement,
   bool IsURLAttribute(const Attribute&) const override;
   const AtomicString ImageSourceURL() const override;
 
-  void UpdateDisplayState() override;
   void OnPlay() final;
   void OnLoadStarted() final;
   void OnLoadFinished() final;
   void DidMoveToNewDocument(Document& old_document) override;
-  void SetDisplayMode(DisplayMode) override;
 
-  void OnViewportIntersectionChanged(
-      const HeapVector<Member<IntersectionObserverEntry>>& entries);
+  void UpdatePictureInPictureAvailability();
+
   void OnIntersectionChangedForLazyLoad(
       const HeapVector<Member<IntersectionObserverEntry>>& entries);
 
@@ -257,28 +256,26 @@ class CORE_EXPORT HTMLVideoElement final : public HTMLMediaElement,
   // Represents whether the video is 'persistent'. It is used for videos with
   // custom controls that are in auto-pip (Android). This boolean is used by a
   // CSS rule.
-  bool is_persistent_ = false;
+  bool is_persistent_ : 1;
 
   // Whether the video is currently in auto-pip (Android). It is not similar to
   // a video being in regular Picture-in-Picture mode.
-  bool is_auto_picture_in_picture_ = false;
+  bool is_auto_picture_in_picture_ : 1;
 
   // Whether this element is in overlay fullscreen mode.
-  bool in_overlay_fullscreen_video_;
+  bool in_overlay_fullscreen_video_ : 1;
 
   // Whether the video element should be considered as fullscreen with regards
   // to display type and other UI features. This does not mean the DOM element
   // is fullscreen.
-  bool is_effectively_fullscreen_ = false;
+  bool is_effectively_fullscreen_ : 1;
 
-  IntSize overridden_intrinsic_size_;
-  bool is_default_overridden_intrinsic_size_;
+  bool is_default_overridden_intrinsic_size_ : 1;
 
-  // The following is always false unless viewport intersection monitoring is
-  // turned on via ActivateViewportIntersectionMonitoring().
-  bool mostly_filling_viewport_ = false;
+  bool video_has_played_ : 1;
 
-  Member<IntersectionObserver> viewport_intersection_observer_;
+  // True, if the video element occupies most of the viewport.
+  bool mostly_filling_viewport_ : 1;
 };
 
 }  // namespace blink

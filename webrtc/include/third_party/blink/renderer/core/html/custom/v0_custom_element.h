@@ -33,7 +33,7 @@
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/html/custom/v0_custom_element_definition.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
@@ -52,7 +52,7 @@ class CORE_EXPORT V0CustomElement {
 
   // API to notify of document-level changes
   static V0CustomElementMicrotaskImportStep* DidCreateImport(HTMLImportChild*);
-  static void DidFinishLoadingImport(Document& master);
+  static void DidFinishLoadingImport(Document& tree_root);
 
   // API for registration contexts
   static void Define(Element*, V0CustomElementDefinition*);

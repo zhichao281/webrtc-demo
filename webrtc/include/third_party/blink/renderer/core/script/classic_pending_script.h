@@ -10,8 +10,8 @@
 #include "third_party/blink/renderer/core/loader/resource/script_resource.h"
 #include "third_party/blink/renderer/core/script/classic_script.h"
 #include "third_party/blink/renderer/core/script/pending_script.h"
+#include "third_party/blink/renderer/platform/instrumentation/memory_pressure_listener.h"
 #include "third_party/blink/renderer/platform/loader/fetch/fetch_parameters.h"
-#include "third_party/blink/renderer/platform/memory_pressure_listener.h"
 
 namespace blink {
 
@@ -26,8 +26,6 @@ namespace blink {
 class CORE_EXPORT ClassicPendingScript final : public PendingScript,
                                                public ResourceClient,
                                                public MemoryPressureListener {
-  USING_GARBAGE_COLLECTED_MIXIN(ClassicPendingScript);
-
  public:
   // https://html.spec.whatwg.org/C/#fetch-a-classic-script
   //
@@ -44,39 +42,38 @@ class CORE_EXPORT ClassicPendingScript final : public PendingScript,
   // For an inline script.
   static ClassicPendingScript* CreateInline(ScriptElementBase*,
                                             const TextPosition&,
+                                            const KURL& base_url,
+                                            const String& source_text,
                                             ScriptSourceLocationType,
                                             const ScriptFetchOptions&);
 
   ClassicPendingScript(ScriptElementBase*,
                        const TextPosition&,
+                       const KURL& base_url_for_inline_script,
+                       const String& source_text_for_inline_script,
                        ScriptSourceLocationType,
                        const ScriptFetchOptions&,
                        bool is_external);
   ~ClassicPendingScript() override;
 
-  // ScriptStreamer callbacks.
-  void SetStreamer(ScriptStreamer*);
-  void StreamingFinished();
+  void Trace(Visitor*) const override;
 
-  void Trace(blink::Visitor*) override;
-
-  mojom::ScriptType GetScriptType() const override {
-    return mojom::ScriptType::kClassic;
+  mojom::blink::ScriptType GetScriptType() const override {
+    return mojom::blink::ScriptType::kClassic;
   }
-
-  void WatchForLoad(PendingScriptClient*) override;
 
   ClassicScript* GetSource(const KURL& document_url) const override;
   bool IsReady() const override;
   bool IsExternal() const override { return is_external_; }
   bool WasCanceled() const override;
-  void StartStreamingIfPossible() override;
   KURL UrlForTracing() const override;
   void DisposeInternal() override;
 
   void SetNotStreamingReasonForTest(ScriptStreamer::NotStreamingReason reason) {
     not_streamed_reason_ = reason;
   }
+
+  bool IsEligibleForDelay() const override;
 
  private:
   // See AdvanceReadyState implementation for valid state transitions.
@@ -104,6 +101,7 @@ class CORE_EXPORT ClassicPendingScript final : public PendingScript,
       ScriptSchedulingType type,
       bool can_use_streamer,
       ScriptStreamer::NotStreamingReason reason);
+  void RecordThirdPartyRequestWithCookieIfNeeded(const ResourceResponse&) const;
 
   // MemoryPressureListener
   void OnPurgeMemory() override;
@@ -114,10 +112,12 @@ class CORE_EXPORT ClassicPendingScript final : public PendingScript,
   // https://html.spec.whatwg.org/C/#prepare-a-script
   // which will eventually be used as #concept-script-base-url.
   // https://html.spec.whatwg.org/C/#concept-script-base-url
+  // This is a null URL for external scripts and is not used.
   const KURL base_url_for_inline_script_;
 
   // "element's child text content" snapshot taken at
   // #prepare-a-script (Step 4).
+  // This is a null string for external scripts and is not used.
   const String source_text_for_inline_script_;
 
   const ScriptSourceLocationType source_location_type_;

@@ -32,17 +32,20 @@ class MockIceTransport : public IceTransportInternal {
     SignalWritableState(this);
   }
 
-  MOCK_METHOD4(SendPacket,
-               int(const char* data,
-                   size_t len,
-                   const rtc::PacketOptions& options,
-                   int flags));
-  MOCK_METHOD2(SetOption, int(rtc::Socket::Option opt, int value));
-  MOCK_METHOD0(GetError, int());
-  MOCK_CONST_METHOD0(GetIceRole, cricket::IceRole());
-  MOCK_METHOD2(GetStats,
-               bool(cricket::ConnectionInfos* candidate_pair_stats_list,
-                    cricket::CandidateStatsList* candidate_stats_list));
+  MOCK_METHOD(int,
+              SendPacket,
+              (const char* data,
+               size_t len,
+               const rtc::PacketOptions& options,
+               int flags),
+              (override));
+  MOCK_METHOD(int, SetOption, (rtc::Socket::Option opt, int value), (override));
+  MOCK_METHOD(int, GetError, (), (override));
+  MOCK_METHOD(cricket::IceRole, GetIceRole, (), (const, override));
+  MOCK_METHOD(bool,
+              GetStats,
+              (cricket::IceTransportStats * ice_transport_stats),
+              (override));
 
   IceTransportState GetState() const override {
     return IceTransportState::STATE_INIT;
@@ -63,6 +66,10 @@ class MockIceTransport : public IceTransportInternal {
   void SetIceConfig(const IceConfig& config) override {}
   absl::optional<int> GetRttEstimate() override { return absl::nullopt; }
   const Connection* selected_connection() const override { return nullptr; }
+  absl::optional<const CandidatePair> GetSelectedCandidatePair()
+      const override {
+    return absl::nullopt;
+  }
   void MaybeStartGathering() override {}
   void AddRemoteCandidate(const Candidate& candidate) override {}
   void RemoveRemoteCandidate(const Candidate& candidate) override {}

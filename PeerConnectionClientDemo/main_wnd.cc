@@ -245,8 +245,8 @@ void MainWnd::OnPaint() {
     AutoLock<VideoRenderer> remote_lock(remote_renderer);
 
     const BITMAPINFO& bmi = remote_renderer->bmi();
-    int height = abs(bmi.bmiHeader.biHeight);
-    int width = bmi.bmiHeader.biWidth;
+    int height = abs(bmi.bmiHeader.biHeight-3);
+    int width = bmi.bmiHeader.biWidth-6;
 
     const uint8_t* image = remote_renderer->image();
     if (image != NULL) {

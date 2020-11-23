@@ -5,11 +5,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_FRAME_REMOTE_FRAME_CLIENT_IMPL_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_FRAME_REMOTE_FRAME_CLIENT_IMPL_H_
 
+#include "third_party/blink/public/mojom/input/focus_type.mojom-blink-forward.h"
 #include "third_party/blink/renderer/core/frame/remote_frame_client.h"
-
-namespace cc {
-class PaintCanvas;
-}
 
 namespace blink {
 class WebRemoteFrameImpl;
@@ -18,44 +15,38 @@ class RemoteFrameClientImpl final : public RemoteFrameClient {
  public:
   explicit RemoteFrameClientImpl(WebRemoteFrameImpl*);
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
   // FrameClient overrides:
   bool InShadowTree() const override;
   void Detached(FrameDetachType) override;
-  Frame* Opener() const override;
-  void SetOpener(Frame*) override;
-  Frame* Parent() const override;
-  Frame* Top() const override;
-  Frame* NextSibling() const override;
-  Frame* FirstChild() const override;
-  void FrameFocused() const override;
   base::UnguessableToken GetDevToolsFrameToken() const override;
 
   // RemoteFrameClient overrides:
   void Navigate(const ResourceRequest&,
+                blink::WebLocalFrame* initiator_frame,
                 bool should_replace_current_entry,
                 bool is_opener_navigation,
                 bool prevent_sandboxed_download,
                 bool initiator_frame_is_ad,
-                mojom::blink::BlobURLTokenPtr) override;
+                mojo::PendingRemote<mojom::blink::BlobURLToken>,
+                const base::Optional<WebImpression>& impression) override;
   unsigned BackForwardLength() override;
-  void CheckCompleted() override;
-  void ForwardPostMessage(MessageEvent*,
-                          scoped_refptr<const SecurityOrigin> target,
-                          LocalFrame* source,
-                          bool has_user_gesture) const override;
   void FrameRectsChanged(const IntRect& local_frame_rect,
                          const IntRect& screen_space_rect) override;
-  void UpdateRemoteViewportIntersection(const IntRect&,
-                                        FrameOcclusionState) override;
-  void AdvanceFocus(WebFocusType, LocalFrame*) override;
-  void VisibilityChanged(blink::mojom::FrameVisibility) override;
-  void SetIsInert(bool) override;
-  void SetInheritedEffectiveTouchAction(TouchAction) override;
-  void UpdateRenderThrottlingStatus(bool is_throttled,
-                                    bool subtree_throttled) override;
-  uint32_t Print(const IntRect&, cc::PaintCanvas*) const override;
+  void ZoomLevelChanged(double zoom_level) override;
+  void UpdateCaptureSequenceNumber(uint32_t sequence_number) override;
+  void PageScaleFactorChanged(float page_scale_factor,
+                              bool is_pinch_gesture_active) override;
+  void DidChangeScreenInfo(const ScreenInfo& original_screen_info) override;
+  void DidChangeRootWindowSegments(
+      const std::vector<gfx::Rect>& root_widget_window_segments) override;
+  void DidChangeVisibleViewportSize(
+      const gfx::Size& visible_viewport_size) override;
+  void SynchronizeVisualProperties() override;
+  AssociatedInterfaceProvider* GetRemoteAssociatedInterfaces() override;
+  viz::FrameSinkId GetFrameSinkId() override;
+  void WasEvicted() override;
 
   WebRemoteFrameImpl* GetWebFrame() const { return web_frame_; }
 

@@ -14,7 +14,7 @@
 #include "third_party/blink/renderer/platform/fonts/small_caps_iterator.h"
 #include "third_party/blink/renderer/platform/fonts/symbols_iterator.h"
 #include "third_party/blink/renderer/platform/fonts/utf16_text_iterator.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
@@ -35,13 +35,16 @@ class PLATFORM_EXPORT RunSegmenter {
   };
 
   // Initialize a RunSegmenter.
-  RunSegmenter(const UChar* buffer, unsigned buffer_size, FontOrientation);
+  RunSegmenter(const UChar* buffer,
+               unsigned buffer_size,
+               FontOrientation,
+               unsigned start_offset = 0);
 
   bool Consume(RunSegmenterRange*);
 
-  static RunSegmenterRange NullRange() {
-    return {0, 0, USCRIPT_INVALID_CODE, OrientationIterator::kOrientationKeep,
-            FontFallbackPriority::kText};
+  static RunSegmenterRange NullRange(unsigned offset = 0) {
+    return {offset, offset, USCRIPT_INVALID_CODE,
+            OrientationIterator::kOrientationKeep, FontFallbackPriority::kText};
   }
 
  private:
@@ -52,6 +55,7 @@ class PLATFORM_EXPORT RunSegmenter {
       SegmentationCategory* segmentation_category);
 
   unsigned buffer_size_;
+  unsigned start_offset_;
   RunSegmenterRange candidate_range_;
   std::unique_ptr<ScriptRunIterator> script_run_iterator_;
   std::unique_ptr<OrientationIterator> orientation_iterator_;

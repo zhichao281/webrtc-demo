@@ -35,19 +35,31 @@
 #include "base/callback_forward.h"
 #include "third_party/skia/include/core/SkImageInfo.h"
 
-class GrContext;
+class GrDirectContext;
 
 namespace cc {
 class ImageDecodeCache;
+class PaintCanvas;
 }  // namespace cc
+
+namespace media {
+class PaintCanvasVideoRenderer;
+class VideoFrame;
+}  // namespace media
 
 namespace gpu {
 struct Capabilities;
+class GLHelper;
 struct GpuFeatureInfo;
+class InterfaceBase;
 class SharedImageInterface;
 
 namespace gles2 {
 class GLES2Interface;
+}
+
+namespace raster {
+class RasterInterface;
 }
 
 namespace webgpu {
@@ -55,36 +67,50 @@ class WebGPUInterface;
 }
 }
 
-namespace viz {
-class GLHelper;
-}
-
 namespace blink {
+enum AntialiasingMode {
+  kAntialiasingModeUnspecified,
+  kAntialiasingModeNone,
+  kAntialiasingModeMSAAImplicitResolve,
+  kAntialiasingModeMSAAExplicitResolve,
+};
+
+struct WebglPreferences {
+  AntialiasingMode anti_aliasing_mode = kAntialiasingModeUnspecified;
+  uint32_t msaa_sample_count = 4;
+  uint32_t eqaa_storage_sample_count = 4;
+  // WebGL-specific numeric limits.
+  uint32_t max_active_webgl_contexts = 0;
+  uint32_t max_active_webgl_contexts_on_worker = 0;
+};
 
 class WebGraphicsContext3DProvider {
  public:
   virtual ~WebGraphicsContext3DProvider() = default;
 
+  virtual gpu::InterfaceBase* InterfaceBase() = 0;
   virtual gpu::gles2::GLES2Interface* ContextGL() = 0;
+  virtual gpu::raster::RasterInterface* RasterInterface() = 0;
   virtual gpu::webgpu::WebGPUInterface* WebGPUInterface() = 0;
+  virtual bool IsContextLost() = 0;  // Has the GPU driver lost this context?
   virtual bool BindToCurrentThread() = 0;
-  virtual GrContext* GetGrContext() = 0;
-  virtual gpu::SharedImageInterface* GetSharedImageInterface() const = 0;
+  virtual GrDirectContext* GetGrContext() = 0;
   virtual const gpu::Capabilities& GetCapabilities() const = 0;
   virtual const gpu::GpuFeatureInfo& GetGpuFeatureInfo() const = 0;
-  // Creates a viz::GLHelper after first call and returns that instance. This
+  virtual const WebglPreferences& GetWebglPreferences() const = 0;
+  // Creates a gpu::GLHelper after first call and returns that instance. This
   // method cannot return null.
-  virtual viz::GLHelper* GetGLHelper() = 0;
+  virtual gpu::GLHelper* GetGLHelper() = 0;
 
   virtual void SetLostContextCallback(base::RepeatingClosure) = 0;
   virtual void SetErrorMessageCallback(
       base::RepeatingCallback<void(const char* msg, int32_t id)>) = 0;
-  // Return a static software image decode cache for a given color type and
-  // space.
-  virtual cc::ImageDecodeCache* ImageDecodeCache(
-      SkColorType color_type,
-      sk_sp<SkColorSpace> color_space) = 0;
+  // Return a static software image decode cache for a given color type.
+  virtual cc::ImageDecodeCache* ImageDecodeCache(SkColorType color_type) = 0;
   virtual gpu::SharedImageInterface* SharedImageInterface() = 0;
+  virtual void CopyVideoFrame(media::PaintCanvasVideoRenderer* video_render,
+                              media::VideoFrame* video_frame,
+                              cc::PaintCanvas* canvas) = 0;
 };
 
 }  // namespace blink

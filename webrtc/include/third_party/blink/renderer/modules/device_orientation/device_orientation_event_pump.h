@@ -6,7 +6,6 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_DEVICE_ORIENTATION_DEVICE_ORIENTATION_EVENT_PUMP_H_
 
 #include "base/macros.h"
-#include "third_party/blink/renderer/core/frame/platform_event_dispatcher.h"
 #include "third_party/blink/renderer/modules/device_orientation/device_sensor_event_pump.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
@@ -15,30 +14,29 @@ namespace blink {
 
 class DeviceOrientationData;
 class DeviceSensorEntry;
+class PlatformEventController;
 
 class MODULES_EXPORT DeviceOrientationEventPump
-    : public GarbageCollectedFinalized<DeviceOrientationEventPump>,
-      public DeviceSensorEventPump,
-      public PlatformEventDispatcher {
-  USING_GARBAGE_COLLECTED_MIXIN(DeviceOrientationEventPump);
-
+    : public GarbageCollected<DeviceOrientationEventPump>,
+      public DeviceSensorEventPump {
  public:
   // Angle threshold beyond which two orientation events are considered
   // sufficiently different.
   static const double kOrientationThreshold;
 
-  explicit DeviceOrientationEventPump(
-      scoped_refptr<base::SingleThreadTaskRunner> task_runner,
-      bool absolute);
+  explicit DeviceOrientationEventPump(LocalFrame&, bool absolute);
   ~DeviceOrientationEventPump() override;
+
+  void SetController(PlatformEventController*);
+  void RemoveController();
 
   // Note that the returned object is owned by this class.
   DeviceOrientationData* LatestDeviceOrientationData();
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
   // DeviceSensorEventPump:
-  void SendStartMessage(LocalFrame* frame) override;
+  void SendStartMessage(LocalFrame& frame) override;
   void SendStopMessage() override;
 
  protected:
@@ -53,9 +51,7 @@ class MODULES_EXPORT DeviceOrientationEventPump
   friend class DeviceOrientationEventPumpTest;
   friend class DeviceAbsoluteOrientationEventPumpTest;
 
-  // Inherited from PlatformEventDispatcher.
-  void StartListening(LocalFrame*) override;
-  void StopListening() override;
+  void NotifyController();
 
   // DeviceSensorEventPump:
   bool SensorsReadyOrErrored() const override;
@@ -65,9 +61,11 @@ class MODULES_EXPORT DeviceOrientationEventPump
   bool ShouldFireEvent(const DeviceOrientationData* data) const;
 
   bool absolute_;
-  bool fall_back_to_absolute_orientation_sensor_;
-  bool should_suspend_absolute_orientation_sensor_ = false;
+  // If relative_orientation_sensor_ is requested but fails to initialize then
+  // attempt to fall back to absolute_orientation_sensor_ once.
+  bool attempted_to_fall_back_to_absolute_orientation_sensor_;
   Member<DeviceOrientationData> data_;
+  Member<PlatformEventController> controller_;
 
   DISALLOW_COPY_AND_ASSIGN(DeviceOrientationEventPump);
 };

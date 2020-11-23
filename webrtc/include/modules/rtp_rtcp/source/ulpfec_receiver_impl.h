@@ -13,26 +13,28 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
 #include <memory>
 #include <vector>
 
-#include "api/rtp_headers.h"
+#include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/include/ulpfec_receiver.h"
 #include "modules/rtp_rtcp/source/forward_error_correction.h"
-#include "rtc_base/critical_section.h"
+#include "modules/rtp_rtcp/source/rtp_packet_received.h"
+#include "rtc_base/synchronization/mutex.h"
 
 namespace webrtc {
 
 class UlpfecReceiverImpl : public UlpfecReceiver {
  public:
-  explicit UlpfecReceiverImpl(uint32_t ssrc, RecoveredPacketReceiver* callback);
+  explicit UlpfecReceiverImpl(uint32_t ssrc,
+                              RecoveredPacketReceiver* callback,
+                              rtc::ArrayView<const RtpExtension> extensions);
   ~UlpfecReceiverImpl() override;
 
-  int32_t AddReceivedRedPacket(const RTPHeader& rtp_header,
-                               const uint8_t* incoming_rtp_packet,
-                               size_t packet_length,
-                               uint8_t ulpfec_payload_type) override;
+  bool AddReceivedRedPacket(const RtpPacketReceived& rtp_packet,
+                            uint8_t ulpfec_payload_type) override;
 
   int32_t ProcessReceivedFec() override;
 
@@ -40,8 +42,9 @@ class UlpfecReceiverImpl : public UlpfecReceiver {
 
  private:
   const uint32_t ssrc_;
+  const RtpHeaderExtensionMap extensions_;
 
-  rtc::CriticalSection crit_sect_;
+  mutable Mutex mutex_;
   RecoveredPacketReceiver* recovered_packet_callback_;
   std::unique_ptr<ForwardErrorCorrection> fec_;
   // TODO(nisse): The AddReceivedRedPacket method adds one or two packets to

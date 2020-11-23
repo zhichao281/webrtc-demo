@@ -5,39 +5,38 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_XR_XR_BOUNDED_REFERENCE_SPACE_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_XR_XR_BOUNDED_REFERENCE_SPACE_H_
 
+#include "base/optional.h"
 #include "third_party/blink/renderer/core/geometry/dom_point_read_only.h"
 #include "third_party/blink/renderer/modules/xr/xr_reference_space.h"
 #include "third_party/blink/renderer/platform/transforms/transformation_matrix.h"
 
 namespace blink {
 
-class XRStageBounds;
-
 class XRBoundedReferenceSpace final : public XRReferenceSpace {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  XRBoundedReferenceSpace(XRSession*);
+  explicit XRBoundedReferenceSpace(XRSession*);
+  XRBoundedReferenceSpace(XRSession*, XRRigidTransform*);
   ~XRBoundedReferenceSpace() override;
 
-  void UpdateBoundsGeometry(XRStageBounds*);
+  base::Optional<TransformationMatrix> MojoFromNative() override;
 
-  std::unique_ptr<TransformationMatrix> DefaultPose() override;
-  std::unique_ptr<TransformationMatrix> TransformBasePose(
-      const TransformationMatrix& base_pose) override;
+  HeapVector<Member<DOMPointReadOnly>> boundsGeometry();
 
-  HeapVector<Member<DOMPointReadOnly>> boundsGeometry() const {
-    return bounds_geometry_;
-  }
+  void Trace(Visitor*) const override;
 
-  void Trace(blink::Visitor*) override;
+  void OnReset() override;
 
  private:
-  void UpdateFloorLevelTransform();
+  XRBoundedReferenceSpace* cloneWithOriginOffset(
+      XRRigidTransform* origin_offset) override;
 
-  HeapVector<Member<DOMPointReadOnly>> bounds_geometry_;
-  std::unique_ptr<TransformationMatrix> floor_level_transform_;
-  unsigned int display_info_id_ = 0;
+  void EnsureUpdated();
+
+  HeapVector<Member<DOMPointReadOnly>> offset_bounds_geometry_;
+  std::unique_ptr<TransformationMatrix> mojo_from_bounded_native_;
+  uint32_t stage_parameters_id_ = 0;
 };
 
 }  // namespace blink

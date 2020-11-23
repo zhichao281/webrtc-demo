@@ -13,23 +13,11 @@ namespace blink {
 
 typedef std::pair<unsigned, DigestValue> CSPHashValue;
 
-enum ContentSecurityPolicyHeaderType {
-  kContentSecurityPolicyHeaderTypeReport,
-  kContentSecurityPolicyHeaderTypeEnforce
-};
-
-enum ContentSecurityPolicyHeaderSource {
-  kContentSecurityPolicyHeaderSourceHTTP,
-  kContentSecurityPolicyHeaderSourceMeta,
-  kContentSecurityPolicyHeaderSourceOriginPolicy
-};
-
 enum ContentSecurityPolicyHashAlgorithm {
   kContentSecurityPolicyHashAlgorithmNone = 0,
   kContentSecurityPolicyHashAlgorithmSha256 = 1 << 2,
   kContentSecurityPolicyHashAlgorithmSha384 = 1 << 3,
-  kContentSecurityPolicyHashAlgorithmSha512 = 1 << 4,
-  kContentSecurityPolicyHashAlgorithmEd25519 = 1 << 5,
+  kContentSecurityPolicyHashAlgorithmSha512 = 1 << 4
 };
 
 PLATFORM_EXPORT bool IsCSPDirectiveNameCharacter(UChar);

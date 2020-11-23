@@ -36,8 +36,6 @@ namespace blink {
 class Element;
 
 class CORE_EXPORT LiveNodeList : public NodeList, public LiveNodeListBase {
-  USING_GARBAGE_COLLECTED_MIXIN(LiveNodeList);
-
  public:
   LiveNodeList(ContainerNode& owner_node,
                CollectionType collection_type,
@@ -71,7 +69,7 @@ class CORE_EXPORT LiveNodeList : public NodeList, public LiveNodeListBase {
                                     Element& current_node,
                                     unsigned& current_offset) const;
 
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   Node* VirtualOwnerNode() const final;
@@ -79,11 +77,12 @@ class CORE_EXPORT LiveNodeList : public NodeList, public LiveNodeListBase {
   mutable CollectionItemsCache<LiveNodeList, Element> collection_items_cache_;
 };
 
-DEFINE_TYPE_CASTS(LiveNodeList,
-                  LiveNodeListBase,
-                  list,
-                  IsLiveNodeListType(list->GetType()),
-                  IsLiveNodeListType(list.GetType()));
+template <>
+struct DowncastTraits<LiveNodeList> {
+  static bool AllowFrom(const LiveNodeListBase& list) {
+    return IsLiveNodeListType(list.GetType());
+  }
+};
 
 inline void LiveNodeList::InvalidateCacheForAttribute(
     const QualifiedName* attr_name) const {

@@ -42,7 +42,6 @@ namespace blink {
 
 class DOMWindow;
 class Frame;
-struct WrapperTypeInfo;
 
 // WindowProxy implements the split window model of a window for a frame. In the
 // HTML standard, the split window model is composed of the Window interface
@@ -141,11 +140,11 @@ struct WrapperTypeInfo;
 // ====== References ======
 // https://wiki.mozilla.org/Gecko:SplitWindow
 // https://whatwg.org/C/browsers.html#the-windowproxy-exotic-object
-class WindowProxy : public GarbageCollectedFinalized<WindowProxy> {
+class WindowProxy : public GarbageCollected<WindowProxy> {
  public:
   virtual ~WindowProxy();
 
-  virtual void Trace(blink::Visitor*);
+  virtual void Trace(Visitor*) const;
 
   void InitializeIfNeeded();
 
@@ -156,6 +155,8 @@ class WindowProxy : public GarbageCollectedFinalized<WindowProxy> {
 
   CORE_EXPORT v8::Local<v8::Object> GlobalProxyIfNotDetached();
   v8::Local<v8::Object> ReleaseGlobalProxy();
+  // This does not initialize the window proxy, either Initialize or
+  // InitializeIfNeeded needs to be called after this method.
   void SetGlobalProxy(v8::Local<v8::Object>);
 
   // TODO(dcheng): Temporarily exposed to avoid include cycles. Remove the need
@@ -257,11 +258,6 @@ class WindowProxy : public GarbageCollectedFinalized<WindowProxy> {
   virtual void Initialize() = 0;
 
   virtual void DisposeContext(Lifecycle next_status, FrameReuseStatus) = 0;
-
-  WARN_UNUSED_RESULT v8::Local<v8::Object> AssociateWithWrapper(
-      DOMWindow*,
-      const WrapperTypeInfo*,
-      v8::Local<v8::Object> wrapper);
 
   v8::Isolate* GetIsolate() const { return isolate_; }
   Frame* GetFrame() const { return frame_.Get(); }

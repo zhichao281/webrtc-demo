@@ -40,7 +40,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "build/build_config.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/assertions.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 
@@ -86,7 +86,7 @@ ALWAYS_INLINE int GetMinSaturatedSetResultForTesting() {
 
 // TODO(thakis): Remove these two lines once http://llvm.org/PR26504 is resolved
 class PLATFORM_EXPORT LayoutUnit;
-constexpr inline bool operator<(const LayoutUnit&, const LayoutUnit&);
+constexpr bool operator<(const LayoutUnit&, const LayoutUnit&);
 
 class LayoutUnit {
   DISALLOW_NEW();
@@ -94,21 +94,18 @@ class LayoutUnit {
  public:
   constexpr LayoutUnit() : value_(0) {}
   template <typename IntegerType>
-  explicit LayoutUnit(IntegerType value) {
+  constexpr explicit LayoutUnit(IntegerType value) {
     if (std::is_signed<IntegerType>::value)
       SaturatedSet(static_cast<int>(value));
     else
       SaturatedSet(static_cast<unsigned>(value));
   }
-  explicit LayoutUnit(uint64_t value) {
-    value_ = base::saturated_cast<int>(value * kFixedPointDenominator);
-  }
-  explicit LayoutUnit(float value) {
-    value_ = base::saturated_cast<int>(value * kFixedPointDenominator);
-  }
-  explicit LayoutUnit(double value) {
-    value_ = base::saturated_cast<int>(value * kFixedPointDenominator);
-  }
+  constexpr explicit LayoutUnit(uint64_t value)
+      : value_(base::saturated_cast<int>(value * kFixedPointDenominator)) {}
+  constexpr explicit LayoutUnit(float value)
+      : value_(base::saturated_cast<int>(value * kFixedPointDenominator)) {}
+  constexpr explicit LayoutUnit(double value)
+      : value_(base::saturated_cast<int>(value * kFixedPointDenominator)) {}
 
   static LayoutUnit FromFloatCeil(float value) {
     LayoutUnit v;
@@ -133,6 +130,12 @@ class LayoutUnit {
   static LayoutUnit FromDoubleRound(double value) {
     LayoutUnit v;
     v.value_ = base::saturated_cast<int>(round(value * kFixedPointDenominator));
+    return v;
+  }
+
+  static LayoutUnit FromRawValue(int raw_value) {
+    LayoutUnit v;
+    v.value_ = raw_value;
     return v;
   }
 
@@ -205,7 +208,9 @@ class LayoutUnit {
     return value_ > 0 ? LayoutUnit() : *this;
   }
 
-  bool HasFraction() const { return RawValue() % kFixedPointDenominator; }
+  constexpr bool HasFraction() const {
+    return RawValue() % kFixedPointDenominator;
+  }
 
   LayoutUnit Fraction() const {
     // Compute fraction using the mod operator to preserve the sign of the value
@@ -583,11 +588,11 @@ inline LayoutUnit operator+(const IntegerType a, const LayoutUnit& b) {
   return LayoutUnit(a) + b;
 }
 
-constexpr inline float operator+(const float a, const LayoutUnit& b) {
+constexpr float operator+(const float a, const LayoutUnit& b) {
   return a + b.ToFloat();
 }
 
-constexpr inline double operator+(const double a, const LayoutUnit& b) {
+constexpr double operator+(const double a, const LayoutUnit& b) {
   return a + b.ToDouble();
 }
 
@@ -723,6 +728,16 @@ inline float& operator/=(float& a, const LayoutUnit& b) {
 }
 
 inline int SnapSizeToPixel(LayoutUnit size, LayoutUnit location) {
+  LayoutUnit fraction = location.Fraction();
+  int result = (fraction + size).Round() - fraction.Round();
+  if (UNLIKELY(result == 0 &&
+               std::abs(size.ToFloat()) > LayoutUnit::Epsilon() * 4)) {
+    return size > 0 ? 1 : -1;
+  }
+  return result;
+}
+
+inline int SnapSizeToPixelAllowingZero(LayoutUnit size, LayoutUnit location) {
   LayoutUnit fraction = location.Fraction();
   return (fraction + size).Round() - fraction.Round();
 }

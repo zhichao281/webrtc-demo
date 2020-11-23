@@ -193,6 +193,12 @@ extern "C" {
 #endif
 #endif
 
+// If 'ptr' is NULL, returns NULL. Otherwise returns 'ptr + off'.
+// Prevents undefined behavior sanitizer nullptr-with-nonzero-offset warning.
+#if !defined(WEBP_OFFSET_PTR)
+#define WEBP_OFFSET_PTR(ptr, off) (((ptr) == NULL) ? NULL : ((ptr) + (off)))
+#endif
+
 // Regularize the definition of WEBP_SWAP_16BIT_CSP (backward compatibility)
 #if !defined(WEBP_SWAP_16BIT_CSP)
 #define WEBP_SWAP_16BIT_CSP 0
@@ -246,9 +252,9 @@ extern VP8Fdct VP8FTransform2;   // performs two transforms at a time
 extern VP8WHT VP8FTransformWHT;
 // Predictions
 // *dst is the destination block. *top and *left can be NULL.
-typedef void (*VP8IntraPreds)(uint8_t *dst, const uint8_t* left,
+typedef void (*VP8IntraPreds)(uint8_t* dst, const uint8_t* left,
                               const uint8_t* top);
-typedef void (*VP8Intra4Preds)(uint8_t *dst, const uint8_t* top);
+typedef void (*VP8Intra4Preds)(uint8_t* dst, const uint8_t* top);
 extern VP8Intra4Preds VP8EncPredLuma4;
 extern VP8IntraPreds VP8EncPredLuma16;
 extern VP8IntraPreds VP8EncPredChroma8;
@@ -632,6 +638,8 @@ extern void (*WebPPackRGB)(const uint8_t* r, const uint8_t* g, const uint8_t* b,
 extern int (*WebPHasAlpha8b)(const uint8_t* src, int length);
 // This function returns true if src[4*i] contains a value different from 0xff.
 extern int (*WebPHasAlpha32b)(const uint8_t* src, int length);
+// replaces transparent values in src[] by 'color'.
+extern void (*WebPAlphaReplace)(uint32_t* src, int length, uint32_t color);
 
 // To be called first before using the above.
 void WebPInitAlphaProcessing(void);

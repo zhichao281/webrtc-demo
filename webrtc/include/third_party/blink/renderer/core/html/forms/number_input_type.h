@@ -39,9 +39,8 @@ class ExceptionState;
 
 class NumberInputType final : public TextFieldInputType {
  public:
-  static InputType* Create(HTMLInputElement&);
-
-  NumberInputType(HTMLInputElement& element) : TextFieldInputType(element) {}
+  explicit NumberInputType(HTMLInputElement& element)
+      : TextFieldInputType(element) {}
 
  private:
   void CountUsage() override;
@@ -74,6 +73,7 @@ class NumberInputType final : public TextFieldInputType {
   void WarnIfValueIsInvalid(const String&) const override;
   bool HasBadInput() const override;
   String BadInputText() const override;
+  String ValueNotEqualText(const Decimal& value) const override;
   String RangeOverflowText(const Decimal& maxmum) const override;
   String RangeUnderflowText(const Decimal& minimum) const override;
   bool SupportsPlaceholder() const override;

@@ -21,12 +21,13 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_SVG_SVG_FE_DISPLACEMENT_MAP_ELEMENT_H_
 
 #include "third_party/blink/renderer/core/svg/svg_animated_enumeration.h"
-#include "third_party/blink/renderer/core/svg/svg_animated_number.h"
 #include "third_party/blink/renderer/core/svg/svg_filter_primitive_standard_attributes.h"
 #include "third_party/blink/renderer/platform/graphics/filters/fe_displacement_map.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 
 namespace blink {
+
+class SVGAnimatedNumber;
 
 DECLARE_SVG_ENUM_MAP(ChannelSelectorType);
 
@@ -35,8 +36,6 @@ class SVGFEDisplacementMapElement final
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  DECLARE_NODE_FACTORY(SVGFEDisplacementMapElement);
-
   explicit SVGFEDisplacementMapElement(Document&);
 
   static ChannelSelectorType StringToChannel(const String&);
@@ -51,12 +50,12 @@ class SVGFEDisplacementMapElement final
     return y_channel_selector_.Get();
   }
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   bool SetFilterEffectAttribute(FilterEffect*,
                                 const QualifiedName& attr_name) override;
-  void SvgAttributeChanged(const QualifiedName&) override;
+  void SvgAttributeChanged(const SvgAttributeChangedParams&) override;
   FilterEffect* Build(SVGFilterBuilder*, Filter*) override;
   bool TaintsOrigin() const override { return false; }
 

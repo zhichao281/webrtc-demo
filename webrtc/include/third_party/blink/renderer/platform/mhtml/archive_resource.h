@@ -31,14 +31,14 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "third_party/blink/renderer/platform/shared_buffer.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
+#include "third_party/blink/renderer/platform/wtf/shared_buffer.h"
 
 namespace blink {
 
 class PLATFORM_EXPORT ArchiveResource final
-    : public GarbageCollectedFinalized<ArchiveResource> {
+    : public GarbageCollected<ArchiveResource> {
  public:
   ArchiveResource(scoped_refptr<SharedBuffer>,
                   const KURL&,
@@ -53,7 +53,7 @@ class PLATFORM_EXPORT ArchiveResource final
   const AtomicString& MimeType() const { return mime_type_; }
   const AtomicString& TextEncoding() const { return text_encoding_; }
 
-  void Trace(blink::Visitor* visitor) {}
+  void Trace(Visitor* visitor) const {}
 
  private:
   KURL url_;

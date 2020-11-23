@@ -40,7 +40,7 @@ class StyleRuleCSSStyleDeclaration : public PropertySetCSSStyleDeclaration {
 
   void Reattach(MutableCSSPropertyValueSet&);
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  protected:
   CSSStyleSheet* ParentStyleSheet() const override;
@@ -49,7 +49,6 @@ class StyleRuleCSSStyleDeclaration : public PropertySetCSSStyleDeclaration {
 
   void WillMutate() override;
   void DidMutate(MutationType) override;
-  PropertyRegistry* GetPropertyRegistry() const final;
 
   Member<CSSRule> parent_rule_;
 };

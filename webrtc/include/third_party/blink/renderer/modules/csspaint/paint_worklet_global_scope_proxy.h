@@ -20,24 +20,22 @@ class WorkletModuleResponsesMap;
 
 // A proxy for PaintWorklet to talk to PaintWorkletGlobalScope.
 class MODULES_EXPORT PaintWorkletGlobalScopeProxy
-    : public GarbageCollectedFinalized<PaintWorkletGlobalScopeProxy>,
+    : public GarbageCollected<PaintWorkletGlobalScopeProxy>,
       public WorkletGlobalScopeProxy {
-  USING_GARBAGE_COLLECTED_MIXIN(PaintWorkletGlobalScopeProxy);
-
  public:
   static PaintWorkletGlobalScopeProxy* From(WorkletGlobalScopeProxy*);
 
   PaintWorkletGlobalScopeProxy(LocalFrame*,
                                WorkletModuleResponsesMap*,
-                               PaintWorkletPendingGeneratorRegistry*,
                                size_t global_scope_number);
   ~PaintWorkletGlobalScopeProxy() override = default;
 
   // Implements WorkletGlobalScopeProxy.
   void FetchAndInvokeScript(
       const KURL& module_url_record,
-      network::mojom::FetchCredentialsMode,
+      network::mojom::CredentialsMode,
       const FetchClientSettingsObjectSnapshot& outside_settings_object,
+      WorkerResourceTimingNotifier& outside_resource_timing_notifier,
       scoped_refptr<base::SingleThreadTaskRunner> outside_settings_task_runner,
       WorkletPendingTasks*) override;
   void WorkletObjectDestroyed() override;
@@ -47,7 +45,7 @@ class MODULES_EXPORT PaintWorkletGlobalScopeProxy
 
   PaintWorkletGlobalScope* global_scope() const { return global_scope_.Get(); }
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   std::unique_ptr<MainThreadWorkletReportingProxy> reporting_proxy_;

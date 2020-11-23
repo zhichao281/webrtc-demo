@@ -27,6 +27,7 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/node.h"
 #include "third_party/blink/renderer/platform/bindings/parkable_string.h"
+#include "third_party/blink/renderer/platform/wtf/casting.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
@@ -37,9 +38,8 @@ class CORE_EXPORT CharacterData : public Node {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  // Makes the data either Parkable or Atomic. This enables de-duplication in
-  // both cases, the first one allowing compression as well.
-  void MakeParkableOrAtomize();
+  // Makes the data Parkable. This enables de-duplication and compression.
+  void MakeParkable();
   const String& data() const {
     return is_parkable_ ? parkable_data_.ToString() : data_;
   }
@@ -108,7 +108,10 @@ class CORE_EXPORT CharacterData : public Node {
       delete;  // This will catch anyone doing an unnecessary check.
 };
 
-DEFINE_NODE_TYPE_CASTS(CharacterData, IsCharacterDataNode());
+template <>
+struct DowncastTraits<CharacterData> {
+  static bool AllowFrom(const Node& node) { return node.IsCharacterDataNode(); }
+};
 
 }  // namespace blink
 

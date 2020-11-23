@@ -42,15 +42,11 @@ namespace blink {
 // Interpolation sampling.
 class CORE_EXPORT InertEffect final : public AnimationEffect {
  public:
-  static InertEffect* Create(KeyframeEffectModelBase*,
-                             const Timing&,
-                             bool paused,
-                             double inherited_time);
-
   InertEffect(KeyframeEffectModelBase*,
               const Timing&,
               bool paused,
-              double inherited_time);
+              base::Optional<double> inherited_time,
+              base::Optional<TimelinePhase> inherited_phase);
 
   void Sample(HeapVector<Member<Interpolation>>&) const;
   KeyframeEffectModelBase* Model() const { return model_.Get(); }
@@ -58,26 +54,28 @@ class CORE_EXPORT InertEffect final : public AnimationEffect {
 
   bool IsInertEffect() const final { return true; }
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  protected:
   void UpdateChildrenAndEffects() const override {}
-  double CalculateTimeToEffectChange(
+  AnimationTimeDelta CalculateTimeToEffectChange(
       bool forwards,
-      double inherited_time,
-      double time_to_next_iteration) const override;
+      base::Optional<double> inherited_time,
+      AnimationTimeDelta time_to_next_iteration) const override;
 
  private:
   Member<KeyframeEffectModelBase> model_;
   bool paused_;
-  double inherited_time_;
+  base::Optional<double> inherited_time_;
+  base::Optional<TimelinePhase> inherited_phase_;
 };
 
-DEFINE_TYPE_CASTS(InertEffect,
-                  AnimationEffect,
-                  animationEffect,
-                  animationEffect->IsInertEffect(),
-                  animationEffect.IsInertEffect());
+template <>
+struct DowncastTraits<InertEffect> {
+  static bool AllowFrom(const AnimationEffect& animationEffect) {
+    return animationEffect.IsInertEffect();
+  }
+};
 
 }  // namespace blink
 

@@ -27,7 +27,7 @@
 
 namespace blink {
 
-class TextMatchMarker;
+class TextMarkerBase;
 
 class SVGInlineTextBox final : public InlineTextBox {
  public:
@@ -44,7 +44,7 @@ class SVGInlineTextBox final : public InlineTextBox {
   LayoutUnit PositionForOffset(int offset) const override;
 
   void Paint(const PaintInfo&,
-             const LayoutPoint&,
+             const PhysicalOffset&,
              LayoutUnit line_top,
              LayoutUnit line_bottom) const override;
   LayoutRect LocalSelectionRect(
@@ -80,27 +80,27 @@ class SVGInlineTextBox final : public InlineTextBox {
   TextRun ConstructTextRun(const ComputedStyle&, const SVGTextFragment&) const;
 
  private:
-  void PaintDocumentMarker(GraphicsContext&,
-                           const LayoutPoint&,
+  void PaintDocumentMarker(const PaintInfo&,
+                           const PhysicalOffset&,
                            const DocumentMarker&,
                            const ComputedStyle&,
                            const Font&,
                            bool) const final;
-  void PaintTextMatchMarkerForeground(const PaintInfo&,
-                                      const LayoutPoint&,
-                                      const TextMatchMarker&,
-                                      const ComputedStyle&,
-                                      const Font&) const final;
-  void PaintTextMatchMarkerBackground(const PaintInfo&,
-                                      const LayoutPoint&,
-                                      const TextMatchMarker&,
-                                      const ComputedStyle&,
-                                      const Font&) const final;
+  void PaintTextMarkerForeground(const PaintInfo&,
+                                 const PhysicalOffset&,
+                                 const TextMarkerBase&,
+                                 const ComputedStyle&,
+                                 const Font&) const final;
+  void PaintTextMarkerBackground(const PaintInfo&,
+                                 const PhysicalOffset&,
+                                 const TextMarkerBase&,
+                                 const ComputedStyle&,
+                                 const Font&) const final;
 
-  bool HitTestFragments(const HitTestLocation& location_in_container) const;
+  bool HitTestFragments(const HitTestLocation& hit_test_location) const;
   bool NodeAtPoint(HitTestResult&,
-                   const HitTestLocation& location_in_container,
-                   const LayoutPoint& accumulated_offset,
+                   const HitTestLocation&,
+                   const PhysicalOffset& accumulated_offset,
                    LayoutUnit line_top,
                    LayoutUnit line_bottom) override;
 
@@ -109,7 +109,12 @@ class SVGInlineTextBox final : public InlineTextBox {
   Vector<SVGTextFragment> text_fragments_;
 };
 
-DEFINE_INLINE_BOX_TYPE_CASTS(SVGInlineTextBox);
+template <>
+struct DowncastTraits<SVGInlineTextBox> {
+  static bool AllowFrom(const InlineBox& box) {
+    return box.IsSVGInlineTextBox();
+  }
+};
 
 }  // namespace blink
 

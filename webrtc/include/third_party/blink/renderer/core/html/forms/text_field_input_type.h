@@ -42,10 +42,8 @@ namespace blink {
 class TextFieldInputType : public InputType,
                            public InputTypeView,
                            protected SpinButtonElement::SpinButtonOwner {
-  USING_GARBAGE_COLLECTED_MIXIN(TextFieldInputType);
-
  public:
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
   using InputType::GetElement;
 
  protected:
@@ -56,17 +54,21 @@ class TextFieldInputType : public InputType,
 
   void CreateShadowSubtree() override;
   void DestroyShadowSubtree() override;
-  void AttributeChanged() override;
+  void ValueAttributeChanged() override;
   void DisabledAttributeChanged() override;
   void ReadonlyAttributeChanged() override;
   bool SupportsReadOnly() const override;
-  void HandleBlurEvent() final;
+  void ForwardEvent(Event&) override;
+  void HandleBlurEvent() override;
+  void HandleBeforeTextInsertedEvent(BeforeTextInsertedEvent&) override;
   String SanitizeValue(const String&) const override;
   void SetValue(const String&,
                 bool value_changed,
                 TextFieldEventBehavior,
                 TextControlSetValueSelection) override;
   void UpdateView() override;
+  void CustomStyleForLayoutObject(ComputedStyle& style) override;
+  bool TypeShouldForceLegacyLayout() const override;
   LayoutObject* CreateLayoutObject(const ComputedStyle&,
                                    LegacyLayout) const override;
 
@@ -75,7 +77,6 @@ class TextFieldInputType : public InputType,
   virtual void DidSetValueByUserEdit();
 
   void HandleKeydownEventForSpinButton(KeyboardEvent&);
-  bool ShouldHaveSpinButton() const;
   Element* ContainerElement() const;
 
  private:
@@ -84,8 +85,6 @@ class TextFieldInputType : public InputType,
   bool MayTriggerVirtualKeyboard() const final;
   bool IsTextField() const final;
   bool ValueMissing(const String&) const override;
-  void HandleBeforeTextInsertedEvent(BeforeTextInsertedEvent&) override;
-  void ForwardEvent(Event&) final;
   bool ShouldSubmitImplicitly(const Event&) final;
   bool ShouldRespectListAttribute() override;
   void ListAttributeTargetChanged() override;

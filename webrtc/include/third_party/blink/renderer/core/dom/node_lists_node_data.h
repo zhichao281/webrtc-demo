@@ -22,13 +22,13 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_DOM_NODE_LISTS_NODE_DATA_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_DOM_NODE_LISTS_NODE_DATA_H_
 
-#include "base/macros.h"
 #include "third_party/blink/renderer/core/dom/child_node_list.h"
 #include "third_party/blink/renderer/core/dom/empty_node_list.h"
 #include "third_party/blink/renderer/core/dom/qualified_name.h"
 #include "third_party/blink/renderer/core/dom/tag_collection.h"
 #include "third_party/blink/renderer/core/html/collection_type.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
+#include "third_party/blink/renderer/platform/heap/heap.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_hash.h"
 
@@ -38,22 +38,20 @@ class NodeListsNodeData final : public GarbageCollected<NodeListsNodeData> {
  public:
   ChildNodeList* GetChildNodeList(ContainerNode& node) {
     DCHECK(!child_node_list_ || node == child_node_list_->VirtualOwnerNode());
-    return ToChildNodeList(child_node_list_);
+    return To<ChildNodeList>(child_node_list_.Get());
   }
 
   ChildNodeList* EnsureChildNodeList(ContainerNode& node) {
-    DCHECK(ThreadState::Current()->IsGCForbidden());
     if (child_node_list_)
-      return ToChildNodeList(child_node_list_);
+      return To<ChildNodeList>(child_node_list_.Get());
     auto* list = MakeGarbageCollected<ChildNodeList>(node);
     child_node_list_ = list;
     return list;
   }
 
   EmptyNodeList* EnsureEmptyChildNodeList(Node& node) {
-    DCHECK(ThreadState::Current()->IsGCForbidden());
     if (child_node_list_)
-      return ToEmptyNodeList(child_node_list_);
+      return To<EmptyNodeList>(child_node_list_.Get());
     auto* list = MakeGarbageCollected<EmptyNodeList>(node);
     child_node_list_ = list;
     return list;
@@ -87,21 +85,19 @@ class NodeListsNodeData final : public GarbageCollected<NodeListsNodeData> {
   T* AddCache(ContainerNode& node,
               CollectionType collection_type,
               const AtomicString& name) {
-    DCHECK(ThreadState::Current()->IsGCForbidden());
     NodeListAtomicNameCacheMap::AddResult result = atomic_name_caches_.insert(
         std::make_pair(collection_type, name), nullptr);
     if (!result.is_new_entry) {
       return static_cast<T*>(result.stored_value->value.Get());
     }
 
-    T* list = T::Create(node, collection_type, name);
+    auto* list = MakeGarbageCollected<T>(node, collection_type, name);
     result.stored_value->value = list;
     return list;
   }
 
   template <typename T>
   T* AddCache(ContainerNode& node, CollectionType collection_type) {
-    DCHECK(ThreadState::Current()->IsGCForbidden());
     NodeListAtomicNameCacheMap::AddResult result = atomic_name_caches_.insert(
         NamedNodeListKey(collection_type, CSSSelector::UniversalSelectorAtom()),
         nullptr);
@@ -109,7 +105,7 @@ class NodeListsNodeData final : public GarbageCollected<NodeListsNodeData> {
       return static_cast<T*>(result.stored_value->value.Get());
     }
 
-    T* list = T::Create(node, collection_type);
+    auto* list = MakeGarbageCollected<T>(node, collection_type);
     result.stored_value->value = list;
     return list;
   }
@@ -123,20 +119,21 @@ class NodeListsNodeData final : public GarbageCollected<NodeListsNodeData> {
   TagCollectionNS* AddCache(ContainerNode& node,
                             const AtomicString& namespace_uri,
                             const AtomicString& local_name) {
-    DCHECK(ThreadState::Current()->IsGCForbidden());
     QualifiedName name(g_null_atom, local_name, namespace_uri);
     TagCollectionNSCache::AddResult result =
         tag_collection_ns_caches_.insert(name, nullptr);
     if (!result.is_new_entry)
       return result.stored_value->value;
 
-    TagCollectionNS* list =
-        TagCollectionNS::Create(node, namespace_uri, local_name);
+    auto* list = MakeGarbageCollected<TagCollectionNS>(
+        node, kTagCollectionNSType, namespace_uri, local_name);
     result.stored_value->value = list;
     return list;
   }
 
   NodeListsNodeData() : child_node_list_(nullptr) {}
+  NodeListsNodeData(const NodeListsNodeData&) = delete;
+  NodeListsNodeData& operator=(const NodeListsNodeData&) = delete;
 
   void InvalidateCaches(const QualifiedName* attr_name = nullptr);
 
@@ -170,19 +167,17 @@ class NodeListsNodeData final : public GarbageCollected<NodeListsNodeData> {
     }
   }
 
-  void Trace(Visitor*);
+  void Trace(Visitor*) const;
 
  private:
   // Can be a ChildNodeList or an EmptyNodeList.
   Member<NodeList> child_node_list_;
   NodeListAtomicNameCacheMap atomic_name_caches_;
   TagCollectionNSCache tag_collection_ns_caches_;
-  DISALLOW_COPY_AND_ASSIGN(NodeListsNodeData);
 };
 
 template <typename Collection>
 inline Collection* ContainerNode::EnsureCachedCollection(CollectionType type) {
-  ThreadState::MainThreadGCForbiddenScope gc_forbidden;
   return EnsureNodeLists().AddCache<Collection>(*this, type);
 }
 
@@ -190,7 +185,6 @@ template <typename Collection>
 inline Collection* ContainerNode::EnsureCachedCollection(
     CollectionType type,
     const AtomicString& name) {
-  ThreadState::MainThreadGCForbiddenScope gc_forbidden;
   return EnsureNodeLists().AddCache<Collection>(*this, type, name);
 }
 
@@ -200,7 +194,6 @@ inline Collection* ContainerNode::EnsureCachedCollection(
     const AtomicString& namespace_uri,
     const AtomicString& local_name) {
   DCHECK_EQ(type, kTagCollectionNSType);
-  ThreadState::MainThreadGCForbiddenScope gc_forbidden;
   return EnsureNodeLists().AddCache(*this, namespace_uri, local_name);
 }
 

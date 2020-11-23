@@ -30,7 +30,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_CSS_SELECTOR_CHECKER_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_SELECTOR_CHECKER_H_
 
-#include "base/macros.h"
 #include "third_party/blink/renderer/core/css/css_selector.h"
 #include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/scroll/scroll_types.h"
@@ -39,17 +38,15 @@ namespace blink {
 
 class CSSSelector;
 class ContainerNode;
-class Element;
-class LayoutScrollbar;
+class CustomScrollbar;
 class ComputedStyle;
+class Element;
 class PartNames;
 
-class SelectorChecker {
+class CORE_EXPORT SelectorChecker {
   STACK_ALLOCATED();
 
  public:
-  enum VisitedMatchType { kVisitedMatchDisabled, kVisitedMatchEnabled };
-
   enum Mode {
     // Used when matching selectors inside style recalc. This mode will set
     // restyle flags across the tree during matching which impact how style
@@ -83,18 +80,23 @@ class SelectorChecker {
     Mode mode = kResolvingStyle;
     bool is_ua_rule = false;
     ComputedStyle* element_style = nullptr;
-    Member<LayoutScrollbar> scrollbar = nullptr;
+    CustomScrollbar* scrollbar = nullptr;
     ScrollbarPart scrollbar_part = kNoPart;
     PartNames* part_names = nullptr;
   };
 
   explicit SelectorChecker(const Init& init)
-      : mode_(init.mode),
-        is_ua_rule_(init.is_ua_rule),
-        element_style_(init.element_style),
+      : element_style_(init.element_style),
         scrollbar_(init.scrollbar),
+        part_names_(init.part_names),
         scrollbar_part_(init.scrollbar_part),
-        part_names_(init.part_names) {}
+        mode_(init.mode) {
+#if DCHECK_IS_ON()
+    is_ua_rule_ = init.is_ua_rule;
+#endif
+  }
+  SelectorChecker(const SelectorChecker&) = delete;
+  SelectorChecker& operator=(const SelectorChecker&) = delete;
 
   // Wraps the current element and a CSSSelector and stores some other state of
   // the selector matching process.
@@ -103,48 +105,32 @@ class SelectorChecker {
 
    public:
     // Initial selector constructor
-    SelectorCheckingContext(Element* element,
-                            VisitedMatchType visited_match_type)
-        : selector(nullptr),
-          element(element),
-          previous_element(nullptr),
-          scope(nullptr),
-          visited_match_type(visited_match_type),
-          pseudo_id(kPseudoIdNone),
-          is_sub_selector(false),
-          in_rightmost_compound(true),
-          has_scrollbar_pseudo(false),
-          has_selection_pseudo(false),
-          treat_shadow_host_as_normal_scope(false) {}
+    explicit SelectorCheckingContext(Element* element) : element(element) {}
 
-    const CSSSelector* selector;
-    Member<Element> element;
-    Member<Element> previous_element;
-    Member<const ContainerNode> scope;
-    VisitedMatchType visited_match_type;
-    PseudoId pseudo_id;
-    bool is_sub_selector;
-    bool in_rightmost_compound;
-    bool has_scrollbar_pseudo;
-    bool has_selection_pseudo;
-    bool treat_shadow_host_as_normal_scope;
+    const CSSSelector* selector = nullptr;
+    Element* element = nullptr;
+    Element* previous_element = nullptr;
+    const ContainerNode* scope = nullptr;
+    PseudoId pseudo_id = kPseudoIdNone;
+    bool is_sub_selector = false;
+    bool in_rightmost_compound = true;
+    bool has_scrollbar_pseudo = false;
+    bool has_selection_pseudo = false;
+    bool treat_shadow_host_as_normal_scope = false;
+    Element* vtt_originating_element = nullptr;
+    bool in_nested_complex_selector = false;
+    bool is_inside_visited_link = false;
   };
 
   struct MatchResult {
     STACK_ALLOCATED();
 
    public:
-    MatchResult() : dynamic_pseudo(kPseudoIdNone), specificity(0) {}
-
-    PseudoId dynamic_pseudo;
-    unsigned specificity;
+    PseudoId dynamic_pseudo{kPseudoIdNone};
+    unsigned specificity{0};
   };
 
-  bool Match(const SelectorCheckingContext& context,
-             MatchResult& result) const {
-    DCHECK(context.selector);
-    return MatchSelector(context, result) == kSelectorMatches;
-  }
+  bool Match(const SelectorCheckingContext& context, MatchResult& result) const;
 
   bool Match(const SelectorCheckingContext& context) const {
     MatchResult ignore_result;
@@ -203,13 +189,17 @@ class SelectorChecker {
   bool CheckPseudoHost(const SelectorCheckingContext&, MatchResult&) const;
   bool CheckPseudoNot(const SelectorCheckingContext&, MatchResult&) const;
 
-  Mode mode_;
-  bool is_ua_rule_;
   ComputedStyle* element_style_;
-  Member<LayoutScrollbar> scrollbar_;
-  ScrollbarPart scrollbar_part_;
+  CustomScrollbar* scrollbar_;
   PartNames* part_names_;
-  DISALLOW_COPY_AND_ASSIGN(SelectorChecker);
+  ScrollbarPart scrollbar_part_;
+  Mode mode_;
+#if DCHECK_IS_ON()
+  mutable bool inside_match_ = false;
+  bool is_ua_rule_;
+#else
+  static constexpr bool is_ua_rule_ = true;
+#endif
 };
 
 }  // namespace blink

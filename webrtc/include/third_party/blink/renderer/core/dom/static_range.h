@@ -20,17 +20,6 @@ class CORE_EXPORT StaticRange final : public ScriptWrappable {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static StaticRange* Create(Document& document) {
-    return MakeGarbageCollected<StaticRange>(document);
-  }
-  static StaticRange* Create(Document& document,
-                             Node* start_container,
-                             unsigned start_offset,
-                             Node* end_container,
-                             unsigned end_offset) {
-    return MakeGarbageCollected<StaticRange>(
-        document, start_container, start_offset, end_container, end_offset);
-  }
   static StaticRange* Create(const Range* range) {
     return MakeGarbageCollected<StaticRange>(
         range->OwnerDocument(), range->startContainer(), range->startOffset(),
@@ -68,7 +57,7 @@ class CORE_EXPORT StaticRange final : public ScriptWrappable {
 
   Range* toRange(ExceptionState& = ASSERT_NO_EXCEPTION) const;
 
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   Member<Document> owner_document_;  // Required by |toRange()|.

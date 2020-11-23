@@ -8,15 +8,15 @@
 #include "base/macros.h"
 #include "third_party/blink/renderer/platform/graphics/graphics_context.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_controller.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
 class ScopedDisplayItemFragment final {
-  DISALLOW_NEW();
+  STACK_ALLOCATED();
 
  public:
-  ScopedDisplayItemFragment(GraphicsContext& context, unsigned fragment)
+  ScopedDisplayItemFragment(GraphicsContext& context, wtf_size_t fragment)
       : context_(context),
         original_fragment_(context.GetPaintController().CurrentFragment()) {
     context.GetPaintController().SetCurrentFragment(fragment);
@@ -27,7 +27,7 @@ class ScopedDisplayItemFragment final {
 
  private:
   GraphicsContext& context_;
-  unsigned original_fragment_;
+  wtf_size_t original_fragment_;
 
   DISALLOW_COPY_AND_ASSIGN(ScopedDisplayItemFragment);
 };

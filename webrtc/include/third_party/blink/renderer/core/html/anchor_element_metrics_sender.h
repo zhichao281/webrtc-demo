@@ -8,7 +8,10 @@
 #include "base/macros.h"
 #include "third_party/blink/public/mojom/loader/navigation_predictor.mojom-blink.h"
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/frame/local_frame_view.h"
+#include "third_party/blink/renderer/platform/geometry/int_size.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
@@ -21,15 +24,19 @@ class HTMLAnchorElement;
 // AnchorElementMetricsSender is responsible to send anchor element metrics to
 // the browser process for a given document.
 class CORE_EXPORT AnchorElementMetricsSender final
-    : public GarbageCollectedFinalized<AnchorElementMetricsSender>,
+    : public GarbageCollected<AnchorElementMetricsSender>,
+      public LocalFrameView::LifecycleNotificationObserver,
       public Supplement<Document> {
-  USING_GARBAGE_COLLECTED_MIXIN(AnchorElementMetricsSender);
-
  public:
   static const char kSupplementName[];
 
   explicit AnchorElementMetricsSender(Document&);
   virtual ~AnchorElementMetricsSender();
+
+  // LocalFrameView::LifecycleNotificationObserver
+  void WillStartLifecycleUpdate(const LocalFrameView&) override {}
+  void DidFinishLifecycleUpdate(
+      const LocalFrameView& local_frame_view) override;
 
   // Returns the anchor element metrics sender of the root document of
   // |Document|. Constructs new one if it does not exist.
@@ -45,7 +52,8 @@ class CORE_EXPORT AnchorElementMetricsSender final
 
   // Sends metrics of visible anchor elements to the browser.
   void SendAnchorMetricsVectorToBrowser(
-      Vector<mojom::blink::AnchorElementMetricsPtr> metrics);
+      Vector<mojom::blink::AnchorElementMetricsPtr> metrics,
+      const IntSize& viewport_size);
 
   // Adds an anchor element to |anchor_elements_|.
   void AddAnchorElement(HTMLAnchorElement& element);
@@ -53,7 +61,7 @@ class CORE_EXPORT AnchorElementMetricsSender final
   // Returns the stored |anchor_elements_|.
   const HeapHashSet<Member<HTMLAnchorElement>>& GetAnchorElements() const;
 
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   // Associates |metrics_host_| with the IPC interface if not already, so it can
@@ -61,7 +69,7 @@ class CORE_EXPORT AnchorElementMetricsSender final
   bool AssociateInterface();
 
   // Browser host to which the anchor element metrics are sent.
-  mojom::blink::AnchorElementMetricsHostPtr metrics_host_;
+  HeapMojoRemote<mojom::blink::AnchorElementMetricsHost> metrics_host_;
 
   // Collection of anchor elements in the document. Use a HashSet to ensure that
   // an element is inserted at most once.

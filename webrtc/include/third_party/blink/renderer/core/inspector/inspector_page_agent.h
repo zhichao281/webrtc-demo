@@ -32,7 +32,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_INSPECTOR_INSPECTOR_PAGE_AGENT_H_
 
 #include "base/macros.h"
-#include "third_party/blink/renderer/bindings/core/v8/v8_cache_options.h"
+#include "third_party/blink/public/mojom/v8_cache_options.mojom-blink.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/inspector/inspector_base_agent.h"
 #include "third_party/blink/renderer/core/inspector/protocol/Page.h"
@@ -56,7 +56,6 @@ class InspectedFrames;
 class InspectorResourceContentLoader;
 class LocalFrame;
 class ScriptSourceCode;
-class SharedBuffer;
 enum class ResourceType : uint8_t;
 
 using blink::protocol::Maybe;
@@ -168,6 +167,7 @@ class CORE_EXPORT InspectorPageAgent final
                                          const protocol::Binary& data) override;
   protocol::Response clearCompilationCache() override;
   protocol::Response waitForDebugger() override;
+  protocol::Response setInterceptFileChooserDialog(bool enabled) override;
 
   // InspectorInstrumentation API
   void DidClearDocumentOfWindowObject(LocalFrame*);
@@ -175,16 +175,18 @@ class CORE_EXPORT InspectorPageAgent final
   void DomContentLoadedEventFired(LocalFrame*);
   void LoadEventFired(LocalFrame*);
   void WillCommitLoad(LocalFrame*, DocumentLoader*);
+  void DidOpenDocument(LocalFrame*, DocumentLoader*);
   void FrameAttachedToParent(LocalFrame*);
-  void FrameDetachedFromParent(LocalFrame*);
+  void FrameDetachedFromParent(LocalFrame*, FrameDetachType);
   void FrameStartedLoading(LocalFrame*);
   void FrameStoppedLoading(LocalFrame*);
-  void FrameRequestedNavigation(LocalFrame*,
+  void FrameRequestedNavigation(Frame* target_frame,
                                 const KURL&,
-                                ClientNavigationReason);
+                                ClientNavigationReason,
+                                NavigationPolicy);
   void FrameScheduledNavigation(LocalFrame*,
                                 const KURL&,
-                                double delay,
+                                base::TimeDelta delay,
                                 ClientNavigationReason);
   void FrameClearedScheduledNavigation(LocalFrame*);
   void WillRunJavaScriptDialog();
@@ -200,8 +202,7 @@ class CORE_EXPORT InspectorPageAgent final
   void Did(const probe::UpdateLayout&);
   void Will(const probe::RecalculateStyle&);
   void Did(const probe::RecalculateStyle&);
-  void WindowOpen(Document*,
-                  const String&,
+  void WindowOpen(const KURL&,
                   const AtomicString&,
                   const WebWindowFeatures&,
                   bool);
@@ -209,12 +210,15 @@ class CORE_EXPORT InspectorPageAgent final
                                v8::ScriptCompiler::CachedData**);
   void ProduceCompilationCache(const ScriptSourceCode& source,
                                v8::Local<v8::Script> script);
+  void FileChooserOpened(LocalFrame* frame,
+                         HTMLInputElement* element,
+                         bool* intercepted);
 
   // Inspector Controller API
   void Restore() override;
   bool ScreencastEnabled();
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   void GetResourceContentAfterResourcesContentLoaded(
@@ -228,6 +232,10 @@ class CORE_EXPORT InspectorPageAgent final
       bool case_sensitive,
       bool is_regex,
       std::unique_ptr<SearchInResourceCallback>);
+  scoped_refptr<DOMWrapperWorld> EnsureDOMWrapperWorld(
+      LocalFrame* frame,
+      const String& world_name,
+      bool grant_universal_access);
 
   static KURL UrlWithoutFragment(const KURL&);
 
@@ -240,11 +248,14 @@ class CORE_EXPORT InspectorPageAgent final
       LocalFrame*);
   Member<InspectedFrames> inspected_frames_;
   HashMap<String, protocol::Binary> compilation_cache_;
+  using FrameIsolatedWorlds = HashMap<String, scoped_refptr<DOMWrapperWorld>>;
+  HeapHashMap<WeakMember<LocalFrame>, FrameIsolatedWorlds> isolated_worlds_;
   v8_inspector::V8InspectorSession* v8_session_;
   Client* client_;
   String pending_script_to_evaluate_on_load_once_;
   String script_to_evaluate_on_load_once_;
   Member<InspectorResourceContentLoader> inspector_resource_content_loader_;
+  bool intercept_file_chooser_ = false;
   int resource_content_loader_client_id_;
   InspectorAgentState::Boolean enabled_;
   InspectorAgentState::Boolean screencast_enabled_;

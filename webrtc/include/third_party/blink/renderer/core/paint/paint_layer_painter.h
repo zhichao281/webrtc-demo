@@ -6,20 +6,19 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_PAINT_PAINT_LAYER_PAINTER_H_
 
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/paint/paint_layer.h"
 #include "third_party/blink/renderer/core/paint/paint_layer_fragment.h"
 #include "third_party/blink/renderer/core/paint/paint_layer_painting_info.h"
 #include "third_party/blink/renderer/core/paint/paint_result.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
 class CullRect;
 class ClipRect;
 class ComputedStyle;
-class DisplayItemClient;
-class PaintLayer;
 class GraphicsContext;
-class LayoutPoint;
+struct PhysicalOffset;
 
 // This class is responsible for painting self-painting PaintLayer.
 //
@@ -49,9 +48,9 @@ class CORE_EXPORT PaintLayerPainter {
                                  const PaintLayerPaintingInfo&,
                                  PaintLayerFlags);
 
-  void PaintOverlayScrollbars(GraphicsContext&,
-                              const CullRect&,
-                              const GlobalPaintFlags);
+  void PaintOverlayOverflowControls(GraphicsContext&,
+                                    const CullRect&,
+                                    const GlobalPaintFlags);
 
   // Returns true if the painted output of this PaintLayer and its children is
   // invisible and therefore can't impact painted output.
@@ -60,7 +59,7 @@ class CORE_EXPORT PaintLayerPainter {
  private:
   friend class PaintLayerPainterTest;
 
-  PaintResult PaintChildren(unsigned children_to_visit,
+  PaintResult PaintChildren(PaintLayerIteration children_to_visit,
                             GraphicsContext&,
                             const PaintLayerPaintingInfo&,
                             PaintLayerFlags);
@@ -68,7 +67,7 @@ class CORE_EXPORT PaintLayerPainter {
       PaintLayerFragments&,
       const PaintLayerPaintingInfo&,
       PaintLayerFlags,
-      const LayoutPoint& offset_from_root);
+      const PhysicalOffset& offset_from_root);
   void PaintFragmentWithPhase(PaintPhase,
                               const PaintLayerFragment&,
                               GraphicsContext&,
@@ -82,8 +81,6 @@ class CORE_EXPORT PaintLayerPainter {
   void PaintForegroundForFragments(const PaintLayerFragments&,
                                    GraphicsContext&,
                                    const PaintLayerPaintingInfo&,
-                                   bool selection_only,
-                                   bool force_paint_chunks,
                                    PaintLayerFlags);
   void PaintForegroundForFragmentsWithPhase(PaintPhase,
                                             const PaintLayerFragments&,
@@ -94,28 +91,14 @@ class CORE_EXPORT PaintLayerPainter {
                                     GraphicsContext&,
                                     const PaintLayerPaintingInfo&,
                                     PaintLayerFlags);
-  void PaintOverflowControlsForFragments(const PaintLayerFragments&,
-                                         GraphicsContext&,
-                                         const PaintLayerPaintingInfo&,
-                                         PaintLayerFlags);
+  void PaintOverlayOverflowControlsForFragments(const PaintLayerFragments&,
+                                                GraphicsContext&,
+                                                const PaintLayerPaintingInfo&,
+                                                PaintLayerFlags);
   void PaintMaskForFragments(const PaintLayerFragments&,
                              GraphicsContext&,
                              const PaintLayerPaintingInfo&,
                              PaintLayerFlags);
-  void PaintAncestorClippingMask(const PaintLayerFragment&,
-                                 GraphicsContext&,
-                                 const PaintLayerPaintingInfo&,
-                                 PaintLayerFlags);
-  void PaintChildClippingMaskForFragments(const PaintLayerFragments&,
-                                          GraphicsContext&,
-                                          const PaintLayerPaintingInfo&,
-                                          PaintLayerFlags);
-
-  void FillMaskingFragment(GraphicsContext&,
-                           const ClipRect&,
-                           const DisplayItemClient&);
-
-  void PaintEmptyContentForFilters(GraphicsContext&);
 
   void AdjustForPaintProperties(const GraphicsContext&,
                                 PaintLayerPaintingInfo&,

@@ -33,13 +33,24 @@
 
 #include <stdint.h>
 #include "base/optional.h"
+#include "base/time/time.h"
 #include "third_party/blink/public/platform/web_blob_info.h"
 #include "third_party/blink/public/platform/web_common.h"
 #include "third_party/blink/public/platform/web_url_request.h"
 
+namespace base {
+class SingleThreadTaskRunner;
+}
+
+namespace network {
+struct ResourceRequest;
+}
+
 namespace blink {
 
+class ResourceLoadInfoNotifierWrapper;
 class WebData;
+class WebURLRequestExtraData;
 class WebURLLoaderClient;
 class WebURLResponse;
 struct WebURLError;
@@ -56,24 +67,32 @@ class WebURLLoader {
   // will instead be redirected to a blob, which is passed out in
   // |downloaded_blob|.
   virtual void LoadSynchronously(
-      const WebURLRequest&,
+      std::unique_ptr<network::ResourceRequest> request,
+      scoped_refptr<WebURLRequestExtraData> url_request_extra_data,
+      int requestor_id,
+      bool pass_response_pipe_to_client,
+      bool no_mime_sniffing,
+      base::TimeDelta timeout_interval,
       WebURLLoaderClient*,
       WebURLResponse&,
       base::Optional<WebURLError>&,
       WebData&,
       int64_t& encoded_data_length,
       int64_t& encoded_body_length,
-      WebBlobInfo& downloaded_blob) = 0;
+      WebBlobInfo& downloaded_blob,
+      std::unique_ptr<blink::ResourceLoadInfoNotifierWrapper>
+          resource_load_info_notifier_wrapper) = 0;
 
   // Load the request asynchronously, sending notifications to the given
   // client.  The client will receive no further notifications if the
   // loader is disposed before it completes its work.
-  virtual void LoadAsynchronously(const WebURLRequest&,
-                                  WebURLLoaderClient*) = 0;
-
-  // Cancels an asynchronous load.  This will appear as a load error to
-  // the client.
-  virtual void Cancel() = 0;
+  virtual void LoadAsynchronously(
+      std::unique_ptr<network::ResourceRequest> request,
+      scoped_refptr<WebURLRequestExtraData> url_request_extra_data,
+      int requestor_id,
+      bool no_mime_sniffing,
+      std::unique_ptr<ResourceLoadInfoNotifierWrapper>,
+      WebURLLoaderClient*) = 0;
 
   // Suspends/resumes an asynchronous load.
   virtual void SetDefersLoading(bool) = 0;
@@ -85,7 +104,8 @@ class WebURLLoader {
                                  int intra_priority_value) = 0;
 
   // Returns the task runner for this request.
-  virtual scoped_refptr<base::SingleThreadTaskRunner> GetTaskRunner() = 0;
+  virtual scoped_refptr<base::SingleThreadTaskRunner>
+  GetTaskRunnerForBodyLoader() = 0;
 };
 
 }  // namespace blink

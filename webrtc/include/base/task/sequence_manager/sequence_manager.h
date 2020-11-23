@@ -6,26 +6,44 @@
 #define BASE_TASK_SEQUENCE_MANAGER_SEQUENCE_MANAGER_H_
 
 #include <memory>
+#include <string>
 #include <utility>
 
-#include "base/message_loop/message_loop.h"
+#include "base/message_loop/message_pump_type.h"
 #include "base/message_loop/timer_slack.h"
+#include "base/sequenced_task_runner.h"
 #include "base/single_thread_task_runner.h"
 #include "base/task/sequence_manager/task_queue_impl.h"
 #include "base/task/sequence_manager/task_time_observer.h"
 #include "base/time/default_tick_clock.h"
 
 namespace base {
+
+class MessagePump;
+class TaskObserver;
+
 namespace sequence_manager {
 
 class TimeDomain;
+
+// Represent outstanding work the sequence underlying a SequenceManager (e.g.,
+// a native system task for drawing the UI). As long as this handle is alive,
+// the work is considered to be pending.
+class NativeWorkHandle {
+ public:
+  virtual ~NativeWorkHandle();
+  NativeWorkHandle(const NativeWorkHandle&) = delete;
+
+ protected:
+  NativeWorkHandle() = default;
+};
 
 // SequenceManager manages TaskQueues which have different properties
 // (e.g. priority, common task type) multiplexing all posted tasks into
 // a single backing sequence (currently bound to a single thread, which is
 // refererred as *main thread* in the comments below). SequenceManager
 // implementation can be used in a various ways to apply scheduling logic.
-class SequenceManager {
+class BASE_EXPORT SequenceManager {
  public:
   class Observer {
    public:
@@ -38,7 +56,8 @@ class SequenceManager {
   struct MetricRecordingSettings {
     // This parameter will be updated for consistency on creation (setting
     // value to 0 when ThreadTicks are not supported).
-    MetricRecordingSettings(double task_sampling_rate_for_recording_cpu_time);
+    explicit MetricRecordingSettings(
+        double task_sampling_rate_for_recording_cpu_time);
 
     // The proportion of the tasks for which the cpu time will be
     // sampled or 0 if this is not enabled.
@@ -59,15 +78,22 @@ class SequenceManager {
 
   // Settings defining the desired SequenceManager behaviour: the type of the
   // MessageLoop and whether randomised sampling should be enabled.
-  struct Settings {
-    Settings() = default;
+  struct BASE_EXPORT Settings {
+    class Builder;
+
+    Settings();
+    Settings(const Settings&) = delete;
+    Settings& operator=(const Settings&) = delete;
     // In the future MessagePump (which is move-only) will also be a setting,
     // so we are making Settings move-only in preparation.
-    Settings(Settings&& move_from) noexcept = default;
+    Settings(Settings&& move_from) noexcept;
 
-    MessageLoop::Type message_loop_type = MessageLoop::TYPE_DEFAULT;
+    MessagePumpType message_loop_type = MessagePumpType::DEFAULT;
     bool randomised_sampling_enabled = false;
     const TickClock* clock = DefaultTickClock::GetInstance();
+
+    // If true, add the timestamp the task got queued to the task.
+    bool add_queue_time_to_tasks = false;
 
 #if DCHECK_IS_ON()
     // TODO(alexclarke): Consider adding command line flags to control these.
@@ -75,6 +101,11 @@ class SequenceManager {
       kNone,
       kEnabled,
       kEnabledWithBacktrace,
+
+      // Logs high priority tasks and the lower priority tasks they skipped
+      // past.  Useful for debugging test failures caused by scheduler policy
+      // changes.
+      kReorderedOnly,
     };
     TaskLogging task_execution_logging = TaskLogging::kNone;
 
@@ -87,20 +118,19 @@ class SequenceManager {
 
     // Scheduler policy induced raciness is an area of concern. This lets us
     // apply an extra delay per priority for cross thread posting.
-    TimeDelta
-        per_priority_cross_thread_task_delay[TaskQueue::kQueuePriorityCount];
+    std::array<TimeDelta, TaskQueue::kQueuePriorityCount>
+        per_priority_cross_thread_task_delay;
 
     // Like the above but for same thread posting.
-    TimeDelta
-        per_priority_same_thread_task_delay[TaskQueue::kQueuePriorityCount];
+    std::array<TimeDelta, TaskQueue::kQueuePriorityCount>
+        per_priority_same_thread_task_delay;
 
     // If not zero this seeds a PRNG used by the task selection logic to choose
     // a random TaskQueue for a given priority rather than the TaskQueue with
     // the oldest EnqueueOrder.
     int random_task_selection_seed = 0;
-#endif  // DCHECK_IS_ON()
 
-    DISALLOW_COPY_AND_ASSIGN(Settings);
+#endif  // DCHECK_IS_ON()
   };
 
   virtual ~SequenceManager() = default;
@@ -110,8 +140,12 @@ class SequenceManager {
   // performs this initialization automatically.
   virtual void BindToCurrentThread() = 0;
 
+  // Returns the task runner the current task was posted on. Returns null if no
+  // task is currently running. Must be called on the bound thread.
+  virtual scoped_refptr<SequencedTaskRunner> GetTaskRunnerForCurrentTask() = 0;
+
   // Finishes the initialization for a SequenceManager created via
-  // CreateUnboundSequenceManagerWithPump(). Must not be called in any other
+  // CreateUnboundSequenceManager(). Must not be called in any other
   // circumstances. The ownership of the pump is transferred to SequenceManager.
   virtual void BindToMessagePump(std::unique_ptr<MessagePump> message_pump) = 0;
 
@@ -196,9 +230,80 @@ class SequenceManager {
   // Returns a JSON string which describes all pending tasks.
   virtual std::string DescribeAllPendingTasks() const = 0;
 
+  // Indicates that the underlying sequence (e.g., the message pump) has pending
+  // work at priority |priority|. If the priority of the work in this
+  // SequenceManager is lower, it will yield to let the native work run. The
+  // native work is assumed to remain pending while the returned handle is
+  // valid.
+  //
+  // Must be called on the main thread, and the returned handle must also be
+  // deleted on the main thread.
+  virtual std::unique_ptr<NativeWorkHandle> OnNativeWorkPending(
+      TaskQueue::QueuePriority priority) = 0;
+
+  // Adds an observer which reports task execution. Can only be called on the
+  // same thread that |this| is running on.
+  virtual void AddTaskObserver(TaskObserver* task_observer) = 0;
+
+  // Removes an observer which reports task execution. Can only be called on the
+  // same thread that |this| is running on.
+  virtual void RemoveTaskObserver(TaskObserver* task_observer) = 0;
+
  protected:
   virtual std::unique_ptr<internal::TaskQueueImpl> CreateTaskQueueImpl(
       const TaskQueue::Spec& spec) = 0;
+};
+
+class BASE_EXPORT SequenceManager::Settings::Builder {
+ public:
+  Builder();
+  ~Builder();
+
+  // Sets the MessagePumpType which is used to create a MessagePump.
+  Builder& SetMessagePumpType(MessagePumpType message_loop_type);
+
+  Builder& SetRandomisedSamplingEnabled(bool randomised_sampling_enabled);
+
+  // Sets the TickClock the SequenceManager uses to obtain Now.
+  Builder& SetTickClock(const TickClock* clock);
+
+  // Whether or not queueing timestamp will be added to tasks.
+  Builder& SetAddQueueTimeToTasks(bool add_queue_time_to_tasks);
+
+#if DCHECK_IS_ON()
+  // Controls task execution logging.
+  Builder& SetTaskLogging(TaskLogging task_execution_logging);
+
+  // Whether or not PostTask will emit a debug log.
+  Builder& SetLogPostTask(bool log_post_task);
+
+  // Whether or not debug logs will be emitted when a delayed task becomes
+  // eligible to run.
+  Builder& SetLogTaskDelayExpiry(bool log_task_delay_expiry);
+
+  // Scheduler policy induced raciness is an area of concern. This lets us
+  // apply an extra delay per priority for cross thread posting.
+  Builder& SetPerPriorityCrossThreadTaskDelay(
+      std::array<TimeDelta, TaskQueue::kQueuePriorityCount>
+          per_priority_cross_thread_task_delay);
+
+  // Scheduler policy induced raciness is an area of concern. This lets us
+  // apply an extra delay per priority for same thread posting.
+  Builder& SetPerPrioritySameThreadTaskDelay(
+      std::array<TimeDelta, TaskQueue::kQueuePriorityCount>
+          per_priority_same_thread_task_delay);
+
+  // If not zero this seeds a PRNG used by the task selection logic to choose a
+  // random TaskQueue for a given priority rather than the TaskQueue with the
+  // oldest EnqueueOrder.
+  Builder& SetRandomTaskSelectionSeed(int random_task_selection_seed);
+
+#endif  // DCHECK_IS_ON()
+
+  Settings Build();
+
+ private:
+  Settings settings_;
 };
 
 // Create SequenceManager using MessageLoop on the current thread.
@@ -209,7 +314,7 @@ CreateSequenceManagerOnCurrentThread(SequenceManager::Settings settings);
 
 // Create a SequenceManager using the given MessagePump on the current thread.
 // MessagePump instances can be created with
-// MessageLoop::CreateMessagePumpForType().
+// MessagePump::CreateMessagePumpForType().
 BASE_EXPORT std::unique_ptr<SequenceManager>
 CreateSequenceManagerOnCurrentThreadWithPump(
     std::unique_ptr<MessagePump> message_pump,
@@ -220,12 +325,6 @@ CreateSequenceManagerOnCurrentThreadWithPump(
 // initialized on the current thread and then needs to be bound and initialized
 // on the target thread by calling one of the Bind*() methods.
 BASE_EXPORT std::unique_ptr<SequenceManager> CreateUnboundSequenceManager(
-    SequenceManager::Settings settings = SequenceManager::Settings());
-
-// Create a SequenceManager that runs on top of |task_runner|.
-// TODO(alexclarke): Change |task_runner| to a SequencedTaskRunner.
-BASE_EXPORT std::unique_ptr<SequenceManager> CreateFunneledSequenceManager(
-    scoped_refptr<SingleThreadTaskRunner> task_runner,
     SequenceManager::Settings settings = SequenceManager::Settings());
 
 }  // namespace sequence_manager

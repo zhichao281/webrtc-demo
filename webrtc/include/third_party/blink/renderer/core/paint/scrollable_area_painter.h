@@ -5,7 +5,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_PAINT_SCROLLABLE_AREA_PAINTER_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_PAINT_SCROLLABLE_AREA_PAINTER_H_
 
-#include "base/macros.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 
 namespace blink {
@@ -15,8 +14,10 @@ class DisplayItemClient;
 class GraphicsContext;
 class IntPoint;
 class IntRect;
+class Scrollbar;
 struct PaintInfo;
 class PaintLayerScrollableArea;
+struct PhysicalOffset;
 
 class ScrollableAreaPainter {
   STACK_ALLOCATED();
@@ -25,11 +26,14 @@ class ScrollableAreaPainter {
   explicit ScrollableAreaPainter(
       PaintLayerScrollableArea& paint_layer_scrollable_area)
       : scrollable_area_(&paint_layer_scrollable_area) {}
+  ScrollableAreaPainter(const ScrollableAreaPainter&) = delete;
+  ScrollableAreaPainter& operator=(const ScrollableAreaPainter&) = delete;
 
-  void PaintOverflowControls(const PaintInfo&,
-                             const IntPoint& paint_offset,
-                             bool painting_overlay_controls);
-
+  void PaintOverflowControls(const PaintInfo&, const IntPoint& paint_offset);
+  void PaintScrollbar(GraphicsContext&,
+                      Scrollbar&,
+                      const IntPoint& paint_offset,
+                      const CullRect&);
   void PaintResizer(GraphicsContext&,
                     const IntPoint& paint_offset,
                     const CullRect&);
@@ -37,16 +41,19 @@ class ScrollableAreaPainter {
                          const IntPoint& paint_offset,
                          const CullRect&);
 
+  // Records a scroll hit test data to force main thread handling of events
+  // in the expanded resizer touch area.
+  void RecordResizerScrollHitTestData(GraphicsContext&,
+                                      const PhysicalOffset& paint_offset);
+
  private:
-  void DrawPlatformResizerImage(GraphicsContext&, IntRect resizer_corner_rect);
-  bool OverflowControlsIntersectRect(const CullRect&) const;
+  void DrawPlatformResizerImage(GraphicsContext&,
+                                const IntRect& resizer_corner_rect);
 
   PaintLayerScrollableArea& GetScrollableArea() const;
   const DisplayItemClient& DisplayItemClientForCorner() const;
 
-  Member<PaintLayerScrollableArea> scrollable_area_;
-
-  DISALLOW_COPY_AND_ASSIGN(ScrollableAreaPainter);
+  PaintLayerScrollableArea* scrollable_area_;
 };
 
 }  // namespace blink

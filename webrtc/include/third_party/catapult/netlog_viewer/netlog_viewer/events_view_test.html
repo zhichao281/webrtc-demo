@@ -147,6 +147,8 @@ tr.b.unittest.testSuite(function() {
       {text: 'id:31,32', matches: [true, false]},
       {text: '-id:31,32', matches: [false, true]},
       {text: 'id:32,56,', matches: [false, true]},
+      // Searching by text should also match on source ID.
+      {text: '56', matches: [false, true]},
       {text: '-is:active', matches: [true, false]},
       {text: 'is:active', matches: [false, true]},
       {text: '-is:error', matches: [true, true]},
@@ -222,7 +224,7 @@ tr.b.unittest.testSuite(function() {
     chai.assert.strictEqual('sort:id', eventsView.getFilterText_());
 
     // Sort by default is by ID, so toggling ID when there's no filter results
-    // in sort:-id.
+    // in -sort:id.
     eventsView.setFilterText_('');
     $(EventsView.SORT_BY_ID_ID).click();
     chai.assert.strictEqual('-sort:id', eventsView.getFilterText_());

@@ -21,7 +21,9 @@ class WebURLLoaderFactoryWithMock : public WebURLLoaderFactory {
 
   std::unique_ptr<WebURLLoader> CreateURLLoader(
       const WebURLRequest&,
-      std::unique_ptr<blink::scheduler::WebResourceLoadingTaskRunnerHandle>)
+      std::unique_ptr<blink::scheduler::WebResourceLoadingTaskRunnerHandle>,
+      std::unique_ptr<blink::scheduler::WebResourceLoadingTaskRunnerHandle>,
+      CrossVariantMojoRemote<blink::mojom::KeepAliveHandleInterfaceBase>)
       override;
 
  private:

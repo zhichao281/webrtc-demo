@@ -32,23 +32,22 @@
 namespace blink {
 
 class MutableCSSPropertyValueSet;
-class PropertyRegistry;
 
 class PropertySetCSSStyleDeclaration
     : public AbstractPropertySetCSSStyleDeclaration {
  public:
-  PropertySetCSSStyleDeclaration(MutableCSSPropertyValueSet& property_set)
-      : property_set_(&property_set) {}
+  PropertySetCSSStyleDeclaration(ExecutionContext* execution_context,
+                                 MutableCSSPropertyValueSet& property_set)
+      : AbstractPropertySetCSSStyleDeclaration(execution_context),
+        property_set_(&property_set) {}
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  protected:
   MutableCSSPropertyValueSet& PropertySet() const final {
     DCHECK(property_set_);
     return *property_set_;
   }
-
-  PropertyRegistry* GetPropertyRegistry() const override { return nullptr; }
 
   Member<MutableCSSPropertyValueSet> property_set_;  // Cannot be null
 };

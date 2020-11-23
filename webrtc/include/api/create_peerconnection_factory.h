@@ -16,11 +16,10 @@
 #include "api/audio/audio_mixer.h"
 #include "api/audio_codecs/audio_decoder_factory.h"
 #include "api/audio_codecs/audio_encoder_factory.h"
-#include "api/fec_controller.h"
 #include "api/peer_connection_interface.h"
 #include "api/scoped_refptr.h"
-#include "api/transport/network_control.h"
-#include "rtc_base/deprecation.h"
+#include "api/video_codecs/video_decoder_factory.h"
+#include "api/video_codecs/video_encoder_factory.h"
 
 namespace rtc {
 // TODO(bugs.webrtc.org/9987): Move rtc::Thread to api/ or expose a better
@@ -32,6 +31,7 @@ class Thread;
 namespace webrtc {
 
 class AudioDeviceModule;
+class AudioFrameProcessor;
 class AudioProcessing;
 
 // Create a new instance of PeerConnectionFactoryInterface with optional video
@@ -48,7 +48,8 @@ CreatePeerConnectionFactory(
     std::unique_ptr<VideoEncoderFactory> video_encoder_factory,
     std::unique_ptr<VideoDecoderFactory> video_decoder_factory,
     rtc::scoped_refptr<AudioMixer> audio_mixer,
-    rtc::scoped_refptr<AudioProcessing> audio_processing);
+    rtc::scoped_refptr<AudioProcessing> audio_processing,
+    AudioFrameProcessor* audio_frame_processor = nullptr);
 
 }  // namespace webrtc
 

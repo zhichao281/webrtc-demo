@@ -31,20 +31,18 @@ namespace blink {
 class CORE_EXPORT SVGAElement final : public SVGGraphicsElement,
                                       public SVGURIReference {
   DEFINE_WRAPPERTYPEINFO();
-  USING_GARBAGE_COLLECTED_MIXIN(SVGAElement);
 
  public:
-  DECLARE_NODE_FACTORY(SVGAElement);
   SVGAnimatedString* svgTarget() { return svg_target_.Get(); }
 
   explicit SVGAElement(Document&);
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   String title() const override;
 
-  void SvgAttributeChanged(const QualifiedName&) override;
+  void SvgAttributeChanged(const SvgAttributeChangedParams&) override;
 
   LayoutObject* CreateLayoutObject(const ComputedStyle&, LegacyLayout) override;
 
@@ -59,7 +57,7 @@ class CORE_EXPORT SVGAElement final : public SVGGraphicsElement,
   bool IsKeyboardFocusable() const override;
   bool IsURLAttribute(const Attribute&) const override;
   bool CanStartSelection() const override;
-  int tabIndex() const override;
+  int DefaultTabIndex() const override;
 
   bool WillRespondToMouseClickEvents() override;
 

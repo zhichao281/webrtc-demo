@@ -32,7 +32,7 @@
 #include "third_party/blink/renderer/core/editing/selection_template.h"
 #include "third_party/blink/renderer/core/editing/visible_selection.h"
 #include "third_party/blink/renderer/platform/geometry/layout_unit.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
@@ -61,6 +61,8 @@ class CORE_EXPORT SelectionModifier {
   // to return |current_selection_|.
   VisibleSelection Selection() const;
 
+  TextDirection DirectionOfSelection() const;
+
   bool Modify(SelectionModifyAlteration,
               SelectionModifyDirection,
               TextGranularity);
@@ -78,7 +80,7 @@ class CORE_EXPORT SelectionModifier {
   VisibleSelection PrepareToModifySelection(SelectionModifyAlteration,
                                             SelectionModifyDirection) const;
   TextDirection DirectionOfEnclosingBlock() const;
-  TextDirection DirectionOfSelection() const;
+  TextDirection LineDirectionOfExtent() const;
   VisiblePosition PositionForPlatform(bool is_get_start) const;
   VisiblePosition StartForPlatform() const;
   VisiblePosition EndForPlatform() const;
@@ -100,14 +102,17 @@ class CORE_EXPORT SelectionModifier {
   VisiblePosition ModifyMovingBackward(TextGranularity);
   Position NextWordPositionForPlatform(const Position&);
 
-  // TODO(editing-dev): We should handle |skips_spaces_when_moving_right| in
-  // another way, e.g. pass |EditingBehavior()|.
-  static VisiblePosition LeftWordPosition(const VisiblePosition&,
-                                          bool skips_space_when_moving_right);
-  static VisiblePosition RightWordPosition(const VisiblePosition&,
-                                           bool skips_space_when_moving_right);
+  static VisiblePosition PreviousLinePosition(const VisiblePosition&,
+                                              LayoutUnit line_direction_point);
+  static VisiblePosition NextLinePosition(const VisiblePosition&,
+                                          LayoutUnit line_direction_point);
+  static VisiblePosition PreviousParagraphPosition(
+      const VisiblePosition&,
+      LayoutUnit line_direction_point);
+  static VisiblePosition NextParagraphPosition(const VisiblePosition&,
+                                               LayoutUnit line_direction_point);
 
-  Member<const LocalFrame> frame_;
+  const LocalFrame* frame_;
   // TODO(editing-dev): We should get rid of |selection_| once we change
   // all member functions not to use |selection_|.
   // |selection_| is used as implicit parameter or a cache instead of pass it.
@@ -123,22 +128,6 @@ class CORE_EXPORT SelectionModifier {
 };
 
 LayoutUnit NoXPosForVerticalArrowNavigation();
-
-// Following functions are exported for using in SelectionModifier and
-// testing only.
-
-// TODO(yosin) Since return value of |leftPositionOf()| with |VisiblePosition|
-// isn't defined well on flat tree, we should not use it for a position in
-// flat tree.
-CORE_EXPORT VisiblePosition LeftPositionOf(const VisiblePosition&);
-CORE_EXPORT VisiblePositionInFlatTree
-LeftPositionOf(const VisiblePositionInFlatTree&);
-// TODO(yosin) Since return value of |rightPositionOf()| with |VisiblePosition|
-// isn't defined well on flat tree, we should not use it for a position in
-// flat tree.
-CORE_EXPORT VisiblePosition RightPositionOf(const VisiblePosition&);
-CORE_EXPORT VisiblePositionInFlatTree
-RightPositionOf(const VisiblePositionInFlatTree&);
 
 }  // namespace blink
 

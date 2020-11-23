@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "base/version.h"
 #include "tools/traffic_annotation/auditor/auditor_result.h"
 #include "tools/traffic_annotation/traffic_annotation.pb.h"
 
@@ -35,9 +36,11 @@ class AnnotationInstance : public InstanceBase {
 
   AnnotationInstance();
   AnnotationInstance(const AnnotationInstance& other);
+  AnnotationInstance& operator=(const AnnotationInstance& other);
+  ~AnnotationInstance() override;
 
   // Deserializes an instance from serialized lines of the text provided by the
-  // clang tool.
+  // extractor.
   // |serialized_lines| are read from |start_line| to |end_line| and should
   // contain the following lines:
   //   1- File path.
@@ -71,13 +74,18 @@ class AnnotationInstance : public InstanceBase {
       int content_hash_code,
       const std::set<int>& semantics_fields,
       const std::set<int>& policy_fields,
-      const std::string& file_path);
+      const std::string& file_path,
+      int added_in_milestone);
 
   // Checks if an annotation has all required fields.
   AuditorResult IsComplete() const;
 
   // Checks if annotation fields are consistent.
   AuditorResult IsConsistent() const;
+
+  // Checks if annotation appears in summary/grouping.xml
+  AuditorResult InGroupingXML(
+      const std::set<std::string>& grouping_annotation_unique_ids) const;
 
   // Checks to see if this annotation can be completed with the |other|
   // annotation, based on their unique ids, types, and extra ids. |*this| should
@@ -111,6 +119,10 @@ class AnnotationInstance : public InstanceBase {
   // Protobuf of the annotation.
   traffic_annotation::NetworkTrafficAnnotation proto;
 
+  // Same message as |proto|, but with the schema loaded at runtime
+  // (using reflection) based on chrome_settings_full_runtime.proto.
+  std::unique_ptr<google::protobuf::Message> runtime_proto = nullptr;
+
   // Type of the annotation.
   Type type;
 
@@ -124,6 +136,10 @@ class AnnotationInstance : public InstanceBase {
 
   // The hash code of annotation content for archived annotations.
   int archive_content_hash_code;
+
+  // The milestone (Chrome version) where this annotation was first added to
+  // Chromium code.
+  int archive_added_in_milestone;
 
   // Flag stating if annotation is loaded from annotations.xml.
   bool is_loaded_from_archive;
@@ -142,7 +158,7 @@ class CallInstance : public InstanceBase {
   CallInstance(const CallInstance& other);
 
   // Deserializes an instance from serialized lines of text provided by the
-  // clang tool.
+  // extractor.
   // |serialized_lines| are read from |start_line| to |end_line| and should
   // contain the following lines:
   //   1- File path.
@@ -155,9 +171,6 @@ class CallInstance : public InstanceBase {
 
   std::string file_path;
   uint32_t line_number;
-
-  // Name of the function in which the call happens.
-  std::string function_context;
 
   // Name of the function that may need annotation.
   std::string function_name;
@@ -175,7 +188,7 @@ class AssignmentInstance : public InstanceBase {
   AssignmentInstance(const AssignmentInstance& other);
 
   // Deserializes an instance from serialized lines of text provided by the
-  // clang tool.
+  // extractor.
   // |serialized_lines| are read from |start_line| to |end_line| and should
   // contain the following lines:
   //   1- File path.
@@ -187,9 +200,6 @@ class AssignmentInstance : public InstanceBase {
 
   std::string file_path;
   uint32_t line_number;
-
-  // Name of the function in which assignment happens.
-  std::string function_context;
 };
 
 #endif  // TOOLS_TRAFFIC_ANNOTATION_AUDITOR_INSTANCE_H_

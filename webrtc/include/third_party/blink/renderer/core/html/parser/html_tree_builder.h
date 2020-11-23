@@ -45,40 +45,25 @@ class Element;
 class HTMLDocument;
 class HTMLDocumentParser;
 
-class HTMLTreeBuilder final
-    : public GarbageCollectedFinalized<HTMLTreeBuilder> {
+class HTMLTreeBuilder final : public GarbageCollected<HTMLTreeBuilder> {
  public:
   // HTMLTreeBuilder can be created for non-HTMLDocument (XHTMLDocument) from
   // editing code.
   // TODO(kouhei): Fix editing code to always invoke HTML parser on
   // HTMLDocument.
-  static HTMLTreeBuilder* Create(HTMLDocumentParser* parser,
-                                 Document& document,
-                                 ParserContentPolicy parser_content_policy,
-                                 const HTMLParserOptions& options) {
-    return MakeGarbageCollected<HTMLTreeBuilder>(
-        parser, document, parser_content_policy, options);
-  }
-  static HTMLTreeBuilder* Create(HTMLDocumentParser* parser,
-                                 DocumentFragment* fragment,
-                                 Element* context_element,
-                                 ParserContentPolicy parser_content_policy,
-                                 const HTMLParserOptions& options) {
-    return MakeGarbageCollected<HTMLTreeBuilder>(
-        parser, fragment, context_element, parser_content_policy, options);
-  }
-
   HTMLTreeBuilder(HTMLDocumentParser*,
                   Document&,
                   ParserContentPolicy,
-                  const HTMLParserOptions&);
+                  const HTMLParserOptions&,
+                  bool allow_shadow_root);
   HTMLTreeBuilder(HTMLDocumentParser*,
                   DocumentFragment*,
                   Element* context_element,
                   ParserContentPolicy,
-                  const HTMLParserOptions&);
+                  const HTMLParserOptions&,
+                  bool allow_shadow_root);
   ~HTMLTreeBuilder();
-  void Trace(Visitor*);
+  void Trace(Visitor*) const;
 
   const HTMLElementStack* OpenElements() const { return tree_.OpenElements(); }
 
@@ -233,7 +218,7 @@ class HTMLTreeBuilder final
       return context_element_stack_item_.Get();
     }
 
-    void Trace(Visitor*);
+    void Trace(Visitor*) const;
 
    private:
     Member<DocumentFragment> fragment_;
@@ -262,6 +247,8 @@ class HTMLTreeBuilder final
   StringBuilder pending_table_characters_;
 
   bool should_skip_leading_newline_;
+
+  const bool allow_shadow_root_;
 
   // We access parser because HTML5 spec requires that we be able to change the
   // state of the tokenizer from within parser actions. We also need it to track

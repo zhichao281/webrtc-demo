@@ -25,9 +25,7 @@ const int64_t kTestTimingFramesDelayMs = 200;
 const uint16_t kTestOutlierFrameSizePercent = 250;
 
 static void CodecSettings(VideoCodecType codec_type, VideoCodec* settings) {
-  memset(settings, 0, sizeof(VideoCodec));
-
-  settings->plType = kTestPayloadType;
+  *settings = {};
 
   settings->width = kTestWidth;
   settings->height = kTestHeight;
@@ -44,7 +42,8 @@ static void CodecSettings(VideoCodecType codec_type, VideoCodec* settings) {
   settings->numberOfSimulcastStreams = 0;
 
   settings->timing_frame_thresholds = {
-      kTestTimingFramesDelayMs, kTestOutlierFrameSizePercent,
+      kTestTimingFramesDelayMs,
+      kTestOutlierFrameSizePercent,
   };
 
   settings->codecType = codec_type;

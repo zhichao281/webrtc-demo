@@ -17,27 +17,71 @@
 #include <map>
 #include <set>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
-#include "base/logging.h"
+#include "base/check.h"
 #include "base/optional.h"
+#include "base/ranges/algorithm.h"
+#include "base/template_util.h"
 
 namespace base {
 
 namespace internal {
 
-// Calls erase on iterators of matching elements.
+// Calls erase on iterators of matching elements and returns the number of
+// removed elements.
 template <typename Container, typename Predicate>
-void IterateAndEraseIf(Container& container, Predicate pred) {
-  for (auto it = container.begin(); it != container.end();) {
+size_t IterateAndEraseIf(Container& container, Predicate pred) {
+  size_t old_size = container.size();
+  for (auto it = container.begin(), last = container.end(); it != last;) {
     if (pred(*it))
       it = container.erase(it);
     else
       ++it;
   }
+  return old_size - container.size();
 }
+
+template <typename Iter>
+constexpr bool IsRandomAccessIter =
+    std::is_same<typename std::iterator_traits<Iter>::iterator_category,
+                 std::random_access_iterator_tag>::value;
+
+// Utility type traits used for specializing base::Contains() below.
+template <typename Container, typename Element, typename = void>
+struct HasFindWithNpos : std::false_type {};
+
+template <typename Container, typename Element>
+struct HasFindWithNpos<
+    Container,
+    Element,
+    void_t<decltype(std::declval<const Container&>().find(
+                        std::declval<const Element&>()) != Container::npos)>>
+    : std::true_type {};
+
+template <typename Container, typename Element, typename = void>
+struct HasFindWithEnd : std::false_type {};
+
+template <typename Container, typename Element>
+struct HasFindWithEnd<Container,
+                      Element,
+                      void_t<decltype(std::declval<const Container&>().find(
+                                          std::declval<const Element&>()) !=
+                                      std::declval<const Container&>().end())>>
+    : std::true_type {};
+
+template <typename Container, typename Element, typename = void>
+struct HasContains : std::false_type {};
+
+template <typename Container, typename Element>
+struct HasContains<Container,
+                   Element,
+                   void_t<decltype(std::declval<const Container&>().contains(
+                       std::declval<const Element&>()))>> : std::true_type {};
 
 }  // namespace internal
 
@@ -104,6 +148,47 @@ constexpr const T* data(std::initializer_list<T> il) noexcept {
   return il.begin();
 }
 
+// std::array::data() was not constexpr prior to C++17 [1].
+// Hence these overloads are provided.
+//
+// [1] https://en.cppreference.com/w/cpp/container/array/data
+template <typename T, size_t N>
+constexpr T* data(std::array<T, N>& array) noexcept {
+  return !array.empty() ? &array[0] : nullptr;
+}
+
+template <typename T, size_t N>
+constexpr const T* data(const std::array<T, N>& array) noexcept {
+  return !array.empty() ? &array[0] : nullptr;
+}
+
+// C++14 implementation of C++17's std::as_const():
+// https://en.cppreference.com/w/cpp/utility/as_const
+template <typename T>
+constexpr std::add_const_t<T>& as_const(T& t) noexcept {
+  return t;
+}
+
+template <typename T>
+void as_const(const T&& t) = delete;
+
+// Simplified C++14 implementation of  C++20's std::to_address.
+// Note: This does not consider specializations of pointer_traits<>::to_address,
+// since that member function may only be present in C++20 and later.
+//
+// Reference: https://wg21.link/pointer.conversion#lib:to_address
+template <typename T>
+constexpr T* to_address(T* p) noexcept {
+  static_assert(!std::is_function<T>::value,
+                "Error: T must not be a function type.");
+  return p;
+}
+
+template <typename Ptr>
+constexpr auto to_address(const Ptr& p) noexcept {
+  return to_address(p.operator->());
+}
+
 // Returns a const reference to the underlying container of a container adapter.
 // Works for std::priority_queue, std::queue, and std::stack.
 template <class A>
@@ -134,52 +219,257 @@ STLCount(const Container& container, const T& val) {
   return std::count(container.begin(), container.end(), val);
 }
 
-// Test to see if a set or map contains a particular key.
-// Returns true if the key is in the collection.
-template <typename Collection, typename Key>
-bool ContainsKey(const Collection& collection, const Key& key) {
-  return collection.find(key) != collection.end();
+// General purpose implementation to check if |container| contains |value|.
+template <typename Container,
+          typename Value,
+          std::enable_if_t<
+              !internal::HasFindWithNpos<Container, Value>::value &&
+              !internal::HasFindWithEnd<Container, Value>::value &&
+              !internal::HasContains<Container, Value>::value>* = nullptr>
+bool Contains(const Container& container, const Value& value) {
+  using std::begin;
+  using std::end;
+  return std::find(begin(container), end(container), value) != end(container);
+}
+
+// Specialized Contains() implementation for when |container| has a find()
+// member function and a static npos member, but no contains() member function.
+template <typename Container,
+          typename Value,
+          std::enable_if_t<internal::HasFindWithNpos<Container, Value>::value &&
+                           !internal::HasContains<Container, Value>::value>* =
+              nullptr>
+bool Contains(const Container& container, const Value& value) {
+  return container.find(value) != Container::npos;
+}
+
+// Specialized Contains() implementation for when |container| has a find()
+// and end() member function, but no contains() member function.
+template <typename Container,
+          typename Value,
+          std::enable_if_t<internal::HasFindWithEnd<Container, Value>::value &&
+                           !internal::HasContains<Container, Value>::value>* =
+              nullptr>
+bool Contains(const Container& container, const Value& value) {
+  return container.find(value) != container.end();
+}
+
+// Specialized Contains() implementation for when |container| has a contains()
+// member function.
+template <
+    typename Container,
+    typename Value,
+    std::enable_if_t<internal::HasContains<Container, Value>::value>* = nullptr>
+bool Contains(const Container& container, const Value& value) {
+  return container.contains(value);
+}
+
+// O(1) implementation of const casting an iterator for any sequence,
+// associative or unordered associative container in the STL.
+//
+// Reference: https://stackoverflow.com/a/10669041
+template <typename Container,
+          typename ConstIter,
+          std::enable_if_t<!internal::IsRandomAccessIter<ConstIter>>* = nullptr>
+constexpr auto ConstCastIterator(Container& c, ConstIter it) {
+  return c.erase(it, it);
+}
+
+// Explicit overload for std::forward_list where erase() is named erase_after().
+template <typename T, typename Allocator>
+constexpr auto ConstCastIterator(
+    std::forward_list<T, Allocator>& c,
+    typename std::forward_list<T, Allocator>::const_iterator it) {
+// The erase_after(it, it) trick used below does not work for libstdc++ [1],
+// thus we need a different way.
+// TODO(crbug.com/972541): Remove this workaround once libstdc++ is fixed on all
+// platforms.
+//
+// [1] https://gcc.gnu.org/bugzilla/show_bug.cgi?id=90857
+#if defined(__GLIBCXX__)
+  return c.insert_after(it, {});
+#else
+  return c.erase_after(it, it);
+#endif
+}
+
+// Specialized O(1) const casting for random access iterators. This is
+// necessary, because erase() is either not available (e.g. array-like
+// containers), or has O(n) complexity (e.g. std::deque or std::vector).
+template <typename Container,
+          typename ConstIter,
+          std::enable_if_t<internal::IsRandomAccessIter<ConstIter>>* = nullptr>
+constexpr auto ConstCastIterator(Container& c, ConstIter it) {
+  using std::begin;
+  using std::cbegin;
+  return begin(c) + (it - cbegin(c));
 }
 
 namespace internal {
 
-template <typename Collection>
-class HasKeyType {
-  template <typename C>
-  static std::true_type test(typename C::key_type*);
-  template <typename C>
-  static std::false_type test(...);
+template <typename Map, typename Key, typename Value>
+std::pair<typename Map::iterator, bool> InsertOrAssignImpl(Map& map,
+                                                           Key&& key,
+                                                           Value&& value) {
+  auto lower = map.lower_bound(key);
+  if (lower != map.end() && !map.key_comp()(key, lower->first)) {
+    // key already exists, perform assignment.
+    lower->second = std::forward<Value>(value);
+    return {lower, false};
+  }
 
- public:
-  static constexpr bool value = decltype(test<Collection>(nullptr))::value;
-};
+  // key did not yet exist, insert it.
+  return {map.emplace_hint(lower, std::forward<Key>(key),
+                           std::forward<Value>(value)),
+          true};
+}
+
+template <typename Map, typename Key, typename Value>
+typename Map::iterator InsertOrAssignImpl(Map& map,
+                                          typename Map::const_iterator hint,
+                                          Key&& key,
+                                          Value&& value) {
+  auto&& key_comp = map.key_comp();
+  if ((hint == map.begin() || key_comp(std::prev(hint)->first, key))) {
+    if (hint == map.end() || key_comp(key, hint->first)) {
+      // *(hint - 1) < key < *hint => key did not exist and hint is correct.
+      return map.emplace_hint(hint, std::forward<Key>(key),
+                              std::forward<Value>(value));
+    }
+
+    if (!key_comp(hint->first, key)) {
+      // key == *hint => key already exists and hint is correct.
+      auto mutable_hint = ConstCastIterator(map, hint);
+      mutable_hint->second = std::forward<Value>(value);
+      return mutable_hint;
+    }
+  }
+
+  // hint was not helpful, dispatch to hintless version.
+  return InsertOrAssignImpl(map, std::forward<Key>(key),
+                            std::forward<Value>(value))
+      .first;
+}
+
+template <typename Map, typename Key, typename... Args>
+std::pair<typename Map::iterator, bool> TryEmplaceImpl(Map& map,
+                                                       Key&& key,
+                                                       Args&&... args) {
+  auto lower = map.lower_bound(key);
+  if (lower != map.end() && !map.key_comp()(key, lower->first)) {
+    // key already exists, do nothing.
+    return {lower, false};
+  }
+
+  // key did not yet exist, insert it.
+  return {map.emplace_hint(lower, std::piecewise_construct,
+                           std::forward_as_tuple(std::forward<Key>(key)),
+                           std::forward_as_tuple(std::forward<Args>(args)...)),
+          true};
+}
+
+template <typename Map, typename Key, typename... Args>
+typename Map::iterator TryEmplaceImpl(Map& map,
+                                      typename Map::const_iterator hint,
+                                      Key&& key,
+                                      Args&&... args) {
+  auto&& key_comp = map.key_comp();
+  if ((hint == map.begin() || key_comp(std::prev(hint)->first, key))) {
+    if (hint == map.end() || key_comp(key, hint->first)) {
+      // *(hint - 1) < key < *hint => key did not exist and hint is correct.
+      return map.emplace_hint(
+          hint, std::piecewise_construct,
+          std::forward_as_tuple(std::forward<Key>(key)),
+          std::forward_as_tuple(std::forward<Args>(args)...));
+    }
+
+    if (!key_comp(hint->first, key)) {
+      // key == *hint => no-op, return correct hint.
+      return ConstCastIterator(map, hint);
+    }
+  }
+
+  // hint was not helpful, dispatch to hintless version.
+  return TryEmplaceImpl(map, std::forward<Key>(key),
+                        std::forward<Args>(args)...)
+      .first;
+}
 
 }  // namespace internal
 
-// Test to see if a collection like a vector contains a particular value.
-// Returns true if the value is in the collection.
-// Don't use this on collections such as sets or maps. This is enforced by
-// disabling this method if the collection defines a key_type.
-template <typename Collection,
-          typename Value,
-          typename std::enable_if<!internal::HasKeyType<Collection>::value,
-                                  int>::type = 0>
-bool ContainsValue(const Collection& collection, const Value& value) {
-  return std::find(std::begin(collection), std::end(collection), value) !=
-         std::end(collection);
+// Implementation of C++17's std::map::insert_or_assign as a free function.
+template <typename Map, typename Value>
+std::pair<typename Map::iterator, bool>
+InsertOrAssign(Map& map, const typename Map::key_type& key, Value&& value) {
+  return internal::InsertOrAssignImpl(map, key, std::forward<Value>(value));
 }
 
-// Returns true if the container is sorted.
-template <typename Container>
-bool STLIsSorted(const Container& cont) {
-  return std::is_sorted(std::begin(cont), std::end(cont));
+template <typename Map, typename Value>
+std::pair<typename Map::iterator, bool>
+InsertOrAssign(Map& map, typename Map::key_type&& key, Value&& value) {
+  return internal::InsertOrAssignImpl(map, std::move(key),
+                                      std::forward<Value>(value));
+}
+
+// Implementation of C++17's std::map::insert_or_assign with hint as a free
+// function.
+template <typename Map, typename Value>
+typename Map::iterator InsertOrAssign(Map& map,
+                                      typename Map::const_iterator hint,
+                                      const typename Map::key_type& key,
+                                      Value&& value) {
+  return internal::InsertOrAssignImpl(map, hint, key,
+                                      std::forward<Value>(value));
+}
+
+template <typename Map, typename Value>
+typename Map::iterator InsertOrAssign(Map& map,
+                                      typename Map::const_iterator hint,
+                                      typename Map::key_type&& key,
+                                      Value&& value) {
+  return internal::InsertOrAssignImpl(map, hint, std::move(key),
+                                      std::forward<Value>(value));
+}
+
+// Implementation of C++17's std::map::try_emplace as a free function.
+template <typename Map, typename... Args>
+std::pair<typename Map::iterator, bool>
+TryEmplace(Map& map, const typename Map::key_type& key, Args&&... args) {
+  return internal::TryEmplaceImpl(map, key, std::forward<Args>(args)...);
+}
+
+template <typename Map, typename... Args>
+std::pair<typename Map::iterator, bool> TryEmplace(Map& map,
+                                                   typename Map::key_type&& key,
+                                                   Args&&... args) {
+  return internal::TryEmplaceImpl(map, std::move(key),
+                                  std::forward<Args>(args)...);
+}
+
+// Implementation of C++17's std::map::try_emplace with hint as a free
+// function.
+template <typename Map, typename... Args>
+typename Map::iterator TryEmplace(Map& map,
+                                  typename Map::const_iterator hint,
+                                  const typename Map::key_type& key,
+                                  Args&&... args) {
+  return internal::TryEmplaceImpl(map, hint, key, std::forward<Args>(args)...);
+}
+
+template <typename Map, typename... Args>
+typename Map::iterator TryEmplace(Map& map,
+                                  typename Map::const_iterator hint,
+                                  typename Map::key_type&& key,
+                                  Args&&... args) {
+  return internal::TryEmplaceImpl(map, hint, std::move(key),
+                                  std::forward<Args>(args)...);
 }
 
 // Returns a new ResultType containing the difference of two sorted containers.
 template <typename ResultType, typename Arg1, typename Arg2>
 ResultType STLSetDifference(const Arg1& a1, const Arg2& a2) {
-  DCHECK(STLIsSorted(a1));
-  DCHECK(STLIsSorted(a2));
+  DCHECK(ranges::is_sorted(a1));
+  DCHECK(ranges::is_sorted(a2));
   ResultType difference;
   std::set_difference(a1.begin(), a1.end(),
                       a2.begin(), a2.end(),
@@ -190,8 +480,8 @@ ResultType STLSetDifference(const Arg1& a1, const Arg2& a2) {
 // Returns a new ResultType containing the union of two sorted containers.
 template <typename ResultType, typename Arg1, typename Arg2>
 ResultType STLSetUnion(const Arg1& a1, const Arg2& a2) {
-  DCHECK(STLIsSorted(a1));
-  DCHECK(STLIsSorted(a2));
+  DCHECK(ranges::is_sorted(a1));
+  DCHECK(ranges::is_sorted(a2));
   ResultType result;
   std::set_union(a1.begin(), a1.end(),
                  a2.begin(), a2.end(),
@@ -203,8 +493,8 @@ ResultType STLSetUnion(const Arg1& a1, const Arg2& a2) {
 // containers.
 template <typename ResultType, typename Arg1, typename Arg2>
 ResultType STLSetIntersection(const Arg1& a1, const Arg2& a2) {
-  DCHECK(STLIsSorted(a1));
-  DCHECK(STLIsSorted(a2));
+  DCHECK(ranges::is_sorted(a1));
+  DCHECK(ranges::is_sorted(a2));
   ResultType result;
   std::set_intersection(a1.begin(), a1.end(),
                         a2.begin(), a2.end(),
@@ -212,18 +502,9 @@ ResultType STLSetIntersection(const Arg1& a1, const Arg2& a2) {
   return result;
 }
 
-// Returns true if the sorted container |a1| contains all elements of the sorted
-// container |a2|.
-template <typename Arg1, typename Arg2>
-bool STLIncludes(const Arg1& a1, const Arg2& a2) {
-  DCHECK(STLIsSorted(a1));
-  DCHECK(STLIsSorted(a2));
-  return std::includes(a1.begin(), a1.end(),
-                       a2.begin(), a2.end());
-}
-
-// Erase/EraseIf are based on library fundamentals ts v2 erase/erase_if
-// http://en.cppreference.com/w/cpp/experimental/lib_extensions_2
+// Erase/EraseIf are based on C++20's uniform container erasure API:
+// - https://eel.is/c++draft/libraryindex#:erase
+// - https://eel.is/c++draft/libraryindex#:erase_if
 // They provide a generic way to erase elements from a container.
 // The functions here implement these for the standard containers until those
 // functions are available in the C++ standard.
@@ -233,132 +514,153 @@ bool STLIncludes(const Arg1& a1, const Arg2& a2) {
 // have it either.
 
 template <typename CharT, typename Traits, typename Allocator, typename Value>
-void Erase(std::basic_string<CharT, Traits, Allocator>& container,
-           const Value& value) {
-  container.erase(std::remove(container.begin(), container.end(), value),
-                  container.end());
+size_t Erase(std::basic_string<CharT, Traits, Allocator>& container,
+             const Value& value) {
+  auto it = std::remove(container.begin(), container.end(), value);
+  size_t removed = std::distance(it, container.end());
+  container.erase(it, container.end());
+  return removed;
 }
 
 template <typename CharT, typename Traits, typename Allocator, class Predicate>
-void EraseIf(std::basic_string<CharT, Traits, Allocator>& container,
-             Predicate pred) {
-  container.erase(std::remove_if(container.begin(), container.end(), pred),
-                  container.end());
+size_t EraseIf(std::basic_string<CharT, Traits, Allocator>& container,
+               Predicate pred) {
+  auto it = std::remove_if(container.begin(), container.end(), pred);
+  size_t removed = std::distance(it, container.end());
+  container.erase(it, container.end());
+  return removed;
 }
 
 template <class T, class Allocator, class Value>
-void Erase(std::deque<T, Allocator>& container, const Value& value) {
-  container.erase(std::remove(container.begin(), container.end(), value),
-                  container.end());
+size_t Erase(std::deque<T, Allocator>& container, const Value& value) {
+  auto it = std::remove(container.begin(), container.end(), value);
+  size_t removed = std::distance(it, container.end());
+  container.erase(it, container.end());
+  return removed;
 }
 
 template <class T, class Allocator, class Predicate>
-void EraseIf(std::deque<T, Allocator>& container, Predicate pred) {
-  container.erase(std::remove_if(container.begin(), container.end(), pred),
-                  container.end());
+size_t EraseIf(std::deque<T, Allocator>& container, Predicate pred) {
+  auto it = std::remove_if(container.begin(), container.end(), pred);
+  size_t removed = std::distance(it, container.end());
+  container.erase(it, container.end());
+  return removed;
 }
 
 template <class T, class Allocator, class Value>
-void Erase(std::vector<T, Allocator>& container, const Value& value) {
-  container.erase(std::remove(container.begin(), container.end(), value),
-                  container.end());
+size_t Erase(std::vector<T, Allocator>& container, const Value& value) {
+  auto it = std::remove(container.begin(), container.end(), value);
+  size_t removed = std::distance(it, container.end());
+  container.erase(it, container.end());
+  return removed;
 }
 
 template <class T, class Allocator, class Predicate>
-void EraseIf(std::vector<T, Allocator>& container, Predicate pred) {
-  container.erase(std::remove_if(container.begin(), container.end(), pred),
-                  container.end());
+size_t EraseIf(std::vector<T, Allocator>& container, Predicate pred) {
+  auto it = std::remove_if(container.begin(), container.end(), pred);
+  size_t removed = std::distance(it, container.end());
+  container.erase(it, container.end());
+  return removed;
+}
+
+template <class T, class Allocator, class Predicate>
+size_t EraseIf(std::forward_list<T, Allocator>& container, Predicate pred) {
+  // Note: std::forward_list does not have a size() API, thus we need to use the
+  // O(n) std::distance work-around. However, given that EraseIf is O(n)
+  // already, this should not make a big difference.
+  size_t old_size = std::distance(container.begin(), container.end());
+  container.remove_if(pred);
+  return old_size - std::distance(container.begin(), container.end());
+}
+
+template <class T, class Allocator, class Predicate>
+size_t EraseIf(std::list<T, Allocator>& container, Predicate pred) {
+  size_t old_size = container.size();
+  container.remove_if(pred);
+  return old_size - container.size();
+}
+
+template <class Key, class T, class Compare, class Allocator, class Predicate>
+size_t EraseIf(std::map<Key, T, Compare, Allocator>& container,
+               Predicate pred) {
+  return internal::IterateAndEraseIf(container, pred);
+}
+
+template <class Key, class T, class Compare, class Allocator, class Predicate>
+size_t EraseIf(std::multimap<Key, T, Compare, Allocator>& container,
+               Predicate pred) {
+  return internal::IterateAndEraseIf(container, pred);
+}
+
+template <class Key, class Compare, class Allocator, class Predicate>
+size_t EraseIf(std::set<Key, Compare, Allocator>& container, Predicate pred) {
+  return internal::IterateAndEraseIf(container, pred);
+}
+
+template <class Key, class Compare, class Allocator, class Predicate>
+size_t EraseIf(std::multiset<Key, Compare, Allocator>& container,
+               Predicate pred) {
+  return internal::IterateAndEraseIf(container, pred);
+}
+
+template <class Key,
+          class T,
+          class Hash,
+          class KeyEqual,
+          class Allocator,
+          class Predicate>
+size_t EraseIf(std::unordered_map<Key, T, Hash, KeyEqual, Allocator>& container,
+               Predicate pred) {
+  return internal::IterateAndEraseIf(container, pred);
+}
+
+template <class Key,
+          class T,
+          class Hash,
+          class KeyEqual,
+          class Allocator,
+          class Predicate>
+size_t EraseIf(
+    std::unordered_multimap<Key, T, Hash, KeyEqual, Allocator>& container,
+    Predicate pred) {
+  return internal::IterateAndEraseIf(container, pred);
+}
+
+template <class Key,
+          class Hash,
+          class KeyEqual,
+          class Allocator,
+          class Predicate>
+size_t EraseIf(std::unordered_set<Key, Hash, KeyEqual, Allocator>& container,
+               Predicate pred) {
+  return internal::IterateAndEraseIf(container, pred);
+}
+
+template <class Key,
+          class Hash,
+          class KeyEqual,
+          class Allocator,
+          class Predicate>
+size_t EraseIf(
+    std::unordered_multiset<Key, Hash, KeyEqual, Allocator>& container,
+    Predicate pred) {
+  return internal::IterateAndEraseIf(container, pred);
 }
 
 template <class T, class Allocator, class Value>
-void Erase(std::forward_list<T, Allocator>& container, const Value& value) {
+size_t Erase(std::forward_list<T, Allocator>& container, const Value& value) {
   // Unlike std::forward_list::remove, this function template accepts
   // heterogeneous types and does not force a conversion to the container's
   // value type before invoking the == operator.
-  container.remove_if([&](const T& cur) { return cur == value; });
-}
-
-template <class T, class Allocator, class Predicate>
-void EraseIf(std::forward_list<T, Allocator>& container, Predicate pred) {
-  container.remove_if(pred);
+  return EraseIf(container, [&](const T& cur) { return cur == value; });
 }
 
 template <class T, class Allocator, class Value>
-void Erase(std::list<T, Allocator>& container, const Value& value) {
+size_t Erase(std::list<T, Allocator>& container, const Value& value) {
   // Unlike std::list::remove, this function template accepts heterogeneous
   // types and does not force a conversion to the container's value type before
   // invoking the == operator.
-  container.remove_if([&](const T& cur) { return cur == value; });
-}
-
-template <class T, class Allocator, class Predicate>
-void EraseIf(std::list<T, Allocator>& container, Predicate pred) {
-  container.remove_if(pred);
-}
-
-template <class Key, class T, class Compare, class Allocator, class Predicate>
-void EraseIf(std::map<Key, T, Compare, Allocator>& container, Predicate pred) {
-  internal::IterateAndEraseIf(container, pred);
-}
-
-template <class Key, class T, class Compare, class Allocator, class Predicate>
-void EraseIf(std::multimap<Key, T, Compare, Allocator>& container,
-             Predicate pred) {
-  internal::IterateAndEraseIf(container, pred);
-}
-
-template <class Key, class Compare, class Allocator, class Predicate>
-void EraseIf(std::set<Key, Compare, Allocator>& container, Predicate pred) {
-  internal::IterateAndEraseIf(container, pred);
-}
-
-template <class Key, class Compare, class Allocator, class Predicate>
-void EraseIf(std::multiset<Key, Compare, Allocator>& container,
-             Predicate pred) {
-  internal::IterateAndEraseIf(container, pred);
-}
-
-template <class Key,
-          class T,
-          class Hash,
-          class KeyEqual,
-          class Allocator,
-          class Predicate>
-void EraseIf(std::unordered_map<Key, T, Hash, KeyEqual, Allocator>& container,
-             Predicate pred) {
-  internal::IterateAndEraseIf(container, pred);
-}
-
-template <class Key,
-          class T,
-          class Hash,
-          class KeyEqual,
-          class Allocator,
-          class Predicate>
-void EraseIf(
-    std::unordered_multimap<Key, T, Hash, KeyEqual, Allocator>& container,
-    Predicate pred) {
-  internal::IterateAndEraseIf(container, pred);
-}
-
-template <class Key,
-          class Hash,
-          class KeyEqual,
-          class Allocator,
-          class Predicate>
-void EraseIf(std::unordered_set<Key, Hash, KeyEqual, Allocator>& container,
-             Predicate pred) {
-  internal::IterateAndEraseIf(container, pred);
-}
-
-template <class Key,
-          class Hash,
-          class KeyEqual,
-          class Allocator,
-          class Predicate>
-void EraseIf(std::unordered_multiset<Key, Hash, KeyEqual, Allocator>& container,
-             Predicate pred) {
-  internal::IterateAndEraseIf(container, pred);
+  return EraseIf(container, [&](const T& cur) { return cur == value; });
 }
 
 // A helper class to be used as the predicate with |EraseIf| to implement
@@ -399,6 +701,14 @@ T* OptionalOrNullptr(base::Optional<T>& optional) {
 template <class T>
 const T* OptionalOrNullptr(const base::Optional<T>& optional) {
   return optional.has_value() ? &optional.value() : nullptr;
+}
+
+// Helper for creating an Optional<T> from a potentially nullptr T*.
+template <class T>
+base::Optional<T> OptionalFromPtr(const T* value) {
+  if (value)
+    return base::Optional<T>(*value);
+  return base::nullopt;
 }
 
 }  // namespace base

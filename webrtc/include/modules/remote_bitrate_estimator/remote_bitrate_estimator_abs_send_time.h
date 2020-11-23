@@ -13,22 +13,23 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
 #include <list>
 #include <map>
 #include <memory>
 #include <vector>
 
 #include "api/rtp_headers.h"
+#include "api/transport/field_trial_based_config.h"
 #include "modules/remote_bitrate_estimator/aimd_rate_control.h"
 #include "modules/remote_bitrate_estimator/include/remote_bitrate_estimator.h"
 #include "modules/remote_bitrate_estimator/inter_arrival.h"
 #include "modules/remote_bitrate_estimator/overuse_detector.h"
 #include "modules/remote_bitrate_estimator/overuse_estimator.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/constructor_magic.h"
-#include "rtc_base/critical_section.h"
 #include "rtc_base/race_checker.h"
 #include "rtc_base/rate_statistics.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_annotations.h"
 #include "system_wrappers/include/clock.h"
 
@@ -74,6 +75,13 @@ class RemoteBitrateEstimatorAbsSendTime : public RemoteBitrateEstimator {
  public:
   RemoteBitrateEstimatorAbsSendTime(RemoteBitrateObserver* observer,
                                     Clock* clock);
+
+  RemoteBitrateEstimatorAbsSendTime() = delete;
+  RemoteBitrateEstimatorAbsSendTime(const RemoteBitrateEstimatorAbsSendTime&) =
+      delete;
+  RemoteBitrateEstimatorAbsSendTime& operator=(
+      const RemoteBitrateEstimatorAbsSendTime&) = delete;
+
   ~RemoteBitrateEstimatorAbsSendTime() override;
 
   void IncomingPacket(int64_t arrival_time_ms,
@@ -112,15 +120,16 @@ class RemoteBitrateEstimatorAbsSendTime : public RemoteBitrateEstimator {
 
   // Returns true if a probe which changed the estimate was detected.
   ProbeResult ProcessClusters(int64_t now_ms)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(&crit_);
+      RTC_EXCLUSIVE_LOCKS_REQUIRED(&mutex_);
 
   bool IsBitrateImproving(int probe_bitrate_bps) const
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(&crit_);
+      RTC_EXCLUSIVE_LOCKS_REQUIRED(&mutex_);
 
-  void TimeoutStreams(int64_t now_ms) RTC_EXCLUSIVE_LOCKS_REQUIRED(&crit_);
+  void TimeoutStreams(int64_t now_ms) RTC_EXCLUSIVE_LOCKS_REQUIRED(&mutex_);
 
   rtc::RaceChecker network_race_;
   Clock* const clock_;
+  const FieldTrialBasedConfig field_trials_;
   RemoteBitrateObserver* const observer_;
   std::unique_ptr<InterArrival> inter_arrival_;
   std::unique_ptr<OveruseEstimator> estimator_;
@@ -135,11 +144,9 @@ class RemoteBitrateEstimatorAbsSendTime : public RemoteBitrateEstimator {
   int64_t last_update_ms_;
   bool uma_recorded_;
 
-  rtc::CriticalSection crit_;
-  Ssrcs ssrcs_ RTC_GUARDED_BY(&crit_);
-  AimdRateControl remote_rate_ RTC_GUARDED_BY(&crit_);
-
-  RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(RemoteBitrateEstimatorAbsSendTime);
+  mutable Mutex mutex_;
+  Ssrcs ssrcs_ RTC_GUARDED_BY(&mutex_);
+  AimdRateControl remote_rate_ RTC_GUARDED_BY(&mutex_);
 };
 
 }  // namespace webrtc

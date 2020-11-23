@@ -31,9 +31,9 @@
 
 #include "base/numerics/checked_math.h"
 #include "third_party/blink/renderer/bindings/core/v8/uint8_clamped_array_or_uint16_array_or_float32_array.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_image_data_color_settings.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h"
-#include "third_party/blink/renderer/core/html/canvas/image_data_color_settings.h"
 #include "third_party/blink/renderer/core/imagebitmap/image_bitmap_source.h"
 #include "third_party/blink/renderer/core/typed_arrays/array_buffer_view_helpers.h"
 #include "third_party/blink/renderer/core/typed_arrays/dom_typed_array.h"
@@ -89,6 +89,20 @@ class CORE_EXPORT ImageData final : public ScriptWrappable,
                            unsigned width,
                            unsigned height,
                            ExceptionState&);
+  static ImageData* Create(NotShared<DOMUint16Array>,
+                           unsigned width,
+                           ExceptionState&);
+  static ImageData* Create(NotShared<DOMUint16Array>,
+                           unsigned width,
+                           unsigned height,
+                           ExceptionState&);
+  static ImageData* Create(NotShared<DOMFloat32Array>,
+                           unsigned width,
+                           ExceptionState&);
+  static ImageData* Create(NotShared<DOMFloat32Array>,
+                           unsigned width,
+                           unsigned height,
+                           ExceptionState&);
 
   static ImageData* CreateImageData(unsigned width,
                                     unsigned height,
@@ -104,11 +118,11 @@ class CORE_EXPORT ImageData final : public ScriptWrappable,
 
   static ImageData* CreateForTest(const IntSize&);
   static ImageData* CreateForTest(const IntSize&,
-                                  DOMArrayBufferView*,
+                                  NotShared<DOMArrayBufferView>,
                                   const ImageDataColorSettings* = nullptr);
 
   ImageData(const IntSize&,
-            DOMArrayBufferView*,
+            NotShared<DOMArrayBufferView>,
             const ImageDataColorSettings* = nullptr);
 
   ImageData* CropRect(const IntRect&, bool flip_y = false);
@@ -117,11 +131,11 @@ class CORE_EXPORT ImageData final : public ScriptWrappable,
   static CanvasColorSpace GetCanvasColorSpace(const String&);
   static String CanvasColorSpaceName(CanvasColorSpace);
   static ImageDataStorageFormat GetImageDataStorageFormat(const String&);
-  static unsigned StorageFormatDataSize(const String&);
-  static unsigned StorageFormatDataSize(ImageDataStorageFormat);
-  static DOMArrayBufferView*
+  static unsigned StorageFormatBytesPerPixel(const String&);
+  static unsigned StorageFormatBytesPerPixel(ImageDataStorageFormat);
+  static NotShared<DOMArrayBufferView>
   ConvertPixelsFromCanvasPixelFormatToImageDataStorageFormat(
-      WTF::ArrayBufferContents&,
+      ArrayBufferContents&,
       CanvasPixelFormat,
       ImageDataStorageFormat);
 
@@ -129,14 +143,13 @@ class CORE_EXPORT ImageData final : public ScriptWrappable,
   int width() const { return size_.Width(); }
   int height() const { return size_.Height(); }
 
-  DOMUint8ClampedArray* data();
-  const DOMUint8ClampedArray* data() const;
-  ImageDataArray& dataUnion() { return data_union_; }
-  const ImageDataArray& dataUnion() const { return data_union_; }
-  void dataUnion(ImageDataArray& result) { result = data_union_; }
+  ImageDataArray& data() { return data_; }
+  const ImageDataArray& data() const { return data_; }
+  void data(ImageDataArray& result) { result = data_; }
 
   DOMArrayBufferBase* BufferBase() const;
   CanvasColorParams GetCanvasColorParams();
+  SkImageInfo GetSkImageInfo();
 
   // DataU8ColorType param specifies if the converted pixels in uint8 pixel
   // format should respect the "native" 32bit ARGB format of Skia's blitters.
@@ -154,11 +167,11 @@ class CORE_EXPORT ImageData final : public ScriptWrappable,
   // ImageBitmapSource implementation
   IntSize BitmapSourceSize() const override { return size_; }
   ScriptPromise CreateImageBitmap(ScriptState*,
-                                  EventTarget&,
                                   base::Optional<IntRect> crop_rect,
-                                  const ImageBitmapOptions*) override;
+                                  const ImageBitmapOptions*,
+                                  ExceptionState&) override;
 
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
 
   WARN_UNUSED_RESULT v8::Local<v8::Object> AssociateWithWrapper(
       v8::Isolate*,
@@ -170,32 +183,32 @@ class CORE_EXPORT ImageData final : public ScriptWrappable,
       const IntSize* = nullptr,
       const unsigned& = 0,
       const unsigned& = 0,
-      const DOMArrayBufferView* = nullptr,
+      const NotShared<DOMArrayBufferView> = NotShared<DOMArrayBufferView>(),
       const ImageDataColorSettings* = nullptr,
       ExceptionState* = nullptr);
 
  private:
   IntSize size_;
   Member<ImageDataColorSettings> color_settings_;
-  ImageDataArray data_union_;
-  Member<DOMUint8ClampedArray> data_;
-  Member<DOMUint16Array> data_u16_;
-  Member<DOMFloat32Array> data_f32_;
+  ImageDataArray data_;
+  NotShared<DOMUint8ClampedArray> data_u8_;
+  NotShared<DOMUint16Array> data_u16_;
+  NotShared<DOMFloat32Array> data_f32_;
 
-  static DOMArrayBufferView* AllocateAndValidateDataArray(
+  static NotShared<DOMArrayBufferView> AllocateAndValidateDataArray(
       const unsigned&,
       ImageDataStorageFormat,
       ExceptionState* = nullptr);
 
-  static DOMUint8ClampedArray* AllocateAndValidateUint8ClampedArray(
+  static NotShared<DOMUint8ClampedArray> AllocateAndValidateUint8ClampedArray(
       const unsigned&,
       ExceptionState* = nullptr);
 
-  static DOMUint16Array* AllocateAndValidateUint16Array(
+  static NotShared<DOMUint16Array> AllocateAndValidateUint16Array(
       const unsigned&,
       ExceptionState* = nullptr);
 
-  static DOMFloat32Array* AllocateAndValidateFloat32Array(
+  static NotShared<DOMFloat32Array> AllocateAndValidateFloat32Array(
       const unsigned&,
       ExceptionState* = nullptr);
 };

@@ -12,16 +12,20 @@
 #define PC_AUDIO_RTP_RECEIVER_H_
 
 #include <stdint.h>
+
 #include <string>
 #include <vector>
 
 #include "absl/types/optional.h"
 #include "api/crypto/frame_decryptor_interface.h"
 #include "api/media_stream_interface.h"
+#include "api/media_stream_track_proxy.h"
 #include "api/media_types.h"
 #include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
 #include "media/base/media_channel.h"
+#include "pc/audio_track.h"
+#include "pc/jitter_buffer_delay_interface.h"
 #include "pc/remote_audio_source.h"
 #include "pc/rtp_receiver.h"
 #include "rtc_base/ref_counted_object.h"
@@ -73,7 +77,6 @@ class AudioRtpReceiver : public ObserverInterface,
   std::string id() const override { return id_; }
 
   RtpParameters GetParameters() const override;
-  bool SetParameters(const RtpParameters& parameters) override;
 
   void SetFrameDecryptor(
       rtc::scoped_refptr<FrameDecryptorInterface> frame_decryptor) override;
@@ -83,7 +86,9 @@ class AudioRtpReceiver : public ObserverInterface,
 
   // RtpReceiverInternal implementation.
   void Stop() override;
+  void StopAndEndTrack() override;
   void SetupMediaChannel(uint32_t ssrc) override;
+  void SetupUnsignaledMediaChannel() override;
   uint32_t ssrc() const override { return ssrc_.value_or(0); }
   void NotifyFirstPacketReceived() override;
   void set_stream_ids(std::vector<std::string> stream_ids) override;
@@ -102,26 +107,35 @@ class AudioRtpReceiver : public ObserverInterface,
 
   std::vector<RtpSource> GetSources() const override;
   int AttachmentId() const override { return attachment_id_; }
+  void SetDepacketizerToDecoderFrameTransformer(
+      rtc::scoped_refptr<webrtc::FrameTransformerInterface> frame_transformer)
+      override;
 
  private:
+  void RestartMediaChannel(absl::optional<uint32_t> ssrc);
   void Reconfigure();
   bool SetOutputVolume(double volume);
 
   rtc::Thread* const worker_thread_;
   const std::string id_;
   const rtc::scoped_refptr<RemoteAudioSource> source_;
-  const rtc::scoped_refptr<AudioTrackInterface> track_;
+  const rtc::scoped_refptr<AudioTrackProxyWithInternal<AudioTrack>> track_;
   cricket::VoiceMediaChannel* media_channel_ = nullptr;
   absl::optional<uint32_t> ssrc_;
   std::vector<rtc::scoped_refptr<MediaStreamInterface>> streams_;
   bool cached_track_enabled_;
   double cached_volume_ = 1;
-  bool stopped_ = false;
+  bool stopped_ = true;
   RtpReceiverObserverInterface* observer_ = nullptr;
   bool received_first_packet_ = false;
   int attachment_id_ = 0;
   rtc::scoped_refptr<FrameDecryptorInterface> frame_decryptor_;
   rtc::scoped_refptr<DtlsTransportInterface> dtls_transport_;
+  // Allows to thread safely change playout delay. Handles caching cases if
+  // |SetJitterBufferMinimumDelay| is called before start.
+  rtc::scoped_refptr<JitterBufferDelayInterface> delay_;
+  rtc::scoped_refptr<FrameTransformerInterface> frame_transformer_
+      RTC_GUARDED_BY(worker_thread_);
 };
 
 }  // namespace webrtc

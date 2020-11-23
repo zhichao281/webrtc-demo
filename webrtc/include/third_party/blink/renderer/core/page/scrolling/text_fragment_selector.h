@@ -10,30 +10,42 @@
 
 namespace blink {
 
-// TextFragmentSelector represents a single targetText=... selector of a
+// TextFragmentSelector represents a single text=... selector of a
 // TextFragmentAnchor, parsed into its components.
 class CORE_EXPORT TextFragmentSelector final {
  public:
-  static TextFragmentSelector Create(const String& target_text);
+  static TextFragmentSelector Create(String target_text);
 
   enum SelectorType {
+    // An invalid text selector.
+    kInvalid,
     // An exact selector on the string start_.
     kExact,
     // A range selector on a text range start_ to end_.
     kRange,
   };
 
-  TextFragmentSelector(SelectorType type, String start, String end);
+  TextFragmentSelector(SelectorType type,
+                       const String& start,
+                       const String& end,
+                       const String& prefix,
+                       const String& suffix);
+  explicit TextFragmentSelector(SelectorType type);
   ~TextFragmentSelector() = default;
 
   SelectorType Type() const { return type_; }
-  String Start() const { return start_; }
-  String End() const { return end_; }
+  const String& Start() const { return start_; }
+  const String& End() const { return end_; }
+  const String& Prefix() const { return prefix_; }
+  const String& Suffix() const { return suffix_; }
+  String ToString() const;
 
  private:
   const SelectorType type_;
   String start_;
   String end_;
+  String prefix_;
+  String suffix_;
 };
 
 }  // namespace blink

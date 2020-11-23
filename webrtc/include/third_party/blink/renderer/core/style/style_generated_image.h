@@ -44,11 +44,13 @@ class CORE_EXPORT StyleGeneratedImage final : public StyleImage {
   WrappedImagePtr Data() const override { return image_generator_value_.Get(); }
 
   CSSValue* CssValue() const override;
-  CSSValue* ComputedCSSValue() const override;
+  CSSValue* ComputedCSSValue(const ComputedStyle&,
+                             bool allow_visited_style) const override;
 
   FloatSize ImageSize(const Document&,
                       float multiplier,
-                      const LayoutSize& default_object_size) const override;
+                      const FloatSize& default_object_size,
+                      RespectImageOrientationEnum) const override;
   bool HasIntrinsicSize() const override { return fixed_size_; }
   void AddClient(ImageResourceObserver*) override;
   void RemoveClient(ImageResourceObserver*) override;
@@ -59,7 +61,10 @@ class CORE_EXPORT StyleGeneratedImage final : public StyleImage {
                                 const FloatSize& target_size) const override;
   bool KnownToBeOpaque(const Document&, const ComputedStyle&) const override;
 
-  void Trace(blink::Visitor*) override;
+  bool IsUsingCustomProperty(const AtomicString& custom_property_name,
+                             const Document&) const;
+
+  void Trace(Visitor*) const override;
 
  private:
   bool IsEqual(const StyleImage&) const override;

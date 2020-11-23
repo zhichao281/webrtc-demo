@@ -30,7 +30,6 @@ class CORE_EXPORT InterpolationEffect
   }
 
   void GetActiveInterpolations(double fraction,
-                               double iteration_duration,
                                HeapVector<Member<Interpolation>>&) const;
 
   void AddInterpolation(Interpolation* interpolation,
@@ -50,11 +49,11 @@ class CORE_EXPORT InterpolationEffect
       double apply_from,
       double apply_to);
 
-  void Trace(Visitor*);
+  void Trace(Visitor*) const;
 
  private:
-  class InterpolationRecord
-      : public GarbageCollectedFinalized<InterpolationRecord> {
+  class InterpolationRecord final
+      : public GarbageCollected<InterpolationRecord> {
    public:
     InterpolationRecord(Interpolation* interpolation,
                         scoped_refptr<TimingFunction> easing,
@@ -76,7 +75,7 @@ class CORE_EXPORT InterpolationEffect
     double apply_from_;
     double apply_to_;
 
-    void Trace(Visitor* visitor) { visitor->Trace(interpolation_); }
+    void Trace(Visitor* visitor) const { visitor->Trace(interpolation_); }
   };
 
   bool is_populated_;

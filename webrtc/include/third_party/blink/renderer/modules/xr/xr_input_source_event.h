@@ -5,10 +5,10 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_XR_XR_INPUT_SOURCE_EVENT_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_XR_XR_INPUT_SOURCE_EVENT_H_
 
+#include "third_party/blink/renderer/bindings/modules/v8/v8_xr_input_source_event_init.h"
 #include "third_party/blink/renderer/modules/event_modules.h"
 #include "third_party/blink/renderer/modules/xr/xr_frame.h"
 #include "third_party/blink/renderer/modules/xr/xr_input_source.h"
-#include "third_party/blink/renderer/modules/xr/xr_input_source_event_init.h"
 
 namespace blink {
 
@@ -37,16 +37,14 @@ class XRInputSourceEvent final : public Event {
 
   XRFrame* frame() const { return frame_.Get(); }
   XRInputSource* inputSource() const { return input_source_.Get(); }
-  int32_t buttonIndex(bool& is_null) const;
 
   const AtomicString& InterfaceName() const override;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   Member<XRFrame> frame_;
   Member<XRInputSource> input_source_;
-  base::Optional<int32_t> button_index_;
 };
 
 }  // namespace blink

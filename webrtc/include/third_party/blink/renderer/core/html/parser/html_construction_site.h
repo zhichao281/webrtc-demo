@@ -53,7 +53,7 @@ struct HTMLConstructionSiteTask {
   explicit HTMLConstructionSiteTask(Operation op)
       : operation(op), self_closing(false) {}
 
-  void Trace(Visitor* visitor) {
+  void Trace(Visitor* visitor) const {
     visitor->Trace(parent);
     visitor->Trace(next_child);
     visitor->Trace(child);
@@ -63,7 +63,7 @@ struct HTMLConstructionSiteTask {
     // It's sort of ugly, but we store the |oldParent| in the |child| field of
     // the task so that we don't bloat the HTMLConstructionSiteTask object in
     // the common case of the Insert operation.
-    return ToContainerNode(child.Get());
+    return To<ContainerNode>(child.Get());
   }
 
   Operation operation;
@@ -102,6 +102,7 @@ class Document;
 class Element;
 class HTMLFormElement;
 class HTMLParserReentryPermit;
+enum class DeclarativeShadowRootType;
 
 class HTMLConstructionSite final {
   DISALLOW_NEW();
@@ -111,7 +112,7 @@ class HTMLConstructionSite final {
                        Document&,
                        ParserContentPolicy);
   ~HTMLConstructionSite();
-  void Trace(Visitor*);
+  void Trace(Visitor*) const;
 
   void InitFragmentParsing(DocumentFragment*, Element* context_element);
 
@@ -148,6 +149,7 @@ class HTMLConstructionSite final {
   void InsertCommentOnDocument(AtomicHTMLToken*);
   void InsertCommentOnHTMLHtmlElement(AtomicHTMLToken*);
   void InsertHTMLElement(AtomicHTMLToken*);
+  void InsertHTMLTemplateElement(AtomicHTMLToken*, DeclarativeShadowRootType);
   void InsertSelfClosingHTMLElementDestroyingToken(AtomicHTMLToken*);
   void InsertFormattingElement(AtomicHTMLToken*);
   void InsertHTMLHeadElement(AtomicHTMLToken*);
@@ -324,7 +326,7 @@ class HTMLConstructionSite final {
       return string_builder.IsEmpty();
     }
 
-    void Trace(Visitor*);
+    void Trace(Visitor*) const;
 
     Member<ContainerNode> parent;
     Member<Node> next_child;

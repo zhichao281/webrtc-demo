@@ -25,25 +25,24 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_DOM_CONTAINER_NODE_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_DOM_CONTAINER_NODE_H_
 
-#include "third_party/blink/public/platform/web_focus_type.h"
+#include "third_party/blink/public/mojom/input/focus_type.mojom-blink-forward.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/style_recalc.h"
 #include "third_party/blink/renderer/core/dom/node.h"
+#include "third_party/blink/renderer/core/dom/static_node_list.h"
 #include "third_party/blink/renderer/core/html/collection_type.h"
+#include "third_party/blink/renderer/platform/wtf/casting.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
 
-class ClassCollection;
-class ExceptionState;
 class Element;
+class ExceptionState;
 class HTMLCollection;
-class NameNodeList;
-template <typename NodeType>
-class StaticNodeTypeList;
-using StaticElementList = StaticNodeTypeList<Element>;
 class RadioNodeList;
 class WhitespaceAttacher;
+
+using StaticElementList = StaticNodeTypeList<Element>;
 
 enum class DynamicRestyleFlags {
   kChildrenOrSiblingsAffectedByFocus = 1 << 0,
@@ -130,8 +129,8 @@ class CORE_EXPORT ContainerNode : public Node {
   HTMLCollection* getElementsByTagName(const AtomicString&);
   HTMLCollection* getElementsByTagNameNS(const AtomicString& namespace_uri,
                                          const AtomicString& local_name);
-  NameNodeList* getElementsByName(const AtomicString& element_name);
-  ClassCollection* getElementsByClassName(const AtomicString& class_names);
+  NodeList* getElementsByName(const AtomicString& element_name);
+  HTMLCollection* getElementsByClassName(const AtomicString& class_names);
   RadioNodeList* GetRadioNodeList(const AtomicString&,
                                   bool only_match_img_elements = false);
 
@@ -145,19 +144,17 @@ class CORE_EXPORT ContainerNode : public Node {
   void RemoveChildren(
       SubtreeModificationAction = kDispatchSubtreeModifiedEvent);
 
-  void CloneChildNodesFrom(const ContainerNode&);
+  void CloneChildNodesFrom(const ContainerNode&, CloneChildrenFlag);
 
   void AttachLayoutTree(AttachContext&) override;
-  void DetachLayoutTree(const AttachContext& = AttachContext()) override;
-  LayoutRect BoundingBox() const final;
-  void SetFocused(bool, WebFocusType) override;
+  void DetachLayoutTree(bool performing_reattach = false) override;
+  PhysicalRect BoundingBox() const final;
+  void SetFocused(bool, mojom::blink::FocusType) override;
   void SetHasFocusWithinUpToAncestor(bool, Node* ancestor);
   void FocusStateChanged();
   void FocusVisibleStateChanged();
   void FocusWithinStateChanged();
-  void SetActive(bool = true) override;
   void SetDragged(bool) override;
-  void SetHovered(bool = true) override;
   void RemovedFrom(ContainerNode& insertion_point) override;
 
   bool ChildrenOrSiblingsAffectedByFocus() const {
@@ -292,13 +289,12 @@ class CORE_EXPORT ContainerNode : public Node {
   void RecalcDescendantStyles(const StyleRecalcChange);
   void RebuildChildrenLayoutTrees(WhitespaceAttacher&);
   void RebuildLayoutTreeForChild(Node* child, WhitespaceAttacher&);
-  void RebuildNonDistributedChildren();
 
   // -----------------------------------------------------------------------------
   // Notification of document structure changes (see core/dom/node.h for more
   // notification methods)
 
-  enum ChildrenChangeType {
+  enum class ChildrenChangeType : uint8_t {
     kElementInserted,
     kNonElementInserted,
     kElementRemoved,
@@ -306,10 +302,7 @@ class CORE_EXPORT ContainerNode : public Node {
     kAllChildrenRemoved,
     kTextChanged
   };
-  enum ChildrenChangeSource {
-    kChildrenChangeSourceAPI,
-    kChildrenChangeSourceParser
-  };
+  enum class ChildrenChangeSource : uint8_t { kAPI, kParser };
   struct ChildrenChange {
     STACK_ALLOCATED();
 
@@ -318,9 +311,14 @@ class CORE_EXPORT ContainerNode : public Node {
                                        Node* unchanged_previous,
                                        Node* unchanged_next,
                                        ChildrenChangeSource by_parser) {
-      ChildrenChange change = {
-          node.IsElementNode() ? kElementInserted : kNonElementInserted, &node,
-          unchanged_previous, unchanged_next, by_parser};
+      ChildrenChange change = {node.IsElementNode()
+                                   ? ChildrenChangeType::kElementInserted
+                                   : ChildrenChangeType::kNonElementInserted,
+                               by_parser,
+                               &node,
+                               unchanged_previous,
+                               unchanged_next,
+                               nullptr};
       return change;
     }
 
@@ -328,46 +326,71 @@ class CORE_EXPORT ContainerNode : public Node {
                                      Node* previous_sibling,
                                      Node* next_sibling,
                                      ChildrenChangeSource by_parser) {
-      ChildrenChange change = {
-          node.IsElementNode() ? kElementRemoved : kNonElementRemoved, &node,
-          previous_sibling, next_sibling, by_parser};
+      ChildrenChange change = {node.IsElementNode()
+                                   ? ChildrenChangeType::kElementRemoved
+                                   : ChildrenChangeType::kNonElementRemoved,
+                               by_parser,
+                               &node,
+                               previous_sibling,
+                               next_sibling,
+                               nullptr};
       return change;
     }
 
     bool IsChildInsertion() const {
-      return type == kElementInserted || type == kNonElementInserted;
+      return type == ChildrenChangeType::kElementInserted ||
+             type == ChildrenChangeType::kNonElementInserted;
     }
     bool IsChildRemoval() const {
-      return type == kElementRemoved || type == kNonElementRemoved;
+      return type == ChildrenChangeType::kElementRemoved ||
+             type == ChildrenChangeType::kNonElementRemoved;
     }
     bool IsChildElementChange() const {
-      return type == kElementInserted || type == kElementRemoved;
+      return type == ChildrenChangeType::kElementInserted ||
+             type == ChildrenChangeType::kElementRemoved;
     }
 
+    bool ByParser() const { return by_parser == ChildrenChangeSource::kParser; }
+
     ChildrenChangeType type;
-    Member<Node> sibling_changed;
+    ChildrenChangeSource by_parser;
+    Node* sibling_changed = nullptr;
     // |siblingBeforeChange| is
     //  - siblingChanged.previousSibling before node removal
     //  - siblingChanged.previousSibling after single node insertion
     //  - previousSibling of the first inserted node after multiple node
     //    insertion
-    Member<Node> sibling_before_change;
+    Node* sibling_before_change = nullptr;
     // |siblingAfterChange| is
     //  - siblingChanged.nextSibling before node removal
     //  - siblingChanged.nextSibling after single node insertion
     //  - nextSibling of the last inserted node after multiple node insertion.
-    Member<Node> sibling_after_change;
-    ChildrenChangeSource by_parser;
+    Node* sibling_after_change = nullptr;
+    // List of removed nodes for ChildrenChangeType::kAllChildrenRemoved.
+    // This is available only if ChildrenChangedAllChildrenRemovedNeedsList()
+    // returns true.
+    HeapVector<Member<Node>>* removed_nodes;
   };
 
   // Notifies the node that it's list of children have changed (either by adding
   // or removing child nodes), or a child node that is of the type
-  // CDATA_SECTION_NODE, TEXT_NODE or COMMENT_NODE has changed its value.
+  // kCdataSectionNode, kTextNode or kCommentNode has changed its value.
+  //
+  // ChildrenChanged() implementations may modify the DOM tree, and may dispatch
+  // synchronous events.
   virtual void ChildrenChanged(const ChildrenChange&);
+
+  // Provides ChildrenChange::removed_nodes for kAllChildrenRemoved.
+  virtual bool ChildrenChangedAllChildrenRemovedNeedsList() const;
 
   virtual bool ChildrenCanHaveStyle() const { return true; }
 
-  void Trace(Visitor*) override;
+  // This is similar to GetLayoutBox(), but returns nullptr if it's not
+  // scrollable. Some elements override this to delegate scroll operations to
+  // a descendant LayoutBox.
+  virtual LayoutBox* GetLayoutBoxForScrolling() const;
+
+  void Trace(Visitor*) const override;
 
  protected:
   ContainerNode(TreeScope*, ConstructionType = kCreateContainer);
@@ -431,7 +454,7 @@ class CORE_EXPORT ContainerNode : public Node {
   void AddChildNodesToDeletionQueue(Node*&, Node*&, ContainerNode&);
 
   void NotifyNodeInserted(Node&,
-                          ChildrenChangeSource = kChildrenChangeSourceAPI);
+                          ChildrenChangeSource = ChildrenChangeSource::kAPI);
   void NotifyNodeInsertedInternal(
       Node&,
       NodeVector& post_insertion_notification_targets);
@@ -459,7 +482,10 @@ class CORE_EXPORT ContainerNode : public Node {
   Member<Node> last_child_;
 };
 
-DEFINE_NODE_TYPE_CASTS(ContainerNode, IsContainerNode());
+template <>
+struct DowncastTraits<ContainerNode> {
+  static bool AllowFrom(const Node& node) { return node.IsContainerNode(); }
+};
 
 inline bool ContainerNode::HasChildCount(unsigned count) const {
   Node* child = first_child_;
@@ -482,21 +508,24 @@ inline bool ContainerNode::NeedsAdjacentStyleRecalc() const {
 }
 
 inline unsigned Node::CountChildren() const {
-  if (!IsContainerNode())
+  auto* this_node = DynamicTo<ContainerNode>(this);
+  if (!this_node)
     return 0;
-  return ToContainerNode(this)->CountChildren();
+  return this_node->CountChildren();
 }
 
 inline Node* Node::firstChild() const {
-  if (!IsContainerNode())
+  auto* this_node = DynamicTo<ContainerNode>(this);
+  if (!this_node)
     return nullptr;
-  return ToContainerNode(this)->firstChild();
+  return this_node->firstChild();
 }
 
 inline Node* Node::lastChild() const {
-  if (!IsContainerNode())
+  auto* this_node = DynamicTo<ContainerNode>(this);
+  if (!this_node)
     return nullptr;
-  return ToContainerNode(this)->lastChild();
+  return this_node->lastChild();
 }
 
 inline ContainerNode* Node::ParentElementOrShadowRoot() const {

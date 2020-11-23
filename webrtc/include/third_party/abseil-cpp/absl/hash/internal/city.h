@@ -47,9 +47,13 @@
 
 #include <stdint.h>
 #include <stdlib.h>  // for size_t.
+
 #include <utility>
 
+#include "absl/base/config.h"
+
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace hash_internal {
 
 typedef std::pair<uint64_t, uint64_t> uint128;
@@ -67,7 +71,7 @@ uint64_t CityHash64WithSeed(const char *s, size_t len, uint64_t seed);
 // Hash function for a byte array.  For convenience, two seeds are also
 // hashed into the result.
 uint64_t CityHash64WithSeeds(const char *s, size_t len, uint64_t seed0,
-                           uint64_t seed1);
+                             uint64_t seed1);
 
 // Hash function for a byte array.  Most useful in 32-bit binaries.
 uint32_t CityHash32(const char *s, size_t len);
@@ -86,6 +90,7 @@ inline uint64_t Hash128to64(const uint128 &x) {
 }
 
 }  // namespace hash_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_HASH_INTERNAL_CITY_H_

@@ -8,7 +8,7 @@
 #include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/ref_counted.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
@@ -16,25 +16,43 @@
 
 namespace blink {
 
-uint32_t AtomicStringToFourByteTag(AtomicString tag);
+PLATFORM_EXPORT uint32_t AtomicStringToFourByteTag(AtomicString tag);
+PLATFORM_EXPORT AtomicString FourByteTagToAtomicString(uint32_t tag);
 
 template <typename T>
 class FontTagValuePair {
   DISALLOW_NEW();
 
  public:
+  FontTagValuePair(uint32_t tag, T value) : tag_(tag), value_(value) {
+    // ensure tag is either valid or zero
+    DCHECK(tag == 0 ||
+           (tag & 0xff000000) < 0x7f000000 &&
+               (tag & 0xff000000) >= 0x20000000 &&
+               (tag & 0xff0000) < 0x7f0000 && (tag & 0xff0000) >= 0x200000 &&
+               (tag & 0xff00) < 0x7f00 && (tag & 0xff00) >= 0x2000 &&
+               (tag & 0xff) < 0x7f && (tag & 0xff) >= 0x20);
+  }
   FontTagValuePair(const AtomicString& tag, T value)
-      : tag_(tag), value_(value) {}
+      : tag_(AtomicStringToFourByteTag(tag)), value_(value) {
+    // ensure tag is valid
+    DCHECK((tag_ & 0xff000000) < 0x7f000000 &&
+           (tag_ & 0xff000000) >= 0x20000000 && (tag_ & 0xff0000) < 0x7f0000 &&
+           (tag_ & 0xff0000) >= 0x200000 && (tag_ & 0xff00) < 0x7f00 &&
+           (tag_ & 0xff00) >= 0x2000 && (tag_ & 0xff) < 0x7f &&
+           (tag_ & 0xff) >= 0x20);
+  }
   bool operator==(const FontTagValuePair& other) const {
     return tag_ == other.tag_ && value_ == other.value_;
   }
 
-  const AtomicString& Tag() const { return tag_; }
+  uint32_t Tag() const { return tag_; }
+  AtomicString TagString() const { return FourByteTagToAtomicString(tag_); }
   T Value() const { return value_; }
 
  private:
-  AtomicString tag_;
-  const T value_;
+  uint32_t tag_;
+  T value_;
 };
 
 template <typename T>
@@ -47,19 +65,33 @@ class FontSettings {
   bool operator==(const FontSettings& other) const {
     return list_ == other.list_;
   }
+  bool operator!=(const FontSettings& other) const { return !(*this == other); }
   String ToString() const {
     StringBuilder builder;
     wtf_size_t num_features = size();
     for (wtf_size_t i = 0; i < num_features; ++i) {
       if (i > 0)
         builder.Append(",");
-      const AtomicString& tag = at(i).Tag();
-      builder.Append(tag);
+      builder.Append(at(i).TagString());
       builder.Append("=");
       builder.AppendNumber(at(i).Value());
     }
     return builder.ToString();
   }
+
+  bool FindPair(uint32_t tag, T* found_pair) const {
+    if (!found_pair)
+      return false;
+
+    for (auto& pair : list_) {
+      if (pair.Tag() == tag) {
+        *found_pair = pair;
+        return true;
+      }
+    }
+    return false;
+  }
+
   const T* begin() const { return list_.begin(); }
   const T* end() const { return list_.end(); }
   T* begin() { return list_.begin(); }

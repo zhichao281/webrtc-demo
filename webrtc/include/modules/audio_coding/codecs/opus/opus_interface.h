@@ -35,6 +35,7 @@ typedef struct WebRtcOpusDecInst OpusDecInst;
  *                                 Favor speech intelligibility.
  *                             1 - Audio applications.
  *                                 Favor faithfulness to the original input.
+ *      - sample_rate_hz     : sample rate of input audio
  *
  * Output:
  *      - inst               : a pointer to Encoder context that is created
@@ -45,7 +46,8 @@ typedef struct WebRtcOpusDecInst OpusDecInst;
  */
 int16_t WebRtcOpus_EncoderCreate(OpusEncInst** inst,
                                  size_t channels,
-                                 int32_t application);
+                                 int32_t application,
+                                 int sample_rate_hz);
 
 /****************************************************************************
  * WebRtcOpus_MultistreamEncoderCreate(...)
@@ -305,6 +307,20 @@ int32_t WebRtcOpus_GetBandwidth(OpusEncInst* inst);
 int16_t WebRtcOpus_SetBandwidth(OpusEncInst* inst, int32_t bandwidth);
 
 /*
+ * WebRtcOpus_GetInDtx(...)
+ *
+ * Gets the DTX state of the encoder.
+ *
+ * Input:
+ *      - inst   : Encoder context
+ *
+ * Return value  : -1 - Error.
+ *                 1  - Last encoded frame was comfort noise update during DTX.
+ *                 0  - Last encoded frame was encoded with encoder not in DTX.
+ */
+int32_t WebRtcOpus_GetInDtx(OpusEncInst* inst);
+
+/*
  * WebRtcOpus_SetForceChannels(...)
  *
  * If the encoder is initialized as a stereo encoder, Opus will by default
@@ -326,7 +342,9 @@ int16_t WebRtcOpus_SetBandwidth(OpusEncInst* inst, int32_t bandwidth);
  */
 int16_t WebRtcOpus_SetForceChannels(OpusEncInst* inst, size_t num_channels);
 
-int16_t WebRtcOpus_DecoderCreate(OpusDecInst** inst, size_t channels);
+int16_t WebRtcOpus_DecoderCreate(OpusDecInst** inst,
+                                 size_t channels,
+                                 int sample_rate_hz);
 
 /****************************************************************************
  * WebRtcOpus_MultistreamDecoderCreate(...)
@@ -403,24 +421,6 @@ int WebRtcOpus_Decode(OpusDecInst* inst,
                       int16_t* audio_type);
 
 /****************************************************************************
- * WebRtcOpus_DecodePlc(...)
- *
- * This function processes PLC for opus frame(s).
- * Input:
- *        - inst                  : Decoder context
- *        - number_of_lost_frames : Number of PLC frames to produce
- *
- * Output:
- *        - decoded               : The decoded vector
- *
- * Return value                   : >0 - number of samples in decoded PLC vector
- *                                  -1 - Error
- */
-int WebRtcOpus_DecodePlc(OpusDecInst* inst,
-                         int16_t* decoded,
-                         int number_of_lost_frames);
-
-/****************************************************************************
  * WebRtcOpus_DecodeFec(...)
  *
  * This function decodes the FEC data from an Opus packet into one or more audio
@@ -486,13 +486,15 @@ int WebRtcOpus_PlcDuration(OpusDecInst* inst);
  * Input:
  *        - payload              : Encoded data pointer
  *        - payload_length_bytes : Bytes of encoded data
+ *        - sample_rate_hz       : Sample rate of output audio
  *
  * Return value                  : >0 - The duration of the FEC data in the
  *                                 packet in samples per channel.
  *                                  0 - No FEC data in the packet.
  */
 int WebRtcOpus_FecDurationEst(const uint8_t* payload,
-                              size_t payload_length_bytes);
+                              size_t payload_length_bytes,
+                              int sample_rate_hz);
 
 /****************************************************************************
  * WebRtcOpus_PacketHasFec(...)
@@ -507,6 +509,22 @@ int WebRtcOpus_FecDurationEst(const uint8_t* payload,
  */
 int WebRtcOpus_PacketHasFec(const uint8_t* payload,
                             size_t payload_length_bytes);
+
+/****************************************************************************
+ * WebRtcOpus_PacketHasVoiceActivity(...)
+ *
+ * This function returns the SILK VAD information encoded in the opus packet.
+ * For CELT-only packets that do not have VAD information, it returns -1.
+ * Input:
+ *        - payload              : Encoded data pointer
+ *        - payload_length_bytes : Bytes of encoded data
+ *
+ * Return value                  : 0 - no frame had the VAD flag set.
+ *                                 1 - at least one frame had the VAD flag set.
+ *                                -1 - VAD status could not be determined.
+ */
+int WebRtcOpus_PacketHasVoiceActivity(const uint8_t* payload,
+                                      size_t payload_length_bytes);
 
 #ifdef __cplusplus
 }  // extern "C"

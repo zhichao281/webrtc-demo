@@ -37,13 +37,14 @@
 #include "base/macros.h"
 #include "base/memory/ptr_util.h"
 #include "third_party/blink/renderer/platform/audio/audio_source_provider.h"
+#include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/threading_primitives.h"
 
 namespace blink {
 
 class WebAudioSourceProvider;
 
-class MediaStreamWebAudioSource : public AudioSourceProvider {
+class PLATFORM_EXPORT MediaStreamWebAudioSource : public AudioSourceProvider {
  public:
   explicit MediaStreamWebAudioSource(std::unique_ptr<WebAudioSourceProvider>);
   ~MediaStreamWebAudioSource() override;
@@ -53,6 +54,7 @@ class MediaStreamWebAudioSource : public AudioSourceProvider {
   void ProvideInput(AudioBus*, uint32_t frames_to_process) override;
 
   std::unique_ptr<WebAudioSourceProvider> web_audio_source_provider_;
+  WebVector<float*> web_audio_data_;
 
   DISALLOW_COPY_AND_ASSIGN(MediaStreamWebAudioSource);
 };

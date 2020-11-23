@@ -15,39 +15,77 @@
 namespace blink {
 
 class ConsoleLogger;
+class JSONObject;
 class Modulator;
 class ParsedSpecifier;
+class ScriptValue;
 
 // Import maps.
 // https://wicg.github.io/import-maps/
 // https://github.com/WICG/import-maps/blob/master/spec.md
-class ImportMap final : public GarbageCollectedFinalized<ImportMap> {
+class CORE_EXPORT ImportMap final : public GarbageCollected<ImportMap> {
  public:
-  static ImportMap* Create(const Modulator& modulator_for_built_in_modules,
-                           const String& text,
-                           const KURL& base_url,
-                           ConsoleLogger& logger);
+  static ImportMap* Parse(const Modulator&,
+                          const String& text,
+                          const KURL& base_url,
+                          ConsoleLogger& logger,
+                          ScriptValue* error_to_rethrow);
 
-  ImportMap(const Modulator&, const HashMap<String, Vector<KURL>>& imports);
+  // <spec href="https://wicg.github.io/import-maps/#specifier-map">A specifier
+  // map is an ordered map from strings to resolution results.</spec>
+  //
+  // An invalid KURL corresponds to a null resolution result in the spec.
+  //
+  // In Blink, we actually use an unordered map here, and related algorithms
+  // are implemented differently from the spec.
+  using SpecifierMap = HashMap<String, KURL>;
 
-  // Returns nullopt when not mapped by |this| import map (i.e. the import map
-  // doesn't have corresponding keys).
-  // Returns a null URL when resolution fails.
+  // <spec href="https://wicg.github.io/import-maps/#import-map-scopes">an
+  // ordered map of URLs to specifier maps.</spec>
+  using ScopeEntryType = std::pair<String, SpecifierMap>;
+  using ScopeType = Vector<ScopeEntryType>;
+
+  // Empty import map.
+  ImportMap();
+
+  ImportMap(SpecifierMap&& imports, ScopeType&& scopes);
+
+  // Return values of Resolve(), ResolveImportsMatch() and
+  // ResolveImportsMatchInternal():
+  // - base::nullopt: corresponds to returning a null in the spec,
+  //   i.e. allowing fallback to a less specific scope etc.
+  // - An invalid KURL: corresponds to throwing an error in the spec.
+  // - A valid KURL: corresponds to returning a valid URL in the spec.
   base::Optional<KURL> Resolve(const ParsedSpecifier&,
+                               const KURL& base_url,
                                String* debug_message) const;
 
   String ToString() const;
 
-  void Trace(Visitor*);
+  void Trace(Visitor*) const {}
 
  private:
-  using MatchResult = HashMap<String, Vector<KURL>>::const_iterator;
-  base::Optional<MatchResult> Match(const ParsedSpecifier&) const;
-  base::Optional<MatchResult> MatchExact(const ParsedSpecifier&) const;
-  base::Optional<MatchResult> MatchPrefix(const ParsedSpecifier&) const;
+  using MatchResult = SpecifierMap::const_iterator;
 
-  HashMap<String, Vector<KURL>> imports_;
-  Member<const Modulator> modulator_for_built_in_modules_;
+  // https://wicg.github.io/import-maps/#resolve-an-imports-match
+  base::Optional<KURL> ResolveImportsMatch(const ParsedSpecifier&,
+                                           const SpecifierMap&,
+                                           String* debug_message) const;
+  base::Optional<MatchResult> MatchPrefix(const ParsedSpecifier&,
+                                          const SpecifierMap&) const;
+  static SpecifierMap SortAndNormalizeSpecifierMap(const JSONObject* imports,
+                                                   const KURL& base_url,
+                                                   ConsoleLogger&);
+
+  KURL ResolveImportsMatchInternal(const String& normalizedSpecifier,
+                                   const MatchResult&,
+                                   String* debug_message) const;
+
+  // https://wicg.github.io/import-maps/#import-map-imports
+  SpecifierMap imports_;
+
+  // https://wicg.github.io/import-maps/#import-map-scopes.
+  ScopeType scopes_;
 };
 
 }  // namespace blink

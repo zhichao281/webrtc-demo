@@ -32,19 +32,19 @@
 #include "third_party/blink/renderer/core/dom/range.h"
 #include "third_party/blink/renderer/core/editing/forward.h"
 #include "third_party/blink/renderer/core/editing/spellcheck/text_checking.h"
-#include "third_party/blink/renderer/platform/timer.h"
+#include "third_party/blink/renderer/platform/scheduler/public/post_cancellable_task.h"
 #include "third_party/blink/renderer/platform/wtf/deque.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
 
-class LocalFrame;
+class LocalDOMWindow;
 class SpellCheckRequester;
 class WebTextCheckClient;
 
-class CORE_EXPORT SpellCheckRequest
-    : public GarbageCollectedFinalized<SpellCheckRequest> {
+class CORE_EXPORT SpellCheckRequest final
+    : public GarbageCollected<SpellCheckRequest> {
  public:
   static const int kUnrequestedTextCheckingSequence = -1;
 
@@ -68,7 +68,7 @@ class CORE_EXPORT SpellCheckRequest
 
   int RequestNumber() const { return request_number_; }
 
-  void Trace(Visitor*);
+  void Trace(Visitor*) const;
 
  private:
   Member<SpellCheckRequester> requester_;
@@ -80,11 +80,11 @@ class CORE_EXPORT SpellCheckRequest
 };
 
 class CORE_EXPORT SpellCheckRequester final
-    : public GarbageCollectedFinalized<SpellCheckRequester> {
+    : public GarbageCollected<SpellCheckRequester> {
  public:
-  explicit SpellCheckRequester(LocalFrame&);
+  explicit SpellCheckRequester(LocalDOMWindow&);
   ~SpellCheckRequester();
-  void Trace(Visitor*);
+  void Trace(Visitor*) const;
 
   // Returns true if a request is initiated. Returns false otherwise.
   bool RequestCheckingFor(const EphemeralRange&);
@@ -103,7 +103,7 @@ class CORE_EXPORT SpellCheckRequester final
   friend class SpellCheckRequest;
 
   WebTextCheckClient* GetTextCheckerClient() const;
-  void TimerFiredToProcessQueuedRequest(TimerBase*);
+  void TimerFiredToProcessQueuedRequest();
   void InvokeRequest(SpellCheckRequest*);
   void EnqueueRequest(SpellCheckRequest*);
   bool EnsureValidRequestQueueFor(int sequence);
@@ -113,17 +113,12 @@ class CORE_EXPORT SpellCheckRequester final
 
   void ClearProcessingRequest();
 
-  Member<LocalFrame> frame_;
-  LocalFrame& GetFrame() const {
-    DCHECK(frame_);
-    return *frame_;
-  }
+  Member<LocalDOMWindow> window_;
 
   int last_request_sequence_;
   int last_processed_sequence_;
-  TimeTicks last_request_time_;
 
-  TaskRunnerTimer<SpellCheckRequester> timer_to_process_queued_request_;
+  TaskHandle timer_to_process_queued_request_;
 
   Member<SpellCheckRequest> processing_request_;
 

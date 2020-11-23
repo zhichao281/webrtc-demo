@@ -6,7 +6,6 @@
 #define THIRD_PARTY_BLINK_PUBLIC_PLATFORM_SCHEDULER_TEST_WEB_FAKE_THREAD_SCHEDULER_H_
 
 #include "base/macros.h"
-#include "base/message_loop/message_loop.h"
 #include "base/single_thread_task_runner.h"
 #include "build/build_config.h"
 #include "third_party/blink/public/platform/scheduler/web_thread_scheduler.h"
@@ -23,8 +22,9 @@ class WebFakeThreadScheduler : public WebThreadScheduler {
   std::unique_ptr<Thread> CreateMainThread() override;
   scoped_refptr<base::SingleThreadTaskRunner> DefaultTaskRunner() override;
   scoped_refptr<base::SingleThreadTaskRunner> CompositorTaskRunner() override;
-  scoped_refptr<base::SingleThreadTaskRunner> InputTaskRunner() override;
-  scoped_refptr<base::SingleThreadTaskRunner> IPCTaskRunner() override;
+  std::unique_ptr<WebAgentGroupScheduler> CreateAgentGroupScheduler() override;
+  std::unique_ptr<WebWidgetScheduler> CreateWidgetScheduler() override;
+  WebAgentGroupScheduler* GetCurrentAgentGroupScheduler() override;
   std::unique_ptr<WebRenderWidgetSchedulingState>
   NewRenderWidgetSchedulingState() override;
   void WillBeginFrame(const viz::BeginFrameArgs& args) override;
@@ -35,12 +35,16 @@ class WebFakeThreadScheduler : public WebThreadScheduler {
       const WebInputEvent& web_input_event,
       InputEventState event_state) override;
   void WillPostInputEventToMainThread(
-      WebInputEvent::Type web_input_event_type) override;
+      WebInputEvent::Type web_input_event_type,
+      const WebInputEventAttribution& attribution) override;
   void WillHandleInputEventOnMainThread(
-      WebInputEvent::Type web_input_event_type) override;
+      WebInputEvent::Type web_input_event_type,
+      const WebInputEventAttribution& attribution) override;
   void DidHandleInputEventOnMainThread(const WebInputEvent& web_input_event,
                                        WebInputEventResult result) override;
   void DidAnimateForInputOnCompositorThread() override;
+  void DidScheduleBeginMainFrame() override;
+  void DidRunBeginMainFrame() override;
   void SetRendererHidden(bool hidden) override;
   void SetRendererBackgrounded(bool backgrounded) override;
   void SetSchedulerKeepActive(bool keep_active) override;
@@ -54,9 +58,6 @@ class WebFakeThreadScheduler : public WebThreadScheduler {
   void SetTopLevelBlameContext(
       base::trace_event::BlameContext* blame_context) override;
   void SetRendererProcessType(WebRendererProcessType type) override;
-  WebScopedVirtualTimePauser CreateWebScopedVirtualTimePauser(
-      const char* name,
-      WebScopedVirtualTimePauser::VirtualTaskDuration duration) override;
   void OnMainFrameRequestedForInput() override;
 
  private:

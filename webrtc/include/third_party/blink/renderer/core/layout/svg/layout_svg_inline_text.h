@@ -34,15 +34,28 @@ class LayoutSVGInlineText final : public LayoutText {
   LayoutSVGInlineText(Node*, scoped_refptr<StringImpl>);
 
   bool CharacterStartsNewTextChunk(int position) const;
-  SVGCharacterDataMap& CharacterDataMap() { return character_data_map_; }
+  SVGCharacterDataMap& CharacterDataMap() {
+    NOT_DESTROYED();
+    return character_data_map_;
+  }
   const SVGCharacterDataMap& CharacterDataMap() const {
+    NOT_DESTROYED();
     return character_data_map_;
   }
 
-  const Vector<SVGTextMetrics>& MetricsList() const { return metrics_; }
+  const Vector<SVGTextMetrics>& MetricsList() const {
+    NOT_DESTROYED();
+    return metrics_;
+  }
 
-  float ScalingFactor() const { return scaling_factor_; }
-  const Font& ScaledFont() const { return scaled_font_; }
+  float ScalingFactor() const {
+    NOT_DESTROYED();
+    return scaling_factor_;
+  }
+  const Font& ScaledFont() const {
+    NOT_DESTROYED();
+    return scaled_font_;
+  }
   void UpdateScaledFont();
   void UpdateMetricsList(bool& last_character_was_white_space);
   static void ComputeNewScaledFontForStyle(const LayoutObject&,
@@ -53,32 +66,38 @@ class LayoutSVGInlineText final : public LayoutText {
   // round and does a better job than enclosingIntRect.
   FloatRect FloatLinesBoundingBox() const;
 
-  const char* GetName() const override { return "LayoutSVGInlineText"; }
+  const char* GetName() const override {
+    NOT_DESTROYED();
+    return "LayoutSVGInlineText";
+  }
 
  private:
-  void SetTextInternal(scoped_refptr<StringImpl>) override;
+  void TextDidChange() override;
   void StyleDidChange(StyleDifference, const ComputedStyle*) override;
+  void InvalidateSubtreeLayoutForFontUpdates() override;
 
   void AddMetricsFromRun(const TextRun&, bool& last_character_was_white_space);
 
   FloatRect ObjectBoundingBox() const override {
+    NOT_DESTROYED();
     return FloatLinesBoundingBox();
   }
 
   bool IsOfType(LayoutObjectType type) const override {
+    NOT_DESTROYED();
     return type == kLayoutObjectSVG || type == kLayoutObjectSVGInlineText ||
            LayoutText::IsOfType(type);
   }
 
-  PositionWithAffinity PositionForPoint(const LayoutPoint&) const override;
+  PositionWithAffinity PositionForPoint(const PhysicalOffset&) const override;
   LayoutRect LocalCaretRect(
       const InlineBox*,
       int caret_offset,
       LayoutUnit* extra_width_to_end_of_line = nullptr) const override;
-  LayoutRect LinesBoundingBox() const override;
+  PhysicalRect PhysicalLinesBoundingBox() const override;
   InlineTextBox* CreateTextBox(int start, uint16_t length) override;
 
-  LayoutRect VisualRectInDocument() const final;
+  PhysicalRect VisualRectInDocument(VisualRectFlags) const final;
   FloatRect VisualRectInLocalSVGCoordinates() const final;
 
   float scaling_factor_;
@@ -87,7 +106,12 @@ class LayoutSVGInlineText final : public LayoutText {
   Vector<SVGTextMetrics> metrics_;
 };
 
-DEFINE_LAYOUT_OBJECT_TYPE_CASTS(LayoutSVGInlineText, IsSVGInlineText());
+template <>
+struct DowncastTraits<LayoutSVGInlineText> {
+  static bool AllowFrom(const LayoutObject& object) {
+    return object.IsSVGInlineText();
+  }
+};
 
 }  // namespace blink
 

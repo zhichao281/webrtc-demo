@@ -11,7 +11,7 @@
 
 #include "third_party/blink/renderer/core/accessibility/ax_context.h"
 #include "third_party/blink/renderer/core/testing/core_unit_test_helper.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
@@ -19,8 +19,6 @@ class AXObject;
 class AXObjectCacheImpl;
 class LocalFrameClient;
 class Node;
-
-namespace test {
 
 class AccessibilityTest : public RenderingTest {
   USING_FAST_MALLOC(AccessibilityTest);
@@ -33,9 +31,13 @@ class AccessibilityTest : public RenderingTest {
 
   AXObjectCacheImpl& GetAXObjectCache() const;
 
+  AXObject* GetAXObject(LayoutObject* layout_object) const;
+
   AXObject* GetAXObject(const Node& node) const;
 
   AXObject* GetAXRootObject() const;
+
+  AXObject* GetAXBodyObject() const;
 
   // Returns the object with the accessibility focus.
   AXObject* GetAXFocusedObject() const;
@@ -44,15 +46,29 @@ class AccessibilityTest : public RenderingTest {
 
   std::string PrintAXTree() const;
 
+ protected:
+  std::unique_ptr<AXContext> ax_context_;
+
  private:
   std::ostringstream& PrintAXTreeHelper(std::ostringstream&,
                                         const AXObject* root,
                                         size_t level) const;
-
-  std::unique_ptr<AXContext> ax_context_;
 };
 
-}  // namespace test
+class ParameterizedAccessibilityTest : public testing::WithParamInterface<bool>,
+                                       private ScopedLayoutNGForTest,
+                                       public AccessibilityTest {
+ public:
+  ParameterizedAccessibilityTest() : ScopedLayoutNGForTest(GetParam()) {}
+
+ protected:
+  bool LayoutNGEnabled() const {
+    return RuntimeEnabledFeatures::LayoutNGEnabled();
+  }
+};
+
+INSTANTIATE_TEST_SUITE_P(All, ParameterizedAccessibilityTest, testing::Bool());
+
 }  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_ACCESSIBILITY_TESTING_ACCESSIBILITY_TEST_H_

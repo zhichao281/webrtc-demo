@@ -12,13 +12,13 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
 #include <string>
 
 #include "api/array_view.h"
 #include "api/rtp_headers.h"
 #include "api/video/color_space.h"
 #include "api/video/video_content_type.h"
-#include "api/video/video_frame_marking.h"
 #include "api/video/video_rotation.h"
 #include "api/video/video_timing.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
@@ -40,6 +40,23 @@ class AbsoluteSendTime {
   static constexpr uint32_t MsTo24Bits(int64_t time_ms) {
     return static_cast<uint32_t>(((time_ms << 18) + 500) / 1000) & 0x00FFFFFF;
   }
+};
+
+class AbsoluteCaptureTimeExtension {
+ public:
+  using value_type = AbsoluteCaptureTime;
+  static constexpr RTPExtensionType kId = kRtpExtensionAbsoluteCaptureTime;
+  static constexpr uint8_t kValueSizeBytes = 16;
+  static constexpr uint8_t kValueSizeBytesWithoutEstimatedCaptureClockOffset =
+      8;
+  static constexpr const char kUri[] =
+      "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time";
+
+  static bool Parse(rtc::ArrayView<const uint8_t> data,
+                    AbsoluteCaptureTime* extension);
+  static size_t ValueSize(const AbsoluteCaptureTime& extension);
+  static bool Write(rtc::ArrayView<uint8_t> data,
+                    const AbsoluteCaptureTime& extension);
 };
 
 class AudioLevel {
@@ -131,7 +148,7 @@ class VideoOrientation {
 
 class PlayoutDelayLimits {
  public:
-  using value_type = PlayoutDelay;
+  using value_type = VideoPlayoutDelay;
   static constexpr RTPExtensionType kId = kRtpExtensionPlayoutDelay;
   static constexpr uint8_t kValueSizeBytes = 3;
   static constexpr const char kUri[] =
@@ -145,12 +162,10 @@ class PlayoutDelayLimits {
   static constexpr int kMaxMs = 0xfff * kGranularityMs;  // 40950.
 
   static bool Parse(rtc::ArrayView<const uint8_t> data,
-                    PlayoutDelay* playout_delay);
-  static size_t ValueSize(const PlayoutDelay&) {
-    return kValueSizeBytes;
-  }
+                    VideoPlayoutDelay* playout_delay);
+  static size_t ValueSize(const VideoPlayoutDelay&) { return kValueSizeBytes; }
   static bool Write(rtc::ArrayView<uint8_t> data,
-                    const PlayoutDelay& playout_delay);
+                    const VideoPlayoutDelay& playout_delay);
 };
 
 class VideoContentTypeExtension {
@@ -163,9 +178,7 @@ class VideoContentTypeExtension {
 
   static bool Parse(rtc::ArrayView<const uint8_t> data,
                     VideoContentType* content_type);
-  static size_t ValueSize(VideoContentType) {
-    return kValueSizeBytes;
-  }
+  static size_t ValueSize(VideoContentType) { return kValueSizeBytes; }
   static bool Write(rtc::ArrayView<uint8_t> data,
                     VideoContentType content_type);
 };
@@ -177,6 +190,16 @@ class VideoTimingExtension {
   static constexpr uint8_t kValueSizeBytes = 13;
   static constexpr const char kUri[] =
       "http://www.webrtc.org/experiments/rtp-hdrext/video-timing";
+
+  // Offsets of the fields in the RTP header extension, counting from the first
+  // byte after the one-byte header.
+  static constexpr uint8_t kFlagsOffset = 0;
+  static constexpr uint8_t kEncodeStartDeltaOffset = 1;
+  static constexpr uint8_t kEncodeFinishDeltaOffset = 3;
+  static constexpr uint8_t kPacketizationFinishDeltaOffset = 5;
+  static constexpr uint8_t kPacerExitDeltaOffset = 7;
+  static constexpr uint8_t kNetworkTimestampDeltaOffset = 9;
+  static constexpr uint8_t kNetwork2TimestampDeltaOffset = 11;
 
   static bool Parse(rtc::ArrayView<const uint8_t> data,
                     VideoSendTiming* timing);
@@ -190,24 +213,7 @@ class VideoTimingExtension {
   // Writes only single time delta to position idx.
   static bool Write(rtc::ArrayView<uint8_t> data,
                     uint16_t time_delta_ms,
-                    uint8_t idx);
-};
-
-class FrameMarkingExtension {
- public:
-  using value_type = FrameMarking;
-  static constexpr RTPExtensionType kId = kRtpExtensionFrameMarking;
-  static constexpr const char kUri[] =
-      "http://tools.ietf.org/html/draft-ietf-avtext-framemarking-07";
-
-  static bool Parse(rtc::ArrayView<const uint8_t> data,
-                    FrameMarking* frame_marking);
-  static size_t ValueSize(const FrameMarking& frame_marking);
-  static bool Write(rtc::ArrayView<uint8_t> data,
-                    const FrameMarking& frame_marking);
-
- private:
-  static bool IsScalable(uint8_t temporal_id, uint8_t layer_id);
+                    uint8_t offset);
 };
 
 class ColorSpaceExtension {
@@ -281,6 +287,24 @@ class RtpMid : public BaseRtpStringExtension {
  public:
   static constexpr RTPExtensionType kId = kRtpExtensionMid;
   static constexpr const char kUri[] = "urn:ietf:params:rtp-hdrext:sdes:mid";
+};
+
+class InbandComfortNoiseExtension {
+ public:
+  using value_type = absl::optional<uint8_t>;
+
+  static constexpr RTPExtensionType kId = kRtpExtensionInbandComfortNoise;
+  static constexpr uint8_t kValueSizeBytes = 1;
+  static constexpr const char kUri[] =
+      "http://www.webrtc.org/experiments/rtp-hdrext/inband-cn";
+
+  static bool Parse(rtc::ArrayView<const uint8_t> data,
+                    absl::optional<uint8_t>* level);
+  static size_t ValueSize(absl::optional<uint8_t> level) {
+    return kValueSizeBytes;
+  }
+  static bool Write(rtc::ArrayView<uint8_t> data,
+                    absl::optional<uint8_t> level);
 };
 
 }  // namespace webrtc

@@ -20,7 +20,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/memory/memory.h"
 #include "api/data_channel_interface.h"
 #include "api/jsep_ice_candidate.h"
 #include "pc/stream_collection.h"
@@ -86,6 +85,9 @@ class MockPeerConnectionObserver : public PeerConnectionObserver {
     remote_streams_->RemoveStream(stream);
   }
   void OnRenegotiationNeeded() override { renegotiation_needed_ = true; }
+  void OnNegotiationNeededEvent(uint32_t event_id) override {
+    latest_negotiation_needed_event_ = event_id;
+  }
   void OnDataChannel(
       rtc::scoped_refptr<DataChannelInterface> data_channel) override {
     last_datachannel_ = data_channel;
@@ -116,7 +118,7 @@ class MockPeerConnectionObserver : public PeerConnectionObserver {
     RTC_DCHECK(pc_);
     RTC_DCHECK(PeerConnectionInterface::kIceGatheringNew !=
                pc_->ice_gathering_state());
-    candidates_.push_back(absl::make_unique<JsepIceCandidate>(
+    candidates_.push_back(std::make_unique<JsepIceCandidate>(
         candidate->sdp_mid(), candidate->sdp_mline_index(),
         candidate->candidate()));
     callback_triggered_ = true;
@@ -215,8 +217,18 @@ class MockPeerConnectionObserver : public PeerConnectionObserver {
     return candidates;
   }
 
-  bool negotiation_needed() const { return renegotiation_needed_; }
-  void clear_negotiation_needed() { renegotiation_needed_ = false; }
+  bool legacy_renegotiation_needed() const { return renegotiation_needed_; }
+  void clear_legacy_renegotiation_needed() { renegotiation_needed_ = false; }
+
+  bool has_negotiation_needed_event() {
+    return latest_negotiation_needed_event_.has_value();
+  }
+  uint32_t latest_negotiation_needed_event() {
+    return latest_negotiation_needed_event_.value_or(0u);
+  }
+  void clear_latest_negotiation_needed_event() {
+    latest_negotiation_needed_event_ = absl::nullopt;
+  }
 
   rtc::scoped_refptr<PeerConnectionInterface> pc_;
   PeerConnectionInterface::SignalingState state_;
@@ -224,6 +236,7 @@ class MockPeerConnectionObserver : public PeerConnectionObserver {
   rtc::scoped_refptr<DataChannelInterface> last_datachannel_;
   rtc::scoped_refptr<StreamCollection> remote_streams_;
   bool renegotiation_needed_ = false;
+  absl::optional<uint32_t> latest_negotiation_needed_event_;
   bool ice_gathering_complete_ = false;
   bool ice_connected_ = false;
   bool callback_triggered_ = false;
@@ -272,6 +285,10 @@ class MockCreateSessionDescriptionObserver
 class MockSetSessionDescriptionObserver
     : public webrtc::SetSessionDescriptionObserver {
  public:
+  static rtc::scoped_refptr<MockSetSessionDescriptionObserver> Create() {
+    return new rtc::RefCountedObject<MockSetSessionDescriptionObserver>();
+  }
+
   MockSetSessionDescriptionObserver()
       : called_(false),
         error_("MockSetSessionDescriptionObserver not called") {}
@@ -294,7 +311,26 @@ class MockSetSessionDescriptionObserver
   std::string error_;
 };
 
-class MockSetRemoteDescriptionObserver
+class FakeSetLocalDescriptionObserver
+    : public rtc::RefCountedObject<SetLocalDescriptionObserverInterface> {
+ public:
+  bool called() const { return error_.has_value(); }
+  RTCError& error() {
+    RTC_DCHECK(error_.has_value());
+    return *error_;
+  }
+
+  // SetLocalDescriptionObserverInterface implementation.
+  void OnSetLocalDescriptionComplete(RTCError error) override {
+    error_ = std::move(error);
+  }
+
+ private:
+  // Set on complete, on success this is set to an RTCError::OK() error.
+  absl::optional<RTCError> error_;
+};
+
+class FakeSetRemoteDescriptionObserver
     : public rtc::RefCountedObject<SetRemoteDescriptionObserverInterface> {
  public:
   bool called() const { return error_.has_value(); }

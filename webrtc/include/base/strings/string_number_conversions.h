@@ -12,16 +12,13 @@
 #include <vector>
 
 #include "base/base_export.h"
+#include "base/containers/span.h"
 #include "base/strings/string16.h"
 #include "base/strings/string_piece.h"
 #include "build/build_config.h"
 
 // ----------------------------------------------------------------------------
 // IMPORTANT MESSAGE FROM YOUR SPONSOR
-//
-// This file contains no "wstring" variants. New code should use string16. If
-// you need to make old code work, use the UTF8 version and convert. Please do
-// not add wstring variants.
 //
 // Please do not add "convenience" functions for converting strings to integers
 // that return the value and ignore success/failure. That encourages people to
@@ -97,7 +94,8 @@ BASE_EXPORT bool StringToSizeT(StringPiece16 input, size_t* output);
 // If your input is locale specific, use ICU to read the number.
 // WARNING: Will write to |output| even when returning false.
 //          Read the comments here and above StringToInt() carefully.
-BASE_EXPORT bool StringToDouble(const std::string& input, double* output);
+BASE_EXPORT bool StringToDouble(StringPiece input, double* output);
+BASE_EXPORT bool StringToDouble(StringPiece16 input, double* output);
 
 // Hex encoding ----------------------------------------------------------------
 
@@ -108,6 +106,7 @@ BASE_EXPORT bool StringToDouble(const std::string& input, double* output);
 // max size for |size| should be is
 //   std::numeric_limits<size_t>::max() / 2
 BASE_EXPORT std::string HexEncode(const void* bytes, size_t size);
+BASE_EXPORT std::string HexEncode(base::span<const uint8_t> bytes);
 
 // Best effort conversion, see StringToInt above for restrictions.
 // Will only successful parse hex values that will fit into |output|, i.e.
@@ -138,6 +137,21 @@ BASE_EXPORT bool HexStringToUInt64(StringPiece input, uint64_t* output);
 BASE_EXPORT bool HexStringToBytes(StringPiece input,
                                   std::vector<uint8_t>* output);
 
+// Same as HexStringToBytes, but for an std::string.
+BASE_EXPORT bool HexStringToString(StringPiece input, std::string* output);
+
+// Decodes the hex string |input| into a presized |output|. The output buffer
+// must be sized exactly to |input.size() / 2| or decoding will fail and no
+// bytes will be written to |output|. Decoding an empty input is also
+// considered a failure. When decoding fails due to encountering invalid input
+// characters, |output| will have been filled with the decoded bytes up until
+// the failure.
+BASE_EXPORT bool HexStringToSpan(StringPiece input, base::span<uint8_t> output);
+
 }  // namespace base
+
+#if defined(OS_WIN)
+#include "base/strings/string_number_conversions_win.h"
+#endif
 
 #endif  // BASE_STRINGS_STRING_NUMBER_CONVERSIONS_H_

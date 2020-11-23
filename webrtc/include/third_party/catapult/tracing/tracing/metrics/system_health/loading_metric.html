@@ -7,10 +7,13 @@ found in the LICENSE file.
 
 <link rel="import" href="/tracing/base/category_util.html">
 <link rel="import" href="/tracing/base/math/statistics.html">
+<link rel="import" href="/tracing/extras/chrome/cc/display_item_list.html">
 <link rel="import" href="/tracing/extras/chrome/event_finder_utils.html">
+<link rel="import" href="/tracing/extras/chrome/largest_contentful_paint.html">
 <link rel="import" href="/tracing/extras/chrome/time_to_interactive.html">
 <link rel="import" href="/tracing/metrics/metric_registry.html">
 <link rel="import" href="/tracing/metrics/system_health/breakdown_tree_helpers.html">
+<link rel="import" href="/tracing/metrics/system_health/rects_based_speed_index_metric.html">
 <link rel="import" href="/tracing/metrics/system_health/utils.html">
 <link rel="import" href="/tracing/model/helpers/chrome_model_helper.html">
 <link rel="import" href="/tracing/model/helpers/chrome_thread_helper.html">
@@ -25,6 +28,8 @@ tr.exportTo('tr.metrics.sh', function() {
   const LONG_TASK_THRESHOLD_MS = 50;
   const timeDurationInMs_smallerIsBetter =
       tr.b.Unit.byName.timeDurationInMs_smallerIsBetter;
+  const unitlessNumber_smallerIsBetter =
+      tr.b.Unit.byName.unitlessNumber_smallerIsBetter;
   const RelatedEventSet = tr.v.d.RelatedEventSet;
   const hasCategoryAndName = tr.metrics.sh.hasCategoryAndName;
   const EventFinderUtils = tr.e.chrome.EventFinderUtils;
@@ -55,6 +60,9 @@ tr.exportTo('tr.metrics.sh', function() {
   // loads. Data obtained through Cluster Telemetry analysis.
       .createExponential(1, 40e3, 35)
       .addExponentialBins(80e3, 15);
+
+  const LAYOUT_SHIFT_SCORE_BOUNDARIES = tr.v.HistogramBinBoundaries
+      .createLinear(0, 50, 25);
 
   const SUMMARY_OPTIONS = {
     avg: true,
@@ -129,6 +137,8 @@ tr.exportTo('tr.metrics.sh', function() {
         navigationStartEvent.start, pcEvent.start);
     const networkEvents = EventFinderUtils.getNetworkEventsInRange(
         rendererHelper.process, navStartToEventRange);
+    // Main thread may be missing. See crbug.com/1059726 for an example.
+    if (rendererHelper.mainThread === undefined) return samples;
     const breakdownTree = tr.metrics.sh.generateWallClockTimeBreakdownTree(
         rendererHelper.mainThread, networkEvents, navStartToEventRange);
     samples.push({
@@ -165,6 +175,7 @@ tr.exportTo('tr.metrics.sh', function() {
     return samples;
   }
 
+  // Assume that this event has |event.arg.frame|.
   function findTimeToXEntries(
       category, eventName, rendererHelper, frameToNavStartEvents,
       navIdToNavStartEvents) {
@@ -253,6 +264,19 @@ tr.exportTo('tr.metrics.sh', function() {
     return samples;
   }
 
+  function findLayoutShiftSamples(rendererHelper) {
+    let sample;
+    EventFinderUtils.getSortedMainThreadEventsByFrame(rendererHelper,
+        'LayoutShift', 'loading').forEach((events) => {
+      // We want the final cumulative score, so look at the last event.
+      const evData = events.pop().args.data;
+      if (evData.is_main_frame) {
+        sample = {value: evData.cumulative_score};
+      }
+    });
+    return sample ? [sample] : [];
+  }
+
   function addFirstMeaningfulPaintSample(samples, rendererHelper,
       navigationStart, fmpMarkerEvent, url) {
     const navStartToFMPRange = tr.b.math.Range.fromExplicitRange(
@@ -320,13 +344,13 @@ tr.exportTo('tr.metrics.sh', function() {
    * @param {?number} eventTimestamp - Timestamp of the event for which the
    *     sample is being generated.
    * @param {tr.model.ThreadSlice} navigationStartEvent
-   * @param {number} firstMeaningfulPaintTime
+   * @param {number} firstContentfulPaintTime
    * @param {number} domContentLoadedEndTime
    * @param {string} url - URL of the current main frame document.
    * @returns {MetricSample|undefined}
    */
   function decorateInteractivitySampleWithDiagnostics_(rendererHelper,
-      eventTimestamp, navigationStartEvent, firstMeaningfulPaintTime,
+      eventTimestamp, navigationStartEvent, firstContentfulPaintTime,
       domContentLoadedEndTime, url) {
     if (eventTimestamp === undefined) return undefined;
     const navigationStartTime = navigationStartEvent.start;
@@ -347,7 +371,7 @@ tr.exportTo('tr.metrics.sh', function() {
           url,
           pid: rendererHelper.pid,
           navigationStartTime,
-          firstMeaningfulPaintTime,
+          firstContentfulPaintTime,
           domContentLoadedEndTime,
           // eventTimestamp can be derived from value and navigationStartEvent,
           // but it's useful to directly see the value in the UI.
@@ -356,6 +380,82 @@ tr.exportTo('tr.metrics.sh', function() {
         'Breakdown of [navStart, eventTimestamp]': breakdownDiagnostic,
       }),
     };
+  }
+
+  function getCandidateIndex(entry) {
+    return entry.targetEvent.args.data.candidateIndex;
+  }
+
+  function findLastCandidateForEachNavigation(timeToXEntries) {
+    const entryMap = new Map();
+    for (const e of timeToXEntries) {
+      const navStartEvent = e.navigationStartEvent;
+      if (!entryMap.has(navStartEvent)) {
+        entryMap.set(navStartEvent, []);
+      }
+      entryMap.get(navStartEvent).push(e);
+    }
+    const lastCandidates = [];
+    for (const timeToXEntriesByNavigation of entryMap.values()) {
+      let lastCandidate = timeToXEntriesByNavigation.shift();
+      for (const entry of timeToXEntriesByNavigation) {
+        if (getCandidateIndex(entry) > getCandidateIndex(lastCandidate)) {
+          lastCandidate = entry;
+        }
+      }
+      lastCandidates.push(lastCandidate);
+    }
+    return lastCandidates;
+  }
+
+  function findLargestTextPaintSamples(rendererHelper, frameToNavStartEvents,
+      navIdToNavStartEvents) {
+    const timeToPaintEntries = findTimeToXEntries('loading',
+        'LargestTextPaint::Candidate', rendererHelper, frameToNavStartEvents,
+        navIdToNavStartEvents);
+    const timeToPaintBlockingEntries = findTimeToXEntries('loading',
+        'LargestTextPaint::NoCandidate', rendererHelper, frameToNavStartEvents,
+        navIdToNavStartEvents);
+    const lastCandidateEvents =
+        findLastCandidateForEachNavigation(
+            timeToPaintEntries.concat(timeToPaintBlockingEntries))
+            .filter(event =>
+              event.targetEvent.title !== 'LargestTextPaint::NoCandidate');
+    return collectTimeToEvent(rendererHelper, lastCandidateEvents);
+  }
+
+  function findLargestImagePaintSamples(rendererHelper, frameToNavStartEvents,
+      navIdToNavStartEvents) {
+    const timeToPaintEntries = findTimeToXEntries('loading',
+        'LargestImagePaint::Candidate', rendererHelper, frameToNavStartEvents,
+        navIdToNavStartEvents);
+    const timeToPaintBlockingEntries = findTimeToXEntries('loading',
+        'LargestImagePaint::NoCandidate', rendererHelper, frameToNavStartEvents,
+        navIdToNavStartEvents);
+    const lastCandidateEvents =
+        findLastCandidateForEachNavigation(
+            timeToPaintEntries.concat(timeToPaintBlockingEntries))
+            .filter(event =>
+              event.targetEvent.title !== 'LargestImagePaint::NoCandidate');
+    return collectTimeToEvent(rendererHelper, lastCandidateEvents);
+  }
+
+  function findLargestContentfulPaintHistogramSamples(allBrowserEvents) {
+    const lcp = new tr.e.chrome.LargestContentfulPaint(allBrowserEvents);
+    const lcpSamples = lcp.findCandidates().map(candidate => {
+      const { durationInMilliseconds, size, type, inMainFrame,
+        mainFrameTreeNodeId } = candidate;
+      return {
+        value: durationInMilliseconds,
+        diagnostics: {
+          size: new tr.v.d.GenericSet([size]),
+          type: new tr.v.d.GenericSet([type]),
+          inMainFrame: new tr.v.d.GenericSet([inMainFrame]),
+          mainFrameTreeNodeId: new tr.v.d.GenericSet([mainFrameTreeNodeId]),
+        },
+      };
+    });
+    return lcpSamples;
   }
 
   function collectLoadingMetricsForRenderer(rendererHelper) {
@@ -382,6 +482,15 @@ tr.exportTo('tr.metrics.sh', function() {
         getAboveTheFoldLoadedToVisibleSamples(rendererHelper);
     const firstViewportReadySamples = getFirstViewportReadySamples(
         rendererHelper, navIdToNavStartEvents);
+    const largestImagePaintSamples = findLargestImagePaintSamples(
+        rendererHelper, frameToNavStartEvents, navIdToNavStartEvents);
+    const largestTextPaintSamples = findLargestTextPaintSamples(
+        rendererHelper, frameToNavStartEvents,
+        navIdToNavStartEvents);
+    const layoutShiftSamples = findLayoutShiftSamples(rendererHelper);
+    const navigationStartSamples = timeToFCPEntries.map(entry => {
+      return { value: entry.navigationStartEvent.start};
+    });
 
     return {
       frameToNavStartEvents,
@@ -391,6 +500,10 @@ tr.exportTo('tr.metrics.sh', function() {
       onLoadSamples,
       aboveTheFoldLoadedToVisibleSamples,
       firstViewportReadySamples,
+      largestImagePaintSamples,
+      largestTextPaintSamples,
+      layoutShiftSamples,
+      navigationStartSamples,
     };
   }
 
@@ -400,6 +513,7 @@ tr.exportTo('tr.metrics.sh', function() {
     const firstCpuIdleSamples = [];
     const firstMeaningfulPaintSamples = [];
     const firstMeaningfulPaintCpuTimeSamples = [];
+    const totalBlockingTimeSamples = [];
     for (const expectation of model.userModel.expectations) {
       if (!(expectation instanceof tr.model.um.LoadExpectation)) continue;
       if (tr.e.chrome.CHROME_INTERNAL_URLS.includes(expectation.url)) {
@@ -419,15 +533,26 @@ tr.exportTo('tr.metrics.sh', function() {
         firstCpuIdleSamples.push(decorateInteractivitySampleWithDiagnostics_(
             rendererHelper, expectation.firstCpuIdleTime,
             expectation.navigationStart,
-            expectation.fmpEvent.start,
+            expectation.fcpEvent.start,
             expectation.domContentLoadedEndEvent.start, expectation.url));
       }
       if (expectation.timeToInteractive !== undefined) {
         interactiveSamples.push(decorateInteractivitySampleWithDiagnostics_(
             rendererHelper, expectation.timeToInteractive,
             expectation.navigationStart,
-            expectation.fmpEvent.start,
+            expectation.fcpEvent.start,
             expectation.domContentLoadedEndEvent.start, expectation.url));
+      }
+      if (expectation.totalBlockingTime !== undefined) {
+        totalBlockingTimeSamples.push({
+          value: expectation.totalBlockingTime,
+          diagnostics: {
+            url: new tr.v.d.GenericSet([expectation.url]),
+            navigationStart: new RelatedEventSet(expectation.navigationStart),
+            firstContentfulPaint: new RelatedEventSet(expectation.fcpEvent),
+            interactiveTime: new tr.v.d.GenericSet(
+                [expectation.timeToInteractive]),
+          }});
       }
     }
 
@@ -436,6 +561,7 @@ tr.exportTo('tr.metrics.sh', function() {
       firstMeaningfulPaintCpuTimeSamples,
       firstCpuIdleSamples,
       interactiveSamples,
+      totalBlockingTimeSamples,
     };
   }
 
@@ -523,6 +649,12 @@ tr.exportTo('tr.metrics.sh', function() {
           description: 'Time to Interactive',
           summaryOptions: SUMMARY_OPTIONS,
         });
+    const totalBlockingTimeHistogram = histograms.createHistogram(
+        'totalBlockingTime', timeDurationInMs_smallerIsBetter, [], {
+          binBoundaries: TIME_TO_INTERACTIVE_BOUNDARIES,
+          description: 'Total Blocking Time',
+          summaryOptions: SUMMARY_OPTIONS,
+        });
     const timeToFirstCpuIdleHistogram = histograms.createHistogram(
         'timeToFirstCpuIdle', timeDurationInMs_smallerIsBetter, [], {
           binBoundaries: TIME_TO_INTERACTIVE_BOUNDARIES,
@@ -541,6 +673,37 @@ tr.exportTo('tr.metrics.sh', function() {
           description: 'Time from navigation to load for AMP pages only. ',
           summaryOptions: SUMMARY_OPTIONS,
         });
+    const largestImagePaintHistogram = histograms.createHistogram(
+        'largestImagePaint', timeDurationInMs_smallerIsBetter, [], {
+          binBoundaries: LOADING_METRIC_BOUNDARIES,
+          description: 'Time to Largest Image Paint',
+          summaryOptions: SUMMARY_OPTIONS,
+        });
+    const largestTextPaintHistogram = histograms.createHistogram(
+        'largestTextPaint', timeDurationInMs_smallerIsBetter, [], {
+          binBoundaries: LOADING_METRIC_BOUNDARIES,
+          description: 'Time to Largest Text Paint',
+          summaryOptions: SUMMARY_OPTIONS,
+        });
+    const largestContentfulPaintHistogram = histograms.createHistogram(
+        'largestContentfulPaint', timeDurationInMs_smallerIsBetter, [], {
+          binBoundaries: LOADING_METRIC_BOUNDARIES,
+          description: 'Time to Largest Contentful Paint',
+          summaryOptions: SUMMARY_OPTIONS,
+        });
+    const layoutShiftHistogram = histograms.createHistogram(
+        'mainFrameCumulativeLayoutShift', unitlessNumber_smallerIsBetter, [], {
+          binBoundaries: LAYOUT_SHIFT_SCORE_BOUNDARIES,
+          description: 'Main Frame Document Cumulative Layout Shift Score',
+          summaryOptions: SUMMARY_OPTIONS,
+        });
+    const navigationStartHistogram = histograms.createHistogram(
+        'navigationStart', timeDurationInMs_smallerIsBetter, [], {
+          binBoundaries: LOADING_METRIC_BOUNDARIES,
+          description: 'navigationStart',
+          summaryOptions: SUMMARY_OPTIONS,
+        });
+    tr.metrics.sh.rectsBasedSpeedIndexMetric(histograms, model);
 
     const chromeHelper = model.getOrCreateHelper(
         tr.model.helpers.ChromeModelHelper);
@@ -550,6 +713,11 @@ tr.exportTo('tr.metrics.sh', function() {
 
       const samplesSet =
           collectLoadingMetricsForRenderer(rendererHelper);
+
+      const lcpSamples = findLargestContentfulPaintHistogramSamples(
+          chromeHelper.browserHelper.mainThread.sliceGroup.slices);
+      addSamplesToHistogram(
+          lcpSamples, largestContentfulPaintHistogram, histograms);
 
       addSamplesToHistogram(
           samplesSet.firstPaintSamples, firstPaintHistogram, histograms);
@@ -571,6 +739,20 @@ tr.exportTo('tr.metrics.sh', function() {
           samplesSet.firstViewportReadySamples,
           firstViewportReadyHistogram,
           histograms);
+      addSamplesToHistogram(
+          samplesSet.largestImagePaintSamples,
+          largestImagePaintHistogram,
+          histograms);
+      addSamplesToHistogram(
+          samplesSet.largestTextPaintSamples,
+          largestTextPaintHistogram,
+          histograms);
+      addSamplesToHistogram(
+          samplesSet.layoutShiftSamples, layoutShiftHistogram, histograms);
+      addSamplesToHistogram(
+          samplesSet.navigationStartSamples,
+          navigationStartHistogram,
+          histograms);
     }
 
     const samplesSet = collectMetricsFromLoadExpectations(model, chromeHelper);
@@ -589,6 +771,10 @@ tr.exportTo('tr.metrics.sh', function() {
     addSamplesToHistogram(
         samplesSet.firstCpuIdleSamples,
         timeToFirstCpuIdleHistogram,
+        histograms);
+    addSamplesToHistogram(
+        samplesSet.totalBlockingTimeSamples,
+        totalBlockingTimeHistogram,
         histograms);
   }
 

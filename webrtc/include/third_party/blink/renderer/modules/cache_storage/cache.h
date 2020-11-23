@@ -8,10 +8,12 @@
 #include <memory>
 
 #include "base/macros.h"
+#include "mojo/public/cpp/bindings/associated_remote.h"
+#include "mojo/public/cpp/bindings/pending_associated_remote.h"
 #include "third_party/blink/public/mojom/cache_storage/cache_storage.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_cache_query_options.h"
 #include "third_party/blink/renderer/core/fetch/global_fetch.h"
-#include "third_party/blink/renderer/modules/cache_storage/cache_query_options.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
@@ -38,19 +40,22 @@ struct TypeConverter<CacheQueryOptionsPtr, const blink::CacheQueryOptions*> {
 
 namespace blink {
 
+class AbortController;
+class CacheStorageBlobClientList;
 class ExceptionState;
 class Response;
 class Request;
+class ScriptPromiseResolver;
 class ScriptState;
 
 typedef RequestOrUSVString RequestInfo;
 
-class MODULES_EXPORT Cache final : public ScriptWrappable {
+class MODULES_EXPORT Cache : public ScriptWrappable {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
   Cache(GlobalFetch::ScopedFetcher*,
-        mojom::blink::CacheStorageCacheAssociatedPtrInfo,
+        mojo::PendingAssociatedRemote<mojom::blink::CacheStorageCache>,
         scoped_refptr<base::SingleThreadTaskRunner>);
 
   // From Cache.idl:
@@ -81,14 +86,18 @@ class MODULES_EXPORT Cache final : public ScriptWrappable {
                      const CacheQueryOptions*,
                      ExceptionState&);
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
+
+ protected:
+  // Virtual for testing.
+  virtual AbortController* CreateAbortController(ExecutionContext* context);
 
  private:
-  class BarrierCallbackForPut;
-  class BlobHandleCallbackForPut;
+  class BarrierCallbackForPutResponse;
+  class BarrierCallbackForPutComplete;
   class CodeCacheHandleCallbackForPut;
-  class FetchResolvedForAdd;
-  friend class FetchResolvedForAdd;
+  class ResponseBodyLoader;
+  class FetchHandler;
 
   ScriptPromise MatchImpl(ScriptState*,
                           const Request*,
@@ -103,19 +112,21 @@ class MODULES_EXPORT Cache final : public ScriptWrappable {
   ScriptPromise DeleteImpl(ScriptState*,
                            const Request*,
                            const CacheQueryOptions*);
-  ScriptPromise PutImpl(ScriptState*,
-                        const String& method_name,
-                        const HeapVector<Member<Request>>&,
-                        const HeapVector<Member<Response>>&,
-                        ExceptionState&,
-                        int64_t trace_id);
+  void PutImpl(ScriptPromiseResolver*,
+               const String& method_name,
+               const HeapVector<Member<Request>>&,
+               const HeapVector<Member<Response>>&,
+               const WTF::Vector<scoped_refptr<BlobDataHandle>>& blob_list,
+               ExceptionState&,
+               int64_t trace_id);
   ScriptPromise KeysImpl(ScriptState*,
                          const Request*,
                          const CacheQueryOptions*);
 
   Member<GlobalFetch::ScopedFetcher> scoped_fetcher_;
+  Member<CacheStorageBlobClientList> blob_client_list_;
 
-  mojom::blink::CacheStorageCacheAssociatedPtr cache_ptr_;
+  mojo::AssociatedRemote<mojom::blink::CacheStorageCache> cache_remote_;
 
   DISALLOW_COPY_AND_ASSIGN(Cache);
 };

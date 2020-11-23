@@ -42,7 +42,6 @@ class Document;
 class ExceptionState;
 class KURL;
 class LocalDOMWindow;
-class USVStringOrTrustedURL;
 
 // This class corresponds to the Location interface. Location is the only
 // interface besides Window that is accessible cross-origin and must handle
@@ -57,11 +56,11 @@ class CORE_EXPORT Location final : public ScriptWrappable {
 
   DOMWindow* DomWindow() const { return dom_window_.Get(); }
 
-  void setHref(v8::Isolate*, const USVStringOrTrustedURL&, ExceptionState&);
-  void href(USVStringOrTrustedURL&) const;
+  void setHref(v8::Isolate*, const String&, ExceptionState&);
+  String href() const;
 
-  void assign(v8::Isolate*, const USVStringOrTrustedURL&, ExceptionState&);
-  void replace(v8::Isolate*, const USVStringOrTrustedURL&, ExceptionState&);
+  void assign(v8::Isolate*, const String&, ExceptionState&);
+  void replace(v8::Isolate*, const String&, ExceptionState&);
   void reload();
 
   void setProtocol(v8::Isolate*, const String&, ExceptionState&);
@@ -90,7 +89,7 @@ class CORE_EXPORT Location final : public ScriptWrappable {
 
   String toString() const;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   // Note: it is only valid to call this if this is a Location object for a
@@ -100,9 +99,11 @@ class CORE_EXPORT Location final : public ScriptWrappable {
   // Returns true if the associated Window is the active Window in the frame.
   bool IsAttached() const;
 
+  // Note: SetLocation should be called synchronously from the DOM operation to
+  // ensure we use the correct Javascript world for CSP checks.
   enum class SetLocationPolicy { kNormal, kReplaceThisFrame };
   void SetLocation(const String&,
-                   LocalDOMWindow* current_window,
+                   LocalDOMWindow* incumbent_window,
                    LocalDOMWindow* entered_window,
                    ExceptionState* = nullptr,
                    SetLocationPolicy = SetLocationPolicy::kNormal);

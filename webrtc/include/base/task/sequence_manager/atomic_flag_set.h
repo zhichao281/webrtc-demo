@@ -21,18 +21,19 @@ namespace internal {
 // specified and the RunActiveCallbacks method can be invoked to fire callbacks
 // for all active flags. Creating releasing or destroying an AtomicFlag must be
 // done on the associated thread, as must calling RunActiveCallbacks. This
-// class is thread-compatible.
+// class is thread-affine.
 class BASE_EXPORT AtomicFlagSet {
  protected:
   struct Group;
 
  public:
   explicit AtomicFlagSet(scoped_refptr<AssociatedThreadId> associated_thread);
-
+  AtomicFlagSet(const AtomicFlagSet&) = delete;
+  AtomicFlagSet& operator=(const AtomicFlagSet&) = delete;
   // AtomicFlags need to be released (or deleted) before this can be deleted.
   ~AtomicFlagSet();
 
-  // This class is thread-compatible in addition SetActive can be called
+  // This class is thread-affine in addition SetActive can be called
   // concurrently from any thread.
   class BASE_EXPORT AtomicFlag {
    public:
@@ -74,8 +75,8 @@ class BASE_EXPORT AtomicFlagSet {
   // thread.
   AtomicFlag AddFlag(RepeatingClosure callback);
 
-  // Runs the registered callback for all flags marked as active and resets all
-  // flags to inactive. Must be called on the associated thread.
+  // Runs the registered callback for all flags marked as active and atomically
+  // resets all flags to inactive. Must be called on the associated thread.
   void RunActiveCallbacks() const;
 
  protected:
@@ -89,6 +90,8 @@ class BASE_EXPORT AtomicFlagSet {
   // AtomicFlag's with one bit per flag.
   struct BASE_EXPORT Group {
     Group();
+    Group(const Group&) = delete;
+    Group& operator=(const Group&) = delete;
     ~Group();
 
     static constexpr int kNumFlags = sizeof(size_t) * 8;
@@ -96,10 +99,10 @@ class BASE_EXPORT AtomicFlagSet {
     std::atomic<size_t> flags = {0};
     size_t allocated_flags = 0;
     RepeatingClosure flag_callbacks[kNumFlags];
-    Group* prev_ = nullptr;
-    std::unique_ptr<Group> next_;
-    Group* partially_free_list_prev_ = nullptr;
-    Group* partially_free_list_next_ = nullptr;
+    Group* prev = nullptr;
+    std::unique_ptr<Group> next;
+    Group* partially_free_list_prev = nullptr;
+    Group* partially_free_list_next = nullptr;
 
     bool IsFull() const;
 
@@ -112,9 +115,6 @@ class BASE_EXPORT AtomicFlagSet {
     // Computes the index of the |flag_callbacks| based on the number of leading
     // zero bits in |flag|.
     static int IndexOfFirstFlagSet(size_t flag);
-
-   private:
-    DISALLOW_COPY_AND_ASSIGN(Group);
   };
 
  private:
@@ -131,8 +131,6 @@ class BASE_EXPORT AtomicFlagSet {
   scoped_refptr<AssociatedThreadId> associated_thread_;
   std::unique_ptr<Group> alloc_list_head_;
   Group* partially_free_list_head_ = nullptr;
-
-  DISALLOW_COPY_AND_ASSIGN(AtomicFlagSet);
 };
 
 }  // namespace internal

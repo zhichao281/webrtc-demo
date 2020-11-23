@@ -5,10 +5,11 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_TIMING_PERFORMANCE_NAVIGATION_TIMING_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_TIMING_PERFORMANCE_NAVIGATION_TIMING_H_
 
+#include "third_party/blink/public/mojom/timing/resource_timing.mojom-blink.h"
 #include "third_party/blink/public/web/web_navigation_type.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/dom_high_res_time_stamp.h"
-#include "third_party/blink/renderer/core/execution_context/context_lifecycle_observer.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/core/loader/frame_loader_types.h"
 #include "third_party/blink/renderer/core/timing/performance_resource_timing.h"
 
@@ -18,25 +19,24 @@ class Document;
 class DocumentTiming;
 class DocumentLoader;
 class DocumentLoadTiming;
-class LocalFrame;
+class LocalDOMWindow;
 class ExecutionContext;
 class ResourceTimingInfo;
 class ResourceLoadTiming;
 
 class CORE_EXPORT PerformanceNavigationTiming final
     : public PerformanceResourceTiming,
-      public ContextClient {
+      public ExecutionContextClient {
   DEFINE_WRAPPERTYPEINFO();
-  USING_GARBAGE_COLLECTED_MIXIN(PerformanceNavigationTiming);
   friend class PerformanceNavigationTimingTest;
 
  public:
-  PerformanceNavigationTiming(LocalFrame*,
+  PerformanceNavigationTiming(LocalDOMWindow*,
                               ResourceTimingInfo*,
-                              TimeTicks time_origin,
-                              const WebVector<WebServerTimingInfo>&);
+                              base::TimeTicks time_origin,
+                              HeapVector<Member<PerformanceServerTiming>>);
 
-  // Attributes inheritted from PerformanceEntry.
+  // Attributes inherited from PerformanceEntry.
   DOMHighResTimeStamp duration() const override;
   AtomicString entryType() const override;
   PerformanceEntryType EntryTypeEnum() const override;
@@ -61,7 +61,7 @@ class CORE_EXPORT PerformanceNavigationTiming final
   DOMHighResTimeStamp redirectEnd() const override;
   DOMHighResTimeStamp responseEnd() const override;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  protected:
   void BuildJSONValue(V8ObjectBuilder&) const override;

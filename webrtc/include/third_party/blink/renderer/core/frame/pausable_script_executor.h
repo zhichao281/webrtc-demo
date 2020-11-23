@@ -7,7 +7,7 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/execution_context/context_lifecycle_observer.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/platform/bindings/dom_wrapper_world.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/scheduler/public/post_cancellable_task.h"
@@ -16,27 +16,18 @@
 
 namespace blink {
 
-class LocalFrame;
+class LocalDOMWindow;
 class ScriptSourceCode;
 class ScriptState;
 class WebScriptExecutionCallback;
 
 class CORE_EXPORT PausableScriptExecutor final
-    : public GarbageCollectedFinalized<PausableScriptExecutor>,
-      public ContextLifecycleObserver {
-  USING_GARBAGE_COLLECTED_MIXIN(PausableScriptExecutor);
-
+    : public GarbageCollected<PausableScriptExecutor>,
+      public ExecutionContextLifecycleObserver {
  public:
   enum BlockingOption { kNonBlocking, kOnloadBlocking };
 
-  static PausableScriptExecutor* Create(
-      LocalFrame*,
-      scoped_refptr<DOMWrapperWorld>,
-      const HeapVector<ScriptSourceCode>& sources,
-      bool user_gesture,
-      WebScriptExecutionCallback*);
-  static void CreateAndRun(LocalFrame*,
-                           v8::Isolate*,
+  static void CreateAndRun(LocalDOMWindow*,
                            v8::Local<v8::Context>,
                            v8::Local<v8::Function>,
                            v8::Local<v8::Value> receiver,
@@ -44,16 +35,21 @@ class CORE_EXPORT PausableScriptExecutor final
                            v8::Local<v8::Value> argv[],
                            WebScriptExecutionCallback*);
 
-  class Executor : public GarbageCollectedFinalized<Executor> {
+  class Executor : public GarbageCollected<Executor> {
    public:
     virtual ~Executor() = default;
 
-    virtual Vector<v8::Local<v8::Value>> Execute(LocalFrame*) = 0;
+    virtual Vector<v8::Local<v8::Value>> Execute(LocalDOMWindow*) = 0;
 
-    virtual void Trace(blink::Visitor* visitor) {}
+    virtual void Trace(Visitor* visitor) const {}
   };
 
-  PausableScriptExecutor(LocalFrame*,
+  PausableScriptExecutor(LocalDOMWindow*,
+                         scoped_refptr<DOMWrapperWorld>,
+                         const HeapVector<ScriptSourceCode>&,
+                         bool,
+                         WebScriptExecutionCallback*);
+  PausableScriptExecutor(LocalDOMWindow*,
                          ScriptState*,
                          WebScriptExecutionCallback*,
                          Executor*);
@@ -61,12 +57,12 @@ class CORE_EXPORT PausableScriptExecutor final
 
   void Run();
   void RunAsync(BlockingOption);
-  void ContextDestroyed(ExecutionContext*) override;
+  void ContextDestroyed() override;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
-
+  void PostExecuteAndDestroySelf(ExecutionContext* context);
   void ExecuteAndDestroySelf();
   void Dispose();
 

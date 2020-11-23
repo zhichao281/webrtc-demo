@@ -35,14 +35,18 @@
 
 #include "base/macros.h"
 #include "base/memory/ptr_util.h"
-#include "mojo/public/cpp/bindings/strong_binding_set.h"
-#include "third_party/blink/public/mojom/blob/blob_url_store.mojom-blink.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
+#include "services/metrics/public/cpp/ukm_source_id.h"
+#include "third_party/blink/public/mojom/blob/blob_url_store.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/worker/shared_worker_client.mojom-blink.h"
 #include "third_party/blink/public/mojom/worker/shared_worker_connector.mojom-blink.h"
+#include "third_party/blink/public/mojom/worker/shared_worker_info.mojom-blink.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/dom/document.h"
-#include "third_party/blink/renderer/core/execution_context/context_lifecycle_observer.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
+#include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_unique_receiver_set.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 
 namespace blink {
@@ -56,36 +60,31 @@ class SharedWorker;
 // new client instance regardless of existing connections, and keeps it until
 // the connection gets lost.
 //
-// SharedWorkerClientHolder is a per-Document object and owned by Document via
-// Supplement<Document>.
+// SharedWorkerClientHolder is a per-LocalDOMWindow object and owned by
+// LocalDOMWindow via Supplement<LocalDOMWindow>.
 class CORE_EXPORT SharedWorkerClientHolder final
-    : public GarbageCollectedFinalized<SharedWorkerClientHolder>,
-      public Supplement<Document>,
-      public ContextLifecycleObserver {
-  USING_GARBAGE_COLLECTED_MIXIN(SharedWorkerClientHolder);
-
+    : public GarbageCollected<SharedWorkerClientHolder>,
+      public Supplement<LocalDOMWindow> {
  public:
   static const char kSupplementName[];
-  static SharedWorkerClientHolder* From(Document& document);
+  static SharedWorkerClientHolder* From(LocalDOMWindow&);
 
-  explicit SharedWorkerClientHolder(Document&);
+  explicit SharedWorkerClientHolder(LocalDOMWindow&);
   virtual ~SharedWorkerClientHolder() = default;
 
   // Establishes a connection with SharedWorkerHost in the browser process.
   void Connect(SharedWorker*,
                MessagePortChannel,
                const KURL&,
-               mojom::blink::BlobURLTokenPtr,
-               const String& name);
+               mojo::PendingRemote<mojom::blink::BlobURLToken>,
+               mojom::blink::WorkerOptionsPtr options,
+               ukm::SourceId client_ukm_source_id);
 
-  // Overrides ContextLifecycleObserver.
-  void ContextDestroyed(ExecutionContext*) override;
-
-  void Trace(Visitor* visitor) override;
+  void Trace(Visitor* visitor) const override;
 
  private:
-  mojom::blink::SharedWorkerConnectorPtr connector_;
-  mojo::StrongBindingSet<mojom::blink::SharedWorkerClient> client_set_;
+  HeapMojoRemote<mojom::blink::SharedWorkerConnector> connector_;
+  HeapMojoUniqueReceiverSet<mojom::blink::SharedWorkerClient> client_receivers_;
 
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 

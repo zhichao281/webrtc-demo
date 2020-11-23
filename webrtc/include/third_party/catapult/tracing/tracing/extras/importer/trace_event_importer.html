@@ -127,6 +127,7 @@ tr.exportTo('tr.e.importer', function() {
     'powerTraceAsString',
     'systemTraceEvents',
     'androidProcessDump',
+    'cgroupDump',
   ]);
 
   // The complete list of fields on the trace that should not be treated as
@@ -584,9 +585,9 @@ tr.exportTo('tr.e.importer', function() {
       const slice = thread.sliceGroup.pushCompleteSlice(event.cat, event.name,
 
           this.toModelTimeFromUs_(event.ts),
-          this.maybeToModelTimeFromUs_(event.dur),
+          this.durationFromUs_(event.dur),
           this.maybeToModelTimeFromUs_(event.tts),
-          this.maybeToModelTimeFromUs_(event.tdur),
+          this.durationFromUs_(event.tdur),
           this.deepCopyIfNeeded_(event.args),
           event.argsStripped,
           getEventColor(event),
@@ -631,9 +632,18 @@ tr.exportTo('tr.e.importer', function() {
         process.name = event.args.name;
       } else if (event.name === 'process_labels') {
         const process = this.model_.getOrCreateProcess(event.pid);
-        const labels = event.args.labels.split(',');
-        for (let i = 0; i < labels.length; i++) {
-          process.addLabelIfNeeded(labels[i]);
+        const stackFrames = event.args.stackFrames;
+        if (event.args.labels === undefined) {
+          this.model_.importWarning({
+            type: 'metadata_parse_error',
+            message: 'No labels found in a \'' + event.name +
+                '\' metadata event'
+          });
+        } else {
+          const labels = event.args.labels.split(',');
+          for (let i = 0; i < labels.length; i++) {
+            process.addLabelIfNeeded(labels[i]);
+          }
         }
       } else if (event.name === 'process_uptime_seconds') {
         const process = this.model_.getOrCreateProcess(event.pid);
@@ -762,7 +772,7 @@ tr.exportTo('tr.e.importer', function() {
       // in the main thread, in order to get the correct thread object,
       // we should use pid and tid from main thread.
       if (data.startTime !== undefined) {
-        this.profileInfo_.set(event.id, {
+        this.profileInfo_.set(`${event.pid} ${event.id}`, {
           startTime: data.startTime,
           pid: event.pid,
           tid: event.tid
@@ -781,7 +791,8 @@ tr.exportTo('tr.e.importer', function() {
           throw new Error('samples and timeDeltas array should have same length');
         }
 
-        const profileTree = this.getOrCreateProfileTree_(sampleType, event.id);
+        const profileTree = this.getOrCreateProfileTree_(sampleType,
+            `${event.pid} ${event.id}`);
         const nodes = data[sampleType].nodes;
         const samples = data[sampleType].samples;
         if (nodes !== undefined) {
@@ -3377,6 +3388,18 @@ tr.exportTo('tr.e.importer', function() {
       }
 
       return this.toModelTimeFromUs_(ts);
+    },
+
+    /**
+     * Converts |dur| (in microseconds) to a millisecond value. If |dur| is
+     * undefined, undefined is returned.
+     */
+    durationFromUs_(dur) {
+      if (dur === undefined) {
+        return undefined;
+      }
+
+      return tr.b.Unit.timestampFromUs(dur);
     }
   };
 

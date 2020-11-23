@@ -22,13 +22,15 @@ class BASE_EXPORT AndroidImageReader {
   // Thread safe GetInstance.
   static AndroidImageReader& GetInstance();
 
-  // Disable image reader support.
-  static void DisableSupport();
-
   // Check if the image reader usage is supported. This function returns TRUE
   // if android version is >=OREO, image reader support is not disabled and all
   // the required functions are loaded.
   bool IsSupported();
+
+  // Some devices do not support more than 1 image to be acquired from the
+  // AImageReader.(crbug.com/1051705). This method returns true for those
+  // devices.
+  static bool LimitAImageReaderMaxSizeToOne();
 
   // Naming convention of all the below functions are chosen to exactly match
   // the function names in the NDK.
@@ -38,6 +40,7 @@ class BASE_EXPORT AndroidImageReader {
                                           AHardwareBuffer** buffer);
   media_status_t AImage_getWidth(const AImage* image, int32_t* width);
   media_status_t AImage_getHeight(const AImage* image, int32_t* height);
+  media_status_t AImage_getCropRect(const AImage* image, AImageCropRect* rect);
   media_status_t AImageReader_newWithUsage(int32_t width,
                                            int32_t height,
                                            int32_t format,
@@ -55,6 +58,9 @@ class BASE_EXPORT AndroidImageReader {
   media_status_t AImageReader_acquireLatestImageAsync(AImageReader* reader,
                                                       AImage** image,
                                                       int* acquireFenceFd);
+  media_status_t AImageReader_acquireNextImageAsync(AImageReader* reader,
+                                                    AImage** image,
+                                                    int* acquireFenceFd);
   jobject ANativeWindow_toSurface(JNIEnv* env, ANativeWindow* window);
 
  private:
@@ -63,19 +69,20 @@ class BASE_EXPORT AndroidImageReader {
   AndroidImageReader();
   bool LoadFunctions();
 
-  static bool disable_support_;
-  bool is_supported_;
+  const bool is_supported_;
   pAImage_delete AImage_delete_;
   pAImage_deleteAsync AImage_deleteAsync_;
   pAImage_getHardwareBuffer AImage_getHardwareBuffer_;
   pAImage_getWidth AImage_getWidth_;
   pAImage_getHeight AImage_getHeight_;
+  pAImage_getCropRect AImage_getCropRect_;
   pAImageReader_newWithUsage AImageReader_newWithUsage_;
   pAImageReader_setImageListener AImageReader_setImageListener_;
   pAImageReader_delete AImageReader_delete_;
   pAImageReader_getFormat AImageReader_getFormat_;
   pAImageReader_getWindow AImageReader_getWindow_;
   pAImageReader_acquireLatestImageAsync AImageReader_acquireLatestImageAsync_;
+  pAImageReader_acquireNextImageAsync AImageReader_acquireNextImageAsync_;
   pANativeWindow_toSurface ANativeWindow_toSurface_;
 
   DISALLOW_COPY_AND_ASSIGN(AndroidImageReader);

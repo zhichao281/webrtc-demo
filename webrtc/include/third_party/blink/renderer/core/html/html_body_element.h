@@ -36,10 +36,11 @@ class CORE_EXPORT HTMLBodyElement final : public HTMLElement {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  DECLARE_NODE_FACTORY(HTMLBodyElement);
-
   explicit HTMLBodyElement(Document&);
   ~HTMLBodyElement() override;
+
+  // HTMLElement override
+  bool IsHTMLBodyElement() const override { return true; }
 
   DEFINE_WINDOW_ATTRIBUTE_EVENT_LISTENER(blur, kBlur)
   DEFINE_WINDOW_ATTRIBUTE_EVENT_LISTENER(error, kError)

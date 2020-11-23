@@ -37,10 +37,11 @@
 #include "base/auto_reset.h"
 #include "base/callback.h"
 #include "base/macros.h"
+#include "base/memory/scoped_refptr.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/testing/code_cache_loader_mock.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/assertions.h"
 
 namespace base {
@@ -60,19 +61,19 @@ class TestingPlatformSupport : public Platform {
 
   // Platform:
   WebString DefaultLocale() override;
-  WebBlobRegistry* GetBlobRegistry() override;
-  WebURLLoaderMockFactory* GetURLLoaderMockFactory() override;
-  std::unique_ptr<blink::WebURLLoaderFactory> CreateDefaultURLLoaderFactory()
-      override;
-  std::unique_ptr<CodeCacheLoader> CreateCodeCacheLoader() override {
+  std::unique_ptr<WebCodeCacheLoader> CreateCodeCacheLoader() override {
     return std::make_unique<CodeCacheLoaderMock>();
   }
-  WebData GetDataResource(const char* name) override;
-  InterfaceProvider* GetInterfaceProvider() override;
+  WebData GetDataResource(int resource_id,
+                          ui::ScaleFactor scale_factor) override;
+  WebData UncompressDataResource(int resource_id) override;
+  ThreadSafeBrowserInterfaceBrokerProxy* GetBrowserInterfaceBroker() override;
   bool IsThreadedAnimationEnabled() override;
+  bool IsUseZoomForDSFEnabled() override;
 
   virtual void RunUntilIdle();
   void SetThreadedAnimationEnabled(bool enabled);
+  void SetUseZoomForDSF(bool enabeld);
 
   // Overrides the handling of GetInterface on the platform's associated
   // interface provider.
@@ -89,13 +90,14 @@ class TestingPlatformSupport : public Platform {
   };
 
  protected:
-  class TestingInterfaceProvider;
+  class TestingBrowserInterfaceBroker;
 
   Platform* const old_platform_;
-  std::unique_ptr<TestingInterfaceProvider> interface_provider_;
+  scoped_refptr<TestingBrowserInterfaceBroker> interface_broker_;
 
  private:
   bool is_threaded_animation_enabled_ = false;
+  bool is_zoom_for_dsf_enabled_ = false;
 
   DISALLOW_COPY_AND_ASSIGN(TestingPlatformSupport);
 };
@@ -144,6 +146,9 @@ class ScopedTestingPlatformSupport final {
   const T* operator->() const { return testing_platform_support_.get(); }
   T* operator->() { return testing_platform_support_.get(); }
 
+  const T& operator*() const { return *testing_platform_support_; }
+  T& operator*() { return *testing_platform_support_; }
+
   T* GetTestingPlatformSupport() { return testing_platform_support_.get(); }
 
  private:
@@ -159,12 +164,9 @@ class ScopedUnittestsEnvironmentSetup final {
   ~ScopedUnittestsEnvironmentSetup();
 
  private:
-  class DummyRendererResourceCoordinator;
   std::unique_ptr<base::TestDiscardableMemoryAllocator>
       discardable_memory_allocator_;
   std::unique_ptr<Platform> dummy_platform_;
-  std::unique_ptr<DummyRendererResourceCoordinator>
-      dummy_renderer_resource_coordinator_;
   std::unique_ptr<TestingPlatformSupport> testing_platform_support_;
 };
 

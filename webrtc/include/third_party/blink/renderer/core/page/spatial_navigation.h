@@ -21,10 +21,9 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_PAGE_SPATIAL_NAVIGATION_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_PAGE_SPATIAL_NAVIGATION_H_
 
-#include "third_party/blink/public/platform/web_focus_type.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/node.h"
-#include "third_party/blink/renderer/platform/geometry/layout_rect.h"
+#include "third_party/blink/renderer/core/layout/geometry/physical_rect.h"
 
 #include <limits>
 
@@ -36,17 +35,11 @@ class HTMLFrameOwnerElement;
 
 enum class SpatialNavigationDirection { kNone, kUp, kRight, kDown, kLeft };
 
-inline double MaxDistance() {
-  return std::numeric_limits<double>::max();
-}
-
-inline int FudgeFactor() {
-  return 2;
-}
+constexpr double kMaxDistance = std::numeric_limits<double>::max();
 
 CORE_EXPORT bool IsSpatialNavigationEnabled(const LocalFrame*);
 
-struct FocusCandidate {
+struct CORE_EXPORT FocusCandidate {
   STACK_ALLOCATED();
 
  public:
@@ -64,38 +57,50 @@ struct FocusCandidate {
   // areas of imagemaps, where visibleNode would represent the image element and
   // focusableNode would represent the area element.  In all other cases,
   // visibleNode and focusableNode are one and the same.
-  Member<Node> visible_node;
-  Member<Node> focusable_node;
-  LayoutRect rect_in_root_frame;
+  Node* visible_node;
+  Node* focusable_node;
+  PhysicalRect rect_in_root_frame;
   bool is_offscreen;
 };
 
 CORE_EXPORT bool HasRemoteFrame(const Node*);
+CORE_EXPORT int LineBoxes(const LayoutObject& layout_object);
+CORE_EXPORT
+bool IsFragmentedInline(const LayoutObject& layout_object);
+CORE_EXPORT FloatRect RectInViewport(const Node&);
 CORE_EXPORT bool IsOffscreen(const Node*);
+CORE_EXPORT bool IsUnobscured(const FocusCandidate&);
 bool ScrollInDirection(Node* container, SpatialNavigationDirection);
 CORE_EXPORT bool IsScrollableNode(const Node* node);
 CORE_EXPORT bool IsScrollableAreaOrDocument(const Node*);
 CORE_EXPORT Node* ScrollableAreaOrDocumentOf(Node*);
 bool CanScrollInDirection(const Node* container, SpatialNavigationDirection);
 bool CanScrollInDirection(const LocalFrame*, SpatialNavigationDirection);
-bool AreElementsOnSameLine(const FocusCandidate& first_candidate,
-                           const FocusCandidate& second_candidate);
 
 double ComputeDistanceDataForNode(SpatialNavigationDirection,
                                   const FocusCandidate& current_interest,
                                   const FocusCandidate& candidate);
-CORE_EXPORT LayoutRect NodeRectInRootFrame(const Node*,
-                                           bool ignore_border = false);
-CORE_EXPORT LayoutRect OppositeEdge(SpatialNavigationDirection side,
-                                    const LayoutRect& box,
-                                    LayoutUnit thickness = LayoutUnit());
-CORE_EXPORT LayoutRect RootViewport(const LocalFrame*);
-LayoutRect StartEdgeForAreaElement(const HTMLAreaElement&,
-                                   SpatialNavigationDirection);
+CORE_EXPORT PhysicalRect NodeRectInRootFrame(const Node*);
+CORE_EXPORT PhysicalRect OppositeEdge(SpatialNavigationDirection side,
+                                      const PhysicalRect& box,
+                                      LayoutUnit thickness = LayoutUnit());
+CORE_EXPORT PhysicalRect RootViewport(const LocalFrame*);
+PhysicalRect StartEdgeForAreaElement(const HTMLAreaElement&,
+                                     SpatialNavigationDirection);
 HTMLFrameOwnerElement* FrameOwnerElement(const FocusCandidate&);
-CORE_EXPORT LayoutRect SearchOrigin(const LayoutRect,
-                                    Node*,
-                                    const SpatialNavigationDirection);
+
+CORE_EXPORT PhysicalRect
+ShrinkInlineBoxToLineBox(const LayoutObject& layout_object,
+                         PhysicalRect visible_part,
+                         int line_boxes = -1);
+
+CORE_EXPORT PhysicalRect
+SearchOriginFragment(const PhysicalRect& visible_part,
+                     const LayoutObject& fragmented,
+                     const SpatialNavigationDirection direction);
+CORE_EXPORT PhysicalRect SearchOrigin(const PhysicalRect&,
+                                      Node*,
+                                      const SpatialNavigationDirection);
 
 }  // namespace blink
 

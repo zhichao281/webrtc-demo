@@ -33,22 +33,22 @@
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_FONTS_FONT_CUSTOM_PLATFORM_DATA_H_
 
 #include "base/macros.h"
+#include "third_party/blink/renderer/platform/fonts/font_optical_sizing.h"
 #include "third_party/blink/renderer/platform/fonts/font_orientation.h"
 #include "third_party/blink/renderer/platform/fonts/font_selection_types.h"
+#include "third_party/blink/renderer/platform/fonts/opentype/variable_axes_names.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/ref_counted.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
-#include "third_party/skia/include/core/SkString.h"
 
 class SkTypeface;
 
 namespace blink {
 
 class FontPlatformData;
-class SharedBuffer;
 class FontVariationSettings;
 
 class PLATFORM_EXPORT FontCustomPlatformData
@@ -66,18 +66,26 @@ class PLATFORM_EXPORT FontCustomPlatformData
       bool italic,
       const FontSelectionRequest&,
       const FontSelectionCapabilities&,
+      const OpticalSizing& optical_sizing,
       FontOrientation = FontOrientation::kHorizontal,
       const FontVariationSettings* = nullptr);
 
-  SkString FamilyNameForInspector() const;
+  String FamilyNameForInspector() const;
+
+  Vector<VariationAxis> GetVariationAxes() const;
 
   size_t DataSize() const { return data_size_; }
   static bool SupportsFormat(const String&);
+
+  bool MayBeIconFont() const;
 
  private:
   FontCustomPlatformData(sk_sp<SkTypeface>, size_t data_size);
   sk_sp<SkTypeface> base_typeface_;
   size_t data_size_;
+
+  mutable bool may_be_icon_font_computed_ = false;
+  mutable bool may_be_icon_font_ = false;
 
   DISALLOW_COPY_AND_ASSIGN(FontCustomPlatformData);
 };

@@ -6,13 +6,15 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_SCRIPT_MODULATOR_H_
 
 #include "base/single_thread_task_runner.h"
-#include "services/network/public/mojom/referrer_policy.mojom-shared.h"
+#include "base/util/type_safety/pass_key.h"
+#include "services/network/public/mojom/referrer_policy.mojom-blink-forward.h"
+#include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink-forward.h"
 #include "third_party/blink/public/platform/web_url_request.h"
 #include "third_party/blink/renderer/bindings/core/v8/module_record.h"
+#include "third_party/blink/renderer/bindings/core/v8/module_request.h"
 #include "third_party/blink/renderer/bindings/core/v8/sanitize_script_errors.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_code_cache.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/script/layered_api_module.h"
 #include "third_party/blink/renderer/core/script/module_import_meta.h"
 #include "third_party/blink/renderer/platform/bindings/name_client.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
@@ -28,6 +30,7 @@ namespace blink {
 class ModuleScript;
 class ModuleScriptFetchRequest;
 class ModuleScriptFetcher;
+class ModuleScriptLoader;
 class ImportMap;
 class ReferrerScriptInfo;
 class ResourceFetcher;
@@ -40,11 +43,11 @@ class ScriptValue;
 // module tree graph) load is complete and its corresponding entry is created in
 // module map.
 class CORE_EXPORT SingleModuleClient
-    : public GarbageCollectedFinalized<SingleModuleClient>,
+    : public GarbageCollected<SingleModuleClient>,
       public NameClient {
  public:
   virtual ~SingleModuleClient() = default;
-  virtual void Trace(blink::Visitor* visitor) {}
+  virtual void Trace(Visitor* visitor) const {}
   const char* NameInHeapSnapshot() const override {
     return "SingleModuleClient";
   }
@@ -54,12 +57,11 @@ class CORE_EXPORT SingleModuleClient
 
 // A ModuleTreeClient is notified when a module script and its whole descendent
 // tree load is complete.
-class CORE_EXPORT ModuleTreeClient
-    : public GarbageCollectedFinalized<ModuleTreeClient>,
-      public NameClient {
+class CORE_EXPORT ModuleTreeClient : public GarbageCollected<ModuleTreeClient>,
+                                     public NameClient {
  public:
   virtual ~ModuleTreeClient() = default;
-  virtual void Trace(blink::Visitor* visitor) {}
+  virtual void Trace(Visitor* visitor) const {}
   const char* NameInHeapSnapshot() const override { return "ModuleTreeClient"; }
 
   virtual void NotifyModuleTreeLoadFinished(ModuleScript*) = 0;
@@ -95,11 +97,9 @@ enum class ModuleScriptCustomFetchType {
 // https://html.spec.whatwg.org/C/#environment-settings-object
 //
 // A Modulator also serves as an entry point for various module spec algorithms.
-class CORE_EXPORT Modulator : public GarbageCollectedFinalized<Modulator>,
+class CORE_EXPORT Modulator : public GarbageCollected<Modulator>,
                               public V8PerContextData::Data,
                               public NameClient {
-  USING_GARBAGE_COLLECTED_MIXIN(Modulator);
-
  public:
   static Modulator* From(ScriptState*);
   virtual ~Modulator();
@@ -107,7 +107,7 @@ class CORE_EXPORT Modulator : public GarbageCollectedFinalized<Modulator>,
   static void SetModulator(ScriptState*, Modulator*);
   static void ClearModulator(ScriptState*);
 
-  void Trace(blink::Visitor* visitor) override {}
+  void Trace(Visitor* visitor) const override {}
   const char* NameInHeapSnapshot() const override { return "Modulator"; }
 
   virtual ModuleRecordResolver* GetModuleRecordResolver() = 0;
@@ -115,15 +115,13 @@ class CORE_EXPORT Modulator : public GarbageCollectedFinalized<Modulator>,
 
   virtual ScriptState* GetScriptState() = 0;
 
-  virtual V8CacheOptions GetV8CacheOptions() const = 0;
+  virtual mojom::blink::V8CacheOptions GetV8CacheOptions() const = 0;
 
   // https://html.spec.whatwg.org/C/#concept-bc-noscript
   // "scripting is disabled for settings's responsible browsing context"
   virtual bool IsScriptingDisabled() const = 0;
 
-  virtual bool BuiltInModuleInfraEnabled() const = 0;
-  virtual bool BuiltInModuleEnabled(blink::layered_api::Module) const = 0;
-  virtual void BuiltInModuleUseCount(blink::layered_api::Module) const = 0;
+  virtual bool ImportMapsEnabled() const = 0;
 
   // https://html.spec.whatwg.org/C/#fetch-a-module-script-tree
   // https://html.spec.whatwg.org/C/#fetch-a-module-worker-script-tree
@@ -132,7 +130,8 @@ class CORE_EXPORT Modulator : public GarbageCollectedFinalized<Modulator>,
   // used in the "fetch a module worker script graph" algorithm.
   virtual void FetchTree(const KURL&,
                          ResourceFetcher* fetch_client_settings_object_fetcher,
-                         mojom::RequestContextType destination,
+                         mojom::blink::RequestContextType context_type,
+                         network::mojom::RequestDestination destination,
                          const ScriptFetchOptions&,
                          ModuleScriptCustomFetchType,
                          ModuleTreeClient*) = 0;
@@ -154,7 +153,8 @@ class CORE_EXPORT Modulator : public GarbageCollectedFinalized<Modulator>,
   virtual void FetchDescendantsForInlineScript(
       ModuleScript*,
       ResourceFetcher* fetch_client_settings_object_fetcher,
-      mojom::RequestContextType destination,
+      mojom::blink::RequestContextType context_type,
+      network::mojom::RequestDestination destination,
       ModuleTreeClient*) = 0;
 
   // Synchronously retrieves a single module script from existing module map
@@ -174,42 +174,33 @@ class CORE_EXPORT Modulator : public GarbageCollectedFinalized<Modulator>,
                                   const ReferrerScriptInfo&,
                                   ScriptPromiseResolver*) = 0;
 
+  virtual ScriptValue CreateTypeError(const String& message) const = 0;
+  virtual ScriptValue CreateSyntaxError(const String& message) const = 0;
+
   // Import maps. https://github.com/WICG/import-maps
-  virtual void RegisterImportMap(const ImportMap*) = 0;
+  virtual void RegisterImportMap(const ImportMap*,
+                                 ScriptValue error_to_rethrow) = 0;
   virtual bool IsAcquiringImportMaps() const = 0;
   virtual void ClearIsAcquiringImportMaps() = 0;
+  virtual const ImportMap* GetImportMapForTest() const = 0;
 
   // https://html.spec.whatwg.org/C/#hostgetimportmetaproperties
-  virtual ModuleImportMeta HostGetImportMetaProperties(ModuleRecord) const = 0;
+  virtual ModuleImportMeta HostGetImportMetaProperties(
+      v8::Local<v8::Module>) const = 0;
 
   virtual bool HasValidContext() = 0;
 
-  virtual ScriptValue InstantiateModule(ModuleRecord) = 0;
+  virtual ScriptValue InstantiateModule(v8::Local<v8::Module>, const KURL&) = 0;
 
-  struct ModuleRequest {
-    String specifier;
-    TextPosition position;
-    ModuleRequest(const String& specifier, const TextPosition& position)
-        : specifier(specifier), position(position) {}
-  };
   virtual Vector<ModuleRequest> ModuleRequestsFromModuleRecord(
-      ModuleRecord) = 0;
-
-  enum class CaptureEvalErrorFlag : bool { kReport, kCapture };
-
-  // ExecuteModule implements #run-a-module-script HTML spec algorithm.
-  // https://html.spec.whatwg.org/C/#run-a-module-script
-  // CaptureEvalErrorFlag is used to implement "rethrow errors" parameter in
-  // run-a-module-script.
-  // - When "rethrow errors" is to be set, use kCapture for EvaluateModule().
-  // Then EvaluateModule() returns an exception if any (instead of throwing it),
-  // and the caller should rethrow the returned exception. - When "rethrow
-  // errors" is not to be set, use kReport. EvaluateModule() "report the error"
-  // inside it (if any), and always returns null ScriptValue().
-  virtual ScriptValue ExecuteModule(ModuleScript*, CaptureEvalErrorFlag) = 0;
+      v8::Local<v8::Module>) = 0;
 
   virtual ModuleScriptFetcher* CreateModuleScriptFetcher(
-      ModuleScriptCustomFetchType) = 0;
+      ModuleScriptCustomFetchType,
+      util::PassKey<ModuleScriptLoader> pass_key) = 0;
+
+  // Produce V8 code cache for the given ModuleScript and its submodules.
+  virtual void ProduceCacheModuleTreeTopLevel(ModuleScript*) = 0;
 };
 
 }  // namespace blink

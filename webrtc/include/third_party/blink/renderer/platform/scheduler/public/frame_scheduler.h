@@ -9,13 +9,16 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "base/single_thread_task_runner.h"
+#include "base/unguessable_token.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "third_party/blink/public/mojom/loader/pause_subresource_loading_handle.mojom-blink.h"
 #include "third_party/blink/public/platform/scheduler/web_resource_loading_task_runner_handle.h"
+#include "third_party/blink/public/platform/scheduler/web_scoped_virtual_time_pauser.h"
 #include "third_party/blink/public/platform/task_type.h"
-#include "third_party/blink/public/platform/web_scoped_virtual_time_pauser.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/scheduler/public/frame_or_worker_scheduler.h"
+#include "third_party/blink/renderer/platform/scheduler/public/web_scheduling_priority.h"
+#include "third_party/blink/renderer/platform/wtf/hash_set.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace ukm {
@@ -24,7 +27,12 @@ class UkmRecorder;
 
 namespace blink {
 
+namespace scheduler {
+class WebAgentGroupScheduler;
+}  // namespace scheduler
+
 class PageScheduler;
+class WebSchedulingTaskQueue;
 
 class FrameScheduler : public FrameOrWorkerScheduler {
  public:
@@ -34,8 +42,20 @@ class FrameScheduler : public FrameOrWorkerScheduler {
 
     virtual ukm::UkmRecorder* GetUkmRecorder() = 0;
     virtual ukm::SourceId GetUkmSourceId() = 0;
+
     // Called when a frame has exceeded a total task time threshold (100ms).
     virtual void UpdateTaskTime(base::TimeDelta time) = 0;
+
+    // Notify that the list of active features for this frame has changed.
+    // See SchedulingPolicy::Feature for the list of features and the meaning
+    // of individual features.
+    // Note that this method is not called when the frame navigates — it is
+    // the responsibility of the observer to detect this and act reset features
+    // accordingly.
+    virtual void UpdateActiveSchedulerTrackedFeatures(
+        uint64_t features_mask) = 0;
+
+    virtual const base::UnguessableToken& GetAgentClusterId() const = 0;
   };
 
   ~FrameScheduler() override = default;
@@ -66,16 +86,27 @@ class FrameScheduler : public FrameOrWorkerScheduler {
   // allowed to run on a suspended frame.
   virtual void SetPaused(bool) = 0;
 
+  // Sets whether or not this frame should report (via tracing) tasks that are
+  // posted to it.
+  virtual void SetShouldReportPostedTasksWhenDisabled(bool) = 0;
+
   // Set whether this frame is cross origin w.r.t. the top level frame. Cross
   // origin frames may use a different scheduling policy from same origin
   // frames.
-  virtual void SetCrossOrigin(bool) = 0;
-  virtual bool IsCrossOrigin() const = 0;
+  virtual void SetCrossOriginToMainFrame(bool) = 0;
+  virtual bool IsCrossOriginToMainFrame() const = 0;
 
   virtual void SetIsAdFrame() = 0;
   virtual bool IsAdFrame() const = 0;
 
   virtual void TraceUrlChange(const String&) = 0;
+
+  // Keep track of the amount of time spent running tasks for the frame.
+  // Forwards this tally to PageLoadMetrics and resets it each time it reaches
+  // 100ms.  The FrameScheduler will get this information primarily from the
+  // MainThreadTaskScheduler, but for tasks that are unattributable to a single
+  // frame (e.g. requestAnimationFrame), this method must be called explicitly.
+  virtual void AddTaskTime(base::TimeDelta time) = 0;
 
   // Returns the frame type, which currently determines whether this frame is
   // the top level frame, i.e. a main frame.
@@ -92,8 +123,21 @@ class FrameScheduler : public FrameOrWorkerScheduler {
   virtual std::unique_ptr<scheduler::WebResourceLoadingTaskRunnerHandle>
   CreateResourceLoadingTaskRunnerHandle() = 0;
 
+  // Returns a WebResourceLoadingTaskRunnerHandle which is intended to be used
+  // by the loading stack, same as CreateResourceLoadingTaskRunnerHandle(), but
+  // the task type of this runner is unfreezable if kLoadingTasksUnfreezable
+  // feature is on.
+  virtual std::unique_ptr<scheduler::WebResourceLoadingTaskRunnerHandle>
+  CreateResourceLoadingMaybeUnfreezableTaskRunnerHandle() = 0;
+
+  virtual std::unique_ptr<WebSchedulingTaskQueue> CreateWebSchedulingTaskQueue(
+      WebSchedulingPriority) = 0;
+
   // Returns the parent PageScheduler.
   virtual PageScheduler* GetPageScheduler() const = 0;
+
+  // Returns the parent AgentGroupScheduler.
+  virtual scheduler::WebAgentGroupScheduler* GetAgentGroupScheduler() = 0;
 
   // Returns a WebScopedVirtualTimePauser which can be used to vote for pausing
   // virtual time. Virtual time will be paused if any WebScopedVirtualTimePauser
@@ -116,9 +160,16 @@ class FrameScheduler : public FrameOrWorkerScheduler {
   virtual void DidCommitProvisionalLoad(bool is_web_history_inert_commit,
                                         NavigationType navigation_type) = 0;
 
-  // Tells the scheduler that the first meaningful paint has occured for this
+  // Tells the scheduler that the first contentful paint has occurred for this
+  // frame.
+  virtual void OnFirstContentfulPaint() = 0;
+
+  // Tells the scheduler that the first meaningful paint has occurred for this
   // frame.
   virtual void OnFirstMeaningfulPaint() = 0;
+
+  // Tells the scheduler that the "onload" event has occurred for this frame.
+  virtual void OnLoad() = 0;
 
   // Returns true if this frame is should not throttled (e.g. due to an active
   // connection).
@@ -137,8 +188,17 @@ class FrameScheduler : public FrameOrWorkerScheduler {
   virtual std::unique_ptr<blink::mojom::blink::PauseSubresourceLoadingHandle>
   GetPauseSubresourceLoadingHandle() = 0;
 
+  // Returns the list of active features which currently tracked by the
+  // scheduler for back-forward cache metrics.
+  virtual WTF::HashSet<SchedulingPolicy::Feature>
+  GetActiveFeaturesTrackedForBackForwardCacheMetrics() = 0;
+
   // TODO(altimin): Move FrameScheduler object to oilpan.
   virtual base::WeakPtr<FrameScheduler> GetWeakPtr() = 0;
+
+  // Notifies the delegate the list of active features for this frame if they
+  // have changed since the last notification.
+  virtual void ReportActiveSchedulerTrackedFeatures() = 0;
 };
 
 }  // namespace blink

@@ -18,7 +18,8 @@ namespace blink {
 class LayoutMultiColumnSpannerPlaceholder final : public LayoutBox {
  public:
   bool IsOfType(LayoutObjectType type) const override {
-    return type == kLayoutObjectLayoutMultiColumnSpannerPlaceholder ||
+    NOT_DESTROYED();
+    return type == kLayoutObjectMultiColumnSpannerPlaceholder ||
            LayoutBox::IsOfType(type);
   }
 
@@ -27,17 +28,21 @@ class LayoutMultiColumnSpannerPlaceholder final : public LayoutBox {
       LayoutBox&);
 
   LayoutBlockFlow* MultiColumnBlockFlow() const {
-    return ToLayoutBlockFlow(Parent());
+    NOT_DESTROYED();
+    return To<LayoutBlockFlow>(Parent());
   }
 
   LayoutMultiColumnFlowThread* FlowThread() const {
-    return ToLayoutBlockFlow(Parent())->MultiColumnFlowThread();
+    NOT_DESTROYED();
+    return To<LayoutBlockFlow>(Parent())->MultiColumnFlowThread();
   }
 
   LayoutBox* LayoutObjectInFlowThread() const {
+    NOT_DESTROYED();
     return layout_object_in_flow_thread_;
   }
   void MarkForLayoutIfObjectInFlowThreadNeedsLayout() {
+    NOT_DESTROYED();
     if (!layout_object_in_flow_thread_->NeedsLayout())
       return;
     // The containing block of a spanner is the multicol container (our parent
@@ -46,12 +51,16 @@ class LayoutMultiColumnSpannerPlaceholder final : public LayoutBox {
     SetChildNeedsLayout(kMarkOnlyThis);
   }
 
-  bool AnonymousHasStylePropagationOverride() final { return true; }
+  bool AnonymousHasStylePropagationOverride() final {
+    NOT_DESTROYED();
+    return true;
+  }
 
   void LayoutObjectInFlowThreadStyleDidChange(const ComputedStyle* old_style);
   void UpdateProperties(const ComputedStyle& parent_style);
 
   const char* GetName() const override {
+    NOT_DESTROYED();
     return "LayoutMultiColumnSpannerPlaceholder";
   }
 
@@ -60,27 +69,36 @@ class LayoutMultiColumnSpannerPlaceholder final : public LayoutBox {
   void WillBeRemovedFromTree() override;
   bool NeedsPreferredWidthsRecalculation() const override;
   void RecalcVisualOverflow() override;
-  LayoutUnit MinPreferredLogicalWidth() const override;
-  LayoutUnit MaxPreferredLogicalWidth() const override;
+  MinMaxSizes PreferredLogicalWidths() const override;
   void UpdateLayout() override;
   void ComputeLogicalHeight(LayoutUnit logical_height,
                             LayoutUnit logical_top,
                             LogicalExtentComputedValues&) const override;
   void Paint(const PaintInfo&) const override;
   bool NodeAtPoint(HitTestResult&,
-                   const HitTestLocation& location_in_container,
-                   const LayoutPoint& accumulated_offset,
+                   const HitTestLocation&,
+                   const PhysicalOffset& accumulated_offset,
                    HitTestAction) override;
 
  private:
   LayoutMultiColumnSpannerPlaceholder(LayoutBox*);
 
+  MinMaxSizes ComputeIntrinsicLogicalWidths() const final {
+    NOT_DESTROYED();
+    NOTREACHED();
+    return MinMaxSizes();
+  }
+
   // The actual column-span:all layoutObject inside the flow thread.
   LayoutBox* layout_object_in_flow_thread_;
 };
 
-DEFINE_LAYOUT_OBJECT_TYPE_CASTS(LayoutMultiColumnSpannerPlaceholder,
-                                IsLayoutMultiColumnSpannerPlaceholder());
+template <>
+struct DowncastTraits<LayoutMultiColumnSpannerPlaceholder> {
+  static bool AllowFrom(const LayoutObject& object) {
+    return object.IsLayoutMultiColumnSpannerPlaceholder();
+  }
+};
 
 }  // namespace blink
 

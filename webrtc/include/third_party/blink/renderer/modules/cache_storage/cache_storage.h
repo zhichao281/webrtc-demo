@@ -8,26 +8,27 @@
 #include <memory>
 #include "base/macros.h"
 #include "base/optional.h"
-#include "third_party/blink/public/mojom/cache_storage/cache_storage.mojom-blink.h"
+#include "third_party/blink/public/mojom/cache_storage/cache_storage.mojom-blink-forward.h"
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
-#include "third_party/blink/renderer/core/execution_context/context_lifecycle_observer.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/core/fetch/global_fetch.h"
 #include "third_party/blink/renderer/modules/cache_storage/cache.h"
-#include "third_party/blink/renderer/modules/cache_storage/multi_cache_query_options.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
-#include "third_party/blink/renderer/platform/mojo/revocable_interface_ptr.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 
 namespace blink {
 
+class CacheStorageBlobClientList;
+class MultiCacheQueryOptions;
+
 class CacheStorage final : public ScriptWrappable,
                            public ActiveScriptWrappable<CacheStorage>,
-                           public ContextClient {
+                           public ExecutionContextClient {
   DEFINE_WRAPPERTYPEINFO();
-  USING_GARBAGE_COLLECTED_MIXIN(CacheStorage);
 
  public:
   CacheStorage(ExecutionContext*, GlobalFetch::ScopedFetcher*);
@@ -43,7 +44,7 @@ class CacheStorage final : public ScriptWrappable,
                       ExceptionState&);
 
   bool HasPendingActivity() const override;
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   ScriptPromise MatchImpl(ScriptState*,
@@ -52,9 +53,12 @@ class CacheStorage final : public ScriptWrappable,
 
   bool IsAllowed(ScriptState*);
 
-  Member<GlobalFetch::ScopedFetcher> scoped_fetcher_;
+  void MaybeInit();
 
-  RevocableInterfacePtr<mojom::blink::CacheStorage> cache_storage_ptr_;
+  Member<GlobalFetch::ScopedFetcher> scoped_fetcher_;
+  Member<CacheStorageBlobClientList> blob_client_list_;
+
+  HeapMojoRemote<mojom::blink::CacheStorage> cache_storage_remote_;
   base::Optional<bool> allowed_;
   bool ever_used_;
 

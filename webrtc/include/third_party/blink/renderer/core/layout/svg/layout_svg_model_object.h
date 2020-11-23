@@ -47,51 +47,55 @@ class LayoutSVGModelObject : public LayoutObject {
 
   bool IsChildAllowed(LayoutObject*, const ComputedStyle&) const override;
 
-  LayoutRect VisualRectInDocument() const override;
+  PhysicalRect VisualRectInDocument(
+      VisualRectFlags = kDefaultVisualRectFlags) const override;
+
   FloatRect VisualRectInLocalSVGCoordinates() const override {
-    return local_visual_rect_;
+    NOT_DESTROYED();
+    return StrokeBoundingBox();
   }
 
-  void AbsoluteRects(Vector<IntRect>&,
-                     const LayoutPoint& accumulated_offset) const final;
   void AbsoluteQuads(Vector<FloatQuad>&,
                      MapCoordinatesFlags mode = 0) const override;
   FloatRect LocalBoundingBoxRectForAccessibility() const final;
 
-  void MapLocalToAncestor(
-      const LayoutBoxModelObject* ancestor,
-      TransformState&,
-      MapCoordinatesFlags = kApplyContainerFlip) const final;
-  void MapAncestorToLocal(
-      const LayoutBoxModelObject* ancestor,
-      TransformState&,
-      MapCoordinatesFlags = kApplyContainerFlip) const final;
+  void MapLocalToAncestor(const LayoutBoxModelObject* ancestor,
+                          TransformState&,
+                          MapCoordinatesFlags) const final;
+  void MapAncestorToLocal(const LayoutBoxModelObject* ancestor,
+                          TransformState&,
+                          MapCoordinatesFlags) const final;
   const LayoutObject* PushMappingToContainer(
       const LayoutBoxModelObject* ancestor_to_stop_at,
       LayoutGeometryMap&) const final;
   void StyleDidChange(StyleDifference, const ComputedStyle* old_style) override;
 
   SVGElement* GetElement() const {
-    return ToSVGElement(LayoutObject::GetNode());
+    NOT_DESTROYED();
+    return To<SVGElement>(LayoutObject::GetNode());
   }
 
   bool IsOfType(LayoutObjectType type) const override {
+    NOT_DESTROYED();
     return type == kLayoutObjectSVG || LayoutObject::IsOfType(type);
   }
 
  protected:
   void WillBeDestroyed() override;
 
+  void InsertedIntoTree() override;
+  void WillBeRemovedFromTree() override;
+
+  AffineTransform CalculateLocalTransform() const;
+  bool CheckForImplicitTransformChange(bool bbox_changed) const;
+
  private:
   // LayoutSVGModelObject subclasses should use GetElement() instead.
   void GetNode() const = delete;
 
-  void AddOutlineRects(Vector<LayoutRect>&,
-                       const LayoutPoint& additional_offset,
+  void AddOutlineRects(Vector<PhysicalRect>&,
+                       const PhysicalOffset& additional_offset,
                        NGOutlineType) const final;
-
- protected:
-  FloatRect local_visual_rect_;
 };
 
 }  // namespace blink

@@ -25,10 +25,10 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CLIPBOARD_DATA_TRANSFER_H_
 
 #include <memory>
+#include "third_party/blink/public/common/page/drag_operation.h"
 #include "third_party/blink/renderer/core/clipboard/data_object.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/loader/resource/image_resource_content.h"
-#include "third_party/blink/renderer/core/page/drag_actions.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/geometry/int_point.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
@@ -50,12 +50,11 @@ enum class DataTransferAccessPolicy;
 
 // Used for drag and drop and copy/paste.
 // Drag and Drop:
-// http://www.whatwg.org/specs/web-apps/current-work/multipage/dnd.html
+// https://html.spec.whatwg.org/multipage/dnd.html
 // Clipboard API (copy/paste):
-// http://dev.w3.org/2006/webapi/clipops/clipops.html
+// https://w3c.github.io/clipboard-apis/
 class CORE_EXPORT DataTransfer final : public ScriptWrappable,
                                        public DataObject::Observer {
-  USING_GARBAGE_COLLECTED_MIXIN(DataTransfer);
   DEFINE_WRAPPERTYPEINFO();
 
  public:
@@ -72,9 +71,7 @@ class CORE_EXPORT DataTransfer final : public ScriptWrappable,
                               DataTransferAccessPolicy,
                               DataObject*);
 
-  explicit DataTransfer(DataTransferType,
-                        DataTransferAccessPolicy,
-                        DataObject*);
+  DataTransfer(DataTransferType, DataTransferAccessPolicy, DataObject*);
   ~DataTransfer() override;
 
   bool IsForCopyAndPaste() const { return transfer_type_ == kCopyAndPaste; }
@@ -149,16 +146,15 @@ class CORE_EXPORT DataTransfer final : public ScriptWrappable,
   // |paint_offset| is the offset from the origin of the dragged
   // object of the PaintRecordBuilder.
   static std::unique_ptr<DragImage> CreateDragImageForFrame(
-      const LocalFrame&,
+      LocalFrame&,
       float,
-      RespectImageOrientationEnum,
       const FloatSize& css_size,
       const FloatPoint& paint_offset,
       PaintRecordBuilder&,
       const PropertyTreeState&);
-  static std::unique_ptr<DragImage> NodeImage(const LocalFrame&, Node&);
+  static std::unique_ptr<DragImage> NodeImage(LocalFrame&, Node&);
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   void setDragImage(ImageResourceContent*, Node*, const IntPoint&);

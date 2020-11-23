@@ -23,6 +23,7 @@
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/html/html_element.h"
+#include "third_party/blink/renderer/platform/heap/heap.h"
 
 namespace blink {
 
@@ -34,8 +35,6 @@ class CORE_EXPORT HTMLProgressElement final : public HTMLElement {
  public:
   static const double kIndeterminatePosition;
   static const double kInvalidPosition;
-
-  static HTMLProgressElement* Create(Document&);
 
   explicit HTMLProgressElement(Document&);
 
@@ -49,7 +48,7 @@ class CORE_EXPORT HTMLProgressElement final : public HTMLElement {
 
   bool CanContainRangeEndPoint() const override { return false; }
 
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   ~HTMLProgressElement() override;
@@ -57,7 +56,6 @@ class CORE_EXPORT HTMLProgressElement final : public HTMLElement {
   bool AreAuthorShadowsAllowed() const override { return false; }
   bool ShouldAppearIndeterminate() const override;
   bool IsLabelable() const override { return true; }
-  bool TypeShouldForceLegacyLayout() const final { return true; }
 
   LayoutObject* CreateLayoutObject(const ComputedStyle&, LegacyLayout) override;
   LayoutProgress* GetLayoutProgress() const;

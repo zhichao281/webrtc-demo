@@ -13,8 +13,8 @@
 
 namespace blink {
 
-// TODO(andruud): Remove this class when the static Variable instance
-// (as returned by GetCSSPropertyVariable()) has been removed.
+// TODO(https://crbug.com/980160): Remove this class when the static Variable
+// instance (as returned by GetCSSPropertyVariable()) has been removed.
 class CORE_EXPORT Variable : public Longhand {
  public:
   constexpr Variable() : Variable(true) {}
@@ -33,9 +33,10 @@ class CORE_EXPORT Variable : public Longhand {
   static bool IsStaticInstance(const CSSProperty&);
 
  protected:
-  constexpr Variable(bool inherited)
+  explicit constexpr Variable(CSSProperty::Flags flags)
       : Longhand(CSSPropertyID::kVariable,
-                 kProperty | (inherited ? kInherited : 0),
+                 kProperty | kValidForFirstLetter | kValidForMarker |
+                     kValidForHighlight | flags,
                  '\0') {}
 };
 

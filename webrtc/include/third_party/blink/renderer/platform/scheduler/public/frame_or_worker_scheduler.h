@@ -5,13 +5,13 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_SCHEDULER_PUBLIC_FRAME_OR_WORKER_SCHEDULER_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_SCHEDULER_PUBLIC_FRAME_OR_WORKER_SCHEDULER_H_
 
-#include <unordered_map>
-
 #include "base/memory/weak_ptr.h"
+#include "base/util/type_safety/strong_alias.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/scheduler/public/scheduling_lifecycle_state.h"
 #include "third_party/blink/renderer/platform/scheduler/public/scheduling_policy.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/hash_map.h"
 
 namespace blink {
 class FrameScheduler;
@@ -63,6 +63,8 @@ class PLATFORM_EXPORT FrameOrWorkerScheduler {
     SchedulingAffectingFeatureHandle& operator=(
         SchedulingAffectingFeatureHandle&&);
 
+    explicit operator bool() const { return scheduler_.get(); }
+
     inline void reset() {
       if (scheduler_)
         scheduler_->OnStoppedUsingFeature(feature_, policy_);
@@ -76,7 +78,7 @@ class PLATFORM_EXPORT FrameOrWorkerScheduler {
                                      SchedulingPolicy policy,
                                      base::WeakPtr<FrameOrWorkerScheduler>);
 
-    SchedulingPolicy::Feature feature_ = SchedulingPolicy::Feature::kCount;
+    SchedulingPolicy::Feature feature_ = SchedulingPolicy::Feature::kMaxValue;
     SchedulingPolicy policy_;
     base::WeakPtr<FrameOrWorkerScheduler> scheduler_;
 
@@ -84,6 +86,10 @@ class PLATFORM_EXPORT FrameOrWorkerScheduler {
   };
 
   virtual ~FrameOrWorkerScheduler();
+
+  using Preempted = util::StrongAlias<class PreemptedTag, bool>;
+  // Stops any tasks from running while we yield and run a nested loop.
+  virtual void SetPreemptedForCooperativeScheduling(Preempted) = 0;
 
   // Notifies scheduler that this execution context has started using a feature
   // which impacts scheduling decisions.
@@ -114,6 +120,8 @@ class PLATFORM_EXPORT FrameOrWorkerScheduler {
 
   virtual FrameScheduler* ToFrameScheduler() { return nullptr; }
 
+  base::WeakPtr<FrameOrWorkerScheduler> GetWeakPtr();
+
  protected:
   FrameOrWorkerScheduler();
 
@@ -129,14 +137,14 @@ class PLATFORM_EXPORT FrameOrWorkerScheduler {
   virtual void OnStoppedUsingFeature(SchedulingPolicy::Feature feature,
                                      const SchedulingPolicy& policy) = 0;
 
-  base::WeakPtr<FrameOrWorkerScheduler> GetWeakPtr();
+  virtual base::WeakPtr<FrameOrWorkerScheduler> GetDocumentBoundWeakPtr();
 
  private:
   void RemoveLifecycleObserver(Observer* observer);
 
   // Observers are not owned by the scheduler.
-  std::unordered_map<Observer*, ObserverType> lifecycle_observers_;
-  base::WeakPtrFactory<FrameOrWorkerScheduler> weak_factory_;
+  HashMap<Observer*, ObserverType> lifecycle_observers_;
+  base::WeakPtrFactory<FrameOrWorkerScheduler> weak_factory_{this};
 };
 
 }  // namespace blink

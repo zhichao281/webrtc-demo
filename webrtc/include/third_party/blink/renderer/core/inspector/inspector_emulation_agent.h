@@ -7,12 +7,14 @@
 
 #include "base/macros.h"
 #include "base/optional.h"
+#include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/inspector/inspector_base_agent.h"
 #include "third_party/blink/renderer/core/inspector/protocol/Emulation.h"
 #include "third_party/blink/renderer/core/loader/frame_loader_types.h"
+#include "third_party/blink/renderer/core/timezone/timezone_controller.h"
+#include "third_party/blink/renderer/platform/loader/fetch/resource_loader_options.h"
 #include "third_party/blink/renderer/platform/scheduler/public/page_scheduler.h"
-#include "third_party/blink/renderer/platform/wtf/time.h"
 
 namespace blink {
 
@@ -21,7 +23,6 @@ class ResourceRequest;
 class WebLocalFrameImpl;
 class WebViewImpl;
 enum class ResourceType : uint8_t;
-struct FetchInitiatorInfo;
 
 namespace protocol {
 namespace DOM {
@@ -44,7 +45,11 @@ class CORE_EXPORT InspectorEmulationAgent final
   protocol::Response setTouchEmulationEnabled(
       bool enabled,
       protocol::Maybe<int> max_touch_points) override;
-  protocol::Response setEmulatedMedia(const String&) override;
+  protocol::Response setEmulatedMedia(
+      protocol::Maybe<String> media,
+      protocol::Maybe<protocol::Array<protocol::Emulation::MediaFeature>>
+          features) override;
+  protocol::Response setEmulatedVisionDeficiency(const String&) override;
   protocol::Response setCPUThrottlingRate(double) override;
   protocol::Response setFocusEmulationEnabled(bool) override;
   protocol::Response setVirtualTimePolicy(
@@ -54,6 +59,7 @@ class CORE_EXPORT InspectorEmulationAgent final
       protocol::Maybe<bool> wait_for_navigation,
       protocol::Maybe<double> initial_virtual_time,
       double* virtual_time_ticks_base_ms) override;
+  protocol::Response setTimezoneOverride(const String& timezone_id) override;
   protocol::Response setNavigatorOverrides(const String& platform) override;
   protocol::Response setDefaultBackgroundColorOverride(
       protocol::Maybe<protocol::DOM::RGBA>) override;
@@ -69,27 +75,40 @@ class CORE_EXPORT InspectorEmulationAgent final
       protocol::Maybe<int> position_y,
       protocol::Maybe<bool> dont_set_visible_size,
       protocol::Maybe<protocol::Emulation::ScreenOrientation>,
-      protocol::Maybe<protocol::Page::Viewport>) override;
+      protocol::Maybe<protocol::Page::Viewport>,
+      protocol::Maybe<protocol::Emulation::DisplayFeature>) override;
   protocol::Response clearDeviceMetricsOverride() override;
   protocol::Response setUserAgentOverride(
       const String& user_agent,
       protocol::Maybe<String> accept_language,
-      protocol::Maybe<String> platform) override;
+      protocol::Maybe<String> platform,
+      protocol::Maybe<protocol::Emulation::UserAgentMetadata>
+          ua_metadata_override) override;
+  protocol::Response setLocaleOverride(protocol::Maybe<String>) override;
+  protocol::Response setDisabledImageTypes(
+      std::unique_ptr<protocol::Array<protocol::Emulation::DisabledImageType>>)
+      override;
 
   // InspectorInstrumentation API
   void ApplyAcceptLanguageOverride(String* accept_lang);
   void ApplyUserAgentOverride(String* user_agent);
+  void ApplyUserAgentMetadataOverride(
+      base::Optional<blink::UserAgentMetadata>* ua_metadata);
   void FrameStartedLoading(LocalFrame*);
   void PrepareRequest(DocumentLoader*,
                       ResourceRequest&,
-                      const FetchInitiatorInfo&,
+                      ResourceLoaderOptions&,
                       ResourceType);
+  void GetDisabledImageTypes(HashSet<String>* result);
+  void WillCommitLoad(LocalFrame*, DocumentLoader*);
 
   // InspectorBaseAgent overrides.
   protocol::Response disable() override;
   void Restore() override;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
+
+  static AtomicString OverrideAcceptImageHeader(const HashSet<String>*);
 
  private:
   WebViewImpl* GetWebViewImpl();
@@ -105,23 +124,31 @@ class CORE_EXPORT InspectorEmulationAgent final
   void ApplyVirtualTimePolicy(const PendingVirtualTimePolicy& new_policy);
 
   Member<WebLocalFrameImpl> web_local_frame_;
-  WTF::TimeTicks virtual_time_base_ticks_;
+  base::TimeTicks virtual_time_base_ticks_;
+  HeapVector<Member<DocumentLoader>> pending_document_loaders_;
+
+  std::unique_ptr<TimeZoneController::TimeZoneOverride> timezone_override_;
 
   // Supports a virtual time policy change scheduled to occur after any
   // navigation has started.
   base::Optional<PendingVirtualTimePolicy> pending_virtual_time_policy_;
   bool enabled_ = false;
 
-  InspectorAgentState::String default_background_color_override_rgba_;
+  InspectorAgentState::Bytes default_background_color_override_rgba_;
   InspectorAgentState::Boolean script_execution_disabled_;
   InspectorAgentState::Boolean scrollbars_hidden_;
   InspectorAgentState::Boolean document_cookie_disabled_;
   InspectorAgentState::Boolean touch_event_emulation_enabled_;
   InspectorAgentState::Integer max_touch_points_;
   InspectorAgentState::String emulated_media_;
+  InspectorAgentState::StringMap emulated_media_features_;
+  InspectorAgentState::String emulated_vision_deficiency_;
   InspectorAgentState::String navigator_platform_override_;
   InspectorAgentState::String user_agent_override_;
+  InspectorAgentState::String serialized_ua_metadata_override_;
+  base::Optional<blink::UserAgentMetadata> ua_metadata_override_;
   InspectorAgentState::String accept_language_override_;
+  InspectorAgentState::String locale_override_;
   InspectorAgentState::Double virtual_time_budget_;
   InspectorAgentState::Double virtual_time_budget_initial_offset_;
   InspectorAgentState::Double initial_virtual_time_;
@@ -130,6 +157,8 @@ class CORE_EXPORT InspectorEmulationAgent final
   InspectorAgentState::Integer virtual_time_task_starvation_count_;
   InspectorAgentState::Boolean wait_for_navigation_;
   InspectorAgentState::Boolean emulate_focus_;
+  InspectorAgentState::String timezone_id_override_;
+  InspectorAgentState::BooleanMap disabled_image_types_;
   DISALLOW_COPY_AND_ASSIGN(InspectorEmulationAgent);
 };
 

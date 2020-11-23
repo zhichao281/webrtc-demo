@@ -6,18 +6,21 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_PICTURE_IN_PICTURE_PICTURE_IN_PICTURE_CONTROLLER_IMPL_H_
 
 #include "base/macros.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
 #include "third_party/blink/public/mojom/picture_in_picture/picture_in_picture.mojom-blink.h"
-#include "third_party/blink/renderer/core/dom/document_shutdown_observer.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/core/frame/picture_in_picture_controller.h"
 #include "third_party/blink/renderer/core/page/page_visibility_observer.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 
 namespace blink {
 
 class HTMLVideoElement;
+class PictureInPictureOptions;
 class PictureInPictureWindow;
 class TreeScope;
-struct WebSize;
 
 // The PictureInPictureControllerImpl is keeping the state and implementing the
 // logic around the Picture-in-Picture feature. It is meant to be used as well
@@ -30,17 +33,11 @@ struct WebSize;
 class MODULES_EXPORT PictureInPictureControllerImpl
     : public PictureInPictureController,
       public PageVisibilityObserver,
-      public DocumentShutdownObserver,
-      public blink::mojom::blink::PictureInPictureDelegate {
-  USING_GARBAGE_COLLECTED_MIXIN(PictureInPictureControllerImpl);
-
+      public ExecutionContextClient,
+      public blink::mojom::blink::PictureInPictureSessionObserver {
  public:
   explicit PictureInPictureControllerImpl(Document&);
   ~PictureInPictureControllerImpl() override = default;
-
-  // Meant to be called internally by PictureInPictureController::From()
-  // through ModulesInitializer.
-  static PictureInPictureControllerImpl* Create(Document&);
 
   // Gets, or creates, PictureInPictureControllerImpl supplement on Document.
   // Should be called before any other call to make sure a document is attached.
@@ -52,7 +49,12 @@ class MODULES_EXPORT PictureInPictureControllerImpl
 
   // Returns whether the document associated with the controller is allowed to
   // request Picture-in-Picture.
-  Status IsDocumentAllowed() const;
+  Status IsDocumentAllowed(bool report_failure) const;
+
+  // Returns whether the combination of element and options can be in
+  // Picture-in-Picture.
+  Status VerifyElementAndOptions(const HTMLElement&,
+                                 const PictureInPictureOptions*) const;
 
   // Returns element currently in Picture-in-Picture if any. Null otherwise.
   Element* PictureInPictureElement() const;
@@ -69,45 +71,41 @@ class MODULES_EXPORT PictureInPictureControllerImpl
   bool IsExitAutoPictureInPictureAllowed() const;
 
   // Implementation of PictureInPictureController.
-  void EnterPictureInPicture(HTMLVideoElement*,
+  void EnterPictureInPicture(HTMLElement*,
+                             PictureInPictureOptions*,
                              ScriptPromiseResolver*) override;
   void ExitPictureInPicture(HTMLVideoElement*, ScriptPromiseResolver*) override;
   void AddToAutoPictureInPictureElementsList(HTMLVideoElement*) override;
   void RemoveFromAutoPictureInPictureElementsList(HTMLVideoElement*) override;
-  Status IsElementAllowed(const HTMLVideoElement&) const override;
+  Status IsElementAllowed(const HTMLElement&) const override;
   bool IsPictureInPictureElement(const Element*) const override;
-  bool IsPictureInPictureShadowHost(const Element&) const override;
   void OnPictureInPictureStateChange() override;
 
-  // Implementation of PictureInPictureDelegate.
-  void PictureInPictureWindowSizeChanged(const blink::WebSize&) override;
+  // Implementation of PictureInPictureSessionObserver.
+  void OnWindowSizeChanged(const gfx::Size&) override;
+  void OnStopped() override;
 
   // Implementation of PageVisibilityObserver.
   void PageVisibilityChanged() override;
 
-  // Implementation of DocumentShutdownObserver.
-  void ContextDestroyed(Document*) override;
+  void Trace(Visitor*) const override;
 
-  void Trace(blink::Visitor*) override;
-
-  mojo::Binding<mojom::blink::PictureInPictureDelegate>&
-  GetDelegateBindingForTesting() {
-    return delegate_binding_;
+  bool IsSessionObserverReceiverBoundForTesting() {
+    return session_observer_receiver_.is_bound();
   }
 
  private:
-  void OnEnteredPictureInPicture(HTMLVideoElement*,
-                                 ScriptPromiseResolver*,
-                                 const WebSize& picture_in_picture_window_size);
+  void OnEnteredPictureInPicture(
+      HTMLVideoElement*,
+      ScriptPromiseResolver*,
+      mojo::PendingRemote<mojom::blink::PictureInPictureSession>,
+      const gfx::Size&);
   void OnExitedPictureInPicture(ScriptPromiseResolver*) override;
+  Status IsElementAllowed(const HTMLElement&, bool report_failure) const;
 
   // Makes sure the `picture_in_picture_service_` is set. Returns whether it was
   // initialized successfully.
   bool EnsureService();
-
-  // Returns true if video has an audio track and if MuteButton origin trial is
-  // enabled. Otherwise it returns false.
-  bool ShouldShowMuteButton(const HTMLVideoElement& element);
 
   // The Picture-in-Picture element for the associated document.
   Member<HTMLVideoElement> picture_in_picture_element_;
@@ -119,11 +117,19 @@ class MODULES_EXPORT PictureInPictureControllerImpl
   // The Picture-in-Picture window for the associated document.
   Member<PictureInPictureWindow> picture_in_picture_window_;
 
-  // Mojo bindings for the delegate interface implemented by |this|.
-  mojo::Binding<mojom::blink::PictureInPictureDelegate> delegate_binding_;
+  // Mojo bindings for the session observer interface implemented by |this|.
+  HeapMojoReceiver<mojom::blink::PictureInPictureSessionObserver,
+                   PictureInPictureControllerImpl>
+      session_observer_receiver_;
 
   // Picture-in-Picture service living in the browser process.
-  mojom::blink::PictureInPictureServicePtr picture_in_picture_service_;
+  HeapMojoRemote<mojom::blink::PictureInPictureService>
+      picture_in_picture_service_;
+
+  // Instance of the Picture-in-Picture session sent back by the service.
+  HeapMojoRemote<mojom::blink::PictureInPictureSession,
+                 HeapMojoWrapperMode::kWithoutContextObserver>
+      picture_in_picture_session_;
 
   DISALLOW_COPY_AND_ASSIGN(PictureInPictureControllerImpl);
 };

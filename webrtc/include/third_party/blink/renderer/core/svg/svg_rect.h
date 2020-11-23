@@ -23,7 +23,8 @@
 #include "third_party/blink/renderer/core/svg/properties/svg_property_helper.h"
 #include "third_party/blink/renderer/core/svg/svg_parsing_error.h"
 #include "third_party/blink/renderer/platform/geometry/float_rect.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/casting.h"
 
 namespace blink {
 
@@ -33,16 +34,10 @@ class SVGRect final : public SVGPropertyHelper<SVGRect> {
  public:
   typedef SVGRectTearOff TearOffType;
 
-  static SVGRect* Create() { return MakeGarbageCollected<SVGRect>(); }
-
   static SVGRect* CreateInvalid() {
     SVGRect* rect = MakeGarbageCollected<SVGRect>();
     rect->SetInvalid();
     return rect;
-  }
-
-  static SVGRect* Create(const FloatRect& rect) {
-    return MakeGarbageCollected<SVGRect>(rect);
   }
 
   SVGRect();
@@ -65,16 +60,17 @@ class SVGRect final : public SVGPropertyHelper<SVGRect> {
   String ValueAsString() const override;
   SVGParsingError SetValueAsString(const String&);
 
-  void Add(SVGPropertyBase*, SVGElement*) override;
-  void CalculateAnimatedValue(SVGAnimationElement*,
-                              float percentage,
-                              unsigned repeat_count,
-                              SVGPropertyBase* from,
-                              SVGPropertyBase* to,
-                              SVGPropertyBase* to_at_end_of_duration_value,
-                              SVGElement* context_element) override;
-  float CalculateDistance(SVGPropertyBase* to,
-                          SVGElement* context_element) override;
+  void Add(const SVGPropertyBase*, const SVGElement*) override;
+  void CalculateAnimatedValue(
+      const SMILAnimationEffectParameters&,
+      float percentage,
+      unsigned repeat_count,
+      const SVGPropertyBase* from,
+      const SVGPropertyBase* to,
+      const SVGPropertyBase* to_at_end_of_duration_value,
+      const SVGElement* context_element) override;
+  float CalculateDistance(const SVGPropertyBase* to,
+                          const SVGElement* context_element) const override;
 
   bool IsValid() const { return is_valid_; }
   void SetInvalid();
@@ -89,7 +85,12 @@ class SVGRect final : public SVGPropertyHelper<SVGRect> {
   FloatRect value_;
 };
 
-DEFINE_SVG_PROPERTY_TYPE_CASTS(SVGRect);
+template <>
+struct DowncastTraits<SVGRect> {
+  static bool AllowFrom(const SVGPropertyBase& value) {
+    return value.GetType() == SVGRect::ClassType();
+  }
+};
 
 }  // namespace blink
 

@@ -9,7 +9,7 @@
  */
 
 #include "conductor.h"
-#include "flag_defs.h"
+
 #include "main_wnd.h"
 #include "peer_connection_client.h"
 #include "rtc_base/checks.h"
@@ -28,35 +28,19 @@ int PASCAL wWinMain(HINSTANCE instance,
   rtc::Win32Thread w32_thread(&w32_ss);
   rtc::ThreadManager::Instance()->SetCurrentThread(&w32_thread);
 
-  rtc::WindowsCommandLineArguments win_args;
-  int argc = win_args.argc();
-  char** argv = win_args.argv();
 
-  rtc::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
-  if (FLAG_help) {
-    rtc::FlagList::Print(NULL, false);
-    return 0;
-  }
 
-  webrtc::test::ValidateFieldTrialsStringOrDie(FLAG_force_fieldtrials);
-  // InitFieldTrialsFromString stores the char*, so the char array must outlive
-  // the application.
-  webrtc::field_trial::InitFieldTrialsFromString(FLAG_force_fieldtrials);
+  rtc::LogMessage::LogToDebug((rtc::LoggingSeverity)rtc::LS_INFO);
 
-  // Abort if the user specifies a port that is outside the allowed
-  // range [1, 65535].
-  if ((FLAG_port < 1) || (FLAG_port > 65535)) {
-    printf("Error: %i is not a valid port.\n", FLAG_port);
-    return -1;
-  }
 
-  MainWnd wnd(FLAG_server, FLAG_port, FLAG_autoconnect, FLAG_autocall);
+  MainWnd wnd("localhost", 8888, false, false);
   if (!wnd.Create()) {
     RTC_NOTREACHED();
     return -1;
   }
 
   rtc::InitializeSSL();
+
   PeerConnectionClient client;
   rtc::scoped_refptr<Conductor> conductor(
       new rtc::RefCountedObject<Conductor>(&client, &wnd));

@@ -34,7 +34,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "third_party/blink/renderer/core/html/imports/html_import_child_client.h"
 #include "third_party/blink/renderer/core/html/link_resource.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
@@ -45,8 +45,6 @@ class HTMLImportChild;
 // A LinkResource subclasss used for @rel=import.
 //
 class LinkImport final : public LinkResource, public HTMLImportChildClient {
-  USING_GARBAGE_COLLECTED_MIXIN(LinkImport);
-
  public:
   explicit LinkImport(HTMLLinkElement* owner);
   ~LinkImport() final;
@@ -55,7 +53,7 @@ class LinkImport final : public LinkResource, public HTMLImportChildClient {
   void Process() final;
   LinkResourceType GetType() const final { return kImport; }
   bool HasLoaded() const final;
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
   void OwnerInserted() final;
   void OwnerRemoved() final;
 

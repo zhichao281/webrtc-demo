@@ -26,7 +26,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_HASH_ITERATORS_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_HASH_ITERATORS_H_
 
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace WTF {
 
@@ -52,6 +52,12 @@ struct HashTableConstIteratorAdapter<HashTableType,
       KeysIterator;
   typedef HashTableConstValuesIterator<HashTableType, KeyType, MappedType>
       ValuesIterator;
+
+  using iterator_category = std::bidirectional_iterator_tag;
+  using value_type = HashTableType;
+  using difference_type = ptrdiff_t;
+  using pointer = value_type*;
+  using reference = value_type&;
 
   HashTableConstIteratorAdapter() = default;
   HashTableConstIteratorAdapter(
@@ -93,6 +99,12 @@ struct HashTableIteratorAdapter<HashTableType,
       KeysIterator;
   typedef HashTableValuesIterator<HashTableType, KeyType, MappedType>
       ValuesIterator;
+
+  using iterator_category = std::bidirectional_iterator_tag;
+  using value_type = HashTableType;
+  using difference_type = ptrdiff_t;
+  using pointer = value_type*;
+  using reference = value_type&;
 
   HashTableIteratorAdapter() = default;
   HashTableIteratorAdapter(const typename HashTableType::iterator& impl)

@@ -6,7 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_LAYOUT_OBJECT_FACTORY_H_
 
 #include "base/memory/scoped_refptr.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 
 namespace blink {
@@ -14,9 +14,12 @@ namespace blink {
 class ComputedStyle;
 class LayoutBlock;
 class LayoutBlockFlow;
+class LayoutObject;
+class LayoutBox;
 enum class LegacyLayout;
+class LayoutProgress;
+class LayoutRubyAsBlock;
 class LayoutTableCaption;
-class LayoutTableCell;
 class LayoutText;
 class LayoutTextFragment;
 class Node;
@@ -36,25 +39,81 @@ class LayoutObjectFactory {
   static LayoutBlockFlow* CreateBlockFlow(Node&,
                                           const ComputedStyle&,
                                           LegacyLayout);
+  static LayoutBlock* CreateBlockForLineClamp(Node& node,
+                                              const ComputedStyle& style,
+                                              LegacyLayout legacy);
   static LayoutBlock* CreateFlexibleBox(Node&,
                                         const ComputedStyle&,
                                         LegacyLayout);
-  static LayoutBlockFlow* CreateListItem(Node&,
-                                         const ComputedStyle&,
-                                         LegacyLayout);
+  static LayoutBlock* CreateGrid(Node&, const ComputedStyle&, LegacyLayout);
+  static LayoutBlock* CreateMath(Node&, const ComputedStyle&, LegacyLayout);
+  static LayoutObject* CreateListMarker(Node&,
+                                        const ComputedStyle&,
+                                        LegacyLayout);
+  static LayoutBlock* CreateTable(Node&, const ComputedStyle&, LegacyLayout);
   static LayoutTableCaption* CreateTableCaption(Node&,
                                                 const ComputedStyle&,
                                                 LegacyLayout);
-  static LayoutTableCell* CreateTableCell(Node&,
+  static LayoutBlockFlow* CreateTableCell(Node&,
                                           const ComputedStyle&,
                                           LegacyLayout);
+  static LayoutBox* CreateTableColumn(Node&,
+                                      const ComputedStyle&,
+                                      LegacyLayout);
+
+  static LayoutBox* CreateTableRow(Node&, const ComputedStyle&, LegacyLayout);
+  static LayoutBox* CreateTableSection(Node&,
+                                       const ComputedStyle&,
+                                       LegacyLayout);
+
+  static LayoutObject* CreateButton(Node& node,
+                                    const ComputedStyle& style,
+                                    LegacyLayout legacy);
   static LayoutBlock* CreateFieldset(Node&, const ComputedStyle&, LegacyLayout);
+  static LayoutBlockFlow* CreateFileUploadControl(Node& node,
+                                                  const ComputedStyle& style,
+                                                  LegacyLayout legacy);
+  static LayoutObject* CreateSliderTrack(Node& node,
+                                         const ComputedStyle& style,
+                                         LegacyLayout legacy);
+  static LayoutObject* CreateTextControlInnerEditor(Node& node,
+                                                    const ComputedStyle& style,
+                                                    LegacyLayout legacy);
+  static LayoutObject* CreateTextControlMultiLine(Node& node,
+                                                  const ComputedStyle& style,
+                                                  LegacyLayout legacy);
+  static LayoutObject* CreateTextControlSingleLine(Node& node,
+                                                   const ComputedStyle& style,
+                                                   LegacyLayout legacy);
+
   static LayoutText* CreateText(Node*, scoped_refptr<StringImpl>, LegacyLayout);
   static LayoutTextFragment* CreateTextFragment(Node*,
                                                 StringImpl*,
                                                 int start_offset,
                                                 int length,
                                                 LegacyLayout);
+  static LayoutProgress* CreateProgress(Node* node,
+                                        const ComputedStyle& style,
+                                        LegacyLayout legacy);
+  static LayoutRubyAsBlock* CreateRubyAsBlock(Node* node,
+                                              const ComputedStyle& style,
+                                              LegacyLayout legacy);
+  static LayoutObject* CreateRubyText(Node* node,
+                                      const ComputedStyle& style,
+                                      LegacyLayout legacy);
+
+  // Anonoymous creation methods
+
+  static LayoutBox* CreateAnonymousTableWithParent(const LayoutObject& parent);
+
+  static LayoutBox* CreateAnonymousTableSectionWithParent(
+      const LayoutObject& parent);
+
+  static LayoutBox* CreateAnonymousTableRowWithParent(
+      const LayoutObject& parent);
+
+  static LayoutBlockFlow* CreateAnonymousTableCellWithParent(
+      const LayoutObject& parent);
 };
 
 }  // namespace blink

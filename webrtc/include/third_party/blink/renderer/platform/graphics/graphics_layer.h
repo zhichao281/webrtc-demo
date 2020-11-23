@@ -30,18 +30,15 @@
 #include <memory>
 
 #include "base/macros.h"
-#include "base/memory/weak_ptr.h"
-#include "cc/input/overscroll_behavior.h"
 #include "cc/input/scroll_snap_data.h"
 #include "cc/layers/content_layer_client.h"
 #include "cc/layers/layer.h"
-#include "cc/layers/layer_client.h"
-#include "cc/layers/layer_sticky_position_constraint.h"
 #include "third_party/blink/renderer/platform/geometry/float_point.h"
 #include "third_party/blink/renderer/platform/geometry/float_point_3d.h"
 #include "third_party/blink/renderer/platform/geometry/float_size.h"
 #include "third_party/blink/renderer/platform/geometry/int_rect.h"
 #include "third_party/blink/renderer/platform/graphics/color.h"
+#include "third_party/blink/renderer/platform/graphics/compositing/layers_as_json.h"
 #include "third_party/blink/renderer/platform/graphics/compositing_reasons.h"
 #include "third_party/blink/renderer/platform/graphics/compositor_element_id.h"
 #include "third_party/blink/renderer/platform/graphics/graphics_context.h"
@@ -50,6 +47,7 @@
 #include "third_party/blink/renderer/platform/graphics/image_orientation.h"
 #include "third_party/blink/renderer/platform/graphics/paint/display_item_client.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_controller.h"
+#include "third_party/blink/renderer/platform/graphics/paint/raster_invalidator.h"
 #include "third_party/blink/renderer/platform/graphics/paint_invalidation_reason.h"
 #include "third_party/blink/renderer/platform/graphics/squashing_disallowed_reasons.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
@@ -60,26 +58,23 @@
 #include "third_party/skia/include/core/SkRefCnt.h"
 
 namespace cc {
-class PictureImageLayer;
+class DisplayItemList;
 class PictureLayer;
-struct OverscrollBehavior;
 }  // namespace cc
 
 namespace blink {
 
-class CompositorFilterOperations;
-class Image;
-class LinkHighlight;
 class PaintController;
 class RasterInvalidationTracking;
 class RasterInvalidator;
+struct PreCompositedLayerInfo;
 
 typedef Vector<GraphicsLayer*, 64> GraphicsLayerVector;
 
 // GraphicsLayer is an abstraction for a rendering surface with backing store,
 // which may have associated transformation and animations.
-class PLATFORM_EXPORT GraphicsLayer : public cc::LayerClient,
-                                      public DisplayItemClient,
+class PLATFORM_EXPORT GraphicsLayer : public DisplayItemClient,
+                                      public LayerAsJSONClient,
                                       private cc::ContentLayerClient {
   USING_FAST_MALLOC(GraphicsLayer);
 
@@ -89,8 +84,12 @@ class PLATFORM_EXPORT GraphicsLayer : public cc::LayerClient,
 
   GraphicsLayerClient& Client() const { return client_; }
 
-  void SetCompositingReasons(CompositingReasons reasons);
-  CompositingReasons GetCompositingReasons() const;
+  void SetCompositingReasons(CompositingReasons reasons) {
+    compositing_reasons_ = reasons;
+  }
+  CompositingReasons GetCompositingReasons() const {
+    return compositing_reasons_;
+  }
 
   SquashingDisallowedReasons GetSquashingDisallowedReasons() const {
     return squashing_disallowed_reasons_;
@@ -99,7 +98,7 @@ class PLATFORM_EXPORT GraphicsLayer : public cc::LayerClient,
     squashing_disallowed_reasons_ = reasons;
   }
 
-  void SetOwnerNodeId(int id);
+  void SetOwnerNodeId(DOMNodeId id) { owner_node_id_ = id; }
 
   GraphicsLayer* Parent() const { return parent_; }
   void SetParent(GraphicsLayer*);  // Internal use only.
@@ -111,55 +110,27 @@ class PLATFORM_EXPORT GraphicsLayer : public cc::LayerClient,
   // Add child layers. If the child is already parented, it will be removed from
   // its old parent.
   void AddChild(GraphicsLayer*);
-  void AddChildBelow(GraphicsLayer*, GraphicsLayer* sibling);
 
   void RemoveAllChildren();
   void RemoveFromParent();
-
-  GraphicsLayer* MaskLayer() const { return mask_layer_; }
-  void SetMaskLayer(GraphicsLayer*);
-
-  GraphicsLayer* ContentsClippingMaskLayer() const {
-    return contents_clipping_mask_layer_;
-  }
-  void SetContentsClippingMaskLayer(GraphicsLayer*);
 
   // The offset is the origin of the layoutObject minus the origin of the
   // graphics layer (so either zero or negative).
   IntSize OffsetFromLayoutObject() const { return offset_from_layout_object_; }
   void SetOffsetFromLayoutObject(const IntSize&);
-  LayoutSize OffsetFromLayoutObjectWithSubpixelAccumulation() const;
-
-  // The position of the layer (the location of its top-left corner in its
-  // parent).
-  const gfx::PointF& GetPosition() const;
-  void SetPosition(const gfx::PointF&);
-
-  const gfx::Point3F& TransformOrigin() const;
-  void SetTransformOrigin(const gfx::Point3F&);
 
   // The size of the layer.
   const gfx::Size& Size() const;
   void SetSize(const gfx::Size&);
 
-  const TransformationMatrix& Transform() const { return transform_; }
-  void SetTransform(const TransformationMatrix&);
-
-  bool ShouldFlattenTransform() const;
-  void SetShouldFlattenTransform(bool);
-  void SetRenderingContext(int id);
-
-  bool MasksToBounds() const;
-  void SetMasksToBounds(bool);
-
   bool DrawsContent() const { return draws_content_; }
   void SetDrawsContent(bool);
 
-  // False if no hit test display items will be painted onto this GraphicsLayer.
-  // This is different from |DrawsContent| because hit test display items are
-  // internal to blink and are not copied to the cc::Layer's display list.
+  // False if no hit test data will be recorded onto this GraphicsLayer.
+  // This is different from |DrawsContent| because hit test data are internal
+  // to blink and are not copied to the cc::Layer's display list.
   bool PaintsHitTest() const { return paints_hit_test_; }
-  void SetPaintsHitTest(bool paints) { paints_hit_test_ = paints; }
+  void SetPaintsHitTest(bool);
 
   bool PaintsContentOrHitTest() const {
     return draws_content_ || paints_hit_test_;
@@ -168,75 +139,38 @@ class PLATFORM_EXPORT GraphicsLayer : public cc::LayerClient,
   bool ContentsAreVisible() const { return contents_visible_; }
   void SetContentsVisible(bool);
 
-  void SetScrollParent(cc::Layer*);
-  void SetClipParent(cc::Layer*);
-
-  void SetPaintArtifactCompositorNeedsUpdate() const;
-
-  // For special cases, e.g. drawing missing tiles on Android.
-  // The compositor should never paint this color in normal cases because the
-  // Layer will paint the background by itself.
-  RGBA32 BackgroundColor() const;
-  void SetBackgroundColor(RGBA32);
+  void SetContentsLayerBackgroundColor(Color color);
 
   // Opaque means that we know the layer contents have no alpha.
   bool ContentsOpaque() const;
   void SetContentsOpaque(bool);
-
-  bool BackfaceVisibility() const;
-  void SetBackfaceVisibility(bool visible);
-
-  float Opacity() const;
-  void SetOpacity(float);
-
-  BlendMode GetBlendMode() const;
-  void SetBlendMode(BlendMode);
-  bool IsRootForIsolatedGroup() const;
-  void SetIsRootForIsolatedGroup(bool);
+  void SetContentsOpaqueForText(bool);
 
   void SetHitTestable(bool);
-  bool GetHitTestable() const { return hit_testable_; }
-
-  void SetFilters(CompositorFilterOperations);
-  void SetBackdropFilters(CompositorFilterOperations, const gfx::RRectF&);
-
-  void SetStickyPositionConstraint(const cc::LayerStickyPositionConstraint&);
-
-  void SetFilterQuality(SkFilterQuality);
+  bool IsHitTestable() const { return hit_testable_; }
 
   // Some GraphicsLayers paint only the foreground or the background content
   GraphicsLayerPaintingPhase PaintingPhase() const { return painting_phase_; }
   void SetPaintingPhase(GraphicsLayerPaintingPhase);
 
-  void SetNeedsDisplay();
-  void SetContentsNeedsDisplay();
+  void InvalidateContents();
 
   // Set that the position/size of the contents (image or video).
   void SetContentsRect(const IntRect&);
 
-  // Layer contents
-  void SetContentsToImage(
-      Image*,
-      Image::ImageDecodingMode decode_mode,
-      RespectImageOrientationEnum = kDoNotRespectImageOrientation);
   // If |prevent_contents_opaque_changes| is set to true, then calls to
-  // SetContentsOpaque() will not be passed on to the |layer|. Use when
-  // the client wants to have control of the opaqueness of the contents
-  // |layer| independently of what outcome painting produces.
-  void SetContentsToCcLayer(cc::Layer* layer,
-                            bool prevent_contents_opaque_changes) {
-    SetContentsTo(layer, prevent_contents_opaque_changes);
-  }
-  bool HasContentsLayer() const { return contents_layer_; }
-  cc::Layer* ContentsLayer() const { return contents_layer_; }
+  // SetContentsOpaque() will not be passed on to |contents_layer|. Use when
+  // the client wants to have control of the opaqueness of |contents_layer|
+  // independently of what outcome painting produces.
+  void SetContentsToCcLayer(scoped_refptr<cc::Layer> contents_layer,
+                            bool prevent_contents_opaque_changes);
+  bool HasContentsLayer() const { return ContentsLayer(); }
+  cc::Layer* ContentsLayer() const { return contents_layer_.get(); }
+
+  const IntRect& ContentsRect() const { return contents_rect_; }
 
   // For hosting this GraphicsLayer in a native layer hierarchy.
-  cc::PictureLayer* CcLayer() const;
-
-  // Return a string with a human readable form of the layer tree. If debug is
-  // true, pointers for the layers and timing data will be included in the
-  // returned string.
-  String GetLayerTreeAsTextForTesting(LayerTreeFlags = kLayerTreeNormal) const;
+  cc::PictureLayer& CcLayer() const { return *layer_; }
 
   void UpdateTrackingRasterInvalidations();
   void ResetTrackedRasterInvalidations();
@@ -246,80 +180,64 @@ class PLATFORM_EXPORT GraphicsLayer : public cc::LayerClient,
                                const IntRect&,
                                PaintInvalidationReason);
 
-  void AddLinkHighlight(LinkHighlight*);
-  void RemoveLinkHighlight(LinkHighlight*);
-  const Vector<LinkHighlight*>& GetLinkHighlights() const {
-    return link_highlights_;
-  }
-
-  int GetRenderingContext3D() const { return rendering_context3d_; }
-
-  static void RegisterContentsLayer(cc::Layer*);
-  static void UnregisterContentsLayer(cc::Layer*);
-
   IntRect InterestRect();
-  void PaintRecursively();
-  // Returns true if this layer is repainted.
-  bool Paint(GraphicsContext::DisabledMode = GraphicsContext::kNothingDisabled);
 
-  // cc::LayerClient implementation.
-  std::unique_ptr<base::trace_event::TracedValue> TakeDebugInfo(
-      cc::Layer*) override;
-  void DidChangeScrollbarsHiddenIfOverlay(bool) override;
+  // Returns true if any layer is repainted.
+  bool PaintRecursively(GraphicsContext&,
+                        Vector<PreCompositedLayerInfo>&,
+                        PaintBenchmarkMode = PaintBenchmarkMode::kNormal);
 
   PaintController& GetPaintController() const;
 
   void SetElementId(const CompositorElementId&);
-  CompositorElementId GetElementId() const;
 
   // DisplayItemClient methods
   String DebugName() const final { return client_.DebugName(this); }
-  LayoutRect VisualRect() const override;
+  DOMNodeId OwnerNodeId() const final { return owner_node_id_; }
 
-  void SetHasWillChangeTransformHint(bool);
-
-  void SetOverscrollBehavior(const cc::OverscrollBehavior&);
-
-  void SetSnapContainerData(base::Optional<cc::SnapContainerData>);
-
-  void SetIsResizedByBrowserControls(bool);
-  void SetIsContainerForFixedPositionLayers(bool);
+  // LayerAsJSONClient implementation.
+  void AppendAdditionalInfoAsJSON(LayerTreeFlags,
+                                  const cc::Layer&,
+                                  JSONObject&) const override;
 
   bool HasLayerState() const { return layer_state_.get(); }
-  void SetLayerState(const PropertyTreeState&, const IntPoint& layer_offset);
-  const PropertyTreeState& GetPropertyTreeState() const {
-    return layer_state_->state;
+  void SetLayerState(const PropertyTreeStateOrAlias&,
+                     const IntPoint& layer_offset);
+  PropertyTreeStateOrAlias GetPropertyTreeState() const {
+    return layer_state_->state.GetPropertyTreeState();
   }
   IntPoint GetOffsetFromTransformNode() const { return layer_state_->offset; }
 
-  void SetContentsPropertyTreeState(const PropertyTreeState&);
-  const PropertyTreeState& GetContentsPropertyTreeState() const {
-    return contents_property_tree_state_ ? *contents_property_tree_state_
-                                         : GetPropertyTreeState();
+  void SetContentsLayerState(const PropertyTreeStateOrAlias&,
+                             const IntPoint& layer_offset);
+  PropertyTreeStateOrAlias GetContentsPropertyTreeState() const {
+    return contents_layer_state_
+               ? contents_layer_state_->state.GetPropertyTreeState()
+               : GetPropertyTreeState();
   }
   IntPoint GetContentsOffsetFromTransformNode() const {
-    auto offset = contents_rect_.Location();
-    if (layer_state_)
-      offset = offset + GetOffsetFromTransformNode();
-    return offset;
+    return contents_layer_state_ ? contents_layer_state_->offset
+                                 : GetOffsetFromTransformNode();
   }
-
-  // Capture the last painted result into a PaintRecord. This GraphicsLayer
-  // must DrawsContent. The result is never nullptr.
-  sk_sp<PaintRecord> CapturePaintRecord() const;
 
   void SetNeedsCheckRasterInvalidation() {
     needs_check_raster_invalidation_ = true;
   }
 
-  bool HasScrollParent() const { return has_scroll_parent_; }
-  bool HasClipParent() const { return has_clip_parent_; }
+  void PaintForTesting(const IntRect& interest_rect);
 
-  bool PaintWithoutCommitForTesting(
-      const base::Optional<IntRect>& interest_rect = base::nullopt);
+  void SetShouldCreateLayersAfterPaint(bool);
+  bool ShouldCreateLayersAfterPaint() const {
+    return should_create_layers_after_paint_;
+  }
+
+  // Whether this GraphicsLayer is repainted in the last Paint().
+  bool Repainted() const { return repainted_; }
+
+  size_t ApproximateUnsharedMemoryUsageRecursive() const;
 
  protected:
-  String DebugName(cc::Layer*) const;
+  String DebugName(const cc::Layer*) const;
 
  private:
   friend class CompositedLayerMappingTest;
@@ -327,20 +245,16 @@ class PLATFORM_EXPORT GraphicsLayer : public cc::LayerClient,
 
   // cc::ContentLayerClient implementation.
   gfx::Rect PaintableRegion() final { return InterestRect(); }
-  scoped_refptr<cc::DisplayItemList> PaintContentsToDisplayList(
-      PaintingControlSetting painting_control) final;
+  scoped_refptr<cc::DisplayItemList> PaintContentsToDisplayList() final;
   bool FillsBoundsCompletely() const override { return false; }
-  size_t GetApproximateUnsharedMemoryUsage() const final;
 
-  void PaintRecursivelyInternal(Vector<GraphicsLayer*>& repainted_layers);
+  void ClearPaintStateRecursively();
+  void Paint(Vector<PreCompositedLayerInfo>&,
+             PaintBenchmarkMode,
+             const IntRect* interest_rect = nullptr);
 
-  // Returns true if PaintController::PaintArtifact() changed and needs commit.
-  bool PaintWithoutCommit(
-      GraphicsContext::DisabledMode = GraphicsContext::kNothingDisabled,
-      const IntRect* interest_rect = nullptr);
-
-  // Adds a child without calling updateChildList(), so that adding children
-  // can be batched before updating.
+  // Adds a child without calling NotifyChildListChange(), so that adding
+  // children can be batched before updating.
   void AddChildInternal(GraphicsLayer*);
 
 #if DCHECK_IS_ON()
@@ -348,20 +262,15 @@ class PLATFORM_EXPORT GraphicsLayer : public cc::LayerClient,
 #endif
 
   // Helper functions used by settors to keep layer's the state consistent.
-  void UpdateChildList();
+  void NotifyChildListChange();
   void UpdateLayerIsDrawable();
-  void UpdateContentsRect();
+  void UpdateContentsLayerBounds();
 
-  void SetContentsTo(cc::Layer*, bool prevent_contents_opaque_changes);
-  void SetupContentsLayer(cc::Layer*);
-  void ClearContentsLayerIfUnregistered();
-  cc::Layer* ContentsLayerIfRegistered();
-  void SetContentsLayer(cc::Layer*);
+  void SetContentsTo(scoped_refptr<cc::Layer>,
+                     bool prevent_contents_opaque_changes);
 
   RasterInvalidator& EnsureRasterInvalidator();
-  void SetNeedsDisplayInRect(const IntRect&);
-
-  FloatSize VisualRectSubpixelOffset() const;
+  void InvalidateRaster(const IntRect&);
 
   GraphicsLayerClient& client_;
 
@@ -376,38 +285,23 @@ class PLATFORM_EXPORT GraphicsLayer : public cc::LayerClient,
   bool contents_visible_ : 1;
   bool hit_testable_ : 1;
   bool needs_check_raster_invalidation_ : 1;
-
-  bool has_scroll_parent_ : 1;
-  bool has_clip_parent_ : 1;
-
-  bool painted_ : 1;
+  bool raster_invalidated_ : 1;
+  // True if the cc::Layers for this GraphicsLayer should be created after
+  // paint (in PaintArtifactCompositor). This depends on the display item list
+  // and is updated after CommitNewDisplayItems.
+  bool should_create_layers_after_paint_ : 1;
+  bool repainted_ : 1;
 
   GraphicsLayerPaintingPhase painting_phase_;
 
   Vector<GraphicsLayer*> children_;
   GraphicsLayer* parent_;
 
-  // Reference to mask layer. We don't own this.
-  GraphicsLayer* mask_layer_;
-  // Reference to clipping mask layer. We don't own this.
-  GraphicsLayer* contents_clipping_mask_layer_;
-
   IntRect contents_rect_;
 
   scoped_refptr<cc::PictureLayer> layer_;
-  scoped_refptr<cc::PictureImageLayer> image_layer_;
-  IntSize image_size_;
-  cc::Layer* contents_layer_;
-  // We don't have ownership of contents_layer_, but we do want to know if a
-  // given layer is the same as our current layer in SetContentsTo(). Since
-  // |contents_layer_| may be deleted at this point, we stash an ID away when we
-  // know |contents_layer_| is alive and use that for comparisons from that
-  // point on.
-  int contents_layer_id_;
-
-  Vector<LinkHighlight*> link_highlights_;
-
-  int rendering_context3d_;
+  scoped_refptr<cc::Layer> contents_layer_;
+  scoped_refptr<cc::DisplayItemList> cc_display_item_list_;
 
   SquashingDisallowedReasons squashing_disallowed_reasons_ =
       SquashingDisallowedReason::kNone;
@@ -417,21 +311,89 @@ class PLATFORM_EXPORT GraphicsLayer : public cc::LayerClient,
   IntRect previous_interest_rect_;
 
   struct LayerState {
-    PropertyTreeState state;
+    // In theory, it's unnecessary to use RefCountedPropertyTreeState because
+    // when it's used, the state should always reference current paint property
+    // nodes in ObjectPaintProperties. This is to workaround under-invalidation
+    // of layer state.
+    RefCountedPropertyTreeState state;
     IntPoint offset;
   };
   std::unique_ptr<LayerState> layer_state_;
-  std::unique_ptr<PropertyTreeState> contents_property_tree_state_;
+  std::unique_ptr<LayerState> contents_layer_state_;
 
   std::unique_ptr<RasterInvalidator> raster_invalidator_;
+  RasterInvalidator::RasterInvalidationFunction raster_invalidation_function_;
 
-  base::WeakPtrFactory<GraphicsLayer> weak_ptr_factory_;
-
-  FRIEND_TEST_ALL_PREFIXES(CompositingLayerPropertyUpdaterTest, MaskLayerState);
+  DOMNodeId owner_node_id_ = kInvalidDOMNodeId;
+  CompositingReasons compositing_reasons_ = CompositingReason::kNone;
 
   DISALLOW_COPY_AND_ASSIGN(GraphicsLayer);
 };
 
+// Iterates all graphics layers that should be seen by the compositor in
+// pre-order. |GraphicsLayerType&| matches |GraphicsLayer&| or
+// |const GraphicsLayer&|. |GraphicsLayerFunction| accepts a GraphicsLayerType
+// parameter, and returns a bool to indicate if the recursion should continue.
+template <typename GraphicsLayerType,
+          typename GraphicsLayerFunction,
+          typename ContentsLayerFunction>
+void ForAllGraphicsLayers(
+    GraphicsLayerType& layer,
+    const GraphicsLayerFunction& graphics_layer_function,
+    const ContentsLayerFunction& contents_layer_function) {
+  if (!graphics_layer_function(layer))
+    return;
+
+  if (auto* contents_layer = layer.ContentsLayer())
+    contents_layer_function(layer, *contents_layer);
+
+  for (auto* child : layer.Children()) {
+    ForAllGraphicsLayers(*child, graphics_layer_function,
+                         contents_layer_function);
+  }
+}
+
+// Unlike ForAllGraphicsLayers, here |GraphicsLayerFunction| should return void.
+template <typename GraphicsLayerType,
+          typename GraphicsLayerFunction,
+          typename ContentsLayerFunction>
+void ForAllActiveGraphicsLayers(
+    GraphicsLayerType& layer,
+    const GraphicsLayerFunction& graphics_layer_function,
+    const ContentsLayerFunction& contents_layer_function) {
+  ForAllGraphicsLayers(
+      layer,
+      [&graphics_layer_function](GraphicsLayerType& layer) -> bool {
+        if (layer.Client().ShouldSkipPaintingSubtree())
+          return false;
+        if (layer.PaintsContentOrHitTest() || layer.IsHitTestable())
+          graphics_layer_function(layer);
+        return true;
+      },
+      contents_layer_function);
+}
+
+template <typename GraphicsLayerType, typename Function>
+void ForAllActiveGraphicsLayers(GraphicsLayerType& layer,
+                                const Function& function) {
+  ForAllActiveGraphicsLayers(layer, function,
+                             [](GraphicsLayerType&, const cc::Layer&) {});
+}
+
+template <typename GraphicsLayerType, typename Function>
+void ForAllPaintingGraphicsLayers(GraphicsLayerType& layer,
+                                  const Function& function) {
+  ForAllActiveGraphicsLayers(layer, [&function](GraphicsLayerType& layer) {
+    if (layer.PaintsContentOrHitTest())
+      function(layer);
+  });
+}
+
 }  // namespace blink
+
+#if DCHECK_IS_ON()
+// Outside the blink namespace for ease of invocation from gdb.
+PLATFORM_EXPORT void showGraphicsLayerTree(const blink::GraphicsLayer*);
+#endif
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_GRAPHICS_LAYER_H_

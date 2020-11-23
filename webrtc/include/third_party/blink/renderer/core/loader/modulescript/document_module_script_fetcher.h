@@ -16,18 +16,14 @@ namespace blink {
 // workers. We should rename this to something like ModuleScriptFetcherImpl that
 // doesn't relate to Document.
 class CORE_EXPORT DocumentModuleScriptFetcher final
-    : public GarbageCollectedFinalized<DocumentModuleScriptFetcher>,
+    : public GarbageCollected<DocumentModuleScriptFetcher>,
       public ModuleScriptFetcher {
-  USING_GARBAGE_COLLECTED_MIXIN(DocumentModuleScriptFetcher);
-
  public:
-  DocumentModuleScriptFetcher() = default;
-  ~DocumentModuleScriptFetcher() override = default;
+  explicit DocumentModuleScriptFetcher(util::PassKey<ModuleScriptLoader>);
 
   // Implements ModuleScriptFetcher.
   void Fetch(FetchParameters&,
              ResourceFetcher*,
-             const Modulator* modulator_for_built_in_modules,
              ModuleGraphLevel,
              Client*) override;
 
@@ -35,12 +31,9 @@ class CORE_EXPORT DocumentModuleScriptFetcher final
   void NotifyFinished(Resource*) override;
   String DebugName() const override { return "DocumentModuleScriptFetcher"; }
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
-  bool FetchIfLayeredAPI(const Modulator& modulator_for_built_in_modules,
-                         FetchParameters&);
-
   Member<Client> client_;
 };
 

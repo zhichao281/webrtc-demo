@@ -28,7 +28,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_WEBDATABASE_DATABASE_AUTHORIZER_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_WEBDATABASE_DATABASE_AUTHORIZER_H_
 
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
@@ -100,7 +100,6 @@ class DatabaseAuthorizer {
   bool HadDeletes() const { return had_deletes_; }
 
  private:
-  void AddWhitelistedFunctions();
   int DenyBasedOnTableName(const String&) const;
   int UpdateDeletesBasedOnTableName(const String&);
   bool AllowWrite();

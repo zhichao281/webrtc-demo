@@ -31,22 +31,44 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_BLOB_BLOB_DATA_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_BLOB_BLOB_DATA_H_
 
+// This file is required via serialized_blob.typemap and, transitively,
+// encoded_form_data.typemap. To avoid build circularity issues, it should not
+// transitively include anything that is generated from a mojom_blink target.
+//
+// This requires some gymnastics below, to explicitly forward-declare the
+// required types without reference to the generator output headers.
+
 #include <memory>
 #include "base/gtest_prod_util.h"
 #include "base/thread_annotations.h"
-#include "third_party/blink/public/mojom/blob/blob.mojom-blink.h"
-#include "third_party/blink/public/mojom/blob/data_element.mojom-blink.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
+#include "mojo/public/cpp/bindings/struct_ptr.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/thread_safe_ref_counted.h"
 #include "third_party/blink/renderer/platform/wtf/threading_primitives.h"
 
+namespace network {
+namespace mojom {
+namespace blink {
+class DataPipeGetter;
+}  // namespace blink
+}  // namespace mojom
+}  // namespace network
+
 namespace blink {
 namespace mojom {
 namespace blink {
+class Blob;
+
+class BlobReaderClient;
+
 class BlobRegistry;
+
+class DataElement;
+using DataElementPtr = mojo::StructPtr<DataElement>;
 }
 }  // namespace mojom
 
@@ -79,9 +101,9 @@ class PLATFORM_EXPORT BlobData {
     NO_UNKNOWN_SIZE_FILES
   };
 
-  explicit BlobData(FileCompositionStatus composition =
-                        FileCompositionStatus::NO_UNKNOWN_SIZE_FILES)
-      : file_composition_(composition) {}
+  explicit BlobData(
+      FileCompositionStatus = FileCompositionStatus::NO_UNKNOWN_SIZE_FILES);
+  ~BlobData();
 
   // Calling append* on objects returned by createFor___WithUnknownSize will
   // check-fail. The caller can only have an unknown-length file if it is the
@@ -90,10 +112,10 @@ class PLATFORM_EXPORT BlobData {
       const String& path);
   static std::unique_ptr<BlobData> CreateForFileWithUnknownSize(
       const String& path,
-      double expected_modification_time);
+      const base::Optional<base::Time>& expected_modification_time);
   static std::unique_ptr<BlobData> CreateForFileSystemURLWithUnknownSize(
       const KURL& file_system_url,
-      double expected_modification_time);
+      const base::Optional<base::Time>& expected_modification_time);
 
   // Detaches from current thread so that it can be passed to another thread.
   void DetachFromCurrentThread();
@@ -104,26 +126,25 @@ class PLATFORM_EXPORT BlobData {
   const Vector<mojom::blink::DataElementPtr>& Elements() const {
     return elements_;
   }
-  Vector<mojom::blink::DataElementPtr> ReleaseElements() {
-    return std::move(elements_);
-  }
+  Vector<mojom::blink::DataElementPtr> ReleaseElements();
 
   void AppendBytes(const void*, size_t length);
   void AppendData(scoped_refptr<RawData>);
   void AppendFile(const String& path,
                   int64_t offset,
                   int64_t length,
-                  double expected_modification_time);
+                  const base::Optional<base::Time>& expected_modification_time);
 
   // The given blob must not be a file with unknown size. Please use the
   // File::appendTo instead.
   void AppendBlob(scoped_refptr<BlobDataHandle>,
                   int64_t offset,
                   int64_t length);
-  void AppendFileSystemURL(const KURL&,
-                           int64_t offset,
-                           int64_t length,
-                           double expected_modification_time);
+  void AppendFileSystemURL(
+      const KURL&,
+      int64_t offset,
+      int64_t length,
+      const base::Optional<base::Time>& expected_modification_time);
   void AppendText(const String&, bool normalize_line_endings_to_native);
 
   // The value of the size property for a Blob who has this data.
@@ -176,13 +197,7 @@ class PLATFORM_EXPORT BlobDataHandle
       const String& uuid,
       const String& type,
       uint64_t size,
-      mojom::blink::BlobPtrInfo blob_info) {
-    if (blob_info.is_valid()) {
-      return base::AdoptRef(
-          new BlobDataHandle(uuid, type, size, std::move(blob_info)));
-    }
-    return base::AdoptRef(new BlobDataHandle(uuid, type, size));
-  }
+      mojo::PendingRemote<mojom::blink::Blob>);
 
   String Uuid() const { return uuid_.IsolatedCopy(); }
   String GetType() const { return type_.IsolatedCopy(); }
@@ -192,15 +207,26 @@ class PLATFORM_EXPORT BlobDataHandle
 
   ~BlobDataHandle();
 
-  mojom::blink::BlobPtr CloneBlobPtr();
-  network::mojom::blink::DataPipeGetterPtr AsDataPipeGetter();
+  mojo::PendingRemote<mojom::blink::Blob> CloneBlobRemote();
+  void CloneBlobRemote(mojo::PendingReceiver<mojom::blink::Blob>);
+  mojo::PendingRemote<network::mojom::blink::DataPipeGetter> AsDataPipeGetter();
 
   void ReadAll(mojo::ScopedDataPipeProducerHandle,
-               mojom::blink::BlobReaderClientPtr);
+               mojo::PendingRemote<mojom::blink::BlobReaderClient>);
   void ReadRange(uint64_t offset,
                  uint64_t length,
                  mojo::ScopedDataPipeProducerHandle,
-                 mojom::blink::BlobReaderClientPtr);
+                 mojo::PendingRemote<mojom::blink::BlobReaderClient>);
+
+  // This does synchronous IPC, and possibly synchronous file operations. Think
+  // twice before calling this function.
+  bool CaptureSnapshot(uint64_t* snapshot_size,
+                       base::Optional<base::Time>* snapshot_modification_time);
+
+  void SetBlobRemoteForTesting(mojo::PendingRemote<mojom::blink::Blob> remote) {
+    MutexLocker locker(blob_remote_mutex_);
+    blob_remote_ = std::move(remote);
+  }
 
   static mojom::blink::BlobRegistry* GetBlobRegistry();
   static void SetBlobRegistryForTesting(mojom::blink::BlobRegistry*);
@@ -212,18 +238,19 @@ class PLATFORM_EXPORT BlobDataHandle
   BlobDataHandle(const String& uuid,
                  const String& type,
                  uint64_t size,
-                 mojom::blink::BlobPtrInfo);
+                 mojo::PendingRemote<mojom::blink::Blob>);
 
   const String uuid_;
   const String type_;
   const uint64_t size_;
   const bool is_single_unknown_size_file_;
   // This class is supposed to be thread safe. So to be able to use the mojo
-  // Blob interface from multiple threads store a InterfacePtrInfo combined with
+  // Blob interface from multiple threads store a PendingRemote combined with
   // a mutex, and make sure any access to the mojo interface is done protected
   // by the mutex.
-  mojom::blink::BlobPtrInfo blob_info_ GUARDED_BY(blob_info_mutex_);
-  Mutex blob_info_mutex_;
+  mojo::PendingRemote<mojom::blink::Blob> blob_remote_
+      GUARDED_BY(blob_remote_mutex_);
+  Mutex blob_remote_mutex_;
 };
 
 }  // namespace blink

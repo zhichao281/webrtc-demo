@@ -8,11 +8,14 @@
 #include <memory>
 
 #include "base/optional.h"
+#include "cc/animation/scroll_timeline.h"
 #include "third_party/blink/renderer/core/animation/scroll_timeline.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/platform/animation/compositor_animation.h"
 
 namespace blink {
+
+using CompositorScrollTimeline = cc::ScrollTimeline;
 
 class AnimationTimeline;
 class ComputedStyle;
@@ -22,7 +25,7 @@ namespace scroll_timeline_util {
 
 // Converts the input timeline to the compositor representation of a
 // ScrollTimeline. Returns nullptr if the input is not a ScrollTimeline.
-std::unique_ptr<CompositorScrollTimeline> CORE_EXPORT
+scoped_refptr<CompositorScrollTimeline> CORE_EXPORT
 ToCompositorScrollTimeline(AnimationTimeline*);
 
 // Retrieves the 'scroll' compositor element id for the input node, or
@@ -36,6 +39,9 @@ GetCompositorScrollElementId(const Node*);
 // https://drafts.csswg.org/css-writing-modes-3/#logical-to-physical
 CompositorScrollTimeline::ScrollDirection CORE_EXPORT
 ConvertOrientation(ScrollTimeline::ScrollDirection, const ComputedStyle*);
+
+double ComputeProgress(double current_offset,
+                       const WTF::Vector<double>& resolved_offsets);
 
 }  // namespace scroll_timeline_util
 

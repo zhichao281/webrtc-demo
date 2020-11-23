@@ -9,14 +9,14 @@
 #include "third_party/blink/renderer/core/animation/animation.h"
 #include "third_party/blink/renderer/core/animation/interpolation.h"
 #include "third_party/blink/renderer/core/animation/keyframe_effect.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
 
 // Associates the results of sampling an EffectModel with metadata used for
 // effect ordering and managing composited animations.
-class SampledEffect : public GarbageCollectedFinalized<SampledEffect> {
+class SampledEffect final : public GarbageCollected<SampledEffect> {
  public:
   SampledEffect(KeyframeEffect*, unsigned sequence_number);
 
@@ -36,7 +36,7 @@ class SampledEffect : public GarbageCollectedFinalized<SampledEffect> {
   void RemoveReplacedInterpolations(const HashSet<PropertyHandle>&);
   void UpdateReplacedProperties(HashSet<PropertyHandle>&);
 
-  void Trace(blink::Visitor*);
+  void Trace(Visitor*) const;
 
  private:
   WeakMember<KeyframeEffect> effect_;

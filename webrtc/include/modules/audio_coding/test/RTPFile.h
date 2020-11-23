@@ -12,11 +12,12 @@
 #define MODULES_AUDIO_CODING_TEST_RTPFILE_H_
 
 #include <stdio.h>
+
 #include <queue>
 
-#include "modules/audio_coding/include/audio_coding_module.h"
-#include "modules/include/module_common_types.h"
-#include "rtc_base/synchronization/rw_lock_wrapper.h"
+#include "api/rtp_headers.h"
+#include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
 
@@ -70,9 +71,9 @@ class RTPPacket {
 
 class RTPBuffer : public RTPStream {
  public:
-  RTPBuffer();
+  RTPBuffer() = default;
 
-  ~RTPBuffer();
+  ~RTPBuffer() = default;
 
   void Write(const uint8_t payloadType,
              const uint32_t timeStamp,
@@ -89,8 +90,8 @@ class RTPBuffer : public RTPStream {
   bool EndOfFile() const override;
 
  private:
-  RWLockWrapper* _queueRWLock;
-  std::queue<RTPPacket*> _rtpQueue;
+  mutable Mutex mutex_;
+  std::queue<RTPPacket*> _rtpQueue RTC_GUARDED_BY(&mutex_);
 };
 
 class RTPFile : public RTPStream {

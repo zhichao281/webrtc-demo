@@ -27,6 +27,7 @@
 
 #include "third_party/blink/renderer/platform/transforms/transform_operation.h"
 #include "third_party/blink/renderer/platform/transforms/transformation_matrix.h"
+#include "third_party/blink/renderer/platform/wtf/casting.h"
 
 namespace blink {
 
@@ -51,10 +52,6 @@ class PLATFORM_EXPORT MatrixTransformOperation final
     return TransformationMatrix(a_, b_, c_, d_, e_, f_);
   }
 
-  bool CanBlendWith(const TransformOperation& other) const override {
-    return false;
-  }
-
   static bool IsMatchingOperationType(OperationType type) {
     return type == kMatrix;
   }
@@ -77,11 +74,18 @@ class PLATFORM_EXPORT MatrixTransformOperation final
     transform.Multiply(matrix);
   }
 
+  scoped_refptr<TransformOperation> Accumulate(
+      const TransformOperation&) override;
+
   scoped_refptr<TransformOperation> Blend(
       const TransformOperation* from,
       double progress,
       bool blend_to_identity = false) override;
   scoped_refptr<TransformOperation> Zoom(double factor) final;
+
+  bool PreservesAxisAlignment() const final {
+    return Matrix().Preserves2dAxisAlignment();
+  }
 
   MatrixTransformOperation(double a,
                            double b,
@@ -102,7 +106,13 @@ class PLATFORM_EXPORT MatrixTransformOperation final
   double f_;
 };
 
-DEFINE_TRANSFORM_TYPE_CASTS(MatrixTransformOperation);
+template <>
+struct DowncastTraits<MatrixTransformOperation> {
+  static bool AllowFrom(const TransformOperation& transform) {
+    return MatrixTransformOperation::IsMatchingOperationType(
+        transform.GetType());
+  }
+};
 
 }  // namespace blink
 

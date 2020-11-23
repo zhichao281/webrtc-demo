@@ -13,12 +13,14 @@
 
 #include <deque>
 #include <map>
+#include <vector>
 
 #include "rtc_base/checks.h"
 #include "rtc_base/constructor_magic.h"
+#include "rtc_base/deprecated/recursive_critical_section.h"
 #include "rtc_base/event.h"
 #include "rtc_base/fake_clock.h"
-#include "rtc_base/message_queue.h"
+#include "rtc_base/message_handler.h"
 #include "rtc_base/socket_server.h"
 
 namespace rtc {
@@ -37,7 +39,7 @@ class VirtualSocketServer : public SocketServer, public sigslot::has_slots<> {
   // This constructor needs to be used if the test uses a fake clock and
   // ProcessMessagesUntilIdle, since ProcessMessagesUntilIdle needs a way of
   // advancing time.
-  explicit VirtualSocketServer(FakeClock* fake_clock);
+  explicit VirtualSocketServer(ThreadProcessingFakeClock* fake_clock);
   ~VirtualSocketServer() override;
 
   // The default route indicates which local address to use when a socket is
@@ -107,7 +109,7 @@ class VirtualSocketServer : public SocketServer, public sigslot::has_slots<> {
   AsyncSocket* CreateAsyncSocket(int family, int type) override;
 
   // SocketServer:
-  void SetMessageQueue(MessageQueue* queue) override;
+  void SetMessageQueue(Thread* queue) override;
   bool Wait(int cms, bool process_io) override;
   void WakeUp() override;
 
@@ -263,11 +265,11 @@ class VirtualSocketServer : public SocketServer, public sigslot::has_slots<> {
 
   // May be null if the test doesn't use a fake clock, or it does but doesn't
   // use ProcessMessagesUntilIdle.
-  FakeClock* fake_clock_ = nullptr;
+  ThreadProcessingFakeClock* fake_clock_ = nullptr;
 
   // Used to implement Wait/WakeUp.
   Event wakeup_;
-  MessageQueue* msg_queue_;
+  Thread* msg_queue_;
   bool stop_on_idle_;
   in_addr next_ipv4_;
   in6_addr next_ipv6_;
@@ -293,7 +295,7 @@ class VirtualSocketServer : public SocketServer, public sigslot::has_slots<> {
   std::map<rtc::IPAddress, rtc::IPAddress> alternative_address_mapping_;
   std::unique_ptr<Function> delay_dist_;
 
-  CriticalSection delay_crit_;
+  RecursiveCriticalSection delay_crit_;
 
   double drop_prob_;
   bool sending_blocked_ = false;
@@ -303,7 +305,7 @@ class VirtualSocketServer : public SocketServer, public sigslot::has_slots<> {
 // Implements the socket interface using the virtual network.  Packets are
 // passed as messages using the message queue of the socket server.
 class VirtualSocket : public AsyncSocket,
-                      public MessageHandler,
+                      public MessageHandlerAutoCleanup,
                       public sigslot::has_slots<> {
  public:
   VirtualSocket(VirtualSocketServer* server, int family, int type, bool async);
@@ -378,7 +380,7 @@ class VirtualSocket : public AsyncSocket,
   bool ready_to_send_ = true;
 
   // Critical section to protect the recv_buffer and queue_
-  CriticalSection crit_;
+  RecursiveCriticalSection crit_;
 
   // Network model that enforces bandwidth and capacity constraints
   NetworkQueue network_;

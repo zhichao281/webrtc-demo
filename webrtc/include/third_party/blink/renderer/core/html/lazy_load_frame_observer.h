@@ -11,18 +11,17 @@
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/heap_allocator.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
-#include "third_party/blink/renderer/platform/wtf/time.h"
 
 namespace blink {
 
 class IntersectionObserver;
 class IntersectionObserverEntry;
 class HTMLFrameOwnerElement;
-class ResourceRequest;
+class ResourceRequestHead;
 class Visitor;
 
-class LazyLoadFrameObserver
-    : public GarbageCollectedFinalized<LazyLoadFrameObserver> {
+class LazyLoadFrameObserver final
+    : public GarbageCollected<LazyLoadFrameObserver> {
  public:
   // This enum is logged to histograms, so values should not be reordered or
   // reused, and it must match the corresponding enum
@@ -42,10 +41,20 @@ class LazyLoadFrameObserver
     kMaxValue = kLoadedHidden
   };
 
-  explicit LazyLoadFrameObserver(HTMLFrameOwnerElement&);
+  // The loading pipeline for an iframe differs depending on whether the
+  // navigation is its first, or a dynamic / subsequent one. Since the iframe
+  // loading path differs, LazyLoadFrameObserver must also account for this
+  // difference when loading a deferred frame. This enum helps us keep track of
+  // that so we can do the right thing.
+  enum class LoadType {
+    kFirst,
+    kSubsequent,
+  };
+
+  LazyLoadFrameObserver(HTMLFrameOwnerElement&, LoadType);
   ~LazyLoadFrameObserver();
 
-  void DeferLoadUntilNearViewport(const ResourceRequest&, WebFrameLoadType);
+  void DeferLoadUntilNearViewport(const ResourceRequestHead&, WebFrameLoadType);
   bool IsLazyLoadPending() const { return lazy_load_intersection_observer_; }
   void CancelPendingLazyLoad();
 
@@ -54,7 +63,7 @@ class LazyLoadFrameObserver
 
   void LoadImmediately();
 
-  void Trace(Visitor*);
+  void Trace(Visitor*) const;
 
  private:
   struct LazyLoadRequestInfo;
@@ -88,14 +97,16 @@ class LazyLoadFrameObserver
   bool has_above_the_fold_been_set_ = false;
 
   // Set when the frame first becomes visible (i.e. appears in the viewport).
-  TimeTicks time_when_first_visible_;
+  base::TimeTicks time_when_first_visible_;
   // Set when the first load event is dispatched for the frame.
-  TimeTicks time_when_first_load_finished_;
+  base::TimeTicks time_when_first_load_finished_;
 
   // Keeps track of whether the frame was initially recorded as having been
   // deferred, so that the appropriate histograms can be recorded if the frame
   // later gets loaded in for some reason.
   bool was_recorded_as_deferred_ = false;
+
+  LoadType load_type_;
 };
 
 }  // namespace blink

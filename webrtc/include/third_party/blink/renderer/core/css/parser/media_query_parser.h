@@ -5,7 +5,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_CSS_PARSER_MEDIA_QUERY_PARSER_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_PARSER_MEDIA_QUERY_PARSER_H_
 
-#include "base/macros.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/media_list.h"
 #include "third_party/blink/renderer/core/css/media_query.h"
@@ -19,6 +18,7 @@
 namespace blink {
 
 class MediaQuerySet;
+class CSSParserContext;
 
 class MediaQueryData {
   STACK_ALLOCATED();
@@ -30,10 +30,16 @@ class MediaQueryData {
   String media_feature_;
   bool media_type_set_;
 
+  // A fake CSSParserContext for use counter only.
+  // TODO(xiaochengh): Plumb the real CSSParserContext from the document.
+  const CSSParserContext& fake_context_;
+
  public:
   MediaQueryData();
+  MediaQueryData(const MediaQueryData&) = delete;
+  MediaQueryData& operator=(const MediaQueryData&) = delete;
   void Clear();
-  void AddExpression(CSSParserTokenRange&);
+  void AddExpression(CSSParserTokenRange&, const ExecutionContext*);
   bool LastExpressionValid();
   void RemoveLastExpression();
   void SetMediaType(const String&);
@@ -50,19 +56,25 @@ class MediaQueryData {
   }
 
   inline void SetMediaFeature(const String& str) { media_feature_ = str; }
-  DISALLOW_COPY_AND_ASSIGN(MediaQueryData);
 };
 
 class CORE_EXPORT MediaQueryParser {
   STACK_ALLOCATED();
 
  public:
-  static scoped_refptr<MediaQuerySet> ParseMediaQuerySet(const String&);
-  static scoped_refptr<MediaQuerySet> ParseMediaQuerySet(CSSParserTokenRange);
-  static scoped_refptr<MediaQuerySet> ParseMediaCondition(CSSParserTokenRange);
+  static scoped_refptr<MediaQuerySet> ParseMediaQuerySet(
+      const String&,
+      const ExecutionContext*);
+  static scoped_refptr<MediaQuerySet> ParseMediaQuerySet(
+      CSSParserTokenRange,
+      const ExecutionContext*);
+  static scoped_refptr<MediaQuerySet> ParseMediaCondition(
+      CSSParserTokenRange,
+      const ExecutionContext*);
   static scoped_refptr<MediaQuerySet> ParseMediaQuerySetInMode(
       CSSParserTokenRange,
-      CSSParserMode);
+      CSSParserMode,
+      const ExecutionContext*);
 
  private:
   enum ParserType {
@@ -70,7 +82,9 @@ class CORE_EXPORT MediaQueryParser {
     kMediaConditionParser,
   };
 
-  MediaQueryParser(ParserType, CSSParserMode);
+  MediaQueryParser(ParserType, CSSParserMode, const ExecutionContext*);
+  MediaQueryParser(const MediaQueryParser&) = delete;
+  MediaQueryParser& operator=(const MediaQueryParser&) = delete;
   virtual ~MediaQueryParser();
 
   scoped_refptr<MediaQuerySet> ParseImpl(CSSParserTokenRange);
@@ -125,6 +139,7 @@ class CORE_EXPORT MediaQueryParser {
   scoped_refptr<MediaQuerySet> query_set_;
   MediaQueryBlockWatcher block_watcher_;
   CSSParserMode mode_;
+  const ExecutionContext* execution_context_;
 
   const static State kReadRestrictor;
   const static State kReadMediaNot;
@@ -138,7 +153,6 @@ class CORE_EXPORT MediaQueryParser {
   const static State kSkipUntilComma;
   const static State kSkipUntilBlockEnd;
   const static State kDone;
-  DISALLOW_COPY_AND_ASSIGN(MediaQueryParser);
 };
 
 }  // namespace blink

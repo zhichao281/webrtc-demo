@@ -36,7 +36,7 @@
 #include "build/build_config.h"
 #include "third_party/blink/renderer/platform/audio/audio_array.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
@@ -112,7 +112,7 @@ class PLATFORM_EXPORT Biquad final {
   AudioDoubleArray a1_;
   AudioDoubleArray a2_;
 
-#if defined(OS_MACOSX)
+#if defined(OS_MAC)
   void ProcessFast(const float* source_p,
                    float* dest_p,
                    uint32_t frames_to_process);

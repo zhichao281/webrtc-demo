@@ -29,6 +29,8 @@
 #include "util/misc/address_types.h"
 #include "util/misc/initialization_state_dcheck.h"
 #include "util/misc/range_set.h"
+#include "util/process/process_id.h"
+#include "util/process/process_memory_sanitized.h"
 
 namespace crashpad {
 
@@ -45,9 +47,11 @@ class ProcessSnapshotSanitized final : public ProcessSnapshot {
   //! this object.
   //!
   //! \param[in] snapshot The ProcessSnapshot to sanitize.
-  //! \param[in] annotations_whitelist A list of annotations names to allow to
+  //! \param[in] allowed_annotations A list of annotations names to allow to
   //!     be returned by AnnotationsSimpleMap() or from this object's module
   //!     snapshots. If `nullptr`, all annotations will be returned.
+  //! \param[in] allowed_memory_ranges A list of memory ranges to allow to be
+  //!     accessible via Memory(), or `nullptr` to allow all ranges.
   //! \param[in] target_module_address An address in the target process'
   //!     address space within the bounds of a module to target. If the
   //!     crashing thread's context and stack do not contain any pointers into
@@ -59,15 +63,18 @@ class ProcessSnapshotSanitized final : public ProcessSnapshot {
   //!     internal::StackSnapshotSanitized.
   //! \return `false` if \a snapshot does not meet sanitization requirements and
   //!     should be filtered entirely. Otherwise `true`.
-  bool Initialize(const ProcessSnapshot* snapshot,
-                  const std::vector<std::string>* annotations_whitelist,
-                  VMAddress target_module_address,
-                  bool sanitize_stacks);
+  bool Initialize(
+      const ProcessSnapshot* snapshot,
+      std::unique_ptr<const std::vector<std::string>> allowed_annotations,
+      std::unique_ptr<const std::vector<std::pair<VMAddress, VMAddress>>>
+          allowed_memory_ranges,
+      VMAddress target_module_address,
+      bool sanitize_stacks);
 
   // ProcessSnapshot:
 
-  pid_t ProcessID() const override;
-  pid_t ParentProcessID() const override;
+  crashpad::ProcessID ProcessID() const override;
+  crashpad::ProcessID ParentProcessID() const override;
   void SnapshotTime(timeval* snapshot_time) const override;
   void ProcessStartTime(timeval* start_time) const override;
   void ProcessCPUTimes(timeval* user_time, timeval* system_time) const override;
@@ -86,7 +93,7 @@ class ProcessSnapshotSanitized final : public ProcessSnapshot {
   const ProcessMemory* Memory() const override;
 
  private:
-  // Only used when annotations_whitelist_ != nullptr.
+  // Only used when allowed_annotations_ != nullptr.
   std::vector<std::unique_ptr<internal::ModuleSnapshotSanitized>> modules_;
 
   // Only used when sanitize_stacks_ == true.
@@ -94,7 +101,8 @@ class ProcessSnapshotSanitized final : public ProcessSnapshot {
 
   RangeSet address_ranges_;
   const ProcessSnapshot* snapshot_;
-  const std::vector<std::string>* annotations_whitelist_;
+  ProcessMemorySanitized process_memory_;
+  std::unique_ptr<const std::vector<std::string>> allowed_annotations_;
   bool sanitize_stacks_;
   InitializationStateDcheck initialized_;
 

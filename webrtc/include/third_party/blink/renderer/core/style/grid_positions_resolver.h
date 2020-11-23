@@ -5,9 +5,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_STYLE_GRID_POSITIONS_RESOLVER_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_STYLE_GRID_POSITIONS_RESOLVER_H_
 
-#include "base/macros.h"
 #include "third_party/blink/renderer/core/style/grid_position.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
@@ -38,16 +37,19 @@ class NamedLineCollection {
   bool Contains(size_t line);
 
  private:
-  size_t Find(size_t line);
+  bool HasExplicitNamedLines();
+  size_t FirstExplicitPosition();
   const Vector<size_t>* named_lines_indexes_ = nullptr;
   const Vector<size_t>* auto_repeat_named_lines_indexes_ = nullptr;
+  const Vector<size_t>* implicit_named_lines_indexes_ = nullptr;
 
   size_t insertion_point_;
   size_t last_line_;
   size_t auto_repeat_total_tracks_;
   size_t auto_repeat_track_list_length_;
 
-  DISALLOW_COPY_AND_ASSIGN(NamedLineCollection);
+  NamedLineCollection(const NamedLineCollection&) = delete;
+  NamedLineCollection& operator=(const NamedLineCollection&) = delete;
 };
 
 // This is a utility class with all the code related to grid items positions
@@ -64,11 +66,11 @@ class GridPositionsResolver {
   static GridPositionSide InitialPositionSide(GridTrackSizingDirection);
   static GridPositionSide FinalPositionSide(GridTrackSizingDirection);
 
-  static size_t SpanSizeForAutoPlacedItem(const LayoutBox&,
+  static size_t SpanSizeForAutoPlacedItem(const ComputedStyle&,
                                           GridTrackSizingDirection);
   static GridSpan ResolveGridPositionsFromStyle(
       const ComputedStyle&,
-      const LayoutBox&,
+      const ComputedStyle&,
       GridTrackSizingDirection,
       size_t auto_repeat_tracks_count);
 };

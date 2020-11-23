@@ -9,7 +9,6 @@
 
 #include <initializer_list>
 #include <memory>
-#include <vector>
 
 #include "base/macros.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -23,11 +22,11 @@ namespace blink {
 
 class Element;
 
-class Command : public GarbageCollectedFinalized<Command> {
+class Command : public GarbageCollected<Command> {
  public:
   Command() = default;
   virtual ~Command() = default;
-  virtual void Trace(Visitor* visitor) {}
+  virtual void Trace(Visitor* visitor) const {}
   virtual void Run(Element&) = 0;
 
   DISALLOW_COPY_AND_ASSIGN(Command);
@@ -60,13 +59,13 @@ class Unreached : public Command {
 
 class Log : public Command {
  public:
-  Log(char what, std::vector<char>& where) : what_(what), where_(where) {}
+  Log(char what, Vector<char>& where) : what_(what), where_(where) {}
   ~Log() override = default;
   void Run(Element&) override { where_.push_back(what_); }
 
  private:
   char what_;
-  std::vector<char>& where_;
+  Vector<char>& where_;
 
   DISALLOW_COPY_AND_ASSIGN(Log);
 };
@@ -75,7 +74,7 @@ class Recurse : public Command {
  public:
   Recurse(CustomElementReactionQueue* queue) : queue_(queue) {}
   ~Recurse() override = default;
-  void Trace(Visitor* visitor) override {
+  void Trace(Visitor* visitor) const override {
     Command::Trace(visitor);
     visitor->Trace(queue_);
   }
@@ -92,7 +91,7 @@ class Enqueue : public Command {
   Enqueue(CustomElementReactionQueue* queue, CustomElementReaction* reaction)
       : queue_(queue), reaction_(reaction) {}
   ~Enqueue() override = default;
-  void Trace(Visitor* visitor) override {
+  void Trace(Visitor* visitor) const override {
     Command::Trace(visitor);
     visitor->Trace(queue_);
     visitor->Trace(reaction_);
@@ -114,7 +113,7 @@ class TestReaction : public CustomElementReaction {
                 CustomElementDescriptor("mock-element", "mock-element"))),
         commands_(commands) {}
   ~TestReaction() override = default;
-  void Trace(Visitor* visitor) override {
+  void Trace(Visitor* visitor) const override {
     CustomElementReaction::Trace(visitor);
     visitor->Trace(commands_);
   }
@@ -144,8 +143,8 @@ class ResetCustomElementReactionStackForTest final {
   CustomElementReactionStack& Stack() { return *stack_; }
 
  private:
-  Member<CustomElementReactionStack> stack_;
-  Member<CustomElementReactionStack> old_stack_;
+  CustomElementReactionStack* stack_;
+  CustomElementReactionStack* old_stack_;
 
   DISALLOW_COPY_AND_ASSIGN(ResetCustomElementReactionStackForTest);
 };

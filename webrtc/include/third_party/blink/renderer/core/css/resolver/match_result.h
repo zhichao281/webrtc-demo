@@ -24,8 +24,11 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_CSS_RESOLVER_MATCH_RESULT_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_RESOLVER_MATCH_RESULT_H_
 
-#include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
+#include "third_party/blink/renderer/core/css/resolver/cascade_expansion.h"
+#include "third_party/blink/renderer/core/css/resolver/cascade_filter.h"
+#include "third_party/blink/renderer/core/css/resolver/cascade_origin.h"
+#include "third_party/blink/renderer/core/css/resolver/cascade_priority.h"
 #include "third_party/blink/renderer/core/css/rule_set.h"
 #include "third_party/blink/renderer/core/css/selector_checker.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
@@ -40,21 +43,25 @@ struct CORE_EXPORT MatchedProperties {
 
  public:
   MatchedProperties();
-  ~MatchedProperties();
 
-  void Trace(blink::Visitor*);
+  void Trace(Visitor*) const;
 
   Member<CSSPropertyValueSet> properties;
 
-  union {
-    struct {
-      unsigned link_match_type : 2;
-      unsigned whitelist_type : 2;
-    } types_;
-    // Used to make sure all memory is zero-initialized since we compute the
-    // hash over the bytes of this object.
-    void* possibly_padded_member;
+  struct Data {
+    unsigned link_match_type : 2;
+    unsigned valid_property_filter : 3;
+    CascadeOrigin origin;
+    // This is approximately equivalent to the 'shadow-including tree order'.
+    // It can be used to evaluate the 'Shadow Tree' criteria. Note that the
+    // number stored here is 'local' to each origin (user, author), and is
+    // not used at all for the UA origin. Hence, it is not possible to compare
+    // tree_orders from two different origins.
+    //
+    // https://drafts.csswg.org/css-scoping/#shadow-cascading
+    uint16_t tree_order;
   };
+  Data types_;
 };
 
 }  // namespace blink
@@ -65,26 +72,56 @@ namespace blink {
 
 using MatchedPropertiesVector = HeapVector<MatchedProperties, 64>;
 
-// MatchedPropertiesRange is used to represent a subset of the matched
-// properties from a given origin, for instance UA rules, author rules, or a
-// shadow tree scope.  This is needed because rules from different origins are
-// applied in the opposite order for !important rules, yet in the same order as
-// for normal rules within the same origin.
+class MatchedExpansionsIterator {
+  STACK_ALLOCATED();
+  using Iterator = MatchedPropertiesVector::const_iterator;
 
-class MatchedPropertiesRange {
  public:
-  MatchedPropertiesRange(MatchedPropertiesVector::const_iterator begin,
-                         MatchedPropertiesVector::const_iterator end)
-      : begin_(begin), end_(end) {}
+  MatchedExpansionsIterator(Iterator iterator,
+                            const Document& document,
+                            CascadeFilter filter,
+                            size_t index)
+      : iterator_(iterator),
+        document_(document),
+        filter_(filter),
+        index_(index) {}
 
-  MatchedPropertiesVector::const_iterator begin() const { return begin_; }
-  MatchedPropertiesVector::const_iterator end() const { return end_; }
+  void operator++() {
+    iterator_++;
+    index_++;
+  }
+  bool operator==(const MatchedExpansionsIterator& o) const {
+    return iterator_ == o.iterator_;
+  }
+  bool operator!=(const MatchedExpansionsIterator& o) const {
+    return iterator_ != o.iterator_;
+  }
 
-  bool IsEmpty() const { return begin() == end(); }
+  CascadeExpansion operator*() const {
+    return CascadeExpansion(*iterator_, document_, filter_, index_);
+  }
 
  private:
-  MatchedPropertiesVector::const_iterator begin_;
-  MatchedPropertiesVector::const_iterator end_;
+  Iterator iterator_;
+  const Document& document_;
+  CascadeFilter filter_;
+  size_t index_;
+};
+
+class MatchedExpansionsRange {
+  STACK_ALLOCATED();
+
+ public:
+  MatchedExpansionsRange(MatchedExpansionsIterator begin,
+                         MatchedExpansionsIterator end)
+      : begin_(begin), end_(end) {}
+
+  MatchedExpansionsIterator begin() const { return begin_; }
+  MatchedExpansionsIterator end() const { return end_; }
+
+ private:
+  MatchedExpansionsIterator begin_;
+  MatchedExpansionsIterator end_;
 };
 
 class CORE_EXPORT MatchResult {
@@ -92,169 +129,43 @@ class CORE_EXPORT MatchResult {
 
  public:
   MatchResult() = default;
+  MatchResult(const MatchResult&) = delete;
+  MatchResult& operator=(const MatchResult&) = delete;
 
-  void AddMatchedProperties(const CSSPropertyValueSet* properties,
-                            unsigned link_match_type = CSSSelector::kMatchAll,
-                            PropertyWhitelistType = kPropertyWhitelistNone);
+  void AddMatchedProperties(
+      const CSSPropertyValueSet* properties,
+      unsigned link_match_type = CSSSelector::kMatchAll,
+      ValidPropertyFilter = ValidPropertyFilter::kNoFilter);
   bool HasMatchedProperties() const { return matched_properties_.size(); }
 
   void FinishAddingUARules();
   void FinishAddingUserRules();
-  void FinishAddingAuthorRulesForTreeScope();
+  void FinishAddingAuthorRulesForTreeScope(const TreeScope&);
 
   void SetIsCacheable(bool cacheable) { is_cacheable_ = cacheable; }
   bool IsCacheable() const { return is_cacheable_; }
 
-  MatchedPropertiesRange AllRules() const {
-    return MatchedPropertiesRange(matched_properties_.begin(),
-                                  matched_properties_.end());
-  }
-  MatchedPropertiesRange UaRules() const {
-    MatchedPropertiesVector::const_iterator begin = matched_properties_.begin();
-    MatchedPropertiesVector::const_iterator end =
-        matched_properties_.begin() + ua_range_end_;
-    return MatchedPropertiesRange(begin, end);
-  }
-  MatchedPropertiesRange UserRules() const {
-    MatchedPropertiesVector::const_iterator begin =
-        matched_properties_.begin() + ua_range_end_;
-    MatchedPropertiesVector::const_iterator end =
-        matched_properties_.begin() + (user_range_ends_.IsEmpty()
-                                           ? ua_range_end_
-                                           : user_range_ends_.back());
-    return MatchedPropertiesRange(begin, end);
-  }
-  MatchedPropertiesRange AuthorRules() const {
-    MatchedPropertiesVector::const_iterator begin =
-        matched_properties_.begin() + (user_range_ends_.IsEmpty()
-                                           ? ua_range_end_
-                                           : user_range_ends_.back());
-    MatchedPropertiesVector::const_iterator end = matched_properties_.end();
-    return MatchedPropertiesRange(begin, end);
-  }
+  MatchedExpansionsRange Expansions(const Document&, CascadeFilter) const;
 
   const MatchedPropertiesVector& GetMatchedProperties() const {
     return matched_properties_;
   }
 
- private:
-  friend class ImportantUserRanges;
-  friend class ImportantUserRangeIterator;
-  friend class ImportantAuthorRanges;
-  friend class ImportantAuthorRangeIterator;
+  // Reset the MatchResult to its initial state, as if no MatchedProperties
+  // objects were added.
+  void Reset();
 
+  const TreeScope& ScopeFromTreeOrder(uint16_t tree_order) const {
+    SECURITY_DCHECK(tree_order < tree_scopes_.size());
+    return *tree_scopes_[tree_order];
+  }
+
+ private:
   MatchedPropertiesVector matched_properties_;
-  Vector<unsigned, 16> user_range_ends_;
-  Vector<unsigned, 16> author_range_ends_;
-  unsigned ua_range_end_ = 0;
-  bool is_cacheable_ = true;
-  DISALLOW_COPY_AND_ASSIGN(MatchResult);
-};
-
-class ImportantUserRangeIterator {
-  STACK_ALLOCATED();
-
- public:
-  ImportantUserRangeIterator(const MatchResult& result, int end_index)
-      : result_(result), end_index_(end_index) {}
-
-  MatchedPropertiesRange operator*() const {
-    unsigned range_end = result_.user_range_ends_[end_index_];
-    unsigned range_begin = end_index_
-                               ? result_.user_range_ends_[end_index_ - 1]
-                               : result_.ua_range_end_;
-    return MatchedPropertiesRange(
-        result_.GetMatchedProperties().begin() + range_begin,
-        result_.GetMatchedProperties().begin() + range_end);
-  }
-
-  ImportantUserRangeIterator& operator++() {
-    --end_index_;
-    return *this;
-  }
-
-  bool operator==(const ImportantUserRangeIterator& other) const {
-    return end_index_ == other.end_index_ && &result_ == &other.result_;
-  }
-  bool operator!=(const ImportantUserRangeIterator& other) const {
-    return !(*this == other);
-  }
-
- private:
-  const MatchResult& result_;
-  unsigned end_index_;
-};
-
-class ImportantUserRanges {
-  STACK_ALLOCATED();
-
- public:
-  explicit ImportantUserRanges(const MatchResult& result) : result_(result) {}
-
-  ImportantUserRangeIterator begin() const {
-    return ImportantUserRangeIterator(result_,
-                                        result_.user_range_ends_.size() - 1);
-  }
-  ImportantUserRangeIterator end() const {
-    return ImportantUserRangeIterator(result_, -1);
-  }
-
- private:
-  const MatchResult& result_;
-};
-
-class ImportantAuthorRangeIterator {
-  STACK_ALLOCATED();
-
- public:
-  ImportantAuthorRangeIterator(const MatchResult& result, int end_index)
-      : result_(result), end_index_(end_index) {}
-
-  MatchedPropertiesRange operator*() const {
-    unsigned range_end = result_.author_range_ends_[end_index_];
-    unsigned range_begin = end_index_
-                               ? result_.author_range_ends_[end_index_ - 1]
-                               : (result_.user_range_ends_.IsEmpty()
-                                      ? result_.ua_range_end_
-                                      : result_.user_range_ends_.back());
-    return MatchedPropertiesRange(
-        result_.GetMatchedProperties().begin() + range_begin,
-        result_.GetMatchedProperties().begin() + range_end);
-  }
-
-  ImportantAuthorRangeIterator& operator++() {
-    --end_index_;
-    return *this;
-  }
-
-  bool operator==(const ImportantAuthorRangeIterator& other) const {
-    return end_index_ == other.end_index_ && &result_ == &other.result_;
-  }
-  bool operator!=(const ImportantAuthorRangeIterator& other) const {
-    return !(*this == other);
-  }
-
- private:
-  const MatchResult& result_;
-  unsigned end_index_;
-};
-
-class ImportantAuthorRanges {
-  STACK_ALLOCATED();
-
- public:
-  explicit ImportantAuthorRanges(const MatchResult& result) : result_(result) {}
-
-  ImportantAuthorRangeIterator begin() const {
-    return ImportantAuthorRangeIterator(result_,
-                                        result_.author_range_ends_.size() - 1);
-  }
-  ImportantAuthorRangeIterator end() const {
-    return ImportantAuthorRangeIterator(result_, -1);
-  }
-
- private:
-  const MatchResult& result_;
+  HeapVector<Member<const TreeScope>, 4> tree_scopes_;
+  bool is_cacheable_{true};
+  CascadeOrigin current_origin_{CascadeOrigin::kUserAgent};
+  uint16_t current_tree_order_{0};
 };
 
 inline bool operator==(const MatchedProperties& a, const MatchedProperties& b) {

@@ -25,26 +25,24 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_DOM_ELEMENT_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_DOM_ELEMENT_H_
 
-#include "third_party/blink/public/platform/web_focus_type.h"
-#include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/public/common/input/pointer_id.h"
+#include "third_party/blink/public/common/metrics/document_update_reason.h"
+#include "third_party/blink/renderer/core/animation/animatable.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/css_primitive_value.h"
 #include "third_party/blink/renderer/core/css/css_selector.h"
 #include "third_party/blink/renderer/core/css/style_recalc.h"
-#include "third_party/blink/renderer/core/display_lock/display_lock_context.h"
 #include "third_party/blink/renderer/core/dom/container_node.h"
 #include "third_party/blink/renderer/core/dom/dom_high_res_time_stamp.h"
 #include "third_party/blink/renderer/core/dom/element_data.h"
 #include "third_party/blink/renderer/core/dom/names_map.h"
 #include "third_party/blink/renderer/core/dom/whitespace_attacher.h"
-#include "third_party/blink/renderer/core/html/focus_options.h"
 #include "third_party/blink/renderer/core/html_names.h"
-#include "third_party/blink/renderer/core/resize_observer/resize_observer.h"
-#include "third_party/blink/renderer/core/scroll/scroll_types.h"
 #include "third_party/blink/renderer/core/trustedtypes/trusted_types_util.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
+#include "third_party/blink/renderer/platform/wtf/text/atomic_string_table.h"
 
 namespace blink {
 
@@ -58,6 +56,7 @@ class DOMRect;
 class DOMRectList;
 class DOMStringMap;
 class DOMTokenList;
+class DisplayLockContext;
 class Document;
 class ElementAnimations;
 class ElementInternals;
@@ -65,29 +64,40 @@ class ElementIntersectionObserverData;
 class ElementRareData;
 class ExceptionState;
 class FloatQuad;
+class FloatSize;
 class FocusOptions;
+class SetInnerHTMLOptions;
+class GetInnerHTMLOptions;
+class HTMLTemplateElement;
 class Image;
 class InputDeviceCapabilities;
 class Locale;
 class MutableCSSPropertyValueSet;
 class NamedNodeMap;
+class PointerLockOptions;
 class PseudoElement;
-class PseudoStyleRequest;
+class PseudoElementStyleRequest;
 class ResizeObservation;
+class ResizeObserver;
 class ScrollIntoViewOptions;
 class ScrollIntoViewOptionsOrBoolean;
 class ScrollToOptions;
 class ShadowRoot;
 class ShadowRootInit;
 class SpaceSplitString;
-class StringOrTrustedHTML;
-class StringOrTrustedHTMLOrTrustedScriptOrTrustedScriptURLOrTrustedURL;
-class StringOrTrustedScript;
-class StringOrTrustedScriptURL;
+class StringOrTrustedHTMLOrTrustedScriptOrTrustedScriptURL;
 class StylePropertyMap;
 class StylePropertyMapReadOnly;
-class USVStringOrTrustedURL;
 class V0CustomElementDefinition;
+
+enum class CSSPropertyID;
+enum class CSSValueID;
+enum class DisplayLockActivationReason;
+enum class DocumentUpdateReason;
+
+struct FocusParams;
+
+using ScrollOffset = FloatSize;
 
 enum SpellcheckAttributeState {
   kSpellcheckAttributeTrue,
@@ -108,6 +118,9 @@ enum class ElementFlags {
 
 enum class ShadowRootType;
 
+enum class SlotAssignmentMode { kManual, kAuto };
+enum class FocusDelegation { kNone, kDelegateFocus };
+
 enum class SelectionBehaviorOnFocus {
   kReset,
   kRestore,
@@ -122,49 +135,26 @@ enum class NamedItemType {
   kNameOrIdWithName,
 };
 
-enum class InvisibleState {
-  kMissing,
-  kStatic,
-  kInvisible,
-};
-
-struct FocusParams {
-  STACK_ALLOCATED();
-
- public:
-  FocusParams() : options(FocusOptions::Create()) {}
-  FocusParams(SelectionBehaviorOnFocus selection,
-              WebFocusType focus_type,
-              InputDeviceCapabilities* capabilities,
-              const FocusOptions* focus_options = FocusOptions::Create())
-      : selection_behavior(selection),
-        type(focus_type),
-        source_capabilities(capabilities),
-        options(focus_options) {}
-
-  SelectionBehaviorOnFocus selection_behavior =
-      SelectionBehaviorOnFocus::kRestore;
-  WebFocusType type = kWebFocusTypeNone;
-  Member<InputDeviceCapabilities> source_capabilities = nullptr;
-  Member<const FocusOptions> options;
-};
-
 typedef HeapVector<Member<Attr>> AttrNodeList;
 
 typedef HashMap<AtomicString, SpecificTrustedType> AttrNameToTrustedType;
 
-class CORE_EXPORT Element : public ContainerNode {
+class CORE_EXPORT Element : public ContainerNode, public Animatable {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static Element* Create(const QualifiedName&, Document*);
+  Element(const QualifiedName& tag_name,
+          Document*,
+          ConstructionType = kCreateElement);
 
-  Element(const QualifiedName& tag_name, Document*, ConstructionType);
+  // Animatable implementation.
+  Element* GetAnimationTarget() override;
 
   DEFINE_ATTRIBUTE_EVENT_LISTENER(beforecopy, kBeforecopy)
   DEFINE_ATTRIBUTE_EVENT_LISTENER(beforecut, kBeforecut)
   DEFINE_ATTRIBUTE_EVENT_LISTENER(beforepaste, kBeforepaste)
   DEFINE_ATTRIBUTE_EVENT_LISTENER(search, kSearch)
+  DEFINE_ATTRIBUTE_EVENT_LISTENER(beforematch, kBeforematch)
 
   bool hasAttribute(const QualifiedName&) const;
   const AtomicString& getAttribute(const QualifiedName&) const;
@@ -172,6 +162,9 @@ class CORE_EXPORT Element : public ContainerNode {
   // Passing g_null_atom as the second parameter removes the attribute when
   // calling either of these set methods.
   void setAttribute(const QualifiedName&, const AtomicString& value);
+  void setAttribute(const QualifiedName&,
+                    const AtomicString& value,
+                    ExceptionState&);
   void SetSynchronizedLazyAttribute(const QualifiedName&,
                                     const AtomicString& value);
 
@@ -179,6 +172,10 @@ class CORE_EXPORT Element : public ContainerNode {
 
   // Typed getters and setters for language bindings.
   int GetIntegralAttribute(const QualifiedName& attribute_name) const;
+  int GetIntegralAttribute(const QualifiedName& attribute_name,
+                           int default_value) const;
+  unsigned int GetUnsignedIntegralAttribute(
+      const QualifiedName& attribute_name) const;
   void SetIntegralAttribute(const QualifiedName& attribute_name, int value);
   void SetUnsignedIntegralAttribute(const QualifiedName& attribute_name,
                                     unsigned value,
@@ -188,6 +185,22 @@ class CORE_EXPORT Element : public ContainerNode {
       double fallback_value = std::numeric_limits<double>::quiet_NaN()) const;
   void SetFloatingPointAttribute(const QualifiedName& attribute_name,
                                  double value);
+
+  // Returns true if |this| element has attr-associated elements that were set
+  // via the IDL, rather than computed from the content attribute.
+  // See
+  // https://whatpr.org/html/3917/common-dom-interfaces.html#reflecting-content-attributes-in-idl-attributes:element
+  // for more information.
+  // This is only exposed as an implementation detail to AXRelationCache, which
+  // computes aria-owns differently for element reflection.
+  bool HasExplicitlySetAttrAssociatedElements(const QualifiedName& name);
+  Element* GetElementAttribute(const QualifiedName& name);
+  void SetElementAttribute(const QualifiedName&, Element*);
+  base::Optional<HeapVector<Member<Element>>> GetElementArrayAttribute(
+      const QualifiedName& name);
+  void SetElementArrayAttribute(
+      const QualifiedName&,
+      const base::Optional<HeapVector<Member<Element>>>&);
 
   // Call this to get the value of an attribute that is known not to be the
   // style attribute or one of the SVG animatable attributes.
@@ -209,43 +222,33 @@ class CORE_EXPORT Element : public ContainerNode {
   // Ignores namespace.
   bool HasAttributeIgnoringNamespace(const AtomicString& local_name) const;
 
-  const AtomicString& getAttribute(const AtomicString& name) const;
+  const AtomicString& getAttribute(const AtomicString& local_name) const {
+    return GetAttributeHinted(local_name, WeakLowercaseIfNecessary(local_name));
+  }
+
   const AtomicString& getAttributeNS(const AtomicString& namespace_uri,
                                      const AtomicString& local_name) const;
 
   void setAttribute(const AtomicString& name,
-                    const AtomicString& value,
-                    ExceptionState&);
-  void setAttribute(const AtomicString& name, const AtomicString& value);
+                    AtomicString value,
+                    ExceptionState& exception_state = ASSERT_NO_EXCEPTION) {
+    SetAttributeHinted(name, WeakLowercaseIfNecessary(name), value,
+                       exception_state);
+  }
 
   // Trusted Types variant for explicit setAttribute() use.
-  void setAttribute(
-      const AtomicString&,
-      const StringOrTrustedHTMLOrTrustedScriptOrTrustedScriptURLOrTrustedURL&,
-      ExceptionState&);
+  void setAttribute(const AtomicString& name,
+                    const StringOrTrustedHTMLOrTrustedScriptOrTrustedScriptURL&
+                        string_or_trusted,
+                    ExceptionState& exception_state) {
+    SetAttributeHinted(name, WeakLowercaseIfNecessary(name), string_or_trusted,
+                       exception_state);
+  }
 
   // Returns attributes that should be checked against Trusted Types
   virtual const AttrNameToTrustedType& GetCheckedAttributeTypes() const;
 
-  // Trusted Type HTML variant
-  void setAttribute(const QualifiedName&,
-                    const StringOrTrustedHTML&,
-                    ExceptionState&);
-
-  // Trusted Type Script variant
-  void setAttribute(const QualifiedName&,
-                    const StringOrTrustedScript&,
-                    ExceptionState&);
-
-  // Trusted Type ScriptURL variant
-  void setAttribute(const QualifiedName&,
-                    const StringOrTrustedScriptURL&,
-                    ExceptionState&);
-
-  // Trusted Type URL variant
-  void setAttribute(const QualifiedName&,
-                    const USVStringOrTrustedURL&,
-                    ExceptionState&);
+  void setAttribute(const QualifiedName&, const String&, ExceptionState&);
 
   static bool ParseAttributeName(QualifiedName&,
                                  const AtomicString& namespace_uri,
@@ -254,7 +257,7 @@ class CORE_EXPORT Element : public ContainerNode {
   void setAttributeNS(
       const AtomicString& namespace_uri,
       const AtomicString& qualified_name,
-      const StringOrTrustedHTMLOrTrustedScriptOrTrustedScriptURLOrTrustedURL&,
+      const StringOrTrustedHTMLOrTrustedScriptOrTrustedScriptURL&,
       ExceptionState&);
 
   bool toggleAttribute(const AtomicString&, ExceptionState&);
@@ -271,6 +274,8 @@ class CORE_EXPORT Element : public ContainerNode {
   //   document, then set qualifiedName to qualifiedName in ASCII lowercase.
   //   https://dom.spec.whatwg.org/#concept-element-attributes-get-by-name
   AtomicString LowercaseIfNecessary(const AtomicString&) const;
+  WTF::AtomicStringTable::WeakResult WeakLowercaseIfNecessary(
+      const StringView&) const;
 
   // NoncedElement implementation: this is only used by HTMLElement and
   // SVGElement, but putting the implementation here allows us to use
@@ -289,8 +294,7 @@ class CORE_EXPORT Element : public ContainerNode {
   // return value should be cached for performance.
   AttributeCollection Attributes() const;
   // This variant will not update the potentially invalid attributes. To be used
-  // when not interested in style attribute or one of the SVG animation
-  // attributes.
+  // when not interested in style attribute or one of the SVG attributes.
   AttributeCollection AttributesWithoutUpdate() const;
 
   void scrollIntoView(ScrollIntoViewOptionsOrBoolean);
@@ -313,13 +317,14 @@ class CORE_EXPORT Element : public ContainerNode {
   double scrollTop();
   void setScrollLeft(double);
   void setScrollTop(double);
-  int scrollWidth();
-  int scrollHeight();
+  virtual int scrollWidth();
+  virtual int scrollHeight();
 
   void scrollBy(double x, double y);
-  virtual void scrollBy(const ScrollToOptions*);
+  void scrollBy(const ScrollToOptions*);
   void scrollTo(double x, double y);
-  virtual void scrollTo(const ScrollToOptions*);
+  void scrollTo(const ScrollToOptions*);
+  LayoutBox* GetLayoutBoxForScrolling() const override;
 
   IntRect BoundsInViewport() const;
   // Returns an intersection rectangle of the bounds rectangle and the visual
@@ -327,11 +332,11 @@ class CORE_EXPORT Element : public ContainerNode {
   // Applies ancestors' frames' clipping, but does not (yet) apply (overflow)
   // element clipping (crbug.com/889840).
   IntRect VisibleBoundsInVisualViewport() const;
+  Vector<IntRect> OutlineRectsInVisualViewport(
+      DocumentUpdateReason reason = DocumentUpdateReason::kUnknown) const;
 
   DOMRectList* getClientRects();
   DOMRect* getBoundingClientRect();
-
-  bool HasNonEmptyLayoutSize() const;
 
   const AtomicString& computedRole();
   String computedName();
@@ -339,18 +344,11 @@ class CORE_EXPORT Element : public ContainerNode {
   AccessibleNode* ExistingAccessibleNode() const;
   AccessibleNode* accessibleNode();
 
-  InvisibleState Invisible() const;
-  bool HasInvisibleAttribute() const;
-
-  void DispatchActivateInvisibleEventIfNeeded();
-  bool IsInsideInvisibleSubtree() const;
-  bool IsInsideInvisibleStaticSubtree() const;
-
-  void DefaultEventHandler(Event&) override;
-
   void DidMoveToNewDocument(Document&) override;
 
-  void removeAttribute(const AtomicString& name);
+  void removeAttribute(const AtomicString& name) {
+    RemoveAttributeHinted(name, WeakLowercaseIfNecessary(name));
+  }
   void removeAttributeNS(const AtomicString& namespace_uri,
                          const AtomicString& local_name);
 
@@ -439,7 +437,7 @@ class CORE_EXPORT Element : public ContainerNode {
   void SynchronizeStyleAttributeInternal() const;
 
   const CSSPropertyValueSet* PresentationAttributeStyle();
-  virtual bool IsPresentationAttribute(const QualifiedName&) const {
+  virtual bool IsPresentationAttribute(const QualifiedName& attr) const {
     return false;
   }
   virtual void CollectStyleForPresentationAttribute(
@@ -510,7 +508,7 @@ class CORE_EXPORT Element : public ContainerNode {
                                                CloneChildrenFlag) {}
 
   void AttachLayoutTree(AttachContext&) override;
-  void DetachLayoutTree(const AttachContext& = AttachContext()) override;
+  void DetachLayoutTree(bool performing_reattach = false) override;
 
   virtual LayoutObject* CreateLayoutObject(const ComputedStyle&, LegacyLayout);
   virtual bool LayoutObjectIsNeeded(const ComputedStyle&) const;
@@ -518,6 +516,8 @@ class CORE_EXPORT Element : public ContainerNode {
   void RecalcStyleForTraversalRootAncestor();
   void RebuildLayoutTreeForTraversalRootAncestor() {
     RebuildFirstLetterLayoutTree();
+    WhitespaceAttacher whitespace_attacher;
+    RebuildMarkerLayoutTree(whitespace_attacher);
   }
   bool NeedsRebuildLayoutTree(
       const WhitespaceAttacher& whitespace_attacher) const {
@@ -531,7 +531,6 @@ class CORE_EXPORT Element : public ContainerNode {
   void RebuildLayoutTree(WhitespaceAttacher&);
   void PseudoStateChanged(CSSSelector::PseudoType);
   void SetAnimationStyleChange(bool);
-  void ClearAnimationStyleChange();
   void SetNeedsAnimationStyleRecalc();
 
   void SetNeedsCompositingUpdate();
@@ -541,15 +540,22 @@ class CORE_EXPORT Element : public ContainerNode {
   // throws an exception.  Multiple shadow roots are allowed only when
   // createShadowRoot() is used without any parameters from JavaScript.
   ShadowRoot* createShadowRoot(ExceptionState&);
+
   ShadowRoot* attachShadow(const ShadowRootInit*, ExceptionState&);
+
+  void AttachDeclarativeShadowRoot(HTMLTemplateElement*,
+                                   ShadowRootType,
+                                   FocusDelegation,
+                                   SlotAssignmentMode);
 
   ShadowRoot& CreateV0ShadowRootForTesting() {
     return CreateShadowRootInternal();
   }
   ShadowRoot& CreateUserAgentShadowRoot();
-  ShadowRoot& AttachShadowRootInternal(ShadowRootType,
-                                       bool delegates_focus = false,
-                                       bool manual_slotting = false);
+  ShadowRoot& AttachShadowRootInternal(
+      ShadowRootType,
+      FocusDelegation focus_delegation = FocusDelegation::kNone,
+      SlotAssignmentMode slot_assignment_mode = SlotAssignmentMode::kAuto);
 
   // Returns the shadow root attached to this element if it is a shadow host.
   ShadowRoot* GetShadowRoot() const;
@@ -591,8 +597,11 @@ class CORE_EXPORT Element : public ContainerNode {
   }
 
   bool IsDefined() const {
-    return !(static_cast<int>(GetCustomElementState()) &
-             static_cast<int>(CustomElementState::kNotDefinedFlag));
+    // An element whose custom element state is "uncustomized" or "custom"
+    // is said to be defined.
+    // https://dom.spec.whatwg.org/#concept-element-defined
+    return GetCustomElementState() == CustomElementState::kUncustomized ||
+           GetCustomElementState() == CustomElementState::kCustom;
   }
   bool IsUpgradedV0CustomElement() {
     return GetV0CustomElementState() == kV0Upgraded;
@@ -619,17 +628,18 @@ class CORE_EXPORT Element : public ContainerNode {
   KURL HrefURL() const;
 
   KURL GetURLAttribute(const QualifiedName&) const;
-  void GetURLAttribute(const QualifiedName&, StringOrTrustedScriptURL&) const;
-  void GetURLAttribute(const QualifiedName&, USVStringOrTrustedURL&) const;
-  void FastGetAttribute(const QualifiedName&, USVStringOrTrustedURL&) const;
-  void FastGetAttribute(const QualifiedName&, StringOrTrustedHTML&) const;
 
   KURL GetNonEmptyURLAttribute(const QualifiedName&) const;
 
   virtual const AtomicString ImageSourceURL() const;
   virtual Image* ImageContents() { return nullptr; }
 
-  virtual void focus(const FocusParams& = FocusParams());
+  // Returns true if this is a shadow host, and its ShadowRoot has
+  // delegatesFocus flag.
+  bool DelegatesFocus() const;
+  Element* GetFocusableArea() const;
+  virtual void focus(const FocusParams&);
+  void focus();
   void focus(const FocusOptions*);
 
   void UpdateFocusAppearance(SelectionBehaviorOnFocus);
@@ -651,19 +661,20 @@ class CORE_EXPORT Element : public ContainerNode {
   virtual bool IsMouseFocusable() const;
   bool IsFocusedElementInDocument() const;
   Element* AdjustedFocusedElementInTreeScope() const;
+  bool IsAutofocusable() const;
 
   virtual void DispatchFocusEvent(
       Element* old_focused_element,
-      WebFocusType,
+      mojom::blink::FocusType,
       InputDeviceCapabilities* source_capabilities = nullptr);
   virtual void DispatchBlurEvent(
       Element* new_focused_element,
-      WebFocusType,
+      mojom::blink::FocusType,
       InputDeviceCapabilities* source_capabilities = nullptr);
   virtual void DispatchFocusInEvent(
       const AtomicString& event_type,
       Element* old_focused_element,
-      WebFocusType,
+      mojom::blink::FocusType,
       InputDeviceCapabilities* source_capabilities = nullptr);
   void DispatchFocusOutEvent(
       const AtomicString& event_type,
@@ -673,11 +684,6 @@ class CORE_EXPORT Element : public ContainerNode {
   // The implementation of |innerText()| is found in "element_inner_text.cc".
   String innerText();
   String outerText();
-  String InnerHTMLAsString() const;
-  String OuterHTMLAsString() const;
-  void SetInnerHTMLFromString(const String& html, ExceptionState&);
-  void SetInnerHTMLFromString(const String& html);
-  void SetOuterHTMLFromString(const String& html, ExceptionState&);
 
   Element* insertAdjacentElement(const String& where,
                                  Element* new_child,
@@ -689,16 +695,14 @@ class CORE_EXPORT Element : public ContainerNode {
                           const String& html,
                           ExceptionState&);
 
-  // TrustedTypes variants of the above.
-  // TODO(mkwst): Write a spec for these bits. https://crbug.com/739170
-  void innerHTML(StringOrTrustedHTML&) const;
-  void outerHTML(StringOrTrustedHTML&) const;
-  void setInnerHTML(const StringOrTrustedHTML&, ExceptionState&);
-  void setInnerHTML(const StringOrTrustedHTML&);
-  void setOuterHTML(const StringOrTrustedHTML&, ExceptionState&);
-  void insertAdjacentHTML(const String& where,
-                          const StringOrTrustedHTML&,
-                          ExceptionState&);
+  String innerHTML() const;
+  String outerHTML() const;
+  void setInnerHTML(const String&, ExceptionState& = ASSERT_NO_EXCEPTION);
+  void setInnerHTMLWithOptions(const String&,
+                               const SetInnerHTMLOptions*,
+                               ExceptionState& = ASSERT_NO_EXCEPTION);
+  String getInnerHTML(const GetInnerHTMLOptions* options) const;
+  void setOuterHTML(const String&, ExceptionState& = ASSERT_NO_EXCEPTION);
 
   void setPointerCapture(PointerId poinetr_id, ExceptionState&);
   void releasePointerCapture(PointerId pointer_id, ExceptionState&);
@@ -733,13 +737,13 @@ class CORE_EXPORT Element : public ContainerNode {
   PseudoElement* GetPseudoElement(PseudoId) const;
   LayoutObject* PseudoElementLayoutObject(PseudoId) const;
 
+  bool PseudoElementStylesDependOnFontMetrics() const;
   const ComputedStyle* CachedStyleForPseudoElement(
-      const PseudoStyleRequest&,
-      const ComputedStyle* parent_style = nullptr);
+      const PseudoElementStyleRequest&);
   scoped_refptr<ComputedStyle> StyleForPseudoElement(
-      const PseudoStyleRequest&,
+      const PseudoElementStyleRequest&,
       const ComputedStyle* parent_style = nullptr);
-  bool CanGeneratePseudoElement(PseudoId) const;
+  virtual bool CanGeneratePseudoElement(PseudoId) const;
 
   virtual bool MatchesDefaultPseudoClass() const { return false; }
   virtual bool MatchesEnabledPseudoClass() const { return false; }
@@ -779,6 +783,8 @@ class CORE_EXPORT Element : public ContainerNode {
   virtual bool IsOutOfRange() const { return false; }
   virtual bool IsClearButtonElement() const { return false; }
   virtual bool IsScriptElement() const { return false; }
+  virtual bool IsVTTCueBackgroundBox() const { return false; }
+  virtual bool IsSliderThumbElement() const { return false; }
 
   // Elements that may have an insertion mode other than "in body" should
   // override this and return true.
@@ -796,7 +802,8 @@ class CORE_EXPORT Element : public ContainerNode {
   // descendants. Note that even if this element returns true, it's not implied
   // that all descendants will return the same. Once an element needs to force
   // legacy layout, though, the layout engine knows that it will have to perform
-  // legacy layout on the entire subtree.
+  // legacy layout on the entire subtree, unless this is overridden by
+  // ShouldForceNGLayout().
   bool ShouldForceLegacyLayout() const {
     if (TypeShouldForceLegacyLayout())
       return true;
@@ -818,6 +825,7 @@ class CORE_EXPORT Element : public ContainerNode {
   void SetDidAttachInternals();
   bool DidAttachInternals() const;
   ElementInternals& EnsureElementInternals();
+  const ElementInternals* GetElementInternals() const;
 
   bool ContainsFullScreenElement() const {
     return HasElementFlag(ElementFlags::kContainsFullScreenElement);
@@ -835,13 +843,14 @@ class CORE_EXPORT Element : public ContainerNode {
   }
   void SetIsInTopLayer(bool);
 
-  void requestPointerLock();
+  ScriptValue requestPointerLock(ScriptState* script_state,
+                                 const PointerLockOptions* options,
+                                 ExceptionState& exception_state);
 
   bool IsSpellCheckingEnabled() const;
 
   // FIXME: public for LayoutTreeBuilder, we shouldn't expose this though.
-  scoped_refptr<ComputedStyle> StyleForLayoutObject(
-      bool calc_invisible = false);
+  scoped_refptr<ComputedStyle> StyleForLayoutObject();
 
   bool HasID() const;
   bool HasClass() const;
@@ -866,13 +875,18 @@ class CORE_EXPORT Element : public ContainerNode {
   ElementAnimations& EnsureElementAnimations();
   bool HasAnimations() const;
 
-  void SynchronizeAttribute(const AtomicString& local_name) const;
+  void SynchronizeAttribute(const AtomicString& local_name) const {
+    SynchronizeAttributeHinted(local_name,
+                               WeakLowercaseIfNecessary(local_name));
+  }
 
   MutableCSSPropertyValueSet& EnsureMutableInlineStyle();
   void ClearMutableInlineStyleIfEmpty();
 
+  CSSPropertyValueSet* CreatePresentationAttributeStyle();
+
   void setTabIndex(int);
-  int tabIndex() const override;
+  int tabIndex() const;
 
   // Helpers for V8DOMActivityLogger::logEvent.  They call logEvent only if
   // the element is isConnected() and the context is an isolated world.
@@ -889,34 +903,45 @@ class CORE_EXPORT Element : public ContainerNode {
       const char element[],
       const AttributeModificationParams&);
 
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
 
   SpellcheckAttributeState GetSpellcheckAttributeState() const;
 
   ElementIntersectionObserverData* IntersectionObserverData() const;
   ElementIntersectionObserverData& EnsureIntersectionObserverData();
-  bool ComputeIntersectionObservations(unsigned flags);
-  // Returns true if the Element is being observed by an IntersectionObserver
-  // for which trackVisibility() is true.
-  bool NeedsOcclusionTracking() const;
 
   HeapHashMap<Member<ResizeObserver>, Member<ResizeObservation>>*
   ResizeObserverData() const;
   HeapHashMap<Member<ResizeObserver>, Member<ResizeObservation>>&
   EnsureResizeObserverData();
-  void SetNeedsResizeObserverUpdate();
 
-  DisplayLockContext* getDisplayLockForBindings();
   DisplayLockContext* GetDisplayLockContext() const;
+  DisplayLockContext& EnsureDisplayLockContext();
 
-  bool StyleRecalcBlockedByDisplayLock(
-      DisplayLockContext::LifecycleTarget) const;
+  bool ChildStyleRecalcBlockedByDisplayLock() const;
 
-  void ActivateDisplayLockIfNeeded();
+  // Activates all activatable (for a given reason) locked ancestors for this
+  // element. Return true if we activated at least one previously locked
+  // element.
+  bool ActivateDisplayLockIfNeeded(DisplayLockActivationReason reason);
+
+  virtual void SetActive(bool active);
+  virtual void SetHovered(bool hovered);
+
+  // Classes overriding this method can return true when an element has
+  // been determined to be from an ad. Returns false by default.
+  virtual bool IsAdRelated() const { return false; }
+
+  void NotifyInlineStyleMutation();
 
  protected:
   const ElementData* GetElementData() const { return element_data_.Get(); }
   UniqueElementData& EnsureUniqueElementData();
+
+  bool IsViewportScrollElement();
+  void RecordScrollbarSizeForStudy(int measurement,
+                                   bool is_width,
+                                   bool is_offset);
 
   void AddPropertyToPresentationAttributeStyle(MutableCSSPropertyValueSet*,
                                                CSSPropertyID,
@@ -955,23 +980,47 @@ class CORE_EXPORT Element : public ContainerNode {
   // This method cannot be moved to LayoutObject because some focusable nodes
   // don't have layoutObjects. e.g., HTMLOptionElement.
   virtual bool IsFocusableStyle() const;
+  // Similar to above, except that it will ensure that any deferred work to
+  // create layout objects is completed (e.g. in display-locked trees).
+  bool IsFocusableStyleAfterUpdate() const;
 
-  // classAttributeChanged() exists to share code between
-  // parseAttribute (called via setAttribute()) and
-  // svgAttributeChanged (called when element.className.baseValue is set)
+  // ClassAttributeChanged() and UpdateClassList() exist to share code between
+  // ParseAttribute (called via setAttribute()) and SvgAttributeChanged (called
+  // when element.className.baseVal is set or when the 'class' attribute is
+  // animated by SMIL).
   void ClassAttributeChanged(const AtomicString& new_class_string);
-
-  void PictureInPicturePseudoStateChanged();
+  void UpdateClassList(const AtomicString& old_class_string,
+                       const AtomicString& new_class_string);
 
   static bool AttributeValueIsJavaScriptURL(const Attribute&);
 
   scoped_refptr<ComputedStyle> OriginalStyleForLayoutObject();
 
+  // Step 4 of http://domparsing.spec.whatwg.org/#insertadjacenthtml()
   Node* InsertAdjacent(const String& where, Node* new_child, ExceptionState&);
 
   virtual void ParserDidSetAttributes() {}
 
+  // The "nonce" attribute is hidden when:
+  // 1) The Content-Security-Policy is delivered from the HTTP headers.
+  // 2) The Element is part of the active document.
+  // See https://github.com/whatwg/html/pull/2373
+  //
+  // This applies to the element of the HTML and SVG namespaces.
+  //
+  // This function clears the "nonce" attribute whenever conditions (1) and (2)
+  // are met.
+  void HideNonce();
+
+  // Adjust the state of legacy layout forcing for this element (and its
+  // subtree). Input is the state inherited from the parent element. Output will
+  // be modified if required by this element.
+  void AdjustForceLegacyLayout(const ComputedStyle*,
+                               bool* should_force_legacy_layout);
+
  private:
+  friend class AXObject;
+
   void ScrollLayoutBoxBy(const ScrollToOptions*);
   void ScrollLayoutBoxTo(const ScrollToOptions*);
   void ScrollFrameBy(const ScrollToOptions*);
@@ -991,8 +1040,9 @@ class CORE_EXPORT Element : public ContainerNode {
   bool IsDocumentNode() const =
       delete;  // This will catch anyone doing an unnecessary check.
 
-  bool CanAttachShadowRoot() const;
   ShadowRoot& CreateShadowRootInternal();
+  bool CanAttachShadowRoot() const;
+  const char* ErrorMessageForAttachShadow() const;
 
   void StyleAttributeChanged(const AtomicString& new_style_string,
                              AttributeModificationReason);
@@ -1001,9 +1051,6 @@ class CORE_EXPORT Element : public ContainerNode {
 
   void InlineStyleChanged();
   void SetInlineStyleFromString(const AtomicString&);
-
-  void InvisibleAttributeChanged(const AtomicString& old_value,
-                                 const AtomicString& new_value);
 
   // If the only inherited changes in the parent element are independent,
   // these changes can be directly propagated to this element (the child).
@@ -1017,6 +1064,7 @@ class CORE_EXPORT Element : public ContainerNode {
 
   void RebuildPseudoElementLayoutTree(PseudoId, WhitespaceAttacher&);
   void RebuildFirstLetterLayoutTree();
+  void RebuildMarkerLayoutTree(WhitespaceAttacher&);
   void RebuildShadowRootLayoutTree(WhitespaceAttacher&);
   inline void CheckForEmptyStyleChange(const Node* node_before_change,
                                        const Node* node_after_change);
@@ -1033,7 +1081,7 @@ class CORE_EXPORT Element : public ContainerNode {
 
   inline PseudoElement* CreatePseudoElementIfNeeded(PseudoId);
   void AttachPseudoElement(PseudoId, AttachContext&);
-  void DetachPseudoElement(PseudoId, const AttachContext&);
+  void DetachPseudoElement(PseudoId, bool performing_reattach);
 
   ShadowRoot& CreateAndAttachShadowRoot(ShadowRootType);
 
@@ -1079,11 +1127,42 @@ class CORE_EXPORT Element : public ContainerNode {
                                SynchronizationOfLazyAttribute);
   void RemoveAttributeInternal(wtf_size_t index,
                                SynchronizationOfLazyAttribute);
+  SpecificTrustedType ExpectedTrustedTypeForAttribute(
+      const QualifiedName&) const;
+
+  // These Hinted versions of the functions are subtle hot path
+  // optimizations designed to reduce the number of unnecessary AtomicString
+  // creations, AtomicStringTable lookups, and LowerCaseIfNecessary calls.
+  //
+  // The `hint` is the result of a WeakLowercaseIfNecessary() call unless it is
+  // known that the the incoming string already has the right case. Then
+  // the `hint` can be constructed from calling AtomicString::Impl().
+  const AtomicString& GetAttributeHinted(
+      const AtomicString& name,
+      WTF::AtomicStringTable::WeakResult hint) const;
+  void RemoveAttributeHinted(const AtomicString& name,
+                             WTF::AtomicStringTable::WeakResult hint);
+  void SynchronizeAttributeHinted(
+      const AtomicString& name,
+      WTF::AtomicStringTable::WeakResult hint) const;
+  void SetAttributeHinted(const AtomicString& name,
+                          WTF::AtomicStringTable::WeakResult hint,
+                          const AtomicString& value,
+                          ExceptionState& = ASSERT_NO_EXCEPTION);
+  void SetAttributeHinted(
+      const AtomicString& name,
+      WTF::AtomicStringTable::WeakResult hint,
+      const StringOrTrustedHTMLOrTrustedScriptOrTrustedScriptURL&,
+      ExceptionState&);
+  std::pair<wtf_size_t, const QualifiedName> LookupAttributeQNameHinted(
+      const AtomicString& name,
+      WTF::AtomicStringTable::WeakResult hint) const;
 
   void CancelFocusAppearanceUpdate();
+  virtual int DefaultTabIndex() const;
 
   const ComputedStyle* VirtualEnsureComputedStyle(
-      PseudoId pseudo_element_specifier = kPseudoIdNone) override {
+      PseudoId pseudo_element_specifier = kPseudoIdNone) final {
     return EnsureComputedStyle(pseudo_element_specifier);
   }
 
@@ -1110,6 +1189,10 @@ class CORE_EXPORT Element : public ContainerNode {
                                                         const QualifiedName&,
                                                         const AtomicString&);
 
+  void SetInnerHTMLInternal(const String&,
+                            const SetInnerHTMLOptions*,
+                            ExceptionState&);
+
   ElementRareData* GetElementRareData() const;
   ElementRareData& EnsureElementRareData();
 
@@ -1118,7 +1201,7 @@ class CORE_EXPORT Element : public ContainerNode {
   void DetachAttrNodeFromElementWithValue(Attr*, const AtomicString& value);
   void DetachAttrNodeAtIndex(Attr*, wtf_size_t index);
 
-  bool DisplayLockPreventsActivation() const;
+  bool DisplayLockPreventsActivation(DisplayLockActivationReason reason) const;
   FRIEND_TEST_ALL_PREFIXES(DisplayLockContextTest,
                            DisplayLockPreventsActivation);
 
@@ -1167,10 +1250,17 @@ class CORE_EXPORT Element : public ContainerNode {
   // within a formatting context.
   void ForceLegacyLayoutInFormattingContext(const ComputedStyle& new_style);
 
+  // If this element requires legacy layout, and we're inside a fragmentation
+  // context, we need to force legacy layout for the entire fragmentation
+  // context. LayoutNG block fragmentation and legacy block fragmentation cannot
+  // cooperate within a fragmentation context.
+  void ForceLegacyLayoutInFragmentationContext(const ComputedStyle& new_style);
+  void SynchronizeContentAttributeAndElementReference(
+      const QualifiedName& name);
+
   Member<ElementData> element_data_;
 };
 
-DEFINE_NODE_TYPE_CASTS(Element, IsElementNode());
 template <typename T>
 bool IsElementOfType(const Node&);
 template <>
@@ -1186,81 +1276,25 @@ inline bool IsElementOfType<const Element>(const Element&) {
   return true;
 }
 
-// Type casting.
-template <typename T>
-inline T& ToElement(Node& node) {
-  SECURITY_DCHECK(IsElementOfType<const T>(node));
-  return static_cast<T&>(node);
-}
-template <typename T>
-inline T* ToElement(Node* node) {
-  SECURITY_DCHECK(!node || IsElementOfType<const T>(*node));
-  return static_cast<T*>(node);
-}
-template <typename T>
-inline const T& ToElement(const Node& node) {
-  SECURITY_DCHECK(IsElementOfType<const T>(node));
-  return static_cast<const T&>(node);
-}
-template <typename T>
-inline const T* ToElement(const Node* node) {
-  SECURITY_DCHECK(!node || IsElementOfType<const T>(*node));
-  return static_cast<const T*>(node);
-}
+template <>
+struct DowncastTraits<Element> {
+  static bool AllowFrom(const Node& node) { return node.IsElementNode(); }
+};
 
-template <typename T>
-inline T* ToElementOrNull(Node& node) {
-  return IsElementOfType<const T>(node) ? static_cast<T*>(&node) : nullptr;
-}
-template <typename T>
-inline T* ToElementOrNull(Node* node) {
-  return (node && IsElementOfType<const T>(*node)) ? static_cast<T*>(node)
-                                                   : nullptr;
-}
-template <typename T>
-inline const T* ToElementOrNull(const Node& node) {
-  return IsElementOfType<const T>(node) ? static_cast<const T*>(&node)
-                                        : nullptr;
-}
-template <typename T>
-inline const T* ToElementOrNull(const Node* node) {
-  return (node && IsElementOfType<const T>(*node)) ? static_cast<const T*>(node)
-                                                   : nullptr;
-}
-
-template <typename T>
-inline T& ToElementOrDie(Node& node) {
-  CHECK(IsElementOfType<const T>(node));
-  return static_cast<T&>(node);
-}
-template <typename T>
-inline T* ToElementOrDie(Node* node) {
-  CHECK(!node || IsElementOfType<const T>(*node));
-  return static_cast<T*>(node);
-}
-template <typename T>
-inline const T& ToElementOrDie(const Node& node) {
-  CHECK(IsElementOfType<const T>(node));
-  return static_cast<const T&>(node);
-}
-template <typename T>
-inline const T* ToElementOrDie(const Node* node) {
-  CHECK(!node || IsElementOfType<const T>(*node));
-  return static_cast<const T*>(node);
-}
 
 inline bool IsDisabledFormControl(const Node* node) {
-  return node->IsElementNode() && ToElement(node)->IsDisabledFormControl();
+  auto* element = DynamicTo<Element>(node);
+  return element && element->IsDisabledFormControl();
 }
 
 inline Element* Node::parentElement() const {
-  ContainerNode* parent = parentNode();
-  return parent && parent->IsElementNode() ? ToElement(parent) : nullptr;
+  return DynamicTo<Element>(parentNode());
 }
 
 inline bool Element::FastHasAttribute(const QualifiedName& name) const {
 #if DCHECK_IS_ON()
-  DCHECK(FastAttributeLookupAllowed(name));
+  DCHECK(FastAttributeLookupAllowed(name))
+      << TagQName().ToString().Utf8() << "/@" << name.ToString().Utf8();
 #endif
   return GetElementData() &&
          GetElementData()->Attributes().FindIndex(name) != kNotFound;
@@ -1269,7 +1303,8 @@ inline bool Element::FastHasAttribute(const QualifiedName& name) const {
 inline const AtomicString& Element::FastGetAttribute(
     const QualifiedName& name) const {
 #if DCHECK_IS_ON()
-  DCHECK(FastAttributeLookupAllowed(name));
+  DCHECK(FastAttributeLookupAllowed(name))
+      << TagQName().ToString().Utf8() << "/@" << name.ToString().Utf8();
 #endif
   if (GetElementData()) {
     if (const Attribute* attribute = GetElementData()->Attributes().Find(name))
@@ -1344,15 +1379,10 @@ inline UniqueElementData& Element::EnsureUniqueElementData() {
   return To<UniqueElementData>(*element_data_);
 }
 
-inline void Element::InvalidateStyleAttribute() {
-  DCHECK(GetElementData());
-  GetElementData()->style_attribute_is_dirty_ = true;
-}
-
 inline const CSSPropertyValueSet* Element::PresentationAttributeStyle() {
   if (!GetElementData())
     return nullptr;
-  if (GetElementData()->presentation_attribute_style_is_dirty_)
+  if (GetElementData()->presentation_attribute_style_is_dirty())
     UpdatePresentationAttributeStyle();
   // Need to call elementData() again since updatePresentationAttributeStyle()
   // might swap it with a UniqueElementData.
@@ -1389,30 +1419,6 @@ inline bool IsAtShadowBoundary(const Element* element) {
   ContainerNode* parent_node = element->parentNode();
   return parent_node && parent_node->IsShadowRoot();
 }
-
-// These macros do the same as their NODE equivalents but additionally provide a
-// template specialization for isElementOfType<>() so that the Traversal<> API
-// works for these Element types.
-#define DEFINE_ELEMENT_TYPE_CASTS(thisType, predicate)            \
-  template <>                                                     \
-  inline bool IsElementOfType<const thisType>(const Node& node) { \
-    return node.predicate;                                        \
-  }                                                               \
-  DEFINE_NODE_TYPE_CASTS(thisType, predicate)
-
-#define DEFINE_ELEMENT_TYPE_CASTS_WITH_FUNCTION(thisType)         \
-  template <>                                                     \
-  inline bool IsElementOfType<const thisType>(const Node& node) { \
-    return Is##thisType(node);                                    \
-  }                                                               \
-  DEFINE_NODE_TYPE_CASTS_WITH_FUNCTION(thisType)
-
-#define DECLARE_ELEMENT_FACTORY_WITH_TAGNAME(T) \
-  static T* Create(const QualifiedName&, Document&)
-#define DEFINE_ELEMENT_FACTORY_WITH_TAGNAME(T)                     \
-  T* T::Create(const QualifiedName& tagName, Document& document) { \
-    return new T(tagName, document);                               \
-  }
 
 }  // namespace blink
 

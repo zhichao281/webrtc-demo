@@ -6,10 +6,10 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_HTML_ANCHOR_ELEMENT_METRICS_H_
 
 #include "base/optional.h"
-#include "third_party/blink/public/mojom/loader/navigation_predictor.mojom-blink.h"
+#include "third_party/blink/public/mojom/loader/navigation_predictor.mojom-blink-forward.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
@@ -31,6 +31,12 @@ class CORE_EXPORT AnchorElementMetrics {
   // Gets anchor elements from |document|, extracts features of valid anchor
   // elements and sends to the browser process.
   static void MaybeReportViewportMetricsOnLoad(Document& document);
+
+  // Called when OnLoad occurs. Subscribes |document|'s
+  // AnchorElementMetricsSender to document lifecycle events until the layout is
+  // clean. The sender is expected to call |MaybeReportViewportMetricsOnLoad()|
+  // one time.
+  static void NotifyOnLoad(Document& document);
 
   // Getters of anchor element features.
   float GetRatioArea() const { return ratio_area_; }
@@ -66,7 +72,7 @@ class CORE_EXPORT AnchorElementMetrics {
   void RecordMetricsOnClick() const;
 
   // The anchor element that this class is associated with.
-  Member<const HTMLAnchorElement> anchor_element_;
+  const HTMLAnchorElement* anchor_element_;
 
   // The ratio of the absolute/visible clickable region area of an anchor
   // element, and the viewport area.
@@ -88,9 +94,6 @@ class CORE_EXPORT AnchorElementMetrics {
   // height.
   const float ratio_distance_root_bottom_;
 
-  // The hight of the root document, divided by the viewport height.
-  const float ratio_root_height_;
-
   // Whether the anchor element is within an iframe.
   const bool is_in_iframe_;
 
@@ -111,7 +114,6 @@ class CORE_EXPORT AnchorElementMetrics {
                               float ratio_distance_center_to_visible_top,
                               float ratio_distance_root_top,
                               float ratio_distance_root_bottom,
-                              float ratio_root_height,
                               bool is_in_iframe,
                               bool contains_image,
                               bool is_same_host,
@@ -124,7 +126,6 @@ class CORE_EXPORT AnchorElementMetrics {
             ratio_distance_center_to_visible_top),
         ratio_distance_root_top_(ratio_distance_root_top),
         ratio_distance_root_bottom_(ratio_distance_root_bottom),
-        ratio_root_height_(ratio_root_height),
         is_in_iframe_(is_in_iframe),
         contains_image_(contains_image),
         is_same_host_(is_same_host),

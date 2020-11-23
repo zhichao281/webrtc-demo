@@ -28,12 +28,15 @@ namespace blink {
 
 class HTMLProgressElement;
 
-class CORE_EXPORT LayoutProgress final : public LayoutBlockFlow {
+class CORE_EXPORT LayoutProgress : public LayoutBlockFlow {
  public:
-  explicit LayoutProgress(HTMLProgressElement*);
+  explicit LayoutProgress(Element* element);
   ~LayoutProgress() override;
 
-  double GetPosition() const { return position_; }
+  double GetPosition() const {
+    NOT_DESTROYED();
+    return position_;
+  }
   double AnimationProgress() const;
 
   bool IsDeterminate() const;
@@ -41,33 +44,39 @@ class CORE_EXPORT LayoutProgress final : public LayoutBlockFlow {
 
   HTMLProgressElement* ProgressElement() const;
 
-  const char* GetName() const override { return "LayoutProgress"; }
+  const char* GetName() const override {
+    NOT_DESTROYED();
+    return "LayoutProgress";
+  }
 
  protected:
   void WillBeDestroyed() override;
+  bool IsOfType(LayoutObjectType type) const override {
+    NOT_DESTROYED();
+    return type == kLayoutObjectProgress || LayoutBlockFlow::IsOfType(type);
+  }
 
   bool IsAnimating() const;
   bool IsAnimationTimerActive() const;
 
  private:
-  bool IsOfType(LayoutObjectType type) const override {
-    return type == kLayoutObjectProgress || LayoutBlockFlow::IsOfType(type);
-  }
-
   void AnimationTimerFired(TimerBase*);
   void UpdateAnimationState();
 
   double position_;
-  TimeTicks animation_start_time_;
-  TimeDelta animation_repeat_interval_;
-  TimeDelta animation_duration_;
+  base::TimeTicks animation_start_time_;
   bool animating_;
   TaskRunnerTimer<LayoutProgress> animation_timer_;
 
   friend class LayoutProgressTest;
 };
 
-DEFINE_LAYOUT_OBJECT_TYPE_CASTS(LayoutProgress, IsProgress());
+template <>
+struct DowncastTraits<LayoutProgress> {
+  static bool AllowFrom(const LayoutObject& object) {
+    return object.IsProgress();
+  }
+};
 
 }  // namespace blink
 

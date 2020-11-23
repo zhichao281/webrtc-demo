@@ -27,22 +27,24 @@
 
 namespace blink {
 
-class CSSInheritedValue : public CSSValue {
+class CORE_EXPORT CSSInheritedValue : public CSSValue {
  public:
   static CSSInheritedValue* Create();
+
+  // Only construct through MakeGarbageCollected for the initial value. Use
+  // Create() to get the pooled value.
+  CSSInheritedValue() : CSSValue(kInheritedClass) {}
 
   String CustomCSSText() const;
 
   bool Equals(const CSSInheritedValue&) const { return true; }
 
-  void TraceAfterDispatch(blink::Visitor* visitor) {
+  void TraceAfterDispatch(blink::Visitor* visitor) const {
     CSSValue::TraceAfterDispatch(visitor);
   }
 
  private:
   friend class CSSValuePool;
-
-  CSSInheritedValue() : CSSValue(kInheritedClass) {}
 };
 
 template <>

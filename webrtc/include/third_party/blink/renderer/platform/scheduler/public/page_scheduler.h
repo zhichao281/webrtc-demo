@@ -7,6 +7,7 @@
 
 #include <memory>
 #include "third_party/blink/public/platform/blame_context.h"
+#include "third_party/blink/public/platform/scheduler/web_scoped_virtual_time_pauser.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/scheduler/public/frame_scheduler.h"
 #include "third_party/blink/renderer/platform/scheduler/public/page_lifecycle_state.h"
@@ -16,6 +17,10 @@
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
+
+namespace scheduler {
+class WebAgentGroupScheduler;
+}  // namespace scheduler
 
 class PLATFORM_EXPORT PageScheduler {
  public:
@@ -29,7 +34,7 @@ class PLATFORM_EXPORT PageScheduler {
     // Returns true if the request has been succcessfully relayed to the
     // compositor.
     virtual bool RequestBeginMainFrameNotExpected(bool new_state) = 0;
-    virtual void SetLifecycleState(PageLifecycleState) = 0;
+    virtual void OnSetPageFrozen(bool is_frozen) = 0;
     // Returns true iff the network is idle for the local main frame.
     // Always returns false if the main frame is remote.
     virtual bool LocalMainFrameNetworkIsAlmostIdle() const { return true; }
@@ -37,10 +42,15 @@ class PLATFORM_EXPORT PageScheduler {
 
   virtual ~PageScheduler() = default;
 
+  // Signals that communications with the user took place via either a title
+  // updates or a change to the favicon.
+  virtual void OnTitleOrFaviconUpdated() = 0;
   // The scheduler may throttle tasks associated with background pages.
   virtual void SetPageVisible(bool) = 0;
   // The scheduler transitions app to and from FROZEN state in background.
   virtual void SetPageFrozen(bool) = 0;
+  // Handles operations required for storing the page in the back-forward cache.
+  virtual void SetPageBackForwardCached(bool) = 0;
   // Tells the scheduler about "keep-alive" state which can be due to:
   // service workers, shared workers, or fetch keep-alive.
   // If true, then the scheduler should not freeze relevant task queues.
@@ -62,8 +72,8 @@ class PLATFORM_EXPORT PageScheduler {
 
   // Instructs this PageScheduler to use virtual time. When virtual time is
   // enabled the system doesn't actually sleep for the delays between tasks
-  // before executing them. Returns the TimeTicks that virtual time offsets will
-  // be relative to.
+  // before executing them. Returns the base::TimeTicks that virtual time
+  // offsets will be relative to.
   //
   // E.g: A-E are delayed tasks
   //
@@ -135,17 +145,24 @@ class PLATFORM_EXPORT PageScheduler {
   // (e.g. due to a page maintaining an active connection).
   virtual bool IsExemptFromBudgetBasedThrottling() const = 0;
 
-  // Returns a set of features which at the moment prevent page from going into
-  // back-forward cache. If this list is empty, the page is eligible for
-  // back-forward cache.
-  virtual WTF::HashSet<SchedulingPolicy::Feature>
-  GetActiveFeaturesOptingOutFromBackForwardCache() const = 0;
-
   virtual bool OptedOutFromAggressiveThrottlingForTest() const = 0;
 
   // Returns true if the request has been succcessfully relayed to the
   // compositor.
   virtual bool RequestBeginMainFrameNotExpected(bool new_state) = 0;
+
+  // Returns a WebScopedVirtualTimePauser which can be used to vote for pausing
+  // virtual time. Virtual time will be paused if any WebScopedVirtualTimePauser
+  // votes to pause it, and only unpaused only if all
+  // WebScopedVirtualTimePausers are either destroyed or vote to unpause.  Note
+  // the WebScopedVirtualTimePauser returned by this method is initially
+  // unpaused.
+  virtual WebScopedVirtualTimePauser CreateWebScopedVirtualTimePauser(
+      const String& name,
+      WebScopedVirtualTimePauser::VirtualTaskDuration) = 0;
+
+  // Returns WebAgentGroupScheduler
+  virtual scheduler::WebAgentGroupScheduler& GetAgentGroupScheduler() = 0;
 };
 
 }  // namespace blink

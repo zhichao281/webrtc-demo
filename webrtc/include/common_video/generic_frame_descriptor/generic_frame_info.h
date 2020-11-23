@@ -11,36 +11,37 @@
 #ifndef COMMON_VIDEO_GENERIC_FRAME_DESCRIPTOR_GENERIC_FRAME_INFO_H_
 #define COMMON_VIDEO_GENERIC_FRAME_DESCRIPTOR_GENERIC_FRAME_INFO_H_
 
+#include <bitset>
 #include <initializer_list>
 #include <vector>
 
 #include "absl/container/inlined_vector.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
+#include "api/transport/rtp/dependency_descriptor.h"
+#include "api/video/video_codec_constants.h"
 
 namespace webrtc {
 
-struct GenericFrameInfo {
-  enum class DecodeTargetIndication {
-    kNotPresent,   // DecodeTargetInfo symbol '-'
-    kDiscardable,  // DecodeTargetInfo symbol 'D'
-    kSwitch,       // DecodeTargetInfo symbol 'S'
-    kRequired      // DecodeTargetInfo symbol 'R'
-  };
+// Describes how a certain encoder buffer was used when encoding a frame.
+struct CodecBufferUsage {
+  constexpr CodecBufferUsage(int id, bool referenced, bool updated)
+      : id(id), referenced(referenced), updated(updated) {}
 
-  static absl::InlinedVector<DecodeTargetIndication, 10> DecodeTargetInfo(
-      absl::string_view indication_symbols);
+  int id = 0;
+  bool referenced = false;
+  bool updated = false;
+};
 
+struct GenericFrameInfo : public FrameDependencyTemplate {
   class Builder;
 
   GenericFrameInfo();
   GenericFrameInfo(const GenericFrameInfo&);
   ~GenericFrameInfo();
 
-  int temporal_id = 0;
-  int spatial_id = 0;
-  absl::InlinedVector<int, 10> frame_diffs;
-  absl::InlinedVector<DecodeTargetIndication, 10> decode_target_indications;
+  absl::InlinedVector<CodecBufferUsage, kMaxEncoderBuffers> encoder_buffers;
+  std::vector<bool> part_of_chain;
+  std::bitset<32> active_decode_targets = ~uint32_t{0};
 };
 
 class GenericFrameInfo::Builder {
@@ -52,22 +53,11 @@ class GenericFrameInfo::Builder {
   Builder& T(int temporal_id);
   Builder& S(int spatial_id);
   Builder& Dtis(absl::string_view indication_symbols);
-  Builder& Fdiffs(std::initializer_list<int> frame_diffs);
 
  private:
   GenericFrameInfo info_;
 };
 
-struct TemplateStructure {
-  TemplateStructure();
-  TemplateStructure(const TemplateStructure&);
-  TemplateStructure(TemplateStructure&&);
-  TemplateStructure& operator=(const TemplateStructure&);
-  ~TemplateStructure();
-
-  int num_decode_targets = 0;
-  std::vector<GenericFrameInfo> templates;
-};
 }  // namespace webrtc
 
 #endif  // COMMON_VIDEO_GENERIC_FRAME_DESCRIPTOR_GENERIC_FRAME_INFO_H_

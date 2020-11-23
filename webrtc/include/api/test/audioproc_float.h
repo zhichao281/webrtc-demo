@@ -12,11 +12,28 @@
 #define API_TEST_AUDIOPROC_FLOAT_H_
 
 #include <memory>
+#include <vector>
 
 #include "modules/audio_processing/include/audio_processing.h"
 
 namespace webrtc {
 namespace test {
+
+// This is an interface for the audio processing simulation utility. This
+// utility can be used to simulate the audioprocessing module using a recording
+// (either an AEC dump or wav files), and generate the output as a wav file.
+// Any audio_processing object specified in the input is used for the
+// simulation. The optional |audio_processing| object provides the
+// AudioProcessing instance that is used during the simulation. Note that when
+// the audio_processing object is specified all functionality that relies on
+// using the AudioProcessingBuilder is deactivated, since the AudioProcessing
+// object is already created and the builder is not used in the simulation. It
+// is needed to pass the command line flags as |argc| and |argv|, so these can
+// be interpreted properly by the utility. To see a list of all supported
+// command line flags, run the executable with the '--help' flag.
+int AudioprocFloat(rtc::scoped_refptr<AudioProcessing> audio_processing,
+                   int argc,
+                   char* argv[]);
 
 // This is an interface for the audio processing simulation utility. This
 // utility can be used to simulate the audioprocessing module using a recording
@@ -36,6 +53,18 @@ int AudioprocFloat(std::unique_ptr<AudioProcessingBuilder> ap_builder,
                    int argc,
                    char* argv[]);
 
+// Interface for the audio processing simulation utility, which is similar to
+// the one above, but which adds the option of receiving the input as a string
+// and returning the output as an array. The first three arguments fulfill the
+// same purpose as above. Pass the |input_aecdump| to provide the content of an
+// AEC dump file as a string. After the simulation is completed,
+// |processed_capture_samples| will contain the the samples processed on the
+// capture side.
+int AudioprocFloat(std::unique_ptr<AudioProcessingBuilder> ap_builder,
+                   int argc,
+                   char* argv[],
+                   absl::string_view input_aecdump,
+                   std::vector<float>* processed_capture_samples);
 }  // namespace test
 }  // namespace webrtc
 

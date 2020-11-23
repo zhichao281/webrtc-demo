@@ -33,7 +33,7 @@
 
 #include <unicode/uchar.h>
 #include <memory>
-#include "base/macros.h"
+#include "third_party/blink/public/mojom/frame/frame.mojom-blink.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/platform/geometry/layout_unit.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
@@ -42,33 +42,50 @@
 
 namespace blink {
 
-class ComputedStyle;
 class Document;
+class Frame;
 class IntSize;
 class LayoutBlock;
+class LayoutBox;
+class LayoutNGTableInterface;
 class LayoutObject;
-class LayoutTable;
 class LayoutText;
 class LocalFrame;
-class NGBlockNode;
 class Page;
 class SubtreeLayoutScope;
+
+inline bool operator==(const mojom::blink::TextAutosizerPageInfo& lhs,
+                       const mojom::blink::TextAutosizerPageInfo& rhs) {
+  return lhs.main_frame_width == rhs.main_frame_width &&
+         lhs.main_frame_layout_width == rhs.main_frame_layout_width &&
+         lhs.device_scale_adjustment == rhs.device_scale_adjustment;
+}
+
+inline bool operator!=(const mojom::blink::TextAutosizerPageInfo& lhs,
+                       const mojom::blink::TextAutosizerPageInfo& rhs) {
+  return !(lhs == rhs);
+}
 
 // Single-pass text autosizer. Documentation at:
 // http://tinyurl.com/TextAutosizer
 
-class CORE_EXPORT TextAutosizer final
-    : public GarbageCollectedFinalized<TextAutosizer> {
+class CORE_EXPORT TextAutosizer final : public GarbageCollected<TextAutosizer> {
  public:
   explicit TextAutosizer(const Document*);
+  TextAutosizer(const TextAutosizer&) = delete;
+  TextAutosizer& operator=(const TextAutosizer&) = delete;
   ~TextAutosizer();
 
   // computed_size should include zoom.
   static float ComputeAutosizedFontSize(float computed_size,
                                         float multiplier,
                                         float effective_zoom);
+  // Static to allow starting updates from the frame tree root when it's a
+  // remote frame, though this function is called for all main frames, local
+  // or remote.
+  static void UpdatePageInfoInAllFrames(Frame* root_frame);
 
-  void UpdatePageInfoInAllFrames();
+  bool HasLayoutInlineSizeChanged() const;
   void UpdatePageInfo();
   void Record(LayoutBlock*);
   void Record(LayoutText*);
@@ -76,7 +93,7 @@ class CORE_EXPORT TextAutosizer final
 
   bool PageNeedsAutosizing() const;
 
-  void Trace(blink::Visitor*);
+  void Trace(Visitor*) const;
 
   class LayoutScope {
     STACK_ALLOCATED();
@@ -86,7 +103,7 @@ class CORE_EXPORT TextAutosizer final
     ~LayoutScope();
 
    protected:
-    Member<TextAutosizer> text_autosizer_;
+    TextAutosizer* text_autosizer_;
     LayoutBlock* block_;
   };
 
@@ -94,19 +111,19 @@ class CORE_EXPORT TextAutosizer final
     STACK_ALLOCATED();
 
    public:
-    explicit TableLayoutScope(LayoutTable*);
+    explicit TableLayoutScope(LayoutNGTableInterface*);
   };
 
   class NGLayoutScope {
     STACK_ALLOCATED();
 
    public:
-    explicit NGLayoutScope(const NGBlockNode& node, LayoutUnit inline_size);
+    explicit NGLayoutScope(LayoutBox*, LayoutUnit inline_size);
     ~NGLayoutScope();
 
    protected:
-    Member<TextAutosizer> text_autosizer_;
-    LayoutBlock* block_;
+    TextAutosizer* text_autosizer_;
+    LayoutBox* box_;
   };
 
   class CORE_EXPORT DeferUpdatePageInfo {
@@ -117,7 +134,7 @@ class CORE_EXPORT TextAutosizer final
     ~DeferUpdatePageInfo();
 
    private:
-    Member<LocalFrame> main_frame_;
+    LocalFrame* main_frame_;
   };
 
  private:
@@ -276,19 +293,10 @@ class CORE_EXPORT TextAutosizer final
 
   struct PageInfo {
     DISALLOW_NEW();
-    PageInfo()
-        : frame_width_(0),
-          layout_width_(0),
-          accessibility_font_scale_factor_(1),
-          device_scale_adjustment_(1),
-          page_needs_autosizing_(false),
-          has_autosized_(false),
-          setting_enabled_(false) {}
+    PageInfo() = default;
 
-    int frame_width_;  // LocalFrame width in density-independent pixels (DIPs).
-    int layout_width_;  // Layout width in CSS pixels.
+    mojom::blink::TextAutosizerPageInfo shared_info_;
     float accessibility_font_scale_factor_;
-    float device_scale_adjustment_;
     bool page_needs_autosizing_;
     bool has_autosized_;
     bool setting_enabled_;
@@ -296,7 +304,7 @@ class CORE_EXPORT TextAutosizer final
 
   void BeginLayout(LayoutBlock*, SubtreeLayoutScope*);
   void EndLayout(LayoutBlock*);
-  void InflateAutoTable(LayoutTable*);
+  void InflateAutoTable(LayoutNGTableInterface*);
   float Inflate(LayoutObject*,
                 SubtreeLayoutScope*,
                 InflateBehavior = kThisBlockOnly,
@@ -369,7 +377,6 @@ class CORE_EXPORT TextAutosizer final
   // Clusters are created and destroyed during layout
   ClusterStack cluster_stack_;
   FingerprintMapper fingerprint_mapper_;
-  Vector<scoped_refptr<const ComputedStyle>> styles_retained_during_layout_;
   // FIXME: All frames should share the same m_pageInfo instance.
   PageInfo page_info_;
   bool update_page_info_deferred_;
@@ -377,8 +384,6 @@ class CORE_EXPORT TextAutosizer final
   // Inflate reports a use counter if we're autosizing a cross site iframe.
   // This flag makes sure we only check it once per layout pass.
   bool did_check_cross_site_use_count_;
-
-  DISALLOW_COPY_AND_ASSIGN(TextAutosizer);
 };
 
 }  // namespace blink

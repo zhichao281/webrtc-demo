@@ -13,11 +13,11 @@ namespace blink {
 
 // See the comment on CustomWrappableAdaptor.
 class PLATFORM_EXPORT CustomWrappable
-    : public GarbageCollectedFinalized<CustomWrappable>,
+    : public GarbageCollected<CustomWrappable>,
       public NameClient {
  public:
   virtual ~CustomWrappable() = default;
-  virtual void Trace(Visitor*) {}
+  virtual void Trace(Visitor*) const {}
   const char* NameInHeapSnapshot() const override { return "CustomWrappable"; }
 
  protected:

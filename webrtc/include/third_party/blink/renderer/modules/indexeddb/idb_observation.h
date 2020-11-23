@@ -8,7 +8,7 @@
 #include <memory>
 
 #include "third_party/blink/public/common/indexeddb/web_idb_types.h"
-#include "third_party/blink/public/mojom/indexeddb/indexeddb.mojom-blink.h"
+#include "third_party/blink/public/mojom/indexeddb/indexeddb.mojom-blink-forward.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_value.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
@@ -17,6 +17,7 @@ namespace blink {
 
 class IDBAny;
 class IDBKeyRange;
+class IDBValue;
 class ScriptState;
 
 class IDBObservation final : public ScriptWrappable {
@@ -32,7 +33,7 @@ class IDBObservation final : public ScriptWrappable {
   ~IDBObservation() override;
 
   void SetIsolate(v8::Isolate* isolate);
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
   // Implement the IDL
   ScriptValue key(ScriptState*);

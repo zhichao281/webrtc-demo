@@ -34,32 +34,29 @@
 #include "third_party/blink/renderer/core/svg/properties/svg_animated_property.h"
 #include "third_party/blink/renderer/core/svg/svg_string.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
+#include "third_party/blink/renderer/platform/heap/heap.h"
 
 namespace blink {
+
+class StringOrTrustedScriptURL;
 
 class SVGAnimatedString : public ScriptWrappable,
                           public SVGAnimatedProperty<SVGString> {
   DEFINE_WRAPPERTYPEINFO();
-  USING_GARBAGE_COLLECTED_MIXIN(SVGAnimatedString);
 
  public:
-  static SVGAnimatedString* Create(SVGElement* context_element,
-                                   const QualifiedName& attribute_name) {
-    return MakeGarbageCollected<SVGAnimatedString>(context_element,
-                                                   attribute_name);
-  }
-
   SVGAnimatedString(SVGElement* context_element,
                     const QualifiedName& attribute_name)
       : SVGAnimatedProperty<SVGString>(context_element,
                                        attribute_name,
-                                       SVGString::Create()) {}
+                                       MakeGarbageCollected<SVGString>()) {}
 
-  virtual String baseVal();
-  virtual void setBaseVal(const String&, ExceptionState&);
+  virtual void setBaseVal(const StringOrTrustedScriptURL&, ExceptionState&);
+  virtual void baseVal(StringOrTrustedScriptURL&);
+
   virtual String animVal();
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 };
 
 }  // namespace blink

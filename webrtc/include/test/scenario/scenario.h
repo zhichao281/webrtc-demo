@@ -14,20 +14,20 @@
 #include <utility>
 #include <vector>
 
-#include "absl/memory/memory.h"
+#include "api/test/time_controller.h"
 #include "rtc_base/constructor_magic.h"
 #include "rtc_base/fake_clock.h"
 #include "rtc_base/task_queue.h"
 #include "rtc_base/task_utils/repeating_task.h"
+#include "test/gtest.h"
 #include "test/logging/log_writer.h"
+#include "test/network/network_emulation_manager.h"
 #include "test/scenario/audio_stream.h"
 #include "test/scenario/call_client.h"
 #include "test/scenario/column_printer.h"
 #include "test/scenario/network_node.h"
 #include "test/scenario/scenario_config.h"
-#include "test/scenario/simulated_time.h"
 #include "test/scenario/video_stream.h"
-#include "test/time_controller/time_controller.h"
 
 namespace webrtc {
 namespace test {
@@ -42,18 +42,22 @@ namespace test {
 class Scenario {
  public:
   Scenario();
+  explicit Scenario(const testing::TestInfo* test_info);
   explicit Scenario(std::string file_name);
   Scenario(std::string file_name, bool real_time);
   Scenario(std::unique_ptr<LogWriterFactoryInterface> log_writer_manager,
            bool real_time);
   RTC_DISALLOW_COPY_AND_ASSIGN(Scenario);
   ~Scenario();
+  NetworkEmulationManagerImpl* net() { return &network_manager_; }
 
-  SimulationNode* CreateSimulationNode(NetworkNodeConfig config);
-  SimulationNode* CreateSimulationNode(
-      std::function<void(NetworkNodeConfig*)> config_modifier);
-  EmulatedNetworkNode* CreateNetworkNode(
-      std::unique_ptr<NetworkBehaviorInterface> behavior);
+  EmulatedNetworkNode* CreateSimulationNode(NetworkSimulationConfig config);
+  EmulatedNetworkNode* CreateSimulationNode(
+      std::function<void(NetworkSimulationConfig*)> config_modifier);
+
+  SimulationNode* CreateMutableSimulationNode(NetworkSimulationConfig config);
+  SimulationNode* CreateMutableSimulationNode(
+      std::function<void(NetworkSimulationConfig*)> config_modifier);
 
   CallClient* CreateClient(std::string name, CallClientConfig config);
   CallClient* CreateClient(
@@ -79,13 +83,6 @@ class Scenario {
                    std::vector<EmulatedNetworkNode*> over_nodes,
                    DataSize overhead);
 
-  SimulatedTimeClient* CreateSimulatedTimeClient(
-      std::string name,
-      SimulatedTimeClientConfig config,
-      std::vector<PacketStreamConfig> stream_configs,
-      std::vector<EmulatedNetworkNode*> send_link,
-      std::vector<EmulatedNetworkNode*> return_link);
-
   VideoStreamPair* CreateVideoStream(
       std::pair<CallClient*, CallClient*> clients,
       std::function<void(VideoStreamConfig*)> config_modifier);
@@ -100,17 +97,14 @@ class Scenario {
       std::pair<CallClient*, CallClient*> clients,
       AudioStreamConfig config);
 
-  CrossTrafficSource* CreateCrossTraffic(
-      std::vector<EmulatedNetworkNode*> over_nodes,
-      std::function<void(CrossTrafficConfig*)> config_modifier);
-  CrossTrafficSource* CreateCrossTraffic(
-      std::vector<EmulatedNetworkNode*> over_nodes,
-      CrossTrafficConfig config);
-
   // Runs the provided function with a fixed interval. For real time tests,
   // |function| starts being called after |interval| from the call to Every().
   void Every(TimeDelta interval, std::function<void(TimeDelta)> function);
   void Every(TimeDelta interval, std::function<void()> function);
+
+  // Runs the provided function on the internal task queue. This ensure that
+  // it's run on the main thread for simulated time tests.
+  void Post(std::function<void()> function);
 
   // Runs the provided function after given duration has passed. For real time
   // tests, |function| is called after |target_time_since_start| from the call
@@ -159,31 +153,24 @@ class Scenario {
       std::string name) {
     if (!log_writer_factory_ || name.empty())
       return nullptr;
-    return absl::make_unique<LogWriterFactoryAddPrefix>(
+    return std::make_unique<LogWriterFactoryAddPrefix>(
         log_writer_factory_.get(), name);
   }
 
  private:
   TimeDelta TimeUntilTarget(TimeDelta target_time_offset);
 
-  NullReceiver null_receiver_;
   const std::unique_ptr<LogWriterFactoryInterface> log_writer_factory_;
-  std::unique_ptr<TimeController> time_controller_;
+  NetworkEmulationManagerImpl network_manager_;
   Clock* clock_;
 
   std::vector<std::unique_ptr<CallClient>> clients_;
   std::vector<std::unique_ptr<CallClientPair>> client_pairs_;
-  std::vector<std::unique_ptr<EmulatedNetworkNode>> network_nodes_;
-  std::vector<std::unique_ptr<CrossTrafficSource>> cross_traffic_sources_;
   std::vector<std::unique_ptr<VideoStreamPair>> video_streams_;
   std::vector<std::unique_ptr<AudioStreamPair>> audio_streams_;
-
-  std::vector<std::unique_ptr<SimulatedTimeClient>> simulated_time_clients_;
-
-  std::vector<std::unique_ptr<ActionReceiver>> action_receivers_;
+  std::vector<std::unique_ptr<SimulationNode>> simulation_nodes_;
   std::vector<std::unique_ptr<StatesPrinter>> printers_;
 
-  int64_t next_route_id_ = 40000;
   rtc::scoped_refptr<AudioDecoderFactory> audio_decoder_factory_;
   rtc::scoped_refptr<AudioEncoderFactory> audio_encoder_factory_;
 

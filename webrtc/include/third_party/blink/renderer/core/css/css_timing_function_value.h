@@ -53,7 +53,7 @@ class CSSCubicBezierTimingFunctionValue : public CSSValue {
 
   bool Equals(const CSSCubicBezierTimingFunctionValue&) const;
 
-  void TraceAfterDispatch(blink::Visitor* visitor) {
+  void TraceAfterDispatch(blink::Visitor* visitor) const {
     CSSValue::TraceAfterDispatch(visitor);
   }
 
@@ -66,13 +66,6 @@ class CSSCubicBezierTimingFunctionValue : public CSSValue {
 
 class CSSStepsTimingFunctionValue : public CSSValue {
  public:
-  static CSSStepsTimingFunctionValue* Create(
-      int steps,
-      StepsTimingFunction::StepPosition step_position) {
-    return MakeGarbageCollected<CSSStepsTimingFunctionValue>(steps,
-                                                             step_position);
-  }
-
   CSSStepsTimingFunctionValue(int steps,
                               StepsTimingFunction::StepPosition step_position)
       : CSSValue(kStepsTimingFunctionClass),
@@ -88,38 +81,13 @@ class CSSStepsTimingFunctionValue : public CSSValue {
 
   bool Equals(const CSSStepsTimingFunctionValue&) const;
 
-  void TraceAfterDispatch(blink::Visitor* visitor) {
+  void TraceAfterDispatch(blink::Visitor* visitor) const {
     CSSValue::TraceAfterDispatch(visitor);
   }
 
  private:
   int steps_;
   StepsTimingFunction::StepPosition step_position_;
-};
-
-class CSSFramesTimingFunctionValue : public CSSValue {
- public:
-  static CSSFramesTimingFunctionValue* Create(int frames) {
-    return MakeGarbageCollected<CSSFramesTimingFunctionValue>(frames);
-  }
-
-  CSSFramesTimingFunctionValue(int frames)
-      : CSSValue(kFramesTimingFunctionClass), frames_(frames) {
-    DCHECK(RuntimeEnabledFeatures::FramesTimingFunctionEnabled());
-  }
-
-  int NumberOfFrames() const { return frames_; }
-
-  String CustomCSSText() const;
-
-  bool Equals(const CSSFramesTimingFunctionValue&) const;
-
-  void TraceAfterDispatch(blink::Visitor* visitor) {
-    CSSValue::TraceAfterDispatch(visitor);
-  }
-
- private:
-  int frames_;
 };
 
 }  // namespace cssvalue
@@ -135,13 +103,6 @@ template <>
 struct DowncastTraits<cssvalue::CSSStepsTimingFunctionValue> {
   static bool AllowFrom(const CSSValue& value) {
     return value.IsStepsTimingFunctionValue();
-  }
-};
-
-template <>
-struct DowncastTraits<cssvalue::CSSFramesTimingFunctionValue> {
-  static bool AllowFrom(const CSSValue& value) {
-    return value.IsFramesTimingFunctionValue();
   }
 };
 

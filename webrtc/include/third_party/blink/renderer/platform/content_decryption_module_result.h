@@ -17,7 +17,7 @@ class WebString;
 
 // Used to notify completion of a CDM operation.
 class ContentDecryptionModuleResult
-    : public GarbageCollectedFinalized<ContentDecryptionModuleResult> {
+    : public GarbageCollected<ContentDecryptionModuleResult> {
  public:
   virtual ~ContentDecryptionModuleResult() = default;
 
@@ -36,7 +36,7 @@ class ContentDecryptionModuleResult
     return WebContentDecryptionModuleResult(this);
   }
 
-  virtual void Trace(blink::Visitor* visitor) {}
+  virtual void Trace(Visitor* visitor) const {}
 };
 
 }  // namespace blink

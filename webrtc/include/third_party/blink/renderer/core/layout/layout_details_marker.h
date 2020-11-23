@@ -33,22 +33,33 @@ class LayoutDetailsMarker final : public LayoutBlockFlow {
 
   Orientation GetOrientation() const;
 
-  const char* GetName() const override { return "LayoutDetailsMarker"; }
+  bool CreatesNewFormattingContext() const override {
+    NOT_DESTROYED();
+    return true;
+  }
+
+  const char* GetName() const override {
+    NOT_DESTROYED();
+    return "LayoutDetailsMarker";
+  }
 
  private:
   bool IsOfType(LayoutObjectType type) const override {
+    NOT_DESTROYED();
     return type == kLayoutObjectDetailsMarker ||
            LayoutBlockFlow::IsOfType(type);
   }
   void Paint(const PaintInfo&) const override;
-  bool PaintedOutputOfObjectHasNoEffectRegardlessOfSize() const override {
-    return false;
-  }
 
   bool IsOpen() const;
 };
 
-DEFINE_LAYOUT_OBJECT_TYPE_CASTS(LayoutDetailsMarker, IsDetailsMarker());
+template <>
+struct DowncastTraits<LayoutDetailsMarker> {
+  static bool AllowFrom(const LayoutObject& object) {
+    return object.IsDetailsMarker();
+  }
+};
 
 }  // namespace blink
 

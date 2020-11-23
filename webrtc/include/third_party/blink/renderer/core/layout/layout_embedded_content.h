@@ -24,7 +24,12 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_LAYOUT_EMBEDDED_CONTENT_H_
 
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/html/html_frame_owner_element.h"
 #include "third_party/blink/renderer/core/layout/layout_replaced.h"
+
+namespace ui {
+class Cursor;
+}
 
 namespace blink {
 
@@ -36,17 +41,20 @@ class WebPluginContainerImpl;
 // LayoutEmbeddedObject.
 class CORE_EXPORT LayoutEmbeddedContent : public LayoutReplaced {
  public:
-  explicit LayoutEmbeddedContent(Element*);
+  explicit LayoutEmbeddedContent(HTMLFrameOwnerElement*);
   ~LayoutEmbeddedContent() override;
 
-  bool RequiresAcceleratedCompositing() const;
+  bool ContentDocumentIsCompositing() const;
 
   bool NodeAtPoint(HitTestResult&,
-                   const HitTestLocation& location_in_container,
-                   const LayoutPoint& accumulated_offset,
+                   const HitTestLocation&,
+                   const PhysicalOffset& accumulated_offset,
                    HitTestAction) override;
 
-  void AddRef() { ++ref_count_; }
+  void AddRef() {
+    NOT_DESTROYED();
+    ++ref_count_;
+  }
   void Release();
 
   // LayoutEmbeddedContent::ChildFrameView returns the LocalFrameView associated
@@ -54,15 +62,19 @@ class CORE_EXPORT LayoutEmbeddedContent : public LayoutReplaced {
   // to LayoutObject::GetFrameView which returns the LocalFrameView associated
   // with the root Document Frame.
   FrameView* ChildFrameView() const;
+  LayoutView* ChildLayoutView() const;
   WebPluginContainerImpl* Plugin() const;
   EmbeddedContentView* GetEmbeddedContentView() const;
 
-  LayoutRect ReplacedContentRect() const final;
+  PhysicalRect ReplacedContentRect() const final;
 
   void UpdateOnEmbeddedContentViewChange();
   void UpdateGeometry(EmbeddedContentView&);
 
-  bool IsLayoutEmbeddedContent() const final { return true; }
+  bool IsLayoutEmbeddedContent() const final {
+    NOT_DESTROYED();
+    return true;
+  }
 
   bool IsThrottledFrameView() const;
 
@@ -72,29 +84,45 @@ class CORE_EXPORT LayoutEmbeddedContent : public LayoutReplaced {
   void StyleDidChange(StyleDifference, const ComputedStyle* old_style) final;
   void UpdateLayout() override;
   void PaintReplaced(const PaintInfo&,
-                     const LayoutPoint& paint_offset) const override;
+                     const PhysicalOffset& paint_offset) const override;
   void InvalidatePaint(const PaintInvalidatorContext&) const final;
-  CursorDirective GetCursor(const LayoutPoint&, Cursor&) const final;
+  CursorDirective GetCursor(const PhysicalOffset&, ui::Cursor&) const final;
 
-  bool CanBeSelectionLeafInternal() const final { return true; }
+  bool CanBeSelectionLeafInternal() const final {
+    NOT_DESTROYED();
+    return true;
+  }
+
+  HTMLFrameOwnerElement* GetFrameOwnerElement() const {
+    NOT_DESTROYED();
+    return To<HTMLFrameOwnerElement>(GetNode());
+  }
 
  private:
+  bool CanHaveAdditionalCompositingReasons() const override {
+    NOT_DESTROYED();
+    return true;
+  }
   CompositingReasons AdditionalCompositingReasons() const override;
 
   void WillBeDestroyed() final;
-  void Destroy() final;
+  void DeleteThis() final;
 
   bool NodeAtPointOverEmbeddedContentView(
       HitTestResult&,
-      const HitTestLocation& location_in_container,
-      const LayoutPoint& accumulated_offset,
+      const HitTestLocation&,
+      const PhysicalOffset& accumulated_offset,
       HitTestAction);
 
   int ref_count_;
 };
 
-DEFINE_LAYOUT_OBJECT_TYPE_CASTS(LayoutEmbeddedContent,
-                                IsLayoutEmbeddedContent());
+template <>
+struct DowncastTraits<LayoutEmbeddedContent> {
+  static bool AllowFrom(const LayoutObject& object) {
+    return object.IsLayoutEmbeddedContent();
+  }
+};
 
 }  // namespace blink
 

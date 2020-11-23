@@ -8,7 +8,7 @@
 #include <limits>
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 
 namespace blink {
@@ -22,7 +22,7 @@ class WeakIdentifierMap final
  public:
   WeakIdentifierMap() = default;
 
-  void Trace(Visitor* visitor) {
+  void Trace(Visitor* visitor) const {
     visitor->Trace(object_to_identifier_);
     visitor->Trace(identifier_to_object_);
   }

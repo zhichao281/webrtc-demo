@@ -34,6 +34,7 @@
 namespace blink {
 
 class ExceptionState;
+class ExecutionContext;
 class LayoutObject;
 class MutableCSSPropertyValueSet;
 class Node;
@@ -42,7 +43,8 @@ class ComputedStyle;
 class CORE_EXPORT CSSComputedStyleDeclaration final
     : public CSSStyleDeclaration {
  public:
-  static const Vector<const CSSProperty*>& ComputableProperties();
+  static const Vector<const CSSProperty*>& ComputableProperties(
+      const ExecutionContext*);
 
   CSSComputedStyleDeclaration(Node*,
                               bool allow_visited_style = false,
@@ -54,8 +56,9 @@ class CORE_EXPORT CSSComputedStyleDeclaration final
 
   MutableCSSPropertyValueSet* CopyProperties() const;
 
-  const CSSValue* GetPropertyCSSValue(const CSSProperty&) const;
+  const CSSValue* GetPropertyCSSValue(CSSPropertyID) const;
   const CSSValue* GetPropertyCSSValue(AtomicString custom_property_name) const;
+  const CSSValue* GetPropertyCSSValue(const CSSPropertyName&) const;
   HeapHashMap<AtomicString, Member<const CSSValue>> GetVariables() const;
 
   const CSSValue* GetFontSizeCSSValuePreferringKeyword() const;
@@ -68,7 +71,7 @@ class CORE_EXPORT CSSComputedStyleDeclaration final
   unsigned length() const override;
   String item(unsigned index) const override;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   // The styled node is either the node passed into getComputedStyle, or the

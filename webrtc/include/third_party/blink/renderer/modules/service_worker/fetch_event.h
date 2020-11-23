@@ -7,24 +7,30 @@
 
 #include <memory>
 
+#include "third_party/blink/public/mojom/timing/performance_mark_or_measure.mojom-blink-forward.h"
+#include "third_party/blink/public/mojom/timing/worker_timing_container.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_property.h"
-#include "third_party/blink/renderer/core/execution_context/context_lifecycle_observer.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_fetch_event_init.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/core/fetch/request.h"
 #include "third_party/blink/renderer/modules/event_modules.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/modules/service_worker/extendable_event.h"
-#include "third_party/blink/renderer/modules/service_worker/fetch_event_init.h"
 #include "third_party/blink/renderer/modules/service_worker/wait_until_observer.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/loader/fetch/data_pipe_bytes_consumer.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_response.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
 
 namespace blink {
 
 class ExceptionState;
 class FetchRespondWithObserver;
+class PerformanceMark;
+class PerformanceMeasure;
 class Request;
 class Response;
 class ScriptState;
@@ -38,29 +44,23 @@ class WorkerGlobalScope;
 class MODULES_EXPORT FetchEvent final
     : public ExtendableEvent,
       public ActiveScriptWrappable<FetchEvent>,
-      public ContextClient {
+      public ExecutionContextClient {
   DEFINE_WRAPPERTYPEINFO();
-  USING_GARBAGE_COLLECTED_MIXIN(FetchEvent);
 
  public:
-  using PreloadResponseProperty = ScriptPromiseProperty<Member<FetchEvent>,
-                                                        Member<Response>,
-                                                        Member<DOMException>>;
+  using PreloadResponseProperty =
+      ScriptPromiseProperty<Member<Response>, Member<DOMException>>;
   static FetchEvent* Create(ScriptState*,
                             const AtomicString& type,
                             const FetchEventInit*);
-  static FetchEvent* Create(ScriptState*,
-                            const AtomicString& type,
-                            const FetchEventInit*,
-                            FetchRespondWithObserver*,
-                            WaitUntilObserver*,
-                            bool navigation_preload_sent);
 
   FetchEvent(ScriptState*,
              const AtomicString& type,
              const FetchEventInit*,
              FetchRespondWithObserver*,
              WaitUntilObserver*,
+             mojo::PendingRemote<mojom::blink::WorkerTimingContainer>
+                 worker_timing_remote,
              bool navigation_preload_sent);
   ~FetchEvent() override;
 
@@ -71,6 +71,13 @@ class MODULES_EXPORT FetchEvent final
 
   void respondWith(ScriptState*, ScriptPromise, ExceptionState&);
   ScriptPromise preloadResponse(ScriptState*);
+  ScriptPromise handled(ScriptState*);
+
+  void ResolveHandledPromise();
+  void RejectHandledPromise(const String& error_message);
+
+  void addPerformanceEntry(PerformanceMark*);
+  void addPerformanceEntry(PerformanceMeasure*);
 
   void OnNavigationPreloadResponse(ScriptState*,
                                    std::unique_ptr<WebURLResponse>,
@@ -78,7 +85,7 @@ class MODULES_EXPORT FetchEvent final
   void OnNavigationPreloadError(ScriptState*,
                                 std::unique_ptr<WebServiceWorkerError>);
   void OnNavigationPreloadComplete(WorkerGlobalScope*,
-                                   TimeTicks completion_time,
+                                   base::TimeTicks completion_time,
                                    int64_t encoded_data_length,
                                    int64_t encoded_body_length,
                                    int64_t decoded_body_length);
@@ -88,7 +95,7 @@ class MODULES_EXPORT FetchEvent final
   // ScriptWrappable
   bool HasPendingActivity() const override;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   Member<FetchRespondWithObserver> observer_;
@@ -96,6 +103,13 @@ class MODULES_EXPORT FetchEvent final
   Member<PreloadResponseProperty> preload_response_property_;
   std::unique_ptr<WebURLResponse> preload_response_;
   Member<DataPipeBytesConsumer::CompletionNotifier> body_completion_notifier_;
+  Member<ScriptPromiseProperty<ToV8UndefinedGenerator, Member<DOMException>>>
+      handled_property_;
+  // This is currently null for navigation while https://crbug.com/900700 is
+  // being implemented.
+  HeapMojoRemote<mojom::blink::WorkerTimingContainer,
+                 HeapMojoWrapperMode::kWithoutContextObserver>
+      worker_timing_remote_;
   String client_id_;
   String resulting_client_id_;
   bool is_reload_;

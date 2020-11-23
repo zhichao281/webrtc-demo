@@ -22,6 +22,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_LINE_INLINE_FLOW_BOX_H_
 
 #include <memory>
+#include "third_party/blink/renderer/core/layout/geometry/box_sides.h"
 #include "third_party/blink/renderer/core/layout/line/inline_box.h"
 #include "third_party/blink/renderer/core/layout/overflow_model.h"
 #include "third_party/blink/renderer/core/style/shadow_data.h"
@@ -79,9 +80,7 @@ class InlineFlowBox : public InlineBox {
 
 #if DCHECK_IS_ON()
   ~InlineFlowBox() override;
-#endif
 
-#ifndef NDEBUG
   void DumpLineTreeAndMark(StringBuilder&,
                            const InlineBox* = nullptr,
                            const char* = nullptr,
@@ -127,12 +126,12 @@ class InlineFlowBox : public InlineBox {
   LayoutRect FrameRect() const;
 
   void Paint(const PaintInfo&,
-             const LayoutPoint&,
+             const PhysicalOffset&,
              LayoutUnit line_top,
              LayoutUnit line_bottom) const override;
   bool NodeAtPoint(HitTestResult&,
-                   const HitTestLocation& location_in_container,
-                   const LayoutPoint& accumulated_offset,
+                   const HitTestLocation&,
+                   const PhysicalOffset& accumulated_offset,
                    LayoutUnit line_top,
                    LayoutUnit line_bottom) override;
 
@@ -200,6 +199,13 @@ class InlineFlowBox : public InlineBox {
   void SetEdges(bool include_left, bool include_right) {
     include_logical_left_edge_ = include_left;
     include_logical_right_edge_ = include_right;
+  }
+
+  PhysicalBoxSides SidesToInclude() const {
+    const LogicalBoxSides logical_sides(true, IncludeLogicalRightEdge(), true,
+                                        IncludeLogicalLeftEdge());
+    return PhysicalBoxSides(logical_sides,
+                            GetLineLayoutItem().StyleRef().GetWritingMode());
   }
 
   // Helper functions used during line construction and placement.
@@ -319,6 +325,12 @@ class InlineFlowBox : public InlineBox {
     return VisualOverflowIsSet()
                ? overflow_->visual_overflow->VisualOverflowRect()
                : FrameRectIncludingLineHeight(line_top, line_bottom);
+  }
+  PhysicalRect PhysicalVisualOverflowRect(LayoutUnit line_top,
+                                          LayoutUnit line_bottom) const {
+    LayoutRect rect = VisualOverflowRect(line_top, line_bottom);
+    FlipForWritingMode(rect);
+    return PhysicalRect(rect);
   }
   LayoutUnit LogicalLeftVisualOverflow() const {
     return VisualOverflowIsSet()
@@ -497,7 +509,10 @@ class InlineFlowBox : public InlineBox {
 #endif
 };
 
-DEFINE_INLINE_BOX_TYPE_CASTS(InlineFlowBox);
+template <>
+struct DowncastTraits<InlineFlowBox> {
+  static bool AllowFrom(const InlineBox& box) { return box.IsInlineFlowBox(); }
+};
 
 inline void InlineFlowBox::SetHasBadChildList() {
 #if DCHECK_IS_ON()

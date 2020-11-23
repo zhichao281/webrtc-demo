@@ -5,7 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_ANIMATION_TRANSITION_KEYFRAME_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_ANIMATION_TRANSITION_KEYFRAME_H_
 
-#include "third_party/blink/renderer/core/animation/animatable/animatable_value.h"
+#include "third_party/blink/renderer/core/animation/css/compositor_keyframe_value.h"
 #include "third_party/blink/renderer/core/animation/keyframe.h"
 #include "third_party/blink/renderer/core/animation/typed_interpolation_value.h"
 #include "third_party/blink/renderer/core/core_export.h"
@@ -20,12 +20,10 @@ namespace blink {
 // attributes) or an AtomicString (for custom CSS properties).
 class CORE_EXPORT TransitionKeyframe : public Keyframe {
  public:
-  static TransitionKeyframe* Create(const PropertyHandle& property) {
+  TransitionKeyframe(const PropertyHandle& property) : property_(property) {
     DCHECK(!property.IsSVGAttribute());
-    return MakeGarbageCollected<TransitionKeyframe>(property);
   }
 
-  TransitionKeyframe(const PropertyHandle& property) : property_(property) {}
   TransitionKeyframe(const TransitionKeyframe& copy_from)
       : Keyframe(copy_from.offset_, copy_from.composite_, copy_from.easing_),
         property_(copy_from.property_),
@@ -41,12 +39,13 @@ class CORE_EXPORT TransitionKeyframe : public Keyframe {
     CHECK(!!value->Value());
     value_ = std::move(value);
   }
-  void SetCompositorValue(AnimatableValue*);
+  void SetCompositorValue(CompositorKeyframeValue*);
   PropertyHandleSet Properties() const final;
 
-  void AddKeyframePropertiesToV8Object(V8ObjectBuilder&) const override;
+  void AddKeyframePropertiesToV8Object(V8ObjectBuilder&,
+                                       Element*) const override;
 
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
 
   class PropertySpecificKeyframe : public Keyframe::PropertySpecificKeyframe {
    public:
@@ -54,18 +53,19 @@ class CORE_EXPORT TransitionKeyframe : public Keyframe {
                              scoped_refptr<TimingFunction> easing,
                              EffectModel::CompositeOperation composite,
                              std::unique_ptr<TypedInterpolationValue> value,
-                             AnimatableValue* compositor_value)
+                             CompositorKeyframeValue* compositor_value)
         : Keyframe::PropertySpecificKeyframe(offset,
                                              std::move(easing),
                                              composite),
           value_(std::move(value)),
           compositor_value_(compositor_value) {}
 
-    const AnimatableValue* GetAnimatableValue() const final {
+    const CompositorKeyframeValue* GetCompositorKeyframeValue() const final {
       return compositor_value_;
     }
 
     bool IsNeutral() const final { return false; }
+    bool IsRevert() const final { return false; }
     Keyframe::PropertySpecificKeyframe* NeutralKeyframe(
         double offset,
         scoped_refptr<TimingFunction> easing) const final {
@@ -78,7 +78,7 @@ class CORE_EXPORT TransitionKeyframe : public Keyframe {
 
     bool IsTransitionPropertySpecificKeyframe() const final { return true; }
 
-    void Trace(Visitor*) override;
+    void Trace(Visitor*) const override;
 
    private:
     Keyframe::PropertySpecificKeyframe* CloneWithOffset(
@@ -88,7 +88,7 @@ class CORE_EXPORT TransitionKeyframe : public Keyframe {
     }
 
     std::unique_ptr<TypedInterpolationValue> value_;
-    Member<AnimatableValue> compositor_value_;
+    Member<CompositorKeyframeValue> compositor_value_;
   };
 
  private:
@@ -105,22 +105,24 @@ class CORE_EXPORT TransitionKeyframe : public Keyframe {
 
   PropertyHandle property_;
   std::unique_ptr<TypedInterpolationValue> value_;
-  Member<AnimatableValue> compositor_value_;
+  Member<CompositorKeyframeValue> compositor_value_;
 };
 
 using TransitionPropertySpecificKeyframe =
     TransitionKeyframe::PropertySpecificKeyframe;
 
-DEFINE_TYPE_CASTS(TransitionKeyframe,
-                  Keyframe,
-                  value,
-                  value->IsTransitionKeyframe(),
-                  value.IsTransitionKeyframe());
-DEFINE_TYPE_CASTS(TransitionPropertySpecificKeyframe,
-                  Keyframe::PropertySpecificKeyframe,
-                  value,
-                  value->IsTransitionPropertySpecificKeyframe(),
-                  value.IsTransitionPropertySpecificKeyframe());
+template <>
+struct DowncastTraits<TransitionKeyframe> {
+  static bool AllowFrom(const Keyframe& value) {
+    return value.IsTransitionKeyframe();
+  }
+};
+template <>
+struct DowncastTraits<TransitionPropertySpecificKeyframe> {
+  static bool AllowFrom(const Keyframe::PropertySpecificKeyframe& value) {
+    return value.IsTransitionPropertySpecificKeyframe();
+  }
+};
 
 }  // namespace blink
 

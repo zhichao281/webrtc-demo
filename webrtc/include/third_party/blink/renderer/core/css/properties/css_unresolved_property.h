@@ -5,7 +5,9 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_CSS_PROPERTIES_CSS_UNRESOLVED_PROPERTY_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_PROPERTIES_CSS_UNRESOLVED_PROPERTY_H_
 
+#include "third_party/blink/renderer/core/css/properties/css_exposure.h"
 #include "third_party/blink/renderer/core/css/properties/css_property_instances.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
@@ -18,7 +20,21 @@ class CORE_EXPORT CSSUnresolvedProperty {
   static const CSSUnresolvedProperty& Get(CSSPropertyID);
   static const CSSUnresolvedProperty* GetAliasProperty(CSSPropertyID);
 
-  virtual bool IsEnabled() const { return true; }
+  bool IsWebExposed() const { return blink::IsWebExposed(Exposure()); }
+  bool IsUAExposed() const { return blink::IsUAExposed(Exposure()); }
+  virtual CSSExposure Exposure() const { return CSSExposure::kWeb; }
+  // Takes origin trial into account
+  bool IsWebExposed(const ExecutionContext* context) const {
+    return blink::IsWebExposed(Exposure(context));
+  }
+  bool IsUAExposed(const ExecutionContext* context) const {
+    return blink::IsUAExposed(Exposure(context));
+  }
+  virtual CSSExposure Exposure(const ExecutionContext* context) const {
+    // css properties that does not override this function should return
+    // the same value as Exposure()
+    return Exposure();
+  }
   virtual bool IsResolvedProperty() const { return false; }
   virtual const char* GetPropertyName() const {
     NOTREACHED();

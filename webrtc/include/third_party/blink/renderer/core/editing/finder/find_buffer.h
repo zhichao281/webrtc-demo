@@ -31,6 +31,17 @@ class CORE_EXPORT FindBuffer {
       String search_text,
       const FindOptions);
 
+  // Returns the closest ancestor of |start_node| (including the node itself)
+  // that is block level.
+  static Node& GetFirstBlockLevelAncestorInclusive(const Node& start_node);
+
+  // See |GetVisibleTextNode|.
+  static Node* ForwardVisibleTextNode(Node& start_node);
+  static Node* BackwardVisibleTextNode(Node& start_node);
+
+  // Returns whether the given node is block level.
+  static bool IsNodeBlockLevel(Node& node);
+
   // A match result, containing the starting position of the match and
   // the length of the match.
   struct BufferMatchResult {
@@ -49,18 +60,26 @@ class CORE_EXPORT FindBuffer {
   // All match results for this buffer. We can iterate through the
   // BufferMatchResults one by one using the Iterator.
   class CORE_EXPORT Results {
+    STACK_ALLOCATED();
+
    public:
     Results();
 
-    Results(const Vector<UChar>& buffer,
-            String search_text,
+    Results(const FindBuffer& find_buffer,
+            TextSearcherICU* text_searcher,
+            const Vector<UChar>& buffer,
+            const String& search_text,
             const blink::FindOptions options);
 
     class CORE_EXPORT Iterator
         : public std::iterator<std::forward_iterator_tag, BufferMatchResult> {
+      STACK_ALLOCATED();
+
      public:
       Iterator() = default;
-      Iterator(TextSearcherICU* text_searcher, String search_text_);
+      Iterator(const FindBuffer& find_buffer,
+               TextSearcherICU* text_searcher,
+               const String& search_text);
 
       bool operator==(const Iterator& other) {
         return has_match_ == other.has_match_;
@@ -75,32 +94,34 @@ class CORE_EXPORT FindBuffer {
       void operator++();
 
      private:
+      const FindBuffer* find_buffer_;
       TextSearcherICU* text_searcher_;
       MatchResultICU match_;
       bool has_match_ = false;
     };
 
-    Iterator begin();
+    Iterator begin() const;
 
     Iterator end() const;
 
-    bool IsEmpty();
+    bool IsEmpty() const;
 
-    BufferMatchResult front();
+    BufferMatchResult front() const;
 
-    BufferMatchResult back();
+    BufferMatchResult back() const;
 
-    unsigned CountForTesting();
+    unsigned CountForTesting() const;
 
    private:
     String search_text_;
-    TextSearcherICU text_searcher_;
+    const FindBuffer* find_buffer_;
+    TextSearcherICU* text_searcher_;
     bool empty_result_ = false;
   };
 
   // Finds all the match for |search_text| in |buffer_|.
-  std::unique_ptr<Results> FindMatches(const WebString& search_text,
-                                       const blink::FindOptions options) const;
+  Results FindMatches(const WebString& search_text,
+                      const blink::FindOptions options);
 
   // Gets a flat tree range corresponding to text in the [start_index,
   // end_index) of |buffer|.
@@ -113,6 +134,8 @@ class CORE_EXPORT FindBuffer {
     return PositionInFlatTree::FirstPositionInNode(*node_after_block_);
   }
 
+  bool IsInvalidMatch(MatchResultICU match) const;
+
  private:
   // Collects text for one LayoutBlockFlow located within |range| to |buffer_|,
   // might be stopped without finishing one full LayoutBlockFlow  if we
@@ -120,34 +143,6 @@ class CORE_EXPORT FindBuffer {
   // surpassed. Saves the next starting node after the block (first node in
   // another LayoutBlockFlow or after |end_position|) to |node_after_block_|.
   void CollectTextUntilBlockBoundary(const EphemeralRangeInFlatTree& range);
-
-  // Adds the ScopedForcedUpdate of |element|'s DisplayLockContext (if it's
-  // there) to |scoped_forced_update_list_|. Returns true if we added a
-  // ScopedForceUpdate.
-  bool PushScopedForcedUpdateIfNeeded(const Element& element);
-
-  // Collects all ScopedForceUpdates of any activatable-locked element
-  // within the range of [start_node, search_range_end_node] or
-  // [start_node, node_after_block) whichever is smaller, to
-  // |scoped_forced_update_list_|.
-  void CollectScopedForcedUpdates(Node& start_node,
-                                  const Node* search_range_end_node,
-                                  const Node* node_after_block);
-
-  class CORE_EXPORT InvisibleLayoutScope {
-    STACK_ALLOCATED();
-
-   public:
-    InvisibleLayoutScope() {}
-    ~InvisibleLayoutScope();
-
-    void EnsureRecalc(Node& block_root);
-    bool DidRecalc() { return did_recalc_; }
-
-   private:
-    bool did_recalc_ = false;
-    Member<Element> invisible_root_;
-  };
 
   // Mapping for position in buffer -> actual node where the text came from,
   // along with the offset in the NGOffsetMapping of this find_buffer.
@@ -179,7 +174,7 @@ class CORE_EXPORT FindBuffer {
     const unsigned offset_in_mapping;
   };
 
-  BufferNodeMapping MappingForIndex(unsigned index) const;
+  const BufferNodeMapping* MappingForIndex(unsigned index) const;
 
   PositionInFlatTree PositionAtStartOfCharacterAtIndex(unsigned index) const;
 
@@ -190,14 +185,12 @@ class CORE_EXPORT FindBuffer {
                        LayoutBlockFlow& block_flow,
                        const EphemeralRangeInFlatTree& range);
 
-  InvisibleLayoutScope invisible_layout_scope_;
-  Member<Node> node_after_block_;
+  Node* node_after_block_ = nullptr;
   Vector<UChar> buffer_;
   Vector<BufferNodeMapping> buffer_node_mappings_;
-  Vector<DisplayLockContext::ScopedForcedUpdate> scoped_forced_update_list_;
+  TextSearcherICU text_searcher_;
 
   const NGOffsetMapping* offset_mapping_ = nullptr;
-  bool mapping_needs_recalc_ = false;
 };
 
 }  // namespace blink

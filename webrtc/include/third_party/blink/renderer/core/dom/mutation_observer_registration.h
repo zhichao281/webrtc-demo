@@ -44,15 +44,9 @@ namespace blink {
 class QualifiedName;
 
 class CORE_EXPORT MutationObserverRegistration final
-    : public GarbageCollectedFinalized<MutationObserverRegistration>,
+    : public GarbageCollected<MutationObserverRegistration>,
       public NameClient {
  public:
-  static MutationObserverRegistration* Create(
-      MutationObserver&,
-      Node*,
-      MutationObserverOptions,
-      const HashSet<AtomicString>& attribute_filter);
-
   MutationObserverRegistration(MutationObserver&,
                                Node*,
                                MutationObserverOptions,
@@ -87,7 +81,7 @@ class CORE_EXPORT MutationObserverRegistration final
 
   void Dispose();
 
-  void Trace(Visitor*);
+  void Trace(Visitor*) const;
   const char* NameInHeapSnapshot() const override {
     return "MutationObserverRegistration";
   }

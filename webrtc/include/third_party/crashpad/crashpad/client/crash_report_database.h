@@ -113,8 +113,12 @@ class CrashReportDatabase {
     NewReport();
     ~NewReport();
 
-    //! An open FileWriter with which to write the report.
+    //! \brief An open FileWriter with which to write the report.
     FileWriter* Writer() const { return writer_.get(); }
+
+    //! \brief Returns a FileReaderInterface to the report, or `nullptr` with a
+    //!     message logged.
+    FileReaderInterface* Reader();
 
     //! A unique identifier by which this report will always be known to the
     //! database.
@@ -122,7 +126,7 @@ class CrashReportDatabase {
 
     //! \brief Adds an attachment to the report.
     //!
-    //! \note This function is not yet implemented on macOS or Windows.
+    //! \note This function is not yet implemented on macOS.
     //!
     //! \param[in] name The key and name for the attachment, which will be
     //!     included in the http upload. The attachment will not appear in the
@@ -142,6 +146,7 @@ class CrashReportDatabase {
                     const base::FilePath::StringType& extension);
 
     std::unique_ptr<FileWriter> writer_;
+    std::unique_ptr<FileReader> reader_;
     ScopedRemoveFile file_remover_;
     std::vector<std::unique_ptr<FileWriter>> attachment_writers_;
     std::vector<ScopedRemoveFile> attachment_removers_;
@@ -165,7 +170,7 @@ class CrashReportDatabase {
     //! \brief Obtains a mapping of names to file readers for any attachments
     //!     for the report.
     //!
-    //! This is not implemented on macOS or Windows.
+    //! This is not implemented on macOS.
     std::map<std::string, FileReader*> GetAttachments() const {
       return attachment_map_;
     }
@@ -391,8 +396,7 @@ class CrashReportDatabase {
   //! \brief Cleans the database of expired lockfiles, metadata without report
   //!     files, and report files without metadata.
   //!
-  //! This method does nothing on the macOS and Windows implementations of the
-  //! database.
+  //! This method does nothing on the macOS implementations of the database.
   //!
   //! \param[in] lockfile_ttl The number of seconds at which lockfiles or new
   //!     report files are considered expired.

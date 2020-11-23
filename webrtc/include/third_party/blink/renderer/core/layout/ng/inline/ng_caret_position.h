@@ -8,11 +8,11 @@
 #include "base/optional.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/editing/forward.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/core/layout/ng/inline/ng_inline_cursor.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
-class NGPaintFragment;
 class LayoutBlockFlow;
 
 // An NGCaretPosition indicates a caret position relative to an inline
@@ -27,14 +27,15 @@ class LayoutBlockFlow;
 
 enum class NGCaretPositionType { kBeforeBox, kAfterBox, kAtTextOffset };
 struct NGCaretPosition {
-  DISALLOW_NEW();
+  STACK_ALLOCATED();
 
-  bool IsNull() const { return !fragment; }
+ public:
+  bool IsNull() const { return cursor.IsNull(); }
 
   Position ToPositionInDOMTree() const;
   PositionWithAffinity ToPositionInDOMTreeWithAffinity() const;
 
-  const NGPaintFragment* fragment = nullptr;  // owned by root LayoutNGMixin
+  NGInlineCursor cursor;
   NGCaretPositionType position_type;
   base::Optional<unsigned> text_offset;
 };
@@ -43,13 +44,17 @@ struct NGCaretPosition {
 // affinity, returns the corresponding NGCaretPosition, or null if not found.
 // Note that in many cases, null result indicates that we have reached an
 // unexpected case that is not properly handled.
-CORE_EXPORT NGCaretPosition ComputeNGCaretPosition(const LayoutBlockFlow&,
-                                                   unsigned,
-                                                   TextAffinity);
+// When |layout_text| isn't |nullptr|, this functions returns position for
+// |layout_text| in multiple candidates.
+CORE_EXPORT NGCaretPosition
+ComputeNGCaretPosition(const LayoutBlockFlow& context,
+                       unsigned offset,
+                       TextAffinity affinity,
+                       const LayoutText* layout_text = nullptr);
 
 // Shorthand of the above when the input is a position instead of a
 // (context, offset) pair.
-NGCaretPosition ComputeNGCaretPosition(const PositionWithAffinity&);
+CORE_EXPORT NGCaretPosition ComputeNGCaretPosition(const PositionWithAffinity&);
 
 }  // namespace blink
 

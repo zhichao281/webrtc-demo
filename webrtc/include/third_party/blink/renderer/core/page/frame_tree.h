@@ -28,6 +28,8 @@
 namespace blink {
 
 class Frame;
+struct FrameLoadRequest;
+class KURL;
 
 class CORE_EXPORT FrameTree final {
   DISALLOW_NEW();
@@ -45,6 +47,10 @@ class CORE_EXPORT FrameTree final {
     // Kicks-off propagation of name changes to other renderers.
     kReplicate,
   };
+
+  // TODO(shuuran): remove this once we have gathered the data
+  void CrossBrowsingContextGroupSetNulledName();
+
   void SetName(const AtomicString&, ReplicationPolicy = kDoNotReplicate);
 
   // TODO(andypaicu): remove this once we have gathered the data
@@ -58,7 +64,21 @@ class CORE_EXPORT FrameTree final {
   bool IsDescendantOf(const Frame* ancestor) const;
   Frame* TraverseNext(const Frame* stay_within = nullptr) const;
 
-  Frame* Find(const AtomicString& name) const;
+  // For plugins and tests only.
+  Frame* FindFrameByName(const AtomicString& name) const;
+
+  // https://html.spec.whatwg.org/#the-rules-for-choosing-a-browsing-context-given-a-browsing-context-name
+  struct FindResult {
+    STACK_ALLOCATED();
+
+   public:
+    FindResult(Frame* f, bool is_new) : frame(f), new_window(is_new) {}
+    Frame* frame;
+    bool new_window;
+  };
+  FindResult FindOrCreateFrameForNavigation(FrameLoadRequest&,
+                                            const AtomicString& name) const;
+
   unsigned ChildCount() const;
 
   Frame* ScopedChild(unsigned index) const;
@@ -71,9 +91,12 @@ class CORE_EXPORT FrameTree final {
   unsigned ScopedChildCount() const;
   void InvalidateScopedChildCount();
 
-  void Trace(blink::Visitor*);
+  void Trace(Visitor*) const;
 
  private:
+  Frame* FindFrameForNavigationInternal(const AtomicString& name,
+                                        const KURL&) const;
+
   Member<Frame> this_frame_;
 
   AtomicString name_;  // The actual frame name (may be empty).
@@ -83,13 +106,16 @@ class CORE_EXPORT FrameTree final {
   // TODO(andypaicu): remove this once we have gathered the data
   bool experimental_set_nulled_name_;
 
+  // TODO(shuuran): remove this once we have gathered the data
+  bool cross_browsing_context_group_set_nulled_name_;
+
   DISALLOW_COPY_AND_ASSIGN(FrameTree);
 };
 
 }  // namespace blink
 
-#ifndef NDEBUG
-// Outside the WebCore namespace for ease of invocation from gdb.
+#if DCHECK_IS_ON()
+// Outside the blink namespace for ease of invocation from gdb.
 void showFrameTree(const blink::Frame*);
 #endif
 

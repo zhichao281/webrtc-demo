@@ -27,52 +27,49 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_GAMEPAD_NAVIGATOR_GAMEPAD_H_
 
 #include "third_party/blink/renderer/core/dom/dom_high_res_time_stamp.h"
-#include "third_party/blink/renderer/core/execution_context/context_lifecycle_observer.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/navigator.h"
 #include "third_party/blink/renderer/core/frame/platform_event_controller.h"
 #include "third_party/blink/renderer/modules/gamepad/gamepad.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
-#include "third_party/blink/renderer/platform/heap/handle.h"
+#include "third_party/blink/renderer/platform/heap/member.h"
 #include "third_party/blink/renderer/platform/supplementable.h"
+#include "third_party/blink/renderer/platform/wtf/forward.h"
+
+namespace device {
+class Gamepad;
+}
 
 namespace blink {
 
-class Document;
 class GamepadDispatcher;
 class GamepadHapticActuator;
 class GamepadList;
 class Navigator;
 
 class MODULES_EXPORT NavigatorGamepad final
-    : public GarbageCollectedFinalized<NavigatorGamepad>,
+    : public GarbageCollected<NavigatorGamepad>,
       public Supplement<Navigator>,
-      public DOMWindowClient,
+      public ExecutionContextClient,
       public PlatformEventController,
-      public LocalDOMWindow::EventListenerObserver {
-  USING_GARBAGE_COLLECTED_MIXIN(NavigatorGamepad);
-
+      public LocalDOMWindow::EventListenerObserver,
+      public Gamepad::Client {
  public:
   static const char kSupplementName[];
 
-  static NavigatorGamepad* From(Document&);
   static NavigatorGamepad& From(Navigator&);
 
   explicit NavigatorGamepad(Navigator&);
   ~NavigatorGamepad() override;
 
-  static GamepadList* getGamepads(Navigator&);
+  static GamepadList* getGamepads(Navigator&, ExceptionState&);
   GamepadList* Gamepads();
 
-  GamepadHapticActuator* GetVibrationActuator(uint32_t pad_index);
-
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   void SampleGamepads();
-  void SampleGamepad(uint32_t index,
-                     Gamepad& gamepad,
-                     const device::Gamepad& device_gamepad);
 
   void DidRemoveGamepadEventListeners();
   bool StartUpdatingIfAttached();
@@ -93,6 +90,10 @@ class MODULES_EXPORT NavigatorGamepad final
   void DidRemoveEventListener(LocalDOMWindow*, const AtomicString&) override;
   void DidRemoveAllEventListeners(LocalDOMWindow*) override;
 
+  // Gamepad::Client
+  GamepadHapticActuator* GetVibrationActuatorForGamepad(
+      const Gamepad&) override;
+
   // A reference to the buffer containing the last-received gamepad state. May
   // be nullptr if no data has been received yet. Do not overwrite this buffer
   // as it may have already been returned to the page. Instead, write to
@@ -111,12 +112,12 @@ class MODULES_EXPORT NavigatorGamepad final
 
   // The timestamp for the navigationStart attribute. Gamepad timestamps are
   // reported relative to this value.
-  TimeTicks navigation_start_;
+  base::TimeTicks navigation_start_;
 
   // The timestamp when gamepads were made available to the page. If no data has
   // been received from the hardware, the gamepad timestamp should be equal to
   // this value.
-  TimeTicks gamepads_start_;
+  base::TimeTicks gamepads_start_;
 
   // True if there is at least one listener for gamepad connection or
   // disconnection events.

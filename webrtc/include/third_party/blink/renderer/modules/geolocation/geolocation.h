@@ -32,17 +32,18 @@
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_position_callback.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_position_error_callback.h"
-#include "third_party/blink/renderer/core/execution_context/context_lifecycle_observer.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_position_options.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/core/page/page_visibility_observer.h"
 #include "third_party/blink/renderer/modules/geolocation/geo_notifier.h"
+#include "third_party/blink/renderer/modules/geolocation/geolocation_position_error.h"
 #include "third_party/blink/renderer/modules/geolocation/geolocation_watchers.h"
 #include "third_party/blink/renderer/modules/geolocation/geoposition.h"
-#include "third_party/blink/renderer/modules/geolocation/position_error.h"
-#include "third_party/blink/renderer/modules/geolocation/position_options.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "third_party/blink/renderer/platform/mojo/revocable_interface_ptr.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/timer.h"
 
 namespace blink {
@@ -51,29 +52,29 @@ namespace mojom {
 enum class PermissionStatus;
 }  // namespace mojom
 
-class Document;
 class LocalFrame;
-class ExecutionContext;
+class Navigator;
 
 class MODULES_EXPORT Geolocation final
     : public ScriptWrappable,
       public ActiveScriptWrappable<Geolocation>,
-      public ContextLifecycleObserver,
+      public Supplement<Navigator>,
+      public ExecutionContextLifecycleObserver,
       public PageVisibilityObserver {
   DEFINE_WRAPPERTYPEINFO();
-  USING_GARBAGE_COLLECTED_MIXIN(Geolocation);
 
  public:
-  static Geolocation* Create(ExecutionContext*);
+  static const char kSupplementName[];
+  static Geolocation* geolocation(Navigator&);
 
-  explicit Geolocation(ExecutionContext*);
+  explicit Geolocation(Navigator&);
   ~Geolocation() override;
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
-  // Inherited from ContextLifecycleObserver and PageVisibilityObserver.
-  void ContextDestroyed(ExecutionContext*) override;
+  // Inherited from ExecutionContextLifecycleObserver and
+  // PageVisibilityObserver.
+  void ContextDestroyed() override;
 
-  Document* GetDocument() const;
   LocalFrame* GetFrame() const;
 
   // Creates a oneshot and attempts to obtain a position that meets the
@@ -173,7 +174,7 @@ class MODULES_EXPORT Geolocation final
   // Sends the given error to all notifiers, unless the error is not fatal and
   // the notifier is due to receive a cached position. Clears the oneshots,
   // and also  clears the watchers if the error is fatal.
-  void HandleError(PositionError*);
+  void HandleError(GeolocationPositionError*);
 
   // Connects to the Geolocation mojo service and starts polling for updates.
   void StartUpdating(GeoNotifier*);
@@ -184,15 +185,15 @@ class MODULES_EXPORT Geolocation final
   void QueryNextPosition();
 
   // Attempts to obtain a position for the given notifier, either by using
-  // the cached position or by requesting one from the Geolocation.
+  // the cached position or by requesting one from the Geolocation service.
   // Sets a fatal error if permission is denied or no position can be
   // obtained.
   void StartRequest(GeoNotifier*);
 
   bool HaveSuitableCachedPosition(const PositionOptions*);
 
-  // Record whether the origin trying to access Geolocation would be allowed
-  // to access a feature that can only be accessed by secure origins.
+  // Record whether the origin trying to access Geolocation would be
+  // allowed to access a feature that can only be accessed by secure origins.
   // See https://goo.gl/Y0ZkNV
   void RecordOriginTypeAccess() const;
 
@@ -209,10 +210,10 @@ class MODULES_EXPORT Geolocation final
   //
   // |HandleError(error)| and |MakeSuccessCallbacks| need to clear |one_shots_|
   // (and optionally |watchers_|) before invoking the callbacks, in order to
-  // avoid clearing notifiers added by calls to Geolocation methods from the
-  // callbacks. Thus, something else needs to make the notifiers being invoked
-  // alive with wrapper-tracing because V8 GC may run during the callbacks.
-  // |one_shots_being_invoked_| and |watchers_being_invoked_| perform
+  // avoid clearing notifiers added by calls to Geolocation methods
+  // from the callbacks. Thus, something else needs to make the notifiers being
+  // invoked alive with wrapper-tracing because V8 GC may run during the
+  // callbacks. |one_shots_being_invoked_| and |watchers_being_invoked_| perform
   // wrapper-tracing.
   // TODO(https://crbug.com/796145): Remove this hack once on-stack objects
   // get supported by either of wrapper-tracing or unified GC.
@@ -220,8 +221,8 @@ class MODULES_EXPORT Geolocation final
   HeapVector<Member<GeoNotifier>> watchers_being_invoked_;
   Member<Geoposition> last_position_;
 
-  RevocableInterfacePtr<device::mojom::blink::Geolocation> geolocation_;
-  RevocableInterfacePtr<mojom::blink::GeolocationService> geolocation_service_;
+  HeapMojoRemote<device::mojom::blink::Geolocation> geolocation_;
+  HeapMojoRemote<mojom::blink::GeolocationService> geolocation_service_;
   bool enable_high_accuracy_ = false;
 
   // Whether a GeoNotifier is waiting for a position update.

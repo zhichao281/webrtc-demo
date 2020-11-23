@@ -6,9 +6,8 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_SERVICE_WORKER_WAIT_UNTIL_OBSERVER_H_
 
 #include "base/callback.h"
-#include "third_party/blink/renderer/core/execution_context/context_lifecycle_observer.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
-#include "third_party/blink/renderer/modules/service_worker/service_worker_global_scope_client.h"
 #include "third_party/blink/renderer/platform/timer.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 
@@ -21,10 +20,8 @@ class ScriptValue;
 
 // Created for each ExtendableEvent instance.
 class MODULES_EXPORT WaitUntilObserver final
-    : public GarbageCollectedFinalized<WaitUntilObserver>,
-      public ContextClient {
-  USING_GARBAGE_COLLECTED_MIXIN(WaitUntilObserver);
-
+    : public GarbageCollected<WaitUntilObserver>,
+      public ExecutionContextClient {
  public:
   using PromiseSettledCallback =
       base::RepeatingCallback<void(const ScriptValue&)>;
@@ -37,18 +34,20 @@ class MODULES_EXPORT WaitUntilObserver final
     kFetch,
     kInstall,
     kMessage,
+    kMessageerror,
     kNotificationClick,
     kNotificationClose,
     kPaymentRequest,
     kPush,
+    kPushSubscriptionChange,
     kSync,
+    kPeriodicSync,
     kBackgroundFetchAbort,
     kBackgroundFetchClick,
     kBackgroundFetchFail,
-    kBackgroundFetchSuccess
+    kBackgroundFetchSuccess,
+    kContentDelete,
   };
-
-  static WaitUntilObserver* Create(ExecutionContext*, EventType, int event_id);
 
   WaitUntilObserver(ExecutionContext*, EventType, int event_id);
 
@@ -56,11 +55,11 @@ class MODULES_EXPORT WaitUntilObserver final
   void WillDispatchEvent();
   // Must be called after dispatching the event. If |event_dispatch_failed| is
   // true, then DidDispatchEvent() immediately reports to
-  // ServiceWorkerGlobalScopeClient that the event finished, without waiting for
+  // ServiceWorkerGlobalScope that the event finished, without waiting for
   // all waitUntil promises to settle.
   void DidDispatchEvent(bool event_dispatch_failed);
 
-  // Observes the promise and delays reporting to ServiceWorkerGlobalScopeClient
+  // Observes the promise and delays reporting to ServiceWorkerGlobalScope
   // that the event completed until the promise is resolved or rejected.
   //
   // WaitUntil may be called multiple times. The event is extended until all
@@ -90,7 +89,7 @@ class MODULES_EXPORT WaitUntilObserver final
   // TODO(falken): Can this just use Event::IsBeingDispatched?
   bool IsDispatchingEvent() const;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   friend class InternalsServiceWorker;
@@ -102,7 +101,7 @@ class MODULES_EXPORT WaitUntilObserver final
     // Event dispatch has started but not yet finished.
     kDispatching,
     // Event dispatch completed. There may still be outstanding waitUntil
-    // promises that must settle before notifying ServiceWorkerGlobalScopeClient
+    // promises that must settle before notifying ServiceWorkerGlobalScope
     // that the event finished.
     kDispatched,
     // Event dispatch failed. Any outstanding waitUntil promises are ignored.

@@ -27,7 +27,8 @@
 
 #include <memory>
 
-#include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
+#include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/modules/mediastream/user_media_client.h"
 
 namespace blink {
@@ -36,18 +37,16 @@ class ApplyConstraintsRequest;
 class MediaStreamComponent;
 class UserMediaRequest;
 
-class UserMediaController final
-    : public GarbageCollectedFinalized<UserMediaController>,
-      public Supplement<LocalFrame> {
-  USING_GARBAGE_COLLECTED_MIXIN(UserMediaController);
-
+class UserMediaController final : public GarbageCollected<UserMediaController>,
+                                  public Supplement<LocalDOMWindow>,
+                                  public ExecutionContextLifecycleObserver {
  public:
   static const char kSupplementName[];
 
-  UserMediaController(LocalFrame&, std::unique_ptr<UserMediaClient>);
-  void Trace(blink::Visitor*) override;
+  explicit UserMediaController(LocalDOMWindow*);
+  void Trace(Visitor*) const override;
 
-  UserMediaClient* Client() const { return client_.get(); }
+  UserMediaClient* Client();
 
   void RequestUserMedia(UserMediaRequest*);
   void CancelUserMediaRequest(UserMediaRequest*);
@@ -55,32 +54,33 @@ class UserMediaController final
   void StopTrack(MediaStreamComponent*);
   bool HasRequestedUserMedia();
 
-  static UserMediaController* From(LocalFrame* frame) {
-    return Supplement<LocalFrame>::From<UserMediaController>(frame);
-  }
+  // ExecutionContextLifecycleObserver implementation.
+  void ContextDestroyed() override;
+
+  static UserMediaController* From(LocalDOMWindow*);
 
  private:
-  std::unique_ptr<UserMediaClient> client_;
+  Member<UserMediaClient> client_;
   bool has_requested_user_media_ = false;
 };
 
 inline void UserMediaController::RequestUserMedia(UserMediaRequest* request) {
-  client_->RequestUserMedia(request);
+  Client()->RequestUserMedia(request);
   has_requested_user_media_ = true;
 }
 
 inline void UserMediaController::CancelUserMediaRequest(
     UserMediaRequest* request) {
-  client_->CancelUserMediaRequest(request);
+  Client()->CancelUserMediaRequest(request);
 }
 
 inline void UserMediaController::ApplyConstraints(
     ApplyConstraintsRequest* request) {
-  client_->ApplyConstraints(request);
+  Client()->ApplyConstraints(request);
 }
 
 inline void UserMediaController::StopTrack(MediaStreamComponent* track) {
-  client_->StopTrack(track);
+  Client()->StopTrack(track);
 }
 
 inline bool UserMediaController::HasRequestedUserMedia() {

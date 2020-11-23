@@ -31,17 +31,10 @@
 #include "base/callback.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/threading/thread_checker.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/assertions.h"
 #include "third_party/blink/renderer/platform/wtf/thread_safe_ref_counted.h"
 #include "third_party/blink/renderer/platform/wtf/type_traits.h"
-
-namespace blink {
-template <typename T>
-class Member;
-template <typename T>
-class WeakMember;
-}
 
 namespace WTF {
 
@@ -62,11 +55,10 @@ namespace WTF {
 // WTF::Bind(), WTF::BindRepeating and base::{Once,Repeating}Callback should
 // be used for same-thread closures only, i.e. the closures must be created,
 // executed and destructed on the same thread.
-// Use crossThreadBind() and CrossThreadClosure if the function/task is called
-// or destructed on a (potentially) different thread from the current thread.
 //
-// Currently, WTF::CrossThreadClosure does not distinguish Once and Repeating
-// usage.
+// Use CrossThreadBindOnce() and CrossThreadBindRepeating() if the function/task
+// is called or destructed on a (potentially) different thread from the current
+// thread. See cross_thread_functional.h for more details.
 
 // WTF::Bind() / WTF::BindRepeating() and move semantics
 // =====================================================
@@ -201,8 +193,7 @@ struct CheckGCedTypeRestriction {
                 "it with either WrapPersistent, WrapWeakPersistent, "
                 "WrapCrossThreadPersistent, WrapCrossThreadWeakPersistent, "
                 "RefPtr or unretained.");
-  static_assert(!IsSubclassOfTemplate<T, blink::Member>::value &&
-                    !IsSubclassOfTemplate<T, blink::WeakMember>::value,
+  static_assert(!WTF::IsMemberOrWeakMemberType<T>::value,
                 "Member and WeakMember are not allowed to bind into "
                 "WTF::Function. Wrap it with either WrapPersistent, "
                 "WrapWeakPersistent, WrapCrossThreadPersistent or "
@@ -211,6 +202,9 @@ struct CheckGCedTypeRestriction {
                 "GCed types are forbidden as bound parameters.");
   static_assert(!WTF::IsStackAllocatedType<T>::value,
                 "Stack allocated types are forbidden as bound parameters.");
+  static_assert(
+      !(WTF::IsDisallowNew<T>::value && WTF::IsTraceable<T>::value),
+      "Traceable disallow new types are forbidden as bound parameters.");
 };
 
 template <typename Index, typename... Args>
@@ -313,7 +307,7 @@ class CrossThreadFunction<R(Args...)> {
 
  public:
   CrossThreadFunction() = default;
-  explicit CrossThreadFunction(base::Callback<R(Args...)> callback)
+  explicit CrossThreadFunction(base::RepeatingCallback<R(Args...)> callback)
       : callback_(std::move(callback)) {}
   ~CrossThreadFunction() = default;
 
@@ -327,6 +321,38 @@ class CrossThreadFunction<R(Args...)> {
     return callback_.Run(std::forward<Args>(args)...);
   }
 
+  bool IsCancelled() const { return callback_.IsCancelled(); }
+  void Reset() { callback_.Reset(); }
+  explicit operator bool() const { return static_cast<bool>(callback_); }
+
+  friend base::RepeatingCallback<R(Args...)> ConvertToBaseRepeatingCallback(
+      CrossThreadFunction function) {
+    return std::move(function.callback_);
+  }
+
+ private:
+  base::RepeatingCallback<R(Args...)> callback_;
+};
+
+template <typename Signature>
+class CrossThreadOnceFunction;
+
+template <typename R, typename... Args>
+class CrossThreadOnceFunction<R(Args...)> {
+  USING_FAST_MALLOC(CrossThreadOnceFunction);
+
+ public:
+  CrossThreadOnceFunction() = default;
+  explicit CrossThreadOnceFunction(base::OnceCallback<R(Args...)> callback)
+      : callback_(std::move(callback)) {}
+  ~CrossThreadOnceFunction() = default;
+
+  CrossThreadOnceFunction(const CrossThreadOnceFunction&) = delete;
+  CrossThreadOnceFunction& operator=(const CrossThreadOnceFunction&) = delete;
+
+  CrossThreadOnceFunction(CrossThreadOnceFunction&& other) = default;
+  CrossThreadOnceFunction& operator=(CrossThreadOnceFunction&& other) = default;
+
   R Run(Args... args) && {
     return std::move(callback_).Run(std::forward<Args>(args)...);
   }
@@ -335,13 +361,13 @@ class CrossThreadFunction<R(Args...)> {
   void Reset() { callback_.Reset(); }
   explicit operator bool() const { return static_cast<bool>(callback_); }
 
-  friend base::Callback<R(Args...)> ConvertToBaseCallback(
-      CrossThreadFunction function) {
+  friend base::OnceCallback<R(Args...)> ConvertToBaseOnceCallback(
+      CrossThreadOnceFunction function) {
     return std::move(function.callback_);
   }
 
  private:
-  base::Callback<R(Args...)> callback_;
+  base::OnceCallback<R(Args...)> callback_;
 };
 
 // Note: now there is WTF::Bind()and WTF::BindRepeating(). See the comment block
@@ -392,6 +418,8 @@ using CrossThreadRepeatingFunction = CrossThreadFunction<T>;
 using CrossThreadRepeatingClosure = CrossThreadFunction<void()>;
 using CrossThreadClosure = CrossThreadFunction<void()>;
 
+using CrossThreadOnceClosure = CrossThreadOnceFunction<void()>;
+
 }  // namespace WTF
 
 namespace base {
@@ -430,5 +458,8 @@ using WTF::CrossThreadUnretained;
 
 using WTF::CrossThreadFunction;
 using WTF::CrossThreadClosure;
+
+using WTF::CrossThreadOnceClosure;
+using WTF::CrossThreadOnceFunction;
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_FUNCTIONAL_H_

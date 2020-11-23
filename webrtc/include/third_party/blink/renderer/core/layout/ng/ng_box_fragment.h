@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NGBoxFragment_h
-#define NGBoxFragment_h
+#ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_NG_BOX_FRAGMENT_H_
+#define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_NG_BOX_FRAGMENT_H_
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_fragment.h"
@@ -14,53 +14,62 @@
 
 namespace blink {
 
-class NGBaselineRequest;
-struct NGLineHeightMetrics;
-
 class CORE_EXPORT NGBoxFragment final : public NGFragment {
  public:
-  NGBoxFragment(WritingMode writing_mode,
-                TextDirection direction,
+  NGBoxFragment(WritingDirectionMode writing_direction,
                 const NGPhysicalBoxFragment& physical_fragment)
-      : NGFragment(writing_mode, physical_fragment), direction_(direction) {}
+      : NGFragment(writing_direction, physical_fragment) {}
+
+  base::Optional<LayoutUnit> FirstBaseline() const {
+    if (writing_direction_.GetWritingMode() !=
+        physical_fragment_.Style().GetWritingMode())
+      return base::nullopt;
+
+    return To<NGPhysicalBoxFragment>(physical_fragment_).Baseline();
+  }
+
+  LayoutUnit FirstBaselineOrSynthesize() const {
+    return FirstBaseline().value_or(BlockSize());
+  }
+
+  // Returns the baseline for this fragment wrt. the parent writing mode. Will
+  // return a null baseline if:
+  //  - The fragment has no baseline.
+  //  - The writing modes differ.
+  base::Optional<LayoutUnit> Baseline() const {
+    if (writing_direction_.GetWritingMode() !=
+        physical_fragment_.Style().GetWritingMode())
+      return base::nullopt;
+
+    if (auto last_baseline =
+            To<NGPhysicalBoxFragment>(physical_fragment_).LastBaseline())
+      return last_baseline;
+
+    return To<NGPhysicalBoxFragment>(physical_fragment_).Baseline();
+  }
+
+  LayoutUnit BaselineOrSynthesize() const {
+    return Baseline().value_or(BlockSize());
+  }
 
   // Compute baseline metrics (ascent/descent) for this box.
   //
-  // Baseline requests must be added to constraint space when this fragment was
-  // laid out.
-  //
-  // The "WithoutSynthesize" version returns an empty metrics if this box does
-  // not have any baselines, while the other version synthesize the baseline
-  // from the box.
-  NGLineHeightMetrics BaselineMetricsWithoutSynthesize(
-      const NGBaselineRequest&) const;
-  NGLineHeightMetrics BaselineMetrics(const NGBaselineRequest&,
-                                      const NGConstraintSpace&) const;
+  // This will synthesize baseline metrics if no baseline is available. See
+  // |Baseline()| for when this may occur.
+  FontHeight BaselineMetrics(const NGLineBoxStrut& margins, FontBaseline) const;
 
   NGBoxStrut Borders() const {
-    const auto& physical_fragment =
+    const NGPhysicalBoxFragment& physical_box_fragment =
         To<NGPhysicalBoxFragment>(physical_fragment_);
-    return physical_fragment.Borders().ConvertToLogical(GetWritingMode(),
-                                                        direction_);
+    return physical_box_fragment.Borders().ConvertToLogical(writing_direction_);
   }
   NGBoxStrut Padding() const {
-    const auto& physical_fragment =
+    const NGPhysicalBoxFragment& physical_box_fragment =
         To<NGPhysicalBoxFragment>(physical_fragment_);
-    return physical_fragment.Padding().ConvertToLogical(GetWritingMode(),
-                                                        direction_);
-  }
-
- protected:
-  TextDirection direction_;
-};
-
-template <>
-struct DowncastTraits<NGBoxFragment> {
-  static bool AllowFrom(const NGFragment& fragment) {
-    return fragment.Type() == NGPhysicalFragment::kFragmentBox;
+    return physical_box_fragment.Padding().ConvertToLogical(writing_direction_);
   }
 };
 
 }  // namespace blink
 
-#endif  // NGBoxFragment_h
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_NG_BOX_FRAGMENT_H_

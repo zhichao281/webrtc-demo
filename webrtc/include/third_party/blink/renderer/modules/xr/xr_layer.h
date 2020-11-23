@@ -1,43 +1,33 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_XR_XR_LAYER_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_XR_XR_LAYER_H_
 
-#include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
-#include "third_party/blink/renderer/platform/graphics/gpu/xr_webgl_drawing_buffer.h"
-#include "third_party/blink/renderer/platform/heap/handle.h"
-#include "third_party/blink/renderer/platform/wtf/forward.h"
+#include "third_party/blink/renderer/core/dom/events/event_target.h"
 
 namespace blink {
 
 class XRSession;
 
-enum XRLayerType { kXRWebGLLayerType };
-
-class XRLayer : public ScriptWrappable {
+class XRLayer : public EventTargetWithInlineData {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  XRLayer(XRSession*, XRLayerType);
+  explicit XRLayer(XRSession*);
+  ~XRLayer() override = default;
 
   XRSession* session() const { return session_; }
-  XRLayerType layerType() const { return layer_type_; }
 
-  virtual void OnFrameStart(const base::Optional<gpu::MailboxHolder>&);
-  virtual void OnFrameEnd();
-  virtual void OnResize();
+  // EventTarget overrides.
+  ExecutionContext* GetExecutionContext() const override;
+  const AtomicString& InterfaceName() const override;
 
-  // Called from XRSession::OnFrame handler. Params are background texture
-  // mailbox holder and its size respectively.
-  virtual void HandleBackgroundImage(const gpu::MailboxHolder&, const IntSize&);
-
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   const Member<XRSession> session_;
-  XRLayerType layer_type_;
 };
 
 }  // namespace blink

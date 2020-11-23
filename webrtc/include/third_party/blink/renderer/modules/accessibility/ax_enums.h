@@ -28,6 +28,12 @@ enum AccessibilityExpanded {
   kExpandedExpanded,
 };
 
+enum AccessibilityGrabbedState {
+  kGrabbedStateUndefined = 0,
+  kGrabbedStateFalse,
+  kGrabbedStateTrue,
+};
+
 enum AccessibilitySelectedState {
   kSelectedStateUndefined = 0,
   kSelectedStateFalse,
@@ -38,6 +44,18 @@ enum class AXBoolAttribute {
   kAriaBusy,
 };
 
+enum class AXIntAttribute {
+  kAriaColumnCount,
+  kAriaRowCount,
+};
+
+enum class AXUIntAttribute {
+  kAriaColumnIndex,
+  kAriaColumnSpan,
+  kAriaRowIndex,
+  kAriaRowSpan,
+};
+
 enum class AXStringAttribute {
   kAriaKeyShortcuts,
   kAriaRoleDescription,
@@ -45,12 +63,12 @@ enum class AXStringAttribute {
 
 enum class AXObjectAttribute {
   kAriaActiveDescendant,
-  kAriaDetails,
   kAriaErrorMessage,
 };
 
 enum class AXObjectVectorAttribute {
   kAriaControls,
+  kAriaDetails,
   kAriaFlowTo,
 };
 
@@ -82,6 +100,7 @@ enum AXTextFromNativeHTML {
 
 enum AXIgnoredReason {
   kAXActiveModalDialog,
+  kAXAriaModalDialog,
   kAXAncestorIsLeafNode,
   kAXAriaHiddenElement,
   kAXAriaHiddenSubtree,

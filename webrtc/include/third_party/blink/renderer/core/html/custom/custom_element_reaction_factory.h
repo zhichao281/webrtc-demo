@@ -5,7 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_HTML_CUSTOM_CUSTOM_ELEMENT_REACTION_FACTORY_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_HTML_CUSTOM_CUSTOM_ELEMENT_REACTION_FACTORY_H_
 
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 
 namespace blink {
@@ -22,8 +22,7 @@ class CustomElementReactionFactory {
 
  public:
   static CustomElementReaction& CreateUpgrade(
-      CustomElementDefinition& definition,
-      bool upgrade_invisible_elements);
+      CustomElementDefinition& definition);
   static CustomElementReaction& CreateConnected(
       CustomElementDefinition& definition);
   static CustomElementReaction& CreateDisconnected(

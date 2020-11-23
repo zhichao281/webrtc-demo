@@ -30,11 +30,12 @@
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_LOADER_FETCH_RESOURCE_LOADER_H_
 
 #include <memory>
-#include <vector>
+#include "base/containers/span.h"
 #include "base/gtest_prod_util.h"
 #include "base/single_thread_task_runner.h"
-#include "mojo/public/cpp/bindings/associated_binding.h"
-#include "services/network/public/mojom/fetch_api.mojom-shared.h"
+#include "mojo/public/cpp/base/big_buffer.h"
+#include "mojo/public/cpp/bindings/associated_receiver.h"
+#include "services/network/public/mojom/fetch_api.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/blob/blob_registry.mojom-blink.h"
 #include "third_party/blink/public/platform/web_url_loader.h"
 #include "third_party/blink/public/platform/web_url_loader_client.h"
@@ -46,6 +47,7 @@
 #include "third_party/blink/renderer/platform/loader/fetch/resource_request.h"
 #include "third_party/blink/renderer/platform/loader/fetch/response_body_loader_client.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
+#include "third_party/blink/renderer/platform/scheduler/public/frame_or_worker_scheduler.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 
 namespace blink {
@@ -60,12 +62,11 @@ class ResponseBodyLoader;
 // WebURLLoader and loads the resource using it. Any per-load logic should be
 // implemented in this class basically.
 class PLATFORM_EXPORT ResourceLoader final
-    : public GarbageCollectedFinalized<ResourceLoader>,
+    : public GarbageCollected<ResourceLoader>,
       public ResourceLoadSchedulerClient,
       protected WebURLLoaderClient,
       protected mojom::blink::ProgressClient,
       private ResponseBodyLoaderClient {
-  USING_GARBAGE_COLLECTED_MIXIN(ResourceLoader);
   USING_PRE_FINALIZER(ResourceLoader, Dispose);
 
  public:
@@ -73,9 +74,10 @@ class PLATFORM_EXPORT ResourceLoader final
   ResourceLoader(ResourceFetcher*,
                  ResourceLoadScheduler*,
                  Resource*,
+                 ResourceRequestBody request_body = ResourceRequestBody(),
                  uint32_t inflight_keepalive_bytes = 0);
   ~ResourceLoader() override;
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
   void Start();
 
@@ -88,7 +90,7 @@ class PLATFORM_EXPORT ResourceLoader final
 
   // Called before start() to activate cache-aware loading if enabled in
   // |m_resource->options()| and applicable.
-  void ActivateCacheAwareLoadingIfNeeded(const ResourceRequest&);
+  void ActivateCacheAwareLoadingIfNeeded(const ResourceRequestHead&);
 
   bool IsCacheAwareLoadingActivated() const {
     return is_cache_aware_loading_activated_;
@@ -111,39 +113,34 @@ class PLATFORM_EXPORT ResourceLoader final
   // A failed load is indicated by 1 DidFail(), which can occur at any time
   // before DidFinishLoading(), including synchronous inside one of the other
   // callbacks via ResourceLoader::cancel()
-  bool WillFollowRedirect(
-      const WebURL& new_url,
-      const WebURL& new_site_for_cookies,
-      const base::Optional<WebSecurityOrigin>& new_top_frame_origin,
-      const WebString& new_referrer,
-      network::mojom::ReferrerPolicy new_referrer_policy,
-      const WebString& new_method,
-      const WebURLResponse& passed_redirect_response,
-      bool& report_raw_headers) override;
+  bool WillFollowRedirect(const WebURL& new_url,
+                          const net::SiteForCookies& new_site_for_cookies,
+                          const WebString& new_referrer,
+                          network::mojom::ReferrerPolicy new_referrer_policy,
+                          const WebString& new_method,
+                          const WebURLResponse& passed_redirect_response,
+                          bool& report_raw_headers,
+                          std::vector<std::string>* removed_headers) override;
   void DidSendData(uint64_t bytes_sent,
                    uint64_t total_bytes_to_be_sent) override;
   void DidReceiveResponse(const WebURLResponse&) override;
-  void DidReceiveResponse(const WebURLResponse&,
-                          std::unique_ptr<WebDataConsumerHandle>) override;
-  void DidReceiveCachedMetadata(const char* data, int length) override;
+  void DidReceiveCachedMetadata(mojo_base::BigBuffer data) override;
   void DidReceiveData(const char*, int) override;
   void DidReceiveTransferSizeUpdate(int transfer_size_diff) override;
   void DidStartLoadingResponseBody(
       mojo::ScopedDataPipeConsumerHandle body) override;
-  void DidFinishLoading(
-      TimeTicks response_end,
-      int64_t encoded_data_length,
-      int64_t encoded_body_length,
-      int64_t decoded_body_length,
-      bool should_report_corb_blocking,
-      const std::vector<network::cors::PreflightTimingInfo>&) override;
+  void DidFinishLoading(base::TimeTicks response_end,
+                        int64_t encoded_data_length,
+                        int64_t encoded_body_length,
+                        int64_t decoded_body_length,
+                        bool should_report_corb_blocking) override;
   void DidFail(const WebURLError&,
                int64_t encoded_data_length,
                int64_t encoded_body_length,
                int64_t decoded_body_length) override;
 
   blink::mojom::CodeCacheType GetCodeCacheType() const;
-  void SendCachedCodeToResource(const char* data, int size);
+  void SendCachedCodeToResource(mojo_base::BigBuffer data);
   void ClearCachedCode();
 
   void HandleError(const ResourceError&);
@@ -169,7 +166,7 @@ class PLATFORM_EXPORT ResourceLoader final
   void DidCancelLoadingBody() override;
 
   bool ShouldFetchCodeCache();
-  void StartWith(const ResourceRequest&);
+  void StartWith(const ResourceRequestHead&);
 
   void Release(ResourceLoadScheduler::ReleaseOption,
                const ResourceLoadScheduler::TrafficReportHints&);
@@ -177,7 +174,7 @@ class PLATFORM_EXPORT ResourceLoader final
   // This method is currently only used for service worker fallback request and
   // cache-aware loading, other users should be careful not to break
   // ResourceLoader state.
-  void Restart(const ResourceRequest&);
+  void Restart(const ResourceRequestHead&);
 
   FetchContext& Context() const;
 
@@ -187,34 +184,30 @@ class PLATFORM_EXPORT ResourceLoader final
 
   void CancelForRedirectAccessCheckError(const KURL&,
                                          ResourceRequestBlockedReason);
-  void RequestSynchronously(const ResourceRequest&);
-  void RequestAsynchronously(const ResourceRequest&);
+  void RequestSynchronously(const ResourceRequestHead&);
+  void RequestAsynchronously(const ResourceRequestHead&);
   void Dispose();
 
-  void DidReceiveResponseInternal(const ResourceResponse&,
-                                  std::unique_ptr<WebDataConsumerHandle>);
+  void DidReceiveResponseInternal(const ResourceResponse&);
 
   void CancelTimerFired(TimerBase*);
 
   void OnProgress(uint64_t delta) override;
   void FinishedCreatingBlob(const scoped_refptr<BlobDataHandle>&);
 
-  bool GetCorsFlag() const { return resource_->Options().cors_flag; }
-
   base::Optional<ResourceRequestBlockedReason> CheckResponseNosniff(
-      mojom::RequestContextType,
+      mojom::blink::RequestContextType,
       const ResourceResponse&);
 
   // Processes Data URL in ResourceLoader instead of using |loader_|.
   void HandleDataUrl();
-
-  bool ShouldCheckCorsInResourceLoader() const;
 
   std::unique_ptr<WebURLLoader> loader_;
   ResourceLoadScheduler::ClientId scheduler_client_id_;
   Member<ResourceFetcher> fetcher_;
   Member<ResourceLoadScheduler> scheduler_;
   Member<Resource> resource_;
+  ResourceRequestBody request_body_;
   Member<ResponseBodyLoader> response_body_loader_;
   Member<DataPipeBytesConsumer::CompletionNotifier>
       data_pipe_completion_notifier_;
@@ -230,7 +223,8 @@ class PLATFORM_EXPORT ResourceLoader final
 
   bool should_use_isolated_code_cache_ = false;
   bool is_downloading_to_blob_ = false;
-  mojo::AssociatedBinding<mojom::blink::ProgressClient> progress_binding_;
+  mojo::AssociatedReceiver<mojom::blink::ProgressClient> progress_receiver_{
+      this};
   bool blob_finished_ = false;
   bool blob_response_started_ = false;
   bool has_seen_end_of_body_ = false;
@@ -239,9 +233,8 @@ class PLATFORM_EXPORT ResourceLoader final
   // struct is used to store the information needed to refire DidFinishLoading
   // when the blob is finished too.
   struct DeferredFinishLoadingInfo {
-    TimeTicks response_end;
+    base::TimeTicks response_end;
     bool should_report_corb_blocking;
-    std::vector<network::cors::PreflightTimingInfo> cors_preflight_timing_info;
   };
   base::Optional<DeferredFinishLoadingInfo> deferred_finish_loading_info_;
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_for_body_loader_;
@@ -253,6 +246,9 @@ class PLATFORM_EXPORT ResourceLoader final
   bool defers_handling_data_url_ = false;
 
   TaskRunnerTimer<ResourceLoader> cancel_timer_;
+
+  FrameScheduler::SchedulingAffectingFeatureHandle
+      feature_handle_for_scheduler_;
 };
 
 }  // namespace blink

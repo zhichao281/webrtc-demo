@@ -32,31 +32,22 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/layout_theme.h"
 #include "third_party/blink/renderer/core/paint/theme_painter_default.h"
-#include "third_party/blink/renderer/platform/wtf/time.h"
 
 namespace blink {
-
-class LayoutProgress;
 
 class CORE_EXPORT LayoutThemeDefault : public LayoutTheme {
  public:
   String ExtraDefaultStyleSheet() override;
   String ExtraQuirksStyleSheet() override;
 
-  Color SystemColor(CSSValueID) const override;
-
-  bool ThemeDrawsFocusRing(const ComputedStyle&) const override;
-
-  // List Box selection color
-  virtual Color ActiveListBoxSelectionBackgroundColor() const;
-  virtual Color ActiveListBoxSelectionForegroundColor() const;
-  virtual Color InactiveListBoxSelectionBackgroundColor() const;
-  virtual Color InactiveListBoxSelectionForegroundColor() const;
-
-  Color PlatformActiveSelectionBackgroundColor() const override;
-  Color PlatformInactiveSelectionBackgroundColor() const override;
-  Color PlatformActiveSelectionForegroundColor() const override;
-  Color PlatformInactiveSelectionForegroundColor() const override;
+  Color PlatformActiveSelectionBackgroundColor(
+      mojom::blink::ColorScheme color_scheme) const override;
+  Color PlatformInactiveSelectionBackgroundColor(
+      mojom::blink::ColorScheme color_scheme) const override;
+  Color PlatformActiveSelectionForegroundColor(
+      mojom::blink::ColorScheme color_scheme) const override;
+  Color PlatformInactiveSelectionForegroundColor(
+      mojom::blink::ColorScheme color_scheme) const override;
 
   IntSize SliderTickSize() const override;
   int SliderTickOffsetFromTrackCenter() const override;
@@ -67,30 +58,15 @@ class CORE_EXPORT LayoutThemeDefault : public LayoutTheme {
   void AdjustInnerSpinButtonStyle(ComputedStyle&) const override;
   void AdjustButtonStyle(ComputedStyle&) const override;
 
-  bool PopsMenuBySpaceKey() const final { return true; }
-  bool PopsMenuByReturnKey() const final { return true; }
-  bool PopsMenuByAltDownUpOrF4Key() const override { return true; }
-
-  bool ShouldOpenPickerWithF4Key() const override;
-
   Color PlatformTapHighlightColor() const override {
     return Color(kDefaultTapHighlightColor);
   }
 
-  // A method asking if the theme's controls actually care about redrawing
-  // when hovered.
-  bool SupportsHover(const ComputedStyle&) const final;
-
+  void SetSelectionColors(Color active_background_color,
+                          Color active_foreground_color,
+                          Color inactive_background_color,
+                          Color inactive_foreground_color) override;
   Color PlatformFocusRingColor() const override;
-
-  // System fonts.
-  void SystemFont(CSSValueID system_font_id,
-                  FontSelectionValue& font_slope,
-                  FontSelectionValue& font_weight,
-                  float& font_size,
-                  AtomicString& font_family) const override;
-
-  int MinimumMenuListSize(const ComputedStyle&) const override;
 
   void AdjustSearchFieldStyle(ComputedStyle&) const override;
   void AdjustSearchFieldCancelButtonStyle(ComputedStyle&) const override;
@@ -104,16 +80,12 @@ class CORE_EXPORT LayoutThemeDefault : public LayoutTheme {
   // In short, we either go down the MenuList code path or the MenuListButton
   // codepath. We never go down both. And in both cases, they layout the
   // entire menulist.
-  void AdjustMenuListStyle(ComputedStyle&, Element*) const override;
-  void AdjustMenuListButtonStyle(ComputedStyle&, Element*) const override;
-
-  TimeDelta AnimationRepeatIntervalForProgressBar() const override;
-  TimeDelta AnimationDurationForProgressBar() const override;
+  void AdjustMenuListStyle(ComputedStyle&) const override;
+  void AdjustMenuListButtonStyle(ComputedStyle&) const override;
 
   // These methods define the padding for the MenuList's inner block.
   int PopupInternalPaddingStart(const ComputedStyle&) const override;
-  int PopupInternalPaddingEnd(const ChromeClient*,
-                              const ComputedStyle&) const override;
+  int PopupInternalPaddingEnd(LocalFrame*, const ComputedStyle&) const override;
   int PopupInternalPaddingTop(const ComputedStyle&) const override;
   int PopupInternalPaddingBottom(const ComputedStyle&) const override;
   // This returns a value based on scrollbar thickness.  It's not 0 even in
@@ -121,37 +93,24 @@ class CORE_EXPORT LayoutThemeDefault : public LayoutTheme {
   // thickness, which is 3px or 4px, and we use the value from the default Aura
   // theme.
   int MenuListArrowWidthInDIP() const;
-  float ClampedMenuListArrowPaddingSize(const ChromeClient*,
+  float ClampedMenuListArrowPaddingSize(LocalFrame*,
                                         const ComputedStyle&) const;
-
-  static void SetSelectionColors(unsigned active_background_color,
-                                 unsigned active_foreground_color,
-                                 unsigned inactive_background_color,
-                                 unsigned inactive_foreground_color);
 
  protected:
   LayoutThemeDefault();
   ~LayoutThemeDefault() override;
-  bool ShouldUseFallbackTheme(const ComputedStyle&) const override;
-
-  IntRect DeterminateProgressValueRectFor(LayoutProgress*,
-                                          const IntRect&) const;
-  IntRect IndeterminateProgressValueRectFor(LayoutProgress*,
-                                            const IntRect&) const;
 
  private:
   ThemePainter& Painter() override { return painter_; }
-  void DidChangeThemeEngine() override;
 
   int MenuListInternalPadding(const ComputedStyle&, int padding) const;
 
   static const RGBA32 kDefaultTapHighlightColor = 0x2e000000;  // 18% black.
-  static TimeDelta caret_blink_interval_;
 
-  static unsigned active_selection_background_color_;
-  static unsigned active_selection_foreground_color_;
-  static unsigned inactive_selection_background_color_;
-  static unsigned inactive_selection_foreground_color_;
+  static Color active_selection_background_color_;
+  static Color active_selection_foreground_color_;
+  static Color inactive_selection_background_color_;
+  static Color inactive_selection_foreground_color_;
 
   ThemePainterDefault painter_;
   // Cached values for crbug.com/673754.

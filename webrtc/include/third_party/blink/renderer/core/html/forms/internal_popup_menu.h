@@ -6,12 +6,15 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_HTML_FORMS_INTERNAL_POPUP_MENU_H_
 
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/dom/node_computed_style.h"
 #include "third_party/blink/renderer/core/html/forms/popup_menu.h"
 #include "third_party/blink/renderer/core/page/page_popup_client.h"
 
 namespace blink {
 
+class AXObject;
 class ChromeClient;
+class CSSFontSelector;
 class PagePopup;
 class HTMLElement;
 class HTMLHRElement;
@@ -24,36 +27,42 @@ class HTMLSelectElement;
 class CORE_EXPORT InternalPopupMenu final : public PopupMenu,
                                             public PagePopupClient {
  public:
-  static InternalPopupMenu* Create(ChromeClient*, HTMLSelectElement&);
-
   InternalPopupMenu(ChromeClient*, HTMLSelectElement&);
   ~InternalPopupMenu() override;
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
 
-  void Update();
+  void Update(bool force_update) override;
 
   void Dispose();
 
  private:
+  FRIEND_TEST_ALL_PREFIXES(InternalPopupMenuTest, ShowSelectDisplayNone);
+
   class ItemIterationContext;
   void AddOption(ItemIterationContext&, HTMLOptionElement&);
   void AddOptGroup(ItemIterationContext&, HTMLOptGroupElement&);
   void AddSeparator(ItemIterationContext&, HTMLHRElement&);
   void AddElementStyle(ItemIterationContext&, HTMLElement&);
 
+  void AppendOwnerElementPseudoStyles(const String&,
+                                      SharedBuffer*,
+                                      const ComputedStyle&);
+
   // PopupMenu functions:
   void Show() override;
   void Hide() override;
   void DisconnectClient() override;
   void UpdateFromElement(UpdateReason) override;
+  AXObject* PopupRootAXObject() const override;
 
   // PagePopupClient functions:
   void WriteDocument(SharedBuffer*) override;
-  void SelectFontsFromOwnerDocument(Document&) override;
+  CSSFontSelector* CreateCSSFontSelector(Document& popup_document) override;
   void SetValueAndClosePopup(int, const String&) override;
   void SetValue(const String&) override;
   void CancelPopup() override;
   Element& OwnerElement() override;
+  ChromeClient& GetChromeClient() override;
   float ZoomFactor() override { return 1.0; }
   Locale& GetLocale() override;
   void DidClosePopup() override;

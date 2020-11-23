@@ -49,14 +49,6 @@ class CORE_EXPORT SVGMatrixTearOff final : public ScriptWrappable {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static SVGMatrixTearOff* Create(const AffineTransform& value) {
-    return MakeGarbageCollected<SVGMatrixTearOff>(value);
-  }
-
-  static SVGMatrixTearOff* Create(SVGTransformTearOff* target) {
-    return MakeGarbageCollected<SVGMatrixTearOff>(target);
-  }
-
   explicit SVGMatrixTearOff(const AffineTransform&);
   explicit SVGMatrixTearOff(SVGTransformTearOff*);
 
@@ -90,7 +82,7 @@ class CORE_EXPORT SVGMatrixTearOff final : public ScriptWrappable {
 
   const AffineTransform& Value() const;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   AffineTransform* MutableValue();

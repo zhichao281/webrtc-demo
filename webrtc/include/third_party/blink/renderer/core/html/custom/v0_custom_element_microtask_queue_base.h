@@ -13,14 +13,14 @@
 namespace blink {
 
 class V0CustomElementMicrotaskQueueBase
-    : public GarbageCollectedFinalized<V0CustomElementMicrotaskQueueBase> {
+    : public GarbageCollected<V0CustomElementMicrotaskQueueBase> {
  public:
   virtual ~V0CustomElementMicrotaskQueueBase() = default;
 
   bool IsEmpty() const { return queue_.IsEmpty(); }
   void Dispatch();
 
-  void Trace(Visitor*);
+  void Trace(Visitor*) const;
 
 #if !defined(NDEBUG)
   void Show(unsigned indent);

@@ -37,18 +37,15 @@
 namespace blink {
 
 class HiddenInputType final : public InputType, private InputTypeView {
-  USING_GARBAGE_COLLECTED_MIXIN(HiddenInputType);
-
  public:
-  static InputType* Create(HTMLInputElement&);
-
   HiddenInputType(HTMLInputElement& element)
       : InputType(element), InputTypeView(element) {}
 
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
   using InputType::GetElement;
 
  private:
+  void CountUsage() override;
   InputTypeView* CreateView() override;
   const AtomicString& FormControlType() const override;
   bool ShouldSaveAndRestoreFormControlState() const override;

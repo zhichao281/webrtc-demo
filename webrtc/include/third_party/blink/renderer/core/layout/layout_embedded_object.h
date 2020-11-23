@@ -32,7 +32,7 @@ namespace blink {
 // plugins. For example, <embed src="foo.html"> does not invoke a plugin.
 class LayoutEmbeddedObject final : public LayoutEmbeddedContent {
  public:
-  LayoutEmbeddedObject(Element*);
+  LayoutEmbeddedObject(HTMLFrameOwnerElement*);
   ~LayoutEmbeddedObject() override;
 
   enum PluginAvailability {
@@ -43,32 +43,40 @@ class LayoutEmbeddedObject final : public LayoutEmbeddedContent {
   void SetPluginAvailability(PluginAvailability);
   bool ShowsUnavailablePluginIndicator() const;
 
-  const char* GetName() const override { return "LayoutEmbeddedObject"; }
+  const char* GetName() const override {
+    NOT_DESTROYED();
+    return "LayoutEmbeddedObject";
+  }
 
   const String& UnavailablePluginReplacementText() const {
+    NOT_DESTROYED();
     return unavailable_plugin_replacement_text_;
   }
 
  private:
   void PaintReplaced(const PaintInfo&,
-                     const LayoutPoint& paint_offset) const final;
+                     const PhysicalOffset& paint_offset) const final;
 
   void UpdateLayout() final;
 
   bool IsOfType(LayoutObjectType type) const override {
+    NOT_DESTROYED();
     return type == kLayoutObjectEmbeddedObject ||
            LayoutEmbeddedContent::IsOfType(type);
   }
   void ComputeIntrinsicSizingInfo(IntrinsicSizingInfo&) const override;
   bool NeedsPreferredWidthsRecalculation() const override;
 
-  CompositingReasons AdditionalCompositingReasons() const override;
-
   PluginAvailability plugin_availability_ = kPluginAvailable;
   String unavailable_plugin_replacement_text_;
 };
 
-DEFINE_LAYOUT_OBJECT_TYPE_CASTS(LayoutEmbeddedObject, IsEmbeddedObject());
+template <>
+struct DowncastTraits<LayoutEmbeddedObject> {
+  static bool AllowFrom(const LayoutObject& object) {
+    return object.IsEmbeddedObject();
+  }
+};
 
 }  // namespace blink
 

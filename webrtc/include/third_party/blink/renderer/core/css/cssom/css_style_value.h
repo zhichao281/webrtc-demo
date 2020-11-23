@@ -5,7 +5,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_CSS_CSSOM_CSS_STYLE_VALUE_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_CSSOM_CSS_STYLE_VALUE_H_
 
-#include "base/macros.h"
 #include "base/optional.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/css_property_names.h"
@@ -15,7 +14,6 @@
 
 namespace blink {
 
-class CSSSyntaxComponent;
 class ExceptionState;
 class ExecutionContext;
 enum class SecureContextMode;
@@ -46,6 +44,7 @@ class CORE_EXPORT CSSStyleValue : public ScriptWrappable {
     kTransformType,
     kPositionType,
     kURLImageType,
+    kUnsupportedColorType,
   };
 
   static CSSStyleValue* parse(const ExecutionContext*,
@@ -57,6 +56,8 @@ class CORE_EXPORT CSSStyleValue : public ScriptWrappable {
                                       const String& value,
                                       ExceptionState&);
 
+  CSSStyleValue(const CSSStyleValue&) = delete;
+  CSSStyleValue& operator=(const CSSStyleValue&) = delete;
   ~CSSStyleValue() override = default;
 
   virtual StyleValueType GetType() const = 0;
@@ -66,9 +67,7 @@ class CORE_EXPORT CSSStyleValue : public ScriptWrappable {
 
   virtual const CSSValue* ToCSSValue() const = 0;
   // FIXME: We should make this a method on CSSProperty instead.
-  virtual const CSSValue* ToCSSValueWithProperty(
-      CSSPropertyID,
-      const CSSSyntaxComponent*) const {
+  virtual const CSSValue* ToCSSValueWithProperty(CSSPropertyID) const {
     return ToCSSValue();
   }
   virtual String toString() const;
@@ -84,7 +83,6 @@ class CORE_EXPORT CSSStyleValue : public ScriptWrappable {
 
  private:
   String css_text_;
-  DISALLOW_COPY_AND_ASSIGN(CSSStyleValue);
 };
 
 }  // namespace blink

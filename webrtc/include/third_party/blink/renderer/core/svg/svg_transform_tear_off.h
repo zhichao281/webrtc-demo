@@ -53,16 +53,9 @@ class SVGTransformTearOff final : public SVGPropertyTearOff<SVGTransform> {
     kSvgTransformSkewy = static_cast<int>(blink::SVGTransformType::kSkewy),
   };
 
-  static SVGTransformTearOff* Create(
-      SVGTransform* target,
-      SVGAnimatedPropertyBase* binding,
-      PropertyIsAnimValType property_is_anim_val) {
-    return MakeGarbageCollected<SVGTransformTearOff>(target, binding,
-                                                     property_is_anim_val);
-  }
   static SVGTransformTearOff* CreateDetached();
-  static SVGTransformTearOff* Create(SVGMatrixTearOff*);
 
+  SVGTransformTearOff(SVGMatrixTearOff*);
   SVGTransformTearOff(SVGTransform*,
                       SVGAnimatedPropertyBase* binding,
                       PropertyIsAnimValType);
@@ -81,7 +74,7 @@ class SVGTransformTearOff final : public SVGPropertyTearOff<SVGTransform> {
   void setSkewX(float, ExceptionState&);
   void setSkewY(float, ExceptionState&);
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   Member<SVGMatrixTearOff> matrix_tearoff_;

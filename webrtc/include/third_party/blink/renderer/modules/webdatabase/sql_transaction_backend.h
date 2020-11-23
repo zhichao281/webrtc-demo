@@ -47,11 +47,10 @@ class SQLTransaction;
 class SQLTransactionBackend;
 class SQLValue;
 
-class SQLTransactionWrapper
-    : public GarbageCollectedFinalized<SQLTransactionWrapper> {
+class SQLTransactionWrapper : public GarbageCollected<SQLTransactionWrapper> {
  public:
   virtual ~SQLTransactionWrapper() = default;
-  virtual void Trace(blink::Visitor* visitor) {}
+  virtual void Trace(Visitor* visitor) const {}
   virtual bool PerformPreflight(SQLTransactionBackend*) = 0;
   virtual bool PerformPostflight(SQLTransactionBackend*) = 0;
   virtual SQLErrorData* SqlError() const = 0;
@@ -59,7 +58,7 @@ class SQLTransactionWrapper
 };
 
 class SQLTransactionBackend final
-    : public GarbageCollectedFinalized<SQLTransactionBackend>,
+    : public GarbageCollected<SQLTransactionBackend>,
       public SQLTransactionStateMachine<SQLTransactionBackend> {
  public:
   SQLTransactionBackend(Database*,
@@ -67,7 +66,7 @@ class SQLTransactionBackend final
                         SQLTransactionWrapper*,
                         bool read_only);
   ~SQLTransactionBackend() override;
-  void Trace(blink::Visitor*);
+  void Trace(Visitor*) const;
 
   void LockAcquired();
   void PerformNextStep();

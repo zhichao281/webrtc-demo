@@ -26,7 +26,9 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_HTML_FORMS_HTML_INPUT_ELEMENT_H_
 
 #include "base/gtest_prod_util.h"
+#include "third_party/blink/public/mojom/input/focus_type.mojom-blink-forward.h"
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
+#include "third_party/blink/renderer/bindings/core/v8/script_regexp.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/create_element_flags.h"
 #include "third_party/blink/renderer/core/html/forms/file_chooser.h"
@@ -46,23 +48,18 @@ class InputTypeView;
 class KURL;
 class ListAttributeTargetObserver;
 class RadioButtonGroupScope;
+class ScriptValue;
 struct DateTimeChooserParameters;
 
 class CORE_EXPORT HTMLInputElement
     : public TextControlElement,
       public ActiveScriptWrappable<HTMLInputElement> {
   DEFINE_WRAPPERTYPEINFO();
-  USING_GARBAGE_COLLECTED_MIXIN(HTMLInputElement);
 
  public:
-  static HTMLInputElement* Create(Document&, const CreateElementFlags);
-
   HTMLInputElement(Document&, const CreateElementFlags);
   ~HTMLInputElement() override;
-  void Trace(Visitor*) override;
-
-  // Returns attributes that should be checked against Trusted Types
-  const AttrNameToTrustedType& GetCheckedAttributeTypes() const override;
+  void Trace(Visitor*) const override;
 
   bool HasPendingActivity() const final;
 
@@ -131,6 +128,9 @@ class CORE_EXPORT HTMLInputElement
   bool ShouldAppearChecked() const;
   bool ShouldAppearIndeterminate() const override;
 
+  // Returns null if this isn't associated with any radio button group.
+  RadioButtonGroupScope* GetRadioButtonGroupScope() const;
+
   unsigned size() const;
   bool SizeShouldIncludeDecoration(int& preferred_size) const;
 
@@ -163,14 +163,21 @@ class CORE_EXPORT HTMLInputElement
 
   void SetEditingValue(const String&);
 
-  double valueAsDate(bool& is_null) const;
-  void setValueAsDate(double, bool is_null, ExceptionState&);
+  ScriptValue valueAsDate(ScriptState* script_state) const;
+  void setValueAsDate(ScriptState* script_state,
+                      const ScriptValue& value,
+                      ExceptionState& exception_state);
 
   double valueAsNumber() const;
   void setValueAsNumber(
       double,
       ExceptionState&,
       TextFieldEventBehavior = TextFieldEventBehavior::kDispatchNoEvent);
+
+  // For type=range, returns a ratio of the current value in the range between
+  // min and max.  i.e. (value - min) / (max - min)
+  // For other types, this function fails with DCHECK().
+  Decimal RatioValue() const;
 
   String ValueOrDefaultLabel() const;
 
@@ -179,11 +186,11 @@ class CORE_EXPORT HTMLInputElement
   // delay the 'input' event with EventQueueScope.
   void SetValueFromRenderer(const String&);
 
-  unsigned selectionStartForBinding(bool&, ExceptionState&) const;
-  unsigned selectionEndForBinding(bool&, ExceptionState&) const;
+  base::Optional<uint32_t> selectionStartForBinding(ExceptionState&) const;
+  base::Optional<uint32_t> selectionEndForBinding(ExceptionState&) const;
   String selectionDirectionForBinding(ExceptionState&) const;
-  void setSelectionStartForBinding(unsigned, bool is_null, ExceptionState&);
-  void setSelectionEndForBinding(unsigned, bool is_null, ExceptionState&);
+  void setSelectionStartForBinding(base::Optional<uint32_t>, ExceptionState&);
+  void setSelectionEndForBinding(base::Optional<uint32_t>, ExceptionState&);
   void setSelectionDirectionForBinding(const String&, ExceptionState&);
   void setSelectionRangeForBinding(unsigned start,
                                    unsigned end,
@@ -192,10 +199,16 @@ class CORE_EXPORT HTMLInputElement
                                    unsigned end,
                                    const String& direction,
                                    ExceptionState&);
+  // This function can be used to allow tests to set the selection
+  // range for Number inputs, which do not support the ordinary
+  // selection API.
+  void SetSelectionRangeForTesting(unsigned start,
+                                   unsigned end,
+                                   ExceptionState&);
 
   bool LayoutObjectIsNeeded(const ComputedStyle&) const final;
   LayoutObject* CreateLayoutObject(const ComputedStyle&, LegacyLayout) override;
-  void DetachLayoutTree(const AttachContext& = AttachContext()) final;
+  void DetachLayoutTree(bool performing_reattach) final;
   void UpdateFocusAppearanceWithOptions(SelectionBehaviorOnFocus,
                                         const FocusOptions*) final;
 
@@ -234,6 +247,10 @@ class CORE_EXPORT HTMLInputElement
   bool CanReceiveDroppedFiles() const;
   void SetCanReceiveDroppedFiles(bool);
 
+  // Returns 'Choose File(s)' button in a file control. This returns
+  // nullptr for other input types.
+  HTMLInputElement* UploadButton() const;
+
   void OnSearch();
 
   void UpdateClearButtonVisibility();
@@ -247,9 +264,6 @@ class CORE_EXPORT HTMLInputElement
   // Associated <datalist> options which match to the current INPUT value.
   HeapVector<Member<HTMLOptionElement>> FilteredDataListOptions() const;
 
-  HTMLInputElement* CheckedRadioButtonForGroup();
-  bool IsInRequiredRadioButtonGroup();
-
   // Functions for InputType classes.
   void SetNonAttributeValue(const String&);
   void SetNonAttributeValueByUserEdit(const String&);
@@ -259,9 +273,17 @@ class CORE_EXPORT HTMLInputElement
 
   // For test purposes.
   void SelectColorInColorChooser(const Color&);
-  void EndColorChooser();
+  void EndColorChooserForTesting();
 
   String DefaultToolTip() const override;
+
+  // Type=file only: Text not in the button such as "No file chosen". The string
+  // is not truncated by ellipsis.
+  // Return a null string for other types.
+  String FileStatusText() const;
+  // Returns true if an ellipsis should be injected at the middle of the text.
+  // This function is called only if text-overflow:ellipsis is specified.
+  bool ShouldApplyMiddleEllipsis() const;
 
   unsigned height() const;
   unsigned width() const;
@@ -294,6 +316,8 @@ class CORE_EXPORT HTMLInputElement
 
   bool SupportsInputModeAttribute() const;
 
+  void CapsLockStateMayHaveChanged();
+  bool ShouldDrawCapsLockIndicator() const;
   void SetShouldRevealPassword(bool value);
   bool ShouldRevealPassword() const { return should_reveal_password_; }
   AXObject* PopupRootAXObject();
@@ -313,6 +337,21 @@ class CORE_EXPORT HTMLInputElement
 
   void ChildrenChanged(const ChildrenChange&) override;
 
+  LayoutBox* GetLayoutBoxForScrolling() const final;
+
+  void SetHasBeenPasswordField() { has_been_password_field_ = true; }
+
+  bool IsDraggedSlider() const;
+
+  FormElementPiiType GetFormElementPiiType() const override {
+    return form_element_pii_type_;
+  }
+
+  void SetFormElementPiiType(
+      FormElementPiiType form_element_pii_type) override {
+    form_element_pii_type_ = form_element_pii_type;
+  }
+
  protected:
   void DefaultEventHandler(Event&) override;
   void CreateShadowSubtree();
@@ -330,12 +369,14 @@ class CORE_EXPORT HTMLInputElement
   bool HasCustomFocusLogic() const final;
   bool IsKeyboardFocusable() const final;
   bool MayTriggerVirtualKeyboard() const final;
+  bool ShouldHaveFocusAppearance() const final;
   bool IsEnumeratable() const final;
   bool IsInteractiveContent() const final;
   bool IsLabelable() const final;
   bool MatchesDefaultPseudoClass() const override;
-
   bool IsTextControl() const final { return IsTextField(); }
+  int scrollWidth() override;
+  int scrollHeight() override;
 
   bool CanTriggerImplicitSubmission() const final { return IsTextField(); }
 
@@ -359,6 +400,7 @@ class CORE_EXPORT HTMLInputElement
 
   void CloneNonAttributePropertiesFrom(const Element&, CloneChildrenFlag) final;
 
+  bool TypeShouldForceLegacyLayout() const final;
   void AttachLayoutTree(AttachContext&) final;
 
   void AppendToFormData(FormData&) final;
@@ -367,7 +409,6 @@ class CORE_EXPORT HTMLInputElement
   bool CanBeSuccessfulSubmitButton() const final;
 
   void ResetImpl() final;
-  bool SupportsAutofocus() const final;
 
   EventDispatchHandlingState* PreDispatchEventHandler(Event&) final;
   void PostDispatchEventHandler(Event&, EventDispatchHandlingState*) final;
@@ -386,7 +427,7 @@ class CORE_EXPORT HTMLInputElement
   void HandleBlurEvent() final;
   void DispatchFocusInEvent(const AtomicString& event_type,
                             Element* old_focused_element,
-                            WebFocusType,
+                            mojom::blink::FocusType,
                             InputDeviceCapabilities* source_capabilities) final;
 
   bool IsOptionalFormControl() const final { return !IsRequiredFormControl(); }
@@ -403,12 +444,12 @@ class CORE_EXPORT HTMLInputElement
   void SetListAttributeTargetObserver(ListAttributeTargetObserver*);
   void ResetListAttributeTargetObserver();
 
-  // Returns null if this isn't associated with any radio button group.
-  RadioButtonGroupScope* GetRadioButtonGroupScope() const;
   void AddToRadioButtonGroup();
   void RemoveFromRadioButtonGroup();
   scoped_refptr<ComputedStyle> CustomStyleForLayoutObject() override;
   void DidRecalcStyle(const StyleRecalcChange) override;
+
+  void MaybeReportPiiMetrics();
 
   AtomicString name_;
   // The value string in |value| value mode.
@@ -439,6 +480,8 @@ class CORE_EXPORT HTMLInputElement
   // element lives on.
   Member<HTMLImageLoader> image_loader_;
   Member<ListAttributeTargetObserver> list_attribute_target_observer_;
+
+  FormElementPiiType form_element_pii_type_ = FormElementPiiType::kUnknown;
 
   FRIEND_TEST_ALL_PREFIXES(HTMLInputElementTest, RadioKeyDownDCHECKFailure);
 };

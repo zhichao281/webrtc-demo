@@ -27,7 +27,7 @@
 
 #include "base/numerics/safe_conversions.h"
 #include "base/stl_util.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
 #include "third_party/blink/renderer/platform/wtf/text/unicode.h"
 
@@ -55,14 +55,14 @@ class IntegerToStringConverter {
 
     do {
       --begin_;
-      DCHECK_NE(begin_, buffer_);
+      DCHECK_GE(begin_, buffer_);
       *begin_ = static_cast<LChar>((value % 10) + '0');
       value /= 10;
     } while (value);
 
     if (is_negative) {
       --begin_;
-      DCHECK_NE(begin_, buffer_);
+      DCHECK_GE(begin_, buffer_);
       *begin_ = static_cast<LChar>('-');
     }
 

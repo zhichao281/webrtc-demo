@@ -75,7 +75,6 @@ class V8TestInterfaceCheckSecurity {
   CORE_EXPORT static void DoNotCheckSecurityVoidOverloadMethodMethodCallback(const v8::FunctionCallbackInfo<v8::Value>&);
   CORE_EXPORT static void DoNotCheckSecurityVoidOverloadMethodOriginSafeMethodGetterCallback(v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>&);
   CORE_EXPORT static void SecureContextRuntimeEnabledMethodMethodCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  CORE_EXPORT static void TestInterfaceCheckSecurityOriginSafeMethodSetterCallback(v8::Local<v8::Name>, v8::Local<v8::Value>, const v8::PropertyCallbackInfo<void>&);
 
   CORE_EXPORT static bool SecurityCheck(v8::Local<v8::Context>, v8::Local<v8::Object>, v8::Local<v8::Value>);
   CORE_EXPORT static void CrossOriginNamedGetter(v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>&);
@@ -86,12 +85,6 @@ class V8TestInterfaceCheckSecurity {
       v8::Isolate*,
       const DOMWrapperWorld&,
       v8::Local<v8::FunctionTemplate> interface_template);
-};
-
-template <>
-struct NativeValueTraits<TestInterfaceCheckSecurity> : public NativeValueTraitsBase<TestInterfaceCheckSecurity> {
-  CORE_EXPORT static TestInterfaceCheckSecurity* NativeValue(v8::Isolate*, v8::Local<v8::Value>, ExceptionState&);
-  CORE_EXPORT static TestInterfaceCheckSecurity* NullValue() { return nullptr; }
 };
 
 template <>

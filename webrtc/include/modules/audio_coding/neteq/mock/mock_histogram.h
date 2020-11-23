@@ -12,7 +12,6 @@
 #define MODULES_AUDIO_CODING_NETEQ_MOCK_MOCK_HISTOGRAM_H_
 
 #include "modules/audio_coding/neteq/histogram.h"
-
 #include "test/gmock.h"
 
 namespace webrtc {
@@ -23,8 +22,8 @@ class MockHistogram : public Histogram {
       : Histogram(num_buckets, forget_factor) {}
   virtual ~MockHistogram() {}
 
-  MOCK_METHOD1(Add, void(int));
-  MOCK_METHOD1(Quantile, int(int));
+  MOCK_METHOD(void, Add, (int), (override));
+  MOCK_METHOD(int, Quantile, (int), (override));
 };
 
 }  // namespace webrtc

@@ -28,38 +28,51 @@
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/frame_request_callback_collection.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_state_observer.h"
 #include "third_party/blink/renderer/platform/bindings/name_client.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
+#include "third_party/blink/renderer/platform/wtf/casting.h"
+#include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_impl.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
 
-class Document;
 class Event;
 class EventTarget;
+class LocalDOMWindow;
 class MediaQueryListListener;
 
 class CORE_EXPORT ScriptedAnimationController
-    : public GarbageCollectedFinalized<ScriptedAnimationController>,
+    : public GarbageCollected<ScriptedAnimationController>,
+      public ExecutionContextLifecycleStateObserver,
       public NameClient {
  public:
-  explicit ScriptedAnimationController(Document*);
-  virtual ~ScriptedAnimationController() = default;
+  explicit ScriptedAnimationController(LocalDOMWindow*);
+  ~ScriptedAnimationController() override = default;
 
-  void Trace(Visitor*);
+  void Trace(Visitor*) const override;
   const char* NameInHeapSnapshot() const override {
     return "ScriptedAnimationController";
   }
-  void ClearDocumentPointer() { document_ = nullptr; }
+
+  // Runs all the video.requestVideoFrameCallback() callbacks associated with
+  // one HTMLVideoElement. |double| is the current frame time in milliseconds
+  // (e.g. |current_frame_time_ms_|), to be passed as the "now" parameter
+  // when running the callbacks.
+  using ExecuteVfcCallback = base::OnceCallback<void(double)>;
 
   // Animation frame callbacks are used for requestAnimationFrame().
   typedef int CallbackId;
-  CallbackId RegisterCallback(FrameRequestCallbackCollection::FrameCallback*);
-  void CancelCallback(CallbackId);
+  CallbackId RegisterFrameCallback(FrameCallback*);
+  void CancelFrameCallback(CallbackId);
   // Returns true if any callback is currently registered.
-  bool HasCallback() const;
+  bool HasFrameCallback() const;
+
+  // Queues up the execution of video.requestVideoFrameCallback() callbacks for
+  // a specific HTMLVideoELement, as part of the next rendering steps.
+  void ScheduleVideoFrameCallbacksExecution(ExecuteVfcCallback);
 
   // Animation frame events are used for resize events, scroll events, etc.
   void EnqueueEvent(Event*);
@@ -76,8 +89,8 @@ class CORE_EXPORT ScriptedAnimationController
   // https://html.spec.whatwg.org/C/#event-loop-processing-model
   void ServiceScriptedAnimations(base::TimeTicks monotonic_time_now);
 
-  void Pause();
-  void Unpause();
+  void ContextLifecycleStateChanged(mojom::FrameLifecycleState) final;
+  void ContextDestroyed() final {}
 
   void DispatchEventsAndCallbacksForPrinting();
 
@@ -90,21 +103,31 @@ class CORE_EXPORT ScriptedAnimationController
   void RunTasks();
   void DispatchEvents(
       const AtomicString& event_interface_filter = AtomicString());
-  void ExecuteCallbacks(base::TimeTicks monotonic_time_now);
+  void ExecuteFrameCallbacks();
+  void ExecuteVideoFrameCallbacks();
   void CallMediaQueryListListeners();
 
-  bool HasScheduledItems() const;
+  bool HasScheduledFrameTasks() const;
 
-  Member<Document> document_;
+  LocalDOMWindow* GetWindow() const;
+
+  ALWAYS_INLINE bool InsertToPerFrameEventsMap(const Event* event);
+  ALWAYS_INLINE void EraseFromPerFrameEventsMap(const Event* event);
+
   FrameRequestCallbackCollection callback_collection_;
-  int suspend_count_;
   Vector<base::OnceClosure> task_queue_;
+  Vector<ExecuteVfcCallback> vfc_execution_queue_;
   HeapVector<Member<Event>> event_queue_;
-  HeapListHashSet<std::pair<Member<const EventTarget>, const StringImpl*>>
-      per_frame_events_;
-  using MediaQueryListListeners =
-      HeapListHashSet<Member<MediaQueryListListener>>;
+  using PerFrameEventsMap =
+      HeapHashMap<Member<const EventTarget>, HashSet<const StringImpl*>>;
+  PerFrameEventsMap per_frame_events_;
+  using MediaQueryListListeners = HeapVector<Member<MediaQueryListListener>>;
   MediaQueryListListeners media_query_list_listeners_;
+  // This is used to quickly lookup if a listener exists in
+  // media_query_list_listeners_. The contents should be exactly the same.
+  HeapHashSet<Member<MediaQueryListListener>> media_query_list_listeners_set_;
+  double current_frame_time_ms_ = 0.0;
+  double current_frame_legacy_time_ms_ = 0.0;
 
   // Used for animation metrics; see cc::CompositorTimingHistory::DidDraw.
   bool current_frame_had_raf_;

@@ -29,11 +29,12 @@
 #include "base/callback.h"
 #include "base/optional.h"
 #include "base/single_thread_task_runner.h"
-#include "third_party/blink/public/mojom/loader/code_cache.mojom-shared.h"
-#include "third_party/blink/public/platform/web_data_consumer_handle.h"
-#include "third_party/blink/public/platform/web_scoped_virtual_time_pauser.h"
+#include "base/time/time.h"
+#include "mojo/public/cpp/base/big_buffer.h"
+#include "third_party/blink/public/mojom/loader/code_cache.mojom-blink-forward.h"
+#include "third_party/blink/public/platform/scheduler/web_scoped_virtual_time_pauser.h"
+#include "third_party/blink/renderer/platform/instrumentation/memory_pressure_listener.h"
 #include "third_party/blink/renderer/platform/instrumentation/tracing/web_process_memory_dump.h"
-#include "third_party/blink/renderer/platform/loader/fetch/cached_metadata_handler.h"
 #include "third_party/blink/renderer/platform/loader/fetch/integrity_metadata.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_error.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_load_priority.h"
@@ -44,26 +45,29 @@
 #include "third_party/blink/renderer/platform/loader/fetch/resource_status.h"
 #include "third_party/blink/renderer/platform/loader/fetch/text_resource_decoder_options.h"
 #include "third_party/blink/renderer/platform/loader/subresource_integrity.h"
-#include "third_party/blink/renderer/platform/memory_pressure_listener.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/scheduler/public/post_cancellable_task.h"
-#include "third_party/blink/renderer/platform/shared_buffer.h"
 #include "third_party/blink/renderer/platform/timer.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/hash_counted_set.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
+#include "third_party/blink/renderer/platform/wtf/shared_buffer.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/text_encoding.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
-#include "third_party/blink/renderer/platform/wtf/time.h"
+
+namespace base {
+class Clock;
+}
 
 namespace blink {
 
+class BlobDataHandle;
+class CachedMetadataHandler;
+class CachedMetadataSender;
 class FetchParameters;
 class ResourceClient;
-class ResourceFetcher;
 class ResourceFinishObserver;
-class ResourceTimingInfo;
 class ResourceLoader;
 class ResponseBodyLoaderDrainableInterface;
 class SecurityOrigin;
@@ -86,17 +90,15 @@ enum class ResourceType : uint8_t {
   kVideo,
   kManifest,
   kMock,  // Only for testing
-  kLast = kMock
+  kMaxValue = kMock
 };
 
 // A resource that is held in the cache. Classes who want to use this object
 // should derive from ResourceClient, to get the function calls in case the
 // requested data has arrived. This class also does the actual communication
 // with the loader to obtain the resource from the network.
-class PLATFORM_EXPORT Resource : public GarbageCollectedFinalized<Resource>,
+class PLATFORM_EXPORT Resource : public GarbageCollected<Resource>,
                                  public MemoryPressureListener {
-  USING_GARBAGE_COLLECTED_MIXIN(Resource);
-
  public:
   // An enum representing whether a resource match with another resource.
   // There are three kinds of status.
@@ -140,20 +142,11 @@ class PLATFORM_EXPORT Resource : public GarbageCollectedFinalized<Resource>,
 
     // Match fails due to different request headers.
     kRequestHeadersDoNotMatch,
-
-    // Match fails due to different image placeholder policies.
-    kImagePlaceholder,
-  };
-
-  // Used by reloadIfLoFiOrPlaceholderImage().
-  enum ReloadLoFiOrPlaceholderPolicy {
-    kReloadIfNeeded,
-    kReloadAlways,
   };
 
   ~Resource() override;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
   virtual WTF::TextEncoding Encoding() const { return WTF::TextEncoding(); }
   virtual void AppendData(const char*, size_t);
@@ -172,12 +165,15 @@ class PLATFORM_EXPORT Resource : public GarbageCollectedFinalized<Resource>,
 
   virtual bool ShouldIgnoreHTTPStatusCodeErrors() const { return false; }
 
-  const ResourceRequest& GetResourceRequest() const {
+  const ResourceRequestHead& GetResourceRequest() const {
     return resource_request_;
   }
-  const ResourceRequest& LastResourceRequest() const;
+  const ResourceRequestHead& LastResourceRequest() const;
+  const ResourceResponse& LastResourceResponse() const;
+  // Returns zero if there are no redirects.
+  size_t RedirectChainSize() const;
 
-  virtual void SetRevalidatingRequest(const ResourceRequest&);
+  virtual void SetRevalidatingRequest(const ResourceRequestHead&);
 
   // This url can have a fragment, but it can match resources that differ by the
   // fragment only.
@@ -232,9 +228,7 @@ class PLATFORM_EXPORT Resource : public GarbageCollectedFinalized<Resource>,
 
   size_t DecodedSize() const { return decoded_size_; }
   size_t OverheadSize() const { return overhead_size_; }
-  size_t CodeCacheSize() const {
-    return (cache_handler_) ? cache_handler_->GetCodeCacheSize() : 0;
-  }
+  size_t CodeCacheSize() const;
 
   bool IsLoaded() const { return status_ > ResourceStatus::kPending; }
 
@@ -244,13 +238,13 @@ class PLATFORM_EXPORT Resource : public GarbageCollectedFinalized<Resource>,
   void SetLoader(ResourceLoader*);
   ResourceLoader* Loader() const { return loader_.Get(); }
 
-  bool ShouldBlockLoadEvent() const;
   bool IsLoadEventBlockingResourceType() const;
 
   // Computes the status of an object after loading. Updates the expire date on
   // the cache entry file
-  virtual void Finish(TimeTicks finish_time, base::SingleThreadTaskRunner*);
-  void FinishForTest() { Finish(TimeTicks(), nullptr); }
+  virtual void Finish(base::TimeTicks finish_time,
+                      base::SingleThreadTaskRunner*);
+  void FinishForTest() { Finish(base::TimeTicks(), nullptr); }
 
   virtual scoped_refptr<const SharedBuffer> ResourceBuffer() const {
     return data_;
@@ -271,12 +265,10 @@ class PLATFORM_EXPORT Resource : public GarbageCollectedFinalized<Resource>,
   void SetResponse(const ResourceResponse&);
   const ResourceResponse& GetResponse() const { return response_; }
 
-  virtual void ReportResourceTimingToClients(const ResourceTimingInfo&) {}
-
   // Sets the serialized metadata retrieved from the platform's cache.
   // Subclasses of Resource that support cached metadata should override this
   // method with one that fills the current CachedMetadataHandler.
-  virtual void SetSerializedCachedMetadata(const uint8_t*, size_t);
+  virtual void SetSerializedCachedMetadata(mojo_base::BigBuffer data);
 
   AtomicString HttpContentType() const;
 
@@ -294,8 +286,7 @@ class PLATFORM_EXPORT Resource : public GarbageCollectedFinalized<Resource>,
 
   void MarkAsPreload();
   // Returns true if |this| resource is matched with the given parameters.
-  virtual bool MatchPreload(const FetchParameters&,
-                            base::SingleThreadTaskRunner*);
+  virtual void MatchPreload(const FetchParameters&);
 
   bool CanReuseRedirectChain() const;
   bool MustRevalidateDueToCacheHeaders(bool allow_stale) const;
@@ -345,9 +336,9 @@ class PLATFORM_EXPORT Resource : public GarbageCollectedFinalized<Resource>,
   virtual void DidSendData(uint64_t /* bytesSent */,
                            uint64_t /* totalBytesToBeSent */) {}
   virtual void DidDownloadData(uint64_t) {}
-  virtual void DidDownloadToBlob(scoped_refptr<BlobDataHandle>) {}
+  virtual void DidDownloadToBlob(scoped_refptr<BlobDataHandle>);
 
-  TimeTicks LoadResponseEnd() const { return load_response_end_; }
+  base::TimeTicks LoadResponseEnd() const { return load_response_end_; }
 
   void SetEncodedDataLength(int64_t value) {
     response_.SetEncodedDataLength(value);
@@ -373,24 +364,11 @@ class PLATFORM_EXPORT Resource : public GarbageCollectedFinalized<Resource>,
   // be triggered right away in ResourceLoader.
   virtual void WillReloadAfterDiskCacheMiss() {}
 
-  // TODO(shaochuan): This is for saving back the actual ResourceRequest sent
-  // in ResourceFetcher::StartLoad() for retry in cache-aware loading, remove
-  // once ResourceRequest is not modified in StartLoad(). crbug.com/632580
-  void SetResourceRequest(const ResourceRequest& resource_request) {
-    resource_request_ = resource_request;
-  }
-
   // Used by the MemoryCache to reduce the memory consumption of the entry.
   void Prune();
 
   virtual void OnMemoryDump(WebMemoryDumpLevelOfDetail,
                             WebProcessMemoryDump*) const;
-
-  // If this Resource is ImageResource and has the Lo-Fi response headers or is
-  // a placeholder, reload the full original image with the Lo-Fi state set to
-  // off and optionally bypassing the cache.
-  virtual void ReloadIfLoFiOrPlaceholderImage(ResourceFetcher*,
-                                              ReloadLoFiOrPlaceholderPolicy) {}
 
   // Used to notify ImageResourceContent of the start of actual loading.
   // JavaScript calls or client/observer notifications are disallowed inside
@@ -422,20 +400,17 @@ class PLATFORM_EXPORT Resource : public GarbageCollectedFinalized<Resource>,
     return virtual_time_pauser_;
   }
 
- protected:
-  Resource(const ResourceRequest&, ResourceType, const ResourceLoaderOptions&);
+  // The caller owns the |clock| which must outlive the Resource.
+  static void SetClockForTesting(const base::Clock* clock);
 
-  // Returns true if the resource has finished any processing it wanted to do
-  // after loading. Should only be used to decide whether to call
-  // NotifyFinished.
-  //
-  // By default this is the same as being loaded (i.e. no processing), but it is
-  // used by ScriptResource to signal that streaming JavaScript compilation
-  // completed. Note that classes overloading this method should also overload
-  // NotifyFinished to not call Resource::NotifyFinished until this value
-  // becomes true.
-  // TODO(hiroshige): Remove this when ScriptResourceContent is introduced.
-  virtual bool IsFinishedInternal() const { return IsLoaded(); }
+  size_t CalculateOverheadSizeForTest() const {
+    return CalculateOverheadSize();
+  }
+
+ protected:
+  Resource(const ResourceRequestHead&,
+           ResourceType,
+           const ResourceLoaderOptions&);
 
   virtual void NotifyDataReceived(const char* data, size_t size);
   virtual void NotifyFinished();
@@ -469,11 +444,11 @@ class PLATFORM_EXPORT Resource : public GarbageCollectedFinalized<Resource>,
     DISALLOW_NEW();
 
    public:
-    explicit RedirectPair(const ResourceRequest& request,
+    explicit RedirectPair(const ResourceRequestHead& request,
                           const ResourceResponse& redirect_response)
         : request_(request), redirect_response_(redirect_response) {}
 
-    ResourceRequest request_;
+    ResourceRequestHead request_;
     ResourceResponse redirect_response_;
   };
   const Vector<RedirectPair>& RedirectChain() const { return redirect_chain_; }
@@ -488,7 +463,7 @@ class PLATFORM_EXPORT Resource : public GarbageCollectedFinalized<Resource>,
   }
 
   void SetCachePolicyBypassingCache();
-  void SetPreviewsState(WebURLRequest::PreviewsState);
+  void SetPreviewsState(PreviewsState);
   void ClearRangeRequestHeader();
 
   SharedBuffer* Data() const { return data_.get(); }
@@ -502,9 +477,7 @@ class PLATFORM_EXPORT Resource : public GarbageCollectedFinalized<Resource>,
   // override SetSerializedCachedMetadata with an implementation that fills the
   // cache handler.
   virtual CachedMetadataHandler* CreateCachedMetadataHandler(
-      std::unique_ptr<CachedMetadataSender> send_callback) {
-    return nullptr;
-  }
+      std::unique_ptr<CachedMetadataSender> send_callback);
 
   CachedMetadataHandler* CacheHandler() { return cache_handler_.Get(); }
 
@@ -531,7 +504,7 @@ class PLATFORM_EXPORT Resource : public GarbageCollectedFinalized<Resource>,
 
   base::Optional<ResourceError> error_;
 
-  TimeTicks load_response_end_;
+  base::TimeTicks load_response_end_;
 
   size_t encoded_size_;
   size_t encoded_size_memory_usage_;
@@ -560,11 +533,11 @@ class PLATFORM_EXPORT Resource : public GarbageCollectedFinalized<Resource>,
 
   ResourceLoaderOptions options_;
 
-  double response_timestamp_;
+  base::Time response_timestamp_;
 
   TaskHandle async_finish_pending_clients_task_;
 
-  ResourceRequest resource_request_;
+  ResourceRequestHead resource_request_;
 
   // Resource::CalculateOverheadSize() is affected by changes in
   // |m_resourceRequest.url()|, but |m_overheadSize| is not updated after

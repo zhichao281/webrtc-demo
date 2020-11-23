@@ -8,6 +8,19 @@ found in the LICENSE file.
 <dom-module id="base-style">
   <template>
     <style>
+      :root {
+        /* Dropdown menus should always be on top of dialogs. */
+        --layer-menus: 300;
+
+        /* Dialogs like chart-tooltip and triage-dialog */
+        --layer-dialogs: 200;
+
+        /* Misc information that might be positioned over inline DOM, but shouldn't
+           overshadow dialogs. E.g. alert-icons.
+         */
+        --layer-highlights: 100;
+      }
+
       a {
         color: var(--paper-indigo-500);
         text-decoration: none;
@@ -56,6 +69,43 @@ found in the LICENSE file.
         content: "·";
         padding: 0 0.8em;
       }
+
+      .commit-box {
+        height: 60px;
+      }
+
+      /* Make the rendering of all commits look consistent. */
+      .commit {
+        color: var(--paper-grey-700);
+      }
+
+      .commit-hash {
+        color: gray;
+        font-size: 90%;
+        padding: 4px;
+        margin-right: 4px;
+        border-radius: 3px;
+        background-color: var(--paper-light-blue-100);
+      }
+
+      .commit-position {
+        color: gray;
+        font-size: 90%;
+        padding: 4px;
+        margin-right: 4px;
+        border-radius: 3px;
+        background-color: var(--paper-grey-100);
+      }
+
+      .commit-message {
+        color: black;
+      }
+
+      .commit-author {
+        color: gray;
+        font-size: 90%;
+      }
+
     </style>
   </template>
 </dom-module>

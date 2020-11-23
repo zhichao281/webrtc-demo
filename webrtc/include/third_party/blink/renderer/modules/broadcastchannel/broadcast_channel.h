@@ -6,11 +6,13 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_BROADCASTCHANNEL_BROADCAST_CHANNEL_H_
 
 #include "base/macros.h"
-#include "mojo/public/cpp/bindings/associated_binding.h"
+#include "mojo/public/cpp/bindings/associated_receiver.h"
+#include "mojo/public/cpp/bindings/associated_remote.h"
 #include "third_party/blink/public/mojom/broadcastchannel/broadcast_channel.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
-#include "third_party/blink/renderer/core/execution_context/context_lifecycle_observer.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
+#include "third_party/blink/renderer/platform/scheduler/public/frame_or_worker_scheduler.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 
 namespace blink {
@@ -19,10 +21,9 @@ class ScriptValue;
 
 class BroadcastChannel final : public EventTargetWithInlineData,
                                public ActiveScriptWrappable<BroadcastChannel>,
-                               public ContextLifecycleObserver,
+                               public ExecutionContextLifecycleObserver,
                                public mojom::blink::BroadcastChannelClient {
   DEFINE_WRAPPERTYPEINFO();
-  USING_GARBAGE_COLLECTED_MIXIN(BroadcastChannel);
   USING_PRE_FINALIZER(BroadcastChannel, Dispose);
 
  public:
@@ -44,16 +45,16 @@ class BroadcastChannel final : public EventTargetWithInlineData,
   // EventTarget:
   const AtomicString& InterfaceName() const override;
   ExecutionContext* GetExecutionContext() const override {
-    return ContextLifecycleObserver::GetExecutionContext();
+    return ExecutionContextLifecycleObserver::GetExecutionContext();
   }
 
   // ScriptWrappable:
   bool HasPendingActivity() const override;
 
-  // ContextLifecycleObserver:
-  void ContextDestroyed(ExecutionContext*) override;
+  // ExecutionContextLifecycleObserver:
+  void ContextDestroyed() override;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   // mojom::blink::BroadcastChannelClient:
@@ -65,8 +66,13 @@ class BroadcastChannel final : public EventTargetWithInlineData,
   scoped_refptr<const SecurityOrigin> origin_;
   String name_;
 
-  mojo::AssociatedBinding<mojom::blink::BroadcastChannelClient> binding_;
-  mojom::blink::BroadcastChannelClientAssociatedPtr remote_client_;
+  mojo::AssociatedReceiver<mojom::blink::BroadcastChannelClient> receiver_{
+      this};
+  mojo::AssociatedRemote<mojom::blink::BroadcastChannelClient> remote_client_;
+
+  // Notifies the scheduler that a broadcast channel is active.
+  FrameOrWorkerScheduler::SchedulingAffectingFeatureHandle
+      feature_handle_for_scheduler_;
 
   DISALLOW_COPY_AND_ASSIGN(BroadcastChannel);
 };

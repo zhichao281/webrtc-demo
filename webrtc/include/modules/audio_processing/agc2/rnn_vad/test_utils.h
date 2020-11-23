@@ -17,12 +17,14 @@
 #include <limits>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
 #include "api/array_view.h"
 #include "modules/audio_processing/agc2/rnn_vad/common.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/numerics/safe_compare.h"
 
 namespace webrtc {
 namespace rnn_vad {
@@ -46,11 +48,10 @@ void ExpectNearAbsolute(rtc::ArrayView<const float> expected,
 template <typename T, typename D = T>
 class BinaryFileReader {
  public:
-  explicit BinaryFileReader(const std::string& file_path, size_t chunk_size = 1)
+  BinaryFileReader(const std::string& file_path, int chunk_size = 0)
       : is_(file_path, std::ios::binary | std::ios::ate),
         data_length_(is_.tellg() / sizeof(T)),
         chunk_size_(chunk_size) {
-    RTC_CHECK_LT(0, chunk_size_);
     RTC_CHECK(is_);
     SeekBeginning();
     buf_.resize(chunk_size_);
@@ -58,7 +59,7 @@ class BinaryFileReader {
   BinaryFileReader(const BinaryFileReader&) = delete;
   BinaryFileReader& operator=(const BinaryFileReader&) = delete;
   ~BinaryFileReader() = default;
-  size_t data_length() const { return data_length_; }
+  int data_length() const { return data_length_; }
   bool ReadValue(D* dst) {
     if (std::is_same<T, D>::value) {
       is_.read(reinterpret_cast<char*>(dst), sizeof(T));
@@ -69,9 +70,11 @@ class BinaryFileReader {
     }
     return is_.gcount() == sizeof(T);
   }
+  // If |chunk_size| was specified in the ctor, it will check that the size of
+  // |dst| equals |chunk_size|.
   bool ReadChunk(rtc::ArrayView<D> dst) {
-    RTC_DCHECK_EQ(chunk_size_, dst.size());
-    const std::streamsize bytes_to_read = chunk_size_ * sizeof(T);
+    RTC_DCHECK((chunk_size_ == 0) || rtc::SafeEq(chunk_size_, dst.size()));
+    const std::streamsize bytes_to_read = dst.size() * sizeof(T);
     if (std::is_same<T, D>::value) {
       is_.read(reinterpret_cast<char*>(dst.data()), bytes_to_read);
     } else {
@@ -81,45 +84,56 @@ class BinaryFileReader {
     }
     return is_.gcount() == bytes_to_read;
   }
-  void SeekForward(size_t items) { is_.seekg(items * sizeof(T), is_.cur); }
+  void SeekForward(int items) { is_.seekg(items * sizeof(T), is_.cur); }
   void SeekBeginning() { is_.seekg(0, is_.beg); }
 
  private:
   std::ifstream is_;
-  const size_t data_length_;
-  const size_t chunk_size_;
+  const int data_length_;
+  const int chunk_size_;
   std::vector<T> buf_;
 };
 
+// Writer for binary files.
+template <typename T>
+class BinaryFileWriter {
+ public:
+  explicit BinaryFileWriter(const std::string& file_path)
+      : os_(file_path, std::ios::binary) {}
+  BinaryFileWriter(const BinaryFileWriter&) = delete;
+  BinaryFileWriter& operator=(const BinaryFileWriter&) = delete;
+  ~BinaryFileWriter() = default;
+  static_assert(std::is_arithmetic<T>::value, "");
+  void WriteChunk(rtc::ArrayView<const T> value) {
+    const std::streamsize bytes_to_write = value.size() * sizeof(T);
+    os_.write(reinterpret_cast<const char*>(value.data()), bytes_to_write);
+  }
+
+ private:
+  std::ofstream os_;
+};
+
 // Factories for resource file readers.
-// Creates a reader for the pitch search test data.
-std::unique_ptr<BinaryFileReader<float>> CreatePitchSearchTestDataReader();
 // The functions below return a pair where the first item is a reader unique
 // pointer and the second the number of chunks that can be read from the file.
 // Creates a reader for the PCM samples that casts from S16 to float and reads
 // chunks with length |frame_length|.
-std::pair<std::unique_ptr<BinaryFileReader<int16_t, float>>, const size_t>
-CreatePcmSamplesReader(const size_t frame_length);
+std::pair<std::unique_ptr<BinaryFileReader<int16_t, float>>, const int>
+CreatePcmSamplesReader(const int frame_length);
 // Creates a reader for the pitch buffer content at 24 kHz.
-std::pair<std::unique_ptr<BinaryFileReader<float>>, const size_t>
+std::pair<std::unique_ptr<BinaryFileReader<float>>, const int>
 CreatePitchBuffer24kHzReader();
 // Creates a reader for the the LP residual coefficients and the pitch period
 // and gain values.
-std::pair<std::unique_ptr<BinaryFileReader<float>>, const size_t>
+std::pair<std::unique_ptr<BinaryFileReader<float>>, const int>
 CreateLpResidualAndPitchPeriodGainReader();
-// Creates a reader for the FFT coefficients.
-std::pair<std::unique_ptr<BinaryFileReader<float>>, const size_t>
-CreateFftCoeffsReader();
-// Creates a reader for the silence flags and the feature matrix.
-std::pair<std::unique_ptr<BinaryFileReader<float>>, const size_t>
-CreateSilenceFlagsFeatureMatrixReader();
 // Creates a reader for the VAD probabilities.
-std::pair<std::unique_ptr<BinaryFileReader<float>>, const size_t>
+std::pair<std::unique_ptr<BinaryFileReader<float>>, const int>
 CreateVadProbsReader();
 
-constexpr size_t kNumPitchBufAutoCorrCoeffs = 147;
-constexpr size_t kNumPitchBufSquareEnergies = 385;
-constexpr size_t kPitchTestDataSize =
+constexpr int kNumPitchBufAutoCorrCoeffs = 147;
+constexpr int kNumPitchBufSquareEnergies = 385;
+constexpr int kPitchTestDataSize =
     kBufSize24kHz + kNumPitchBufSquareEnergies + kNumPitchBufAutoCorrCoeffs;
 
 // Class to retrieve a test pitch buffer content and the expected output for the
@@ -128,15 +142,18 @@ class PitchTestData {
  public:
   PitchTestData();
   ~PitchTestData();
-  rtc::ArrayView<const float, kBufSize24kHz> GetPitchBufView();
+  rtc::ArrayView<const float, kBufSize24kHz> GetPitchBufView() const;
   rtc::ArrayView<const float, kNumPitchBufSquareEnergies>
-  GetPitchBufSquareEnergiesView();
+  GetPitchBufSquareEnergiesView() const;
   rtc::ArrayView<const float, kNumPitchBufAutoCorrCoeffs>
-  GetPitchBufAutoCorrCoeffsView();
+  GetPitchBufAutoCorrCoeffsView() const;
 
  private:
   std::array<float, kPitchTestDataSize> test_data_;
 };
+
+// Returns true if the given optimization is available.
+bool IsOptimizationAvailable(Optimization optimization);
 
 }  // namespace test
 }  // namespace rnn_vad

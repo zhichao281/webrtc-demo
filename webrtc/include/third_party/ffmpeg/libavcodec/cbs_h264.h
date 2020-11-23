@@ -38,7 +38,6 @@ enum {
 
 
 typedef struct H264RawNALUnitHeader {
-    uint8_t forbidden_zero_bit;
     uint8_t nal_ref_idc;
     uint8_t nal_unit_type;
 
@@ -253,7 +252,7 @@ typedef struct H264RawSEIPicTimestamp {
     uint8_t minutes_value;
     uint8_t hours_flag;
     uint8_t hours_value;
-    uint32_t time_offset;
+    int32_t time_offset;
 } H264RawSEIPicTimestamp;
 
 typedef struct H264RawSEIPicTiming {
@@ -278,16 +277,16 @@ typedef struct H264RawSEIPanScanRect {
 typedef struct H264RawSEIUserDataRegistered {
     uint8_t itu_t_t35_country_code;
     uint8_t itu_t_t35_country_code_extension_byte;
-    uint8_t *data;
-    size_t data_length;
+    uint8_t     *data;
     AVBufferRef *data_ref;
+    size_t       data_length;
 } H264RawSEIUserDataRegistered;
 
 typedef struct H264RawSEIUserDataUnregistered {
     uint8_t uuid_iso_iec_11578[16];
-    uint8_t *data;
-    size_t data_length;
+    uint8_t     *data;
     AVBufferRef *data_ref;
+    size_t       data_length;
 } H264RawSEIUserDataUnregistered;
 
 typedef struct H264RawSEIRecoveryPoint {
@@ -315,6 +314,10 @@ typedef struct H264RawSEIMasteringDisplayColourVolume {
     uint32_t min_display_mastering_luminance;
 } H264RawSEIMasteringDisplayColourVolume;
 
+typedef struct H264RawSEIAlternativeTransferCharacteristics {
+    uint8_t preferred_transfer_characteristics;
+} H264RawSEIAlternativeTransferCharacteristics;
+
 typedef struct H264RawSEIPayload {
     uint32_t payload_type;
     uint32_t payload_size;
@@ -328,10 +331,12 @@ typedef struct H264RawSEIPayload {
         H264RawSEIRecoveryPoint recovery_point;
         H264RawSEIDisplayOrientation display_orientation;
         H264RawSEIMasteringDisplayColourVolume mastering_display_colour_volume;
+        H264RawSEIAlternativeTransferCharacteristics
+            alternative_transfer_characteristics;
         struct {
-            uint8_t *data;
-            size_t data_length;
+            uint8_t     *data;
             AVBufferRef *data_ref;
+            size_t       data_length;
         } other;
     } payload;
 } H264RawSEIPayload;
@@ -424,10 +429,10 @@ typedef struct H264RawSliceHeader {
 typedef struct H264RawSlice {
     H264RawSliceHeader header;
 
-    uint8_t *data;
-    size_t   data_size;
-    int      data_bit_start;
+    uint8_t     *data;
     AVBufferRef *data_ref;
+    size_t       data_size;
+    int          data_bit_start;
 } H264RawSlice;
 
 typedef struct H264RawFiller {
@@ -463,20 +468,24 @@ typedef struct CodedBitstreamH264Context {
 
 /**
  * Add an SEI message to an access unit.
+ *
+ * On success, the payload will be owned by a unit in access_unit;
+ * on failure, the content of the payload will be freed.
  */
-int ff_cbs_h264_add_sei_message(CodedBitstreamContext *ctx,
-                                CodedBitstreamFragment *access_unit,
-                                const H264RawSEIPayload *payload);
+int ff_cbs_h264_add_sei_message(CodedBitstreamFragment *access_unit,
+                                H264RawSEIPayload *payload);
 
 /**
  * Delete an SEI message from an access unit.
  *
  * Deletes from nal_unit, which must be an SEI NAL unit.  If this is the
  * last message in nal_unit, also deletes it from access_unit.
+ *
+ * Requires nal_unit to be a unit in access_unit and position to be >= 0
+ * and < the payload count of the SEI nal_unit.
  */
-int ff_cbs_h264_delete_sei_message(CodedBitstreamContext *ctx,
-                                   CodedBitstreamFragment *access_unit,
-                                   CodedBitstreamUnit *nal_unit,
-                                   int position);
+void ff_cbs_h264_delete_sei_message(CodedBitstreamFragment *access_unit,
+                                    CodedBitstreamUnit *nal_unit,
+                                    int position);
 
 #endif /* AVCODEC_CBS_H264_H */

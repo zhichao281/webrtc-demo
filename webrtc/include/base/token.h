@@ -7,11 +7,12 @@
 
 #include <stdint.h>
 
-#include <iosfwd>
+#include <string>
 #include <tuple>
 
 #include "base/base_export.h"
 #include "base/hash/hash.h"
+#include "base/optional.h"
 
 namespace base {
 
@@ -24,28 +25,35 @@ namespace base {
 class BASE_EXPORT Token {
  public:
   // Constructs a zero Token.
-  constexpr Token() : high_(0), low_(0) {}
+  constexpr Token() = default;
 
   // Constructs a Token with |high| and |low| as its contents.
   constexpr Token(uint64_t high, uint64_t low) : high_(high), low_(low) {}
+
+  constexpr Token(const Token&) = default;
+  constexpr Token& operator=(const Token&) = default;
+  constexpr Token(Token&&) noexcept = default;
+  constexpr Token& operator=(Token&&) = default;
 
   // Constructs a new Token with random |high| and |low| values taken from a
   // cryptographically strong random source.
   static Token CreateRandom();
 
   // The high and low 64 bits of this Token.
-  uint64_t high() const { return high_; }
-  uint64_t low() const { return low_; }
+  constexpr uint64_t high() const { return high_; }
+  constexpr uint64_t low() const { return low_; }
 
-  bool is_zero() const { return high_ == 0 && low_ == 0; }
+  constexpr bool is_zero() const { return high_ == 0 && low_ == 0; }
 
-  bool operator==(const Token& other) const {
+  constexpr bool operator==(const Token& other) const {
     return high_ == other.high_ && low_ == other.low_;
   }
 
-  bool operator!=(const Token& other) const { return !(*this == other); }
+  constexpr bool operator!=(const Token& other) const {
+    return !(*this == other);
+  }
 
-  bool operator<(const Token& other) const {
+  constexpr bool operator<(const Token& other) const {
     return std::tie(high_, low_) < std::tie(other.high_, other.low_);
   }
 
@@ -56,8 +64,8 @@ class BASE_EXPORT Token {
   // Note: Two uint64_t are used instead of uint8_t[16] in order to have a
   // simpler implementation, paricularly for |ToString()|, |is_zero()|, and
   // constexpr value construction.
-  uint64_t high_;
-  uint64_t low_;
+  uint64_t high_ = 0;
+  uint64_t low_ = 0;
 };
 
 // For use in std::unordered_map.
@@ -66,6 +74,14 @@ struct TokenHash {
     return base::HashInts64(token.high(), token.low());
   }
 };
+
+class Pickle;
+class PickleIterator;
+
+// For serializing and deserializing Token values.
+BASE_EXPORT void WriteTokenToPickle(Pickle* pickle, const Token& token);
+BASE_EXPORT Optional<Token> ReadTokenFromPickle(
+    PickleIterator* pickle_iterator);
 
 }  // namespace base
 

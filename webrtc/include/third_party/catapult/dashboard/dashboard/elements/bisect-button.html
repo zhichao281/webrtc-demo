@@ -7,7 +7,6 @@ found in the LICENSE file.
 
 <link rel="import" href="/components/paper-button/paper-button.html">
 
-<link rel="import" href="/dashboard/elements/bisect-form.html">
 <link rel="import" href="/dashboard/elements/pinpoint-job-dialog.html">
 <link rel="import" href="/dashboard/static/pinpoint.html">
 <link rel="import" href="/dashboard/static/simple_xhr.html">
@@ -42,14 +41,6 @@ found in the LICENSE file.
         id="button"
         disabled$={{!computeCanBisect(bisectInfo)}}
         on-click="onBisect">Bisect</paper-button>
-    <bisect-form
-        id="bisect"
-        xsrf-token="{{xsrfToken}}"
-        earlier-revision="{{bisectInfo.goodRev}}"
-        later-revision="{{bisectInfo.badRev}}"
-        test-path="{{bisectInfo.testPath}}"
-        bug-id="{{bugId}}"
-        alerts="[[alerts]]"></bisect-form>
     <pinpoint-job-dialog id="pinpoint" alerts="[[alerts]]"></pinpoint-job-dialog>
 
     <div id="toasts" hidden>
@@ -75,6 +66,7 @@ found in the LICENSE file.
         notify: true
       },
       bugId: { notify: true },
+      projectId: { notify: true },
       xsrfToken: { notify: true }
     },
 
@@ -88,20 +80,7 @@ found in the LICENSE file.
       * Determines whether or not this is bisectable.
       */
     computeCanBisect(bisectInfo) {
-      if (bisectInfo == null || !bisectInfo.canBisect) {
-        return false;
-      }
-
-      // We can't check how big the range is if they're git hashes, so just
-      // let them bisect since bisectInfo.canBisect is true.
-      if (typeof bisectInfo.badRev == 'string' ||
-          typeof bisectInfo.goodRev == 'string') {
-        return true;
-      }
-
-      // If there's only a single revision in the range, bisecting
-      // is pointless and the button should be disabled.
-      return (bisectInfo.badRev > bisectInfo.goodRev + 1);
+      return bisectInfo !== null && bisectInfo.canBisect;
     },
 
     onPinpointJobSubmitted(e) {
@@ -118,15 +97,12 @@ found in the LICENSE file.
       const testPathParts = this.bisectInfo.testPath.split('/');
       const botName = testPathParts[1];
 
-      if (d.PINPOINT_BOTS.indexOf(botName) != -1) {
-        this.$.pinpoint.test_path = this.bisectInfo.testPath;
-        this.$.pinpoint.start_commit = this.bisectInfo.goodRev;
-        this.$.pinpoint.end_commit = this.bisectInfo.badRev;
-        this.$.pinpoint.bug_id = this.bugId;
-        this.$.pinpoint.show();
-      } else {
-        this.$.bisect.show();
-      }
+      this.$.pinpoint.test_path = this.bisectInfo.testPath;
+      this.$.pinpoint.start_commit = this.bisectInfo.goodRev;
+      this.$.pinpoint.end_commit = this.bisectInfo.badRev;
+      this.$.pinpoint.bug_id = this.bugId;
+      this.$.pinpoint.project_id = this.projectId;
+      this.$.pinpoint.show();
     }
   });
 })();

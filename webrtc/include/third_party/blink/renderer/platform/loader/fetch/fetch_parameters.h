@@ -26,6 +26,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_LOADER_FETCH_FETCH_PARAMETERS_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_LOADER_FETCH_FETCH_PARAMETERS_H_
 
+#include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink-forward.h"
 #include "third_party/blink/public/platform/web_url_request.h"
 #include "third_party/blink/renderer/platform/loader/fetch/client_hints_preferences.h"
 #include "third_party/blink/renderer/platform/loader/fetch/cross_origin_attribute_value.h"
@@ -34,11 +35,12 @@
 #include "third_party/blink/renderer/platform/loader/fetch/resource_request.h"
 #include "third_party/blink/renderer/platform/loader/fetch/text_resource_decoder_options.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/text_encoding.h"
 
 namespace blink {
 
+class DOMWrapperWorld;
 class SecurityOrigin;
 
 // A FetchParameters is a "parameter object" for
@@ -56,12 +58,13 @@ class PLATFORM_EXPORT FetchParameters {
     kInDocument,  // The request was discovered in the main document
     kInserted     // The request was discovered in a document.write()
   };
-  enum ImageRequestOptimization {
+  enum ImageRequestBehavior {
     kNone = 0,          // No optimization.
-    kAllowPlaceholder,  // The image is allowed to be a placeholder.
-    kDeferImageLoad,  // Defer loading the image from network. Full image might
-                      // still load if the request is already-loaded or in
-                      // memory cache.
+    kDeferImageLoad,    // Defer loading the image from network. Full image
+                        // might still load if the request is already-loaded or
+                        // in memory cache.
+    kNonBlockingImage   // The image load may continue, but must be placed in
+                        // ResourceFetcher::non_blocking_loaders_.
   };
   struct ResourceWidth {
     DISALLOW_NEW();
@@ -71,8 +74,13 @@ class PLATFORM_EXPORT FetchParameters {
     ResourceWidth() : width(0), is_set(false) {}
   };
 
-  explicit FetchParameters(const ResourceRequest&);
-  FetchParameters(const ResourceRequest&, const ResourceLoaderOptions&);
+  static FetchParameters CreateForTest(ResourceRequest);
+
+  FetchParameters(ResourceRequest, scoped_refptr<const DOMWrapperWorld> world);
+  FetchParameters(ResourceRequest, const ResourceLoaderOptions&);
+  FetchParameters(const FetchParameters&) = delete;
+  FetchParameters& operator=(const FetchParameters&) = delete;
+  FetchParameters(FetchParameters&&);
   ~FetchParameters();
 
   ResourceRequest& MutableResourceRequest() { return resource_request_; }
@@ -81,8 +89,12 @@ class PLATFORM_EXPORT FetchParameters {
   }
   const KURL& Url() const { return resource_request_.Url(); }
 
-  void SetRequestContext(mojom::RequestContextType context) {
+  void SetRequestContext(mojom::blink::RequestContextType context) {
     resource_request_.SetRequestContext(context);
+  }
+
+  void SetRequestDestination(network::mojom::RequestDestination destination) {
+    resource_request_.SetRequestDestination(destination);
   }
 
   void SetFetchImportanceMode(mojom::FetchImportanceMode importance_mode) {
@@ -123,8 +135,7 @@ class PLATFORM_EXPORT FetchParameters {
   SpeculativePreloadType GetSpeculativePreloadType() const {
     return speculative_preload_type_;
   }
-  void SetSpeculativePreloadType(SpeculativePreloadType,
-                                 double discovery_time = 0);
+  void SetSpeculativePreloadType(SpeculativePreloadType);
 
   bool IsLinkPreload() const { return options_.initiator_info.is_link_preload; }
   void SetLinkPreload(bool is_link_preload) {
@@ -137,7 +148,7 @@ class PLATFORM_EXPORT FetchParameters {
   }
 
   void SetContentSecurityCheck(
-      ContentSecurityPolicyDisposition content_security_policy_option) {
+      network::mojom::CSPDisposition content_security_policy_option) {
     options_.content_security_policy_option = content_security_policy_option;
   }
   // Configures the request to use the "cors" mode and the credentials mode
@@ -147,7 +158,7 @@ class PLATFORM_EXPORT FetchParameters {
   // Configures the request to use the "cors" mode and the specified
   // credentials mode.
   void SetCrossOriginAccessControl(const SecurityOrigin*,
-                                   network::mojom::FetchCredentialsMode);
+                                   network::mojom::CredentialsMode);
   const IntegrityMetadataSet IntegrityMetadata() const {
     return options_.integrity_metadata;
   }
@@ -173,25 +184,25 @@ class PLATFORM_EXPORT FetchParameters {
 
   void MakeSynchronous();
 
-  ImageRequestOptimization GetImageRequestOptimization() const {
-    return image_request_optimization_;
+  ImageRequestBehavior GetImageRequestBehavior() const {
+    return image_request_behavior_;
   }
 
-  // Configures the request to load an image as a placeholder and sets the
-  // Client LoFi preview bit.
-  void SetClientLoFiPlaceholder();
-
-  // Configures the request to load an image as a placeholder or defers the
-  // image and sets the lazy image load bit.
-  void SetLazyImagePlaceholder();
+  // Configures the request to defer the image and set the lazy image load bit.
   void SetLazyImageDeferred();
-  void SetLazyImageAutoReload();
+  void SetLazyImageNonBlocking();
 
-  // Configures the request to load an image placeholder if the request is
-  // eligible (e.g. the url's protocol is HTTP, etc.). If this request is
-  // non-eligible, this method doesn't modify the ResourceRequest. Calling this
-  // method sets image_request_optimization_ to the appropriate value.
-  void SetAllowImagePlaceholder();
+  // See documentation in blink::ResourceRequest.
+  bool IsFromOriginDirtyStyleSheet() const {
+    return is_from_origin_dirty_style_sheet_;
+  }
+  void SetFromOriginDirtyStyleSheet(bool dirty) {
+    is_from_origin_dirty_style_sheet_ = dirty;
+  }
+
+  void SetSignedExchangePrefetchCacheEnabled(bool enabled) {
+    resource_request_.SetSignedExchangePrefetchCacheEnabled(enabled);
+  }
 
  private:
   ResourceRequest resource_request_;
@@ -204,8 +215,9 @@ class PLATFORM_EXPORT FetchParameters {
   DeferOption defer_;
   ResourceWidth resource_width_;
   ClientHintsPreferences client_hint_preferences_;
-  ImageRequestOptimization image_request_optimization_;
+  ImageRequestBehavior image_request_behavior_;
   bool is_stale_revalidation_ = false;
+  bool is_from_origin_dirty_style_sheet_ = false;
 };
 
 }  // namespace blink

@@ -19,6 +19,7 @@ namespace blink {
 
 class ImageBitmap;
 class ImageLayerBridge;
+class HTMLCanvasElementOrOffscreenCanvas;
 
 class MODULES_EXPORT ImageBitmapRenderingContextBase
     : public CanvasRenderingContext {
@@ -27,20 +28,33 @@ class MODULES_EXPORT ImageBitmapRenderingContextBase
                                   const CanvasContextCreationAttributesCore&);
   ~ImageBitmapRenderingContextBase() override;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
-  HTMLCanvasElement* canvas() {
-    DCHECK(!Host() || !Host()->IsOffscreenCanvas());
+  // TODO(juanmihd): Remove this method crbug.com/941579
+  HTMLCanvasElement* canvas() const {
+    if (Host()->IsOffscreenCanvas())
+      return nullptr;
     return static_cast<HTMLCanvasElement*>(Host());
   }
 
-  void SetIsHidden(bool) override {}
+  bool CanCreateCanvas2dResourceProvider() const;
+  void getHTMLOrOffscreenCanvas(HTMLCanvasElementOrOffscreenCanvas&) const;
+
+  void SetIsInHiddenPage(bool) override {}
+  void SetIsBeingDisplayed(bool) override {}
   bool isContextLost() const override { return false; }
   void SetImage(ImageBitmap*);
-  scoped_refptr<StaticBitmapImage> GetImage(AccelerationHint) const final;
+  scoped_refptr<StaticBitmapImage> GetImage() final;
+  // This function resets the internal image resource to a image of the same
+  // size than the original, with the same properties, but completely black.
+  // This is used to follow the standard regarding transferToBitmap
+  scoped_refptr<StaticBitmapImage> GetImageAndResetInternal();
   void SetUV(const FloatPoint& left_top, const FloatPoint& right_bottom);
   bool IsComposited() const final { return true; }
   bool IsAccelerated() const final;
+  bool PushFrame() override;
+
+  bool IsOriginTopLeft() const override;
 
   cc::Layer* CcLayer() const final;
   // TODO(junov): handle lost contexts when content is GPU-backed

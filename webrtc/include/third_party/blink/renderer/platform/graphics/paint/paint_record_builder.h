@@ -7,8 +7,6 @@
 
 #include <memory>
 
-#include "base/macros.h"
-#include "third_party/blink/renderer/platform/geometry/float_rect.h"
 #include "third_party/blink/renderer/platform/graphics/paint/display_item_client.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_record.h"
 #include "third_party/blink/renderer/platform/graphics/paint/property_tree_state.h"
@@ -20,11 +18,11 @@ class PaintCanvas;
 }
 
 namespace blink {
+
 class GraphicsContext;
 class PaintController;
 
 class PLATFORM_EXPORT PaintRecordBuilder final : public DisplayItemClient {
-
  public:
   // Constructs a new builder for the resulting paint record. If |metadata|
   // is specified, that metadata is propagated to the builder's internal canvas.
@@ -39,7 +37,8 @@ class PLATFORM_EXPORT PaintRecordBuilder final : public DisplayItemClient {
   // CompositeAfterPaint.
   PaintRecordBuilder(printing::MetafileSkia* metafile = nullptr,
                      GraphicsContext* containing_context = nullptr,
-                     PaintController* = nullptr);
+                     PaintController* = nullptr,
+                     paint_preview::PaintPreviewTracker* tracker = nullptr);
   ~PaintRecordBuilder() override;
 
   GraphicsContext& Context() { return *context_; }
@@ -56,16 +55,13 @@ class PLATFORM_EXPORT PaintRecordBuilder final : public DisplayItemClient {
       cc::PaintCanvas&,
       const PropertyTreeState& replay_state = PropertyTreeState::Root());
 
-  // DisplayItemClient methods
+  // DisplayItemClient.
   String DebugName() const final { return "PaintRecordBuilder"; }
-  LayoutRect VisualRect() const final { return LayoutRect(); }
 
  private:
   PaintController* paint_controller_;
   std::unique_ptr<PaintController> own_paint_controller_;
   std::unique_ptr<GraphicsContext> context_;
-
-  DISALLOW_COPY_AND_ASSIGN(PaintRecordBuilder);
 };
 
 }  // namespace blink

@@ -33,32 +33,43 @@ class LayoutFieldset final : public LayoutBlockFlow {
   explicit LayoutFieldset(Element*);
 
   static LayoutBox* FindInFlowLegend(const LayoutBlock& fieldset);
-  LayoutBox* FindInFlowLegend() const { return FindInFlowLegend(*this); }
+  LayoutBox* FindInFlowLegend() const {
+    NOT_DESTROYED();
+    return FindInFlowLegend(*this);
+  }
 
-  const char* GetName() const override { return "LayoutFieldset"; }
+  static LayoutBlock* FindLegendContainingBlock(const LayoutBox& legend,
+                                                AncestorSkipInfo* = nullptr);
 
-  bool CreatesNewFormattingContext() const final { return true; }
+  const char* GetName() const override {
+    NOT_DESTROYED();
+    return "LayoutFieldset";
+  }
 
-  bool BackgroundIsKnownToBeOpaqueInRect(const LayoutRect&) const override;
+  bool CreatesNewFormattingContext() const final {
+    NOT_DESTROYED();
+    return true;
+  }
+
+  bool BackgroundIsKnownToBeOpaqueInRect(const PhysicalRect&) const override;
 
  private:
   bool IsOfType(LayoutObjectType type) const override {
+    NOT_DESTROYED();
     return type == kLayoutObjectFieldset || LayoutBlockFlow::IsOfType(type);
   }
 
   LayoutObject* LayoutSpecialExcludedChild(bool relayout_children,
                                            SubtreeLayoutScope&) override;
 
-  void ComputePreferredLogicalWidths() override;
+  MinMaxSizes PreferredLogicalWidths() const override;
 
   void PaintBoxDecorationBackground(
       const PaintInfo&,
-      const LayoutPoint& paint_offset) const override;
+      const PhysicalOffset& paint_offset) const override;
   void PaintMask(const PaintInfo&,
-                 const LayoutPoint& paint_offset) const override;
+                 const PhysicalOffset& paint_offset) const override;
 };
-
-DEFINE_LAYOUT_OBJECT_TYPE_CASTS(LayoutFieldset, IsFieldset());
 
 }  // namespace blink
 

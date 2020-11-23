@@ -28,12 +28,10 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "third_party/blink/renderer/platform/timer.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
-
-class SharedBuffer;
 
 namespace test {
 
@@ -42,7 +40,7 @@ namespace test {
 void RunPendingTasks();
 
 // Waits for delayed task to complete or timers to fire for |delay|.
-void RunDelayedTasks(TimeDelta delay);
+void RunDelayedTasks(base::TimeDelta delay);
 
 void EnterRunLoop();
 void ExitRunLoop();
@@ -77,17 +75,26 @@ String PlatformTestDataPath(const String& relative_path = String());
 // specified.
 String AccessibilityTestDataPath(const String& relative_path = String());
 
+// Returns Blink web_tests fonts as an absolute path, i.e.
+// <blinkRootDir>/src/third_party/blink/web_tests/external/wpt/fonts/<relative_path>.
+// It returns the top fonts test directory if |relative_path| was not
+// specified.
+String BlinkWebTestsFontsTestDataPath(const String& relative_path = String());
+
+// Returns the directory of hyphenation dictionaries for testing.
+base::FilePath HyphenationDictionaryDir();
+
 scoped_refptr<SharedBuffer> ReadFromFile(const String& path);
 
 class LineReader {
   DISALLOW_NEW();
 
  public:
-  LineReader(const std::string& text);
-  bool GetNextLine(std::string* line);
+  LineReader(const String& text);
+  bool GetNextLine(String* line);
 
  private:
-  std::string text_;
+  String text_;
   size_t index_;
 };
 

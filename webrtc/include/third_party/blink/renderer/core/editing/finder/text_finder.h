@@ -31,12 +31,14 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_EDITING_FINDER_TEXT_FINDER_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_EDITING_FINDER_TEXT_FINDER_H_
 
+#include "base/cancelable_callback.h"
 #include "base/macros.h"
 #include "third_party/blink/public/mojom/frame/find_in_page.mojom-blink.h"
-#include "third_party/blink/public/platform/web_float_point.h"
+#include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/platform/geometry/float_rect.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
+#include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
@@ -46,30 +48,26 @@ class FindTaskController;
 class LocalFrame;
 class Range;
 class WebLocalFrameImpl;
-class WebString;
-struct WebFloatPoint;
-struct WebFloatRect;
-struct WebRect;
 
-class CORE_EXPORT TextFinder final
-    : public GarbageCollectedFinalized<TextFinder> {
+class CORE_EXPORT TextFinder final : public GarbageCollected<TextFinder> {
  public:
   bool Find(int identifier,
             const WebString& search_text,
             const mojom::blink::FindOptions& options,
             bool wrap_within_frame,
             bool* active_now = nullptr);
+  void InitNewSession(const mojom::blink::FindOptions&  options);
   void ClearActiveFindMatch();
   void SetFindEndstateFocusAndSelection();
   void StopFindingAndClearSelection();
   void IncreaseMatchCount(int identifier, int count);
   int FindMatchMarkersVersion() const { return find_match_markers_version_; }
-  WebFloatRect ActiveFindMatchRect();
-  Vector<WebFloatRect> FindMatchRects();
-  int SelectNearestFindMatch(const WebFloatPoint&, WebRect* selection_rect);
+  gfx::RectF ActiveFindMatchRect();
+  Vector<gfx::RectF> FindMatchRects();
+  int SelectNearestFindMatch(const gfx::PointF&, gfx::Rect* selection_rect);
 
   // Starts brand new scoping request: resets the scoping state and
-  // asyncronously calls scopeStringMatches().
+  // asynchronously calls scopeStringMatches().
   void StartScopingStringMatches(int identifier,
                                  const WebString& search_text,
                                  const mojom::blink::FindOptions& options);
@@ -120,7 +118,6 @@ class CORE_EXPORT TextFinder final
                      bool finished_whole_request);
 
   explicit TextFinder(WebLocalFrameImpl& owner_frame);
-  ~TextFinder();
 
   class FindMatch {
     DISALLOW_NEW();
@@ -128,7 +125,7 @@ class CORE_EXPORT TextFinder final
    public:
     FindMatch(Range*, int ordinal);
 
-    void Trace(Visitor*);
+    void Trace(Visitor*) const;
 
     Member<Range> range_;
 
@@ -140,15 +137,45 @@ class CORE_EXPORT TextFinder final
     FloatRect rect_;
   };
 
-  void Trace(Visitor*);
+  void Trace(Visitor*) const;
 
  private:
+  // Context needed by asynchronous tasks used for beforematch and scrolling.
+  struct AsyncScrollContext {
+    // Copy of parameters to FindInternal so that it can be called again later.
+    int identifier;
+    WebString search_text;
+    mojom::blink::FindOptions options;
+    bool wrap_within_frame;
+    Persistent<Range> first_match;
+    bool wrapped_around;
+
+    // Range to fire beforematch on and scroll to. active_match_ may get
+    // unassigned during the async steps, so we need to save it here.
+    Persistent<Range> range;
+
+    // If the match had the content-visibility: hidden-matchable property in the
+    // ancestor chain at the time of finding the matching text.
+    bool was_match_hidden;
+  };
+
+  // Same as Find but with extra internal parameters used to track incremental
+  // attempts to scroll to the next match when the first/previous was hidden.
+  bool FindInternal(int identifier,
+                    const WebString& search_text,
+                    const mojom::blink::FindOptions& options,
+                    bool wrap_within_frame,
+                    bool* active_now = nullptr,
+                    Range* first_match = nullptr,
+                    bool wrapped_around = false);
+
   // Notifies the delegate about a new selection rect.
-  void ReportFindInPageSelection(const WebRect& selection_rect,
+  void ReportFindInPageSelection(const gfx::Rect& selection_rect,
                                  int active_match_ordinal,
                                  int identifier);
 
   void ReportFindInPageResultToAccessibility(int identifier);
+  void ReportFindInPageTerminationToAccessibility();
 
   // Clear the find-in-page matches cache forcing rects to be fully
   // calculated again next time updateFindMatchRects is called.
@@ -158,7 +185,7 @@ class CORE_EXPORT TextFinder final
   // match index returned by nearestFindMatch. Returns the ordinal of the new
   // selected match or -1 in case of error. Also provides the bounding box of
   // the marker in window coordinates if selectionRect is not null.
-  int SelectFindMatch(unsigned index, WebRect* selection_rect);
+  int SelectFindMatch(unsigned index, gfx::Rect* selection_rect);
 
   // Compute and cache the rects for FindMatches if required.
   // Rects are automatically invalidated in case of content size changes.
@@ -189,6 +216,9 @@ class CORE_EXPORT TextFinder final
     DCHECK(owner_frame_);
     return *owner_frame_;
   }
+
+  void FireBeforematchEvent(std::unique_ptr<AsyncScrollContext> context);
+  void Scroll(std::unique_ptr<AsyncScrollContext> context);
 
   Member<WebLocalFrameImpl> owner_frame_;
 
@@ -241,6 +271,8 @@ class CORE_EXPORT TextFinder final
   // Determines if the rects in the find-in-page matches cache of this frame
   // are invalid and should be recomputed.
   bool find_match_rects_are_valid_;
+
+  base::CancelableOnceClosure scroll_task_;
 
   DISALLOW_COPY_AND_ASSIGN(TextFinder);
 };

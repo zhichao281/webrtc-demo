@@ -27,9 +27,11 @@
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_COLOR_H_
 
 #include "third_party/blink/renderer/platform/platform_export.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/text/unicode.h"
+
+typedef uint32_t SkColor;
 
 namespace blink {
 
@@ -72,8 +74,8 @@ class PLATFORM_EXPORT Color {
   DISALLOW_NEW();
 
  public:
-  Color() : color_(Color::kTransparent) {}
-  Color(RGBA32 color) : color_(color) {}
+  constexpr Color() : color_(Color::kTransparent) {}
+  constexpr Color(RGBA32 color) : color_(color) {}
   Color(int r, int g, int b) : color_(MakeRGB(r, g, b)) {}
   Color(int r, int g, int b, int a) : color_(MakeRGBA(r, g, b, a)) {}
   // Color is currently limited to 32bit RGBA. Perhaps some day we'll support
@@ -84,11 +86,11 @@ class PLATFORM_EXPORT Color {
   Color(float c, float m, float y, float k, float a)
       : color_(MakeRGBAFromCMYKA(c, m, y, k, a)) {}
 
-  static Color CreateUnchecked(int r, int g, int b) {
+  static constexpr Color CreateUnchecked(int r, int g, int b) {
     RGBA32 color = 0xFF000000 | r << 16 | g << 8 | b;
     return Color(color);
   }
-  static Color CreateUnchecked(int r, int g, int b, int a) {
+  static constexpr Color CreateUnchecked(int r, int g, int b, int a) {
     RGBA32 color = a << 24 | r << 16 | g << 8 | b;
     return Color(color);
   }
@@ -119,6 +121,8 @@ class PLATFORM_EXPORT Color {
   void GetRGBA(float& r, float& g, float& b, float& a) const;
   void GetRGBA(double& r, double& g, double& b, double& a) const;
   void GetHSL(double& h, double& s, double& l) const;
+
+  explicit operator SkColor() const;
 
   Color Light() const;
   Color Dark() const;

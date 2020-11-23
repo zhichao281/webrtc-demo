@@ -31,13 +31,12 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_WEBMIDI_MIDI_PORT_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_WEBMIDI_MIDI_PORT_H_
 
-#include "media/midi/midi_service.mojom-blink.h"
+#include "media/midi/midi_service.mojom-blink-forward.h"
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
-#include "third_party/blink/renderer/core/execution_context/context_lifecycle_observer.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/modules/event_target_modules.h"
-#include "third_party/blink/renderer/modules/webmidi/midi_accessor.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 
 namespace blink {
@@ -46,9 +45,8 @@ class MIDIAccess;
 
 class MIDIPort : public EventTargetWithInlineData,
                  public ActiveScriptWrappable<MIDIPort>,
-                 public ContextLifecycleObserver {
+                 public ExecutionContextLifecycleObserver {
   DEFINE_WRAPPERTYPEINFO();
-  USING_GARBAGE_COLLECTED_MIXIN(MIDIPort);
 
  public:
   enum ConnectionState {
@@ -76,7 +74,7 @@ class MIDIPort : public EventTargetWithInlineData,
   void SetState(midi::mojom::PortState);
   ConnectionState GetConnection() const { return connection_; }
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
   DEFINE_ATTRIBUTE_EVENT_LISTENER(statechange, kStatechange)
 
@@ -89,8 +87,8 @@ class MIDIPort : public EventTargetWithInlineData,
   // ScriptWrappable
   bool HasPendingActivity() const final;
 
-  // ContextLifecycleObserver
-  void ContextDestroyed(ExecutionContext*) override;
+  // ExecutionContextLifecycleObserver
+  void ContextDestroyed() override;
 
  protected:
   MIDIPort(MIDIAccess*,

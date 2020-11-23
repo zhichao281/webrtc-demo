@@ -34,9 +34,9 @@
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/loader/link_load_parameters.h"
+#include "third_party/blink/renderer/core/loader/private/prerender_client.h"
 #include "third_party/blink/renderer/core/script/modulator.h"
 #include "third_party/blink/renderer/platform/loader/fetch/fetch_parameters.h"
-#include "third_party/blink/renderer/platform/prerender_client.h"
 
 namespace blink {
 
@@ -50,11 +50,7 @@ class ResourceClient;
 // prerender.
 class CORE_EXPORT LinkLoader final : public SingleModuleClient,
                                      public PrerenderClient {
-  USING_GARBAGE_COLLECTED_MIXIN(LinkLoader);
-
  public:
-  static LinkLoader* Create(LinkLoaderClient*);
-
   LinkLoader(LinkLoaderClient*, scoped_refptr<base::SingleThreadTaskRunner>);
   ~LinkLoader() override;
 
@@ -75,7 +71,7 @@ class CORE_EXPORT LinkLoader final : public SingleModuleClient,
 
   Resource* GetResourceForTesting();
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   class FinishObserver;

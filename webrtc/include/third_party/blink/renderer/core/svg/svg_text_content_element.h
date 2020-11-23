@@ -22,7 +22,6 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_SVG_SVG_TEXT_CONTENT_ELEMENT_H_
 
 #include "third_party/blink/renderer/core/svg/svg_animated_enumeration.h"
-#include "third_party/blink/renderer/core/svg/svg_animated_length.h"
 #include "third_party/blink/renderer/core/svg/svg_graphics_element.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 
@@ -30,6 +29,7 @@ namespace blink {
 
 class ExceptionState;
 class LineLayoutItem;
+class SVGAnimatedLength;
 class SVGPointTearOff;
 
 enum SVGLengthAdjustType {
@@ -71,7 +71,7 @@ class CORE_EXPORT SVGTextContentElement : public SVGGraphicsElement {
     return length_adjust_.Get();
   }
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  protected:
   SVGTextContentElement(const QualifiedName&, Document&);
@@ -80,7 +80,7 @@ class CORE_EXPORT SVGTextContentElement : public SVGGraphicsElement {
   void CollectStyleForPresentationAttribute(const QualifiedName&,
                                             const AtomicString&,
                                             MutableCSSPropertyValueSet*) final;
-  void SvgAttributeChanged(const QualifiedName&) override;
+  void SvgAttributeChanged(const SvgAttributeChangedParams&) override;
 
   bool SelfHasRelativeLengths() const override;
 
@@ -96,7 +96,13 @@ inline bool IsSVGTextContentElement(const SVGElement& element) {
   return element.IsTextContent();
 }
 
-DEFINE_SVGELEMENT_TYPE_CASTS_WITH_FUNCTION(SVGTextContentElement);
+template <>
+struct DowncastTraits<SVGTextContentElement> {
+  static bool AllowFrom(const Node& node) {
+    auto* svg_element = DynamicTo<SVGElement>(node);
+    return svg_element && IsSVGTextContentElement(*svg_element);
+  }
+};
 
 }  // namespace blink
 

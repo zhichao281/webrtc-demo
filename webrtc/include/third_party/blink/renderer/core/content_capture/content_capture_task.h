@@ -6,14 +6,15 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CONTENT_CAPTURE_CONTENT_CAPTURE_TASK_H_
 
 #include <memory>
-#include <vector>
 
-#include "cc/paint/node_holder.h"
+#include "base/time/time.h"
+#include "cc/paint/node_id.h"
 #include "third_party/blink/renderer/core/content_capture/content_capture_task_histogram_reporter.h"
 #include "third_party/blink/renderer/core/content_capture/task_session.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/platform/timer.h"
 #include "third_party/blink/renderer/platform/wtf/ref_counted.h"
+#include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
 
@@ -23,13 +24,13 @@ class LocalFrame;
 
 // This class is used to capture the on-screen content and send them out
 // through WebContentCaptureClient.
-class CORE_EXPORT ContentCaptureTask : public RefCounted<ContentCaptureTask> {
-  USING_FAST_MALLOC(ContentCaptureTask);
-
+class CORE_EXPORT ContentCaptureTask
+    : public GarbageCollected<ContentCaptureTask> {
  public:
   enum class ScheduleReason {
     kFirstContentChange,
-    kContentChange,
+    kUserActivatedContentChange,
+    kNonUserActivatedContentChange,
     kScrolling,
     kRetryTask,
   };
@@ -39,6 +40,32 @@ class CORE_EXPORT ContentCaptureTask : public RefCounted<ContentCaptureTask> {
     kCaptureContent,
     kProcessCurrentSession,
     kStop,
+  };
+
+  class CORE_EXPORT TaskDelay {
+   public:
+    TaskDelay(const base::TimeDelta& task_short_delay,
+              const base::TimeDelta& task_long_delay);
+    // Resets the |delay_exponent| and returns the initial delay.
+    base::TimeDelta ResetAndGetInitialDelay();
+
+    // Returns the delay time for the next task.
+    base::TimeDelta GetNextTaskDelay() const;
+
+    // Increases delay time of next task exponentially after the task started.
+    void IncreaseDelayExponent();
+
+    base::TimeDelta task_short_delay() const { return task_short_delay_; }
+    base::TimeDelta task_long_delay() const { return task_long_delay_; }
+
+   private:
+    // Schedules the task with short delay for kFirstContentChange, kScrolling
+    // and kRetryTask, with long delay for kContentChange.
+    const base::TimeDelta task_short_delay_;
+    const base::TimeDelta task_long_delay_;
+
+    // The exponent to calculate the next task delay time.
+    int delay_exponent_ = 0;
   };
 
   ContentCaptureTask(LocalFrame& local_frame_root, TaskSession& task_session);
@@ -51,6 +78,8 @@ class CORE_EXPORT ContentCaptureTask : public RefCounted<ContentCaptureTask> {
   // Make those const public for testing purpose.
   static constexpr size_t kBatchSize = 5;
 
+  // TODO(crbug.com/1115836): Replacing the ForTesting methods with friend
+  // TestHelper class.
   TaskState GetTaskStateForTesting() const { return task_state_; }
 
   void RunTaskForTestingUntil(TaskState stop_state) {
@@ -59,11 +88,17 @@ class CORE_EXPORT ContentCaptureTask : public RefCounted<ContentCaptureTask> {
   }
 
   void SetCapturedContentForTesting(
-      const std::vector<cc::NodeHolder>& captured_content) {
+      const Vector<cc::NodeInfo>& captured_content) {
     captured_content_for_testing_ = captured_content;
   }
 
   void ClearDocumentSessionsForTesting();
+
+  base::TimeDelta GetTaskNextFireIntervalForTesting() const;
+  void CancelTaskForTesting();
+  const TaskDelay& GetTaskDelayForTesting() const { return *task_delay_; }
+
+  void Trace(Visitor*) const;
 
  protected:
   // All protected data and methods are for testing purpose.
@@ -93,26 +128,28 @@ class CORE_EXPORT ContentCaptureTask : public RefCounted<ContentCaptureTask> {
   // Sends the captured content in batch.
   void SendContent(TaskSession::DocumentSession& doc_session);
 
-  void ScheduleInternal(ScheduleReason reason);
-  bool CaptureContent(std::vector<cc::NodeHolder>& data);
+  // Gets the delay time of the next task according to the |reason|, this method
+  // might adjusts the delay if applicable.
+  base::TimeDelta GetAndAdjustDelay(ScheduleReason reason);
 
-  bool is_scheduled_ = false;
+  void ScheduleInternal(ScheduleReason reason);
+  bool CaptureContent(Vector<cc::NodeInfo>& data);
+
+  void CancelTask();
 
   // Indicates if there is content change since last run.
   bool has_content_change_ = false;
 
-  UntracedMember<LocalFrame> local_frame_root_;
-  UntracedMember<TaskSession> task_session_;
+  Member<LocalFrame> local_frame_root_;
+  Member<TaskSession> task_session_;
   std::unique_ptr<TaskRunnerTimer<ContentCaptureTask>> delay_task_;
   TaskState task_state_ = TaskState::kStop;
 
-  // Schedules the task with short delay for kFirstContentChange, kScrolling and
-  // kRetryTask, with long delay for kContentChange.
-  base::TimeDelta task_short_delay_;
-  base::TimeDelta task_long_delay_;
+  std::unique_ptr<TaskDelay> task_delay_;
+
   scoped_refptr<ContentCaptureTaskHistogramReporter> histogram_reporter_;
   base::Optional<TaskState> task_stop_for_testing_;
-  base::Optional<std::vector<cc::NodeHolder>> captured_content_for_testing_;
+  base::Optional<Vector<cc::NodeInfo>> captured_content_for_testing_;
 };
 
 }  // namespace blink

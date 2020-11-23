@@ -36,8 +36,6 @@ class CORE_EXPORT HTMLTextAreaElement final : public TextControlElement {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static HTMLTextAreaElement* Create(Document&);
-
   explicit HTMLTextAreaElement(Document&);
 
   unsigned cols() const { return cols_; }
@@ -80,7 +78,7 @@ class CORE_EXPORT HTMLTextAreaElement final : public TextControlElement {
   void HandleBeforeTextInsertedEvent(BeforeTextInsertedEvent*) const;
   static String SanitizeUserInputValue(const String&, unsigned max_length);
   void UpdateValue();
-  void SetNonDirtyValue(const String&);
+  void SetNonDirtyValue(const String&, TextControlSetValueSelection);
   void SetValueCommon(const String&,
                       TextFieldEventBehavior,
                       TextControlSetValueSelection);
@@ -103,7 +101,6 @@ class CORE_EXPORT HTMLTextAreaElement final : public TextControlElement {
 
   bool IsEnumeratable() const override { return true; }
   bool IsInteractiveContent() const override;
-  bool SupportsAutofocus() const override;
   bool IsLabelable() const override { return true; }
 
   const AtomicString& FormControlType() const override;
@@ -112,7 +109,8 @@ class CORE_EXPORT HTMLTextAreaElement final : public TextControlElement {
   void RestoreFormControlState(const FormControlState&) override;
 
   bool IsTextControl() const override { return true; }
-
+  int scrollWidth() override;
+  int scrollHeight() override;
   void ChildrenChanged(const ChildrenChange&) override;
   void ParseAttribute(const AttributeModificationParams&) override;
   bool IsPresentationAttribute(const QualifiedName&) const override;
@@ -120,6 +118,7 @@ class CORE_EXPORT HTMLTextAreaElement final : public TextControlElement {
       const QualifiedName&,
       const AtomicString&,
       MutableCSSPropertyValueSet*) override;
+  bool TypeShouldForceLegacyLayout() const override;
   LayoutObject* CreateLayoutObject(const ComputedStyle&, LegacyLayout) override;
   void AppendToFormData(FormData&) override;
   void ResetImpl() override;

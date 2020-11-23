@@ -16,12 +16,12 @@
 
 #include <memory>
 
+#include "api/fec_controller_override.h"
 #include "api/video/encoded_image.h"
 #include "api/video_codecs/video_codec.h"
 #include "api/video_codecs/video_encoder.h"
 #include "api/video_codecs/vp8_frame_buffer_controller.h"
 #include "api/video_codecs/vp8_temporal_layers.h"
-#include "modules/include/module_common_types.h"
 #include "modules/video_coding/include/video_codec_interface.h"
 #include "rtc_base/synchronization/sequence_checker.h"
 #include "rtc_base/thread_annotations.h"
@@ -31,31 +31,39 @@
 namespace webrtc {
 namespace test {
 
-class FakeVP8Encoder : public FakeEncoder {
+class FakeVp8Encoder : public FakeEncoder {
  public:
-  explicit FakeVP8Encoder(Clock* clock);
-  virtual ~FakeVP8Encoder() = default;
+  explicit FakeVp8Encoder(Clock* clock);
+  virtual ~FakeVp8Encoder() = default;
 
   int32_t InitEncode(const VideoCodec* config,
-                     int32_t number_of_cores,
-                     size_t max_payload_size) override;
+                     const Settings& settings) override;
 
   int32_t Release() override;
 
   EncoderInfo GetEncoderInfo() const override;
 
  private:
-  void PopulateCodecSpecific(CodecSpecificInfo* codec_specific,
-                             size_t size_bytes,
-                             VideoFrameType frame_type,
-                             int stream_idx,
-                             uint32_t timestamp);
+  CodecSpecificInfo PopulateCodecSpecific(size_t size_bytes,
+                                          VideoFrameType frame_type,
+                                          int stream_idx,
+                                          uint32_t timestamp);
 
-  std::unique_ptr<RTPFragmentationHeader> EncodeHook(
-      EncodedImage* encoded_image,
-      CodecSpecificInfo* codec_specific) override;
+  CodecSpecificInfo EncodeHook(
+      EncodedImage& encoded_image,
+      rtc::scoped_refptr<EncodedImageBuffer> buffer) override;
 
   SequenceChecker sequence_checker_;
+
+  class FakeFecControllerOverride : public FecControllerOverride {
+   public:
+    ~FakeFecControllerOverride() override = default;
+
+    void SetFecAllowed(bool fec_allowed) override {}
+  };
+
+  FakeFecControllerOverride fec_controller_override_
+      RTC_GUARDED_BY(sequence_checker_);
 
   std::unique_ptr<Vp8FrameBufferController> frame_buffer_controller_
       RTC_GUARDED_BY(sequence_checker_);

@@ -22,14 +22,13 @@ class ScopedPathOverride;
 //
 class BASE_EXPORT PathService {
  public:
-  // Retrieves a path to a special directory or file and places it into the
-  // string pointed to by 'path'. If you ask for a directory it is guaranteed
-  // to NOT have a path separator at the end. For example, "c:\windows\temp"
-  // Directories are also guaranteed to exist when this function succeeds.
-  //
-  // Returns true if the directory or file was successfully retrieved. On
-  // failure, 'path' will not be changed.
+  // Populates |path| with a special directory or file. Returns true on success,
+  // in which case |path| is guaranteed to have a non-empty value. On failure,
+  // |path| will not be changed.
   static bool Get(int key, FilePath* path);
+
+  // Returns the corresponding path; CHECKs that the operation succeeds.
+  static FilePath CheckedGet(int key);
 
   // Overrides the path to a special directory or file.  This cannot be used to
   // change the value of DIR_CURRENT, but that should be obvious.  Also, if the

@@ -39,6 +39,7 @@
 #include "third_party/blink/renderer/platform/audio/audio_io_callback.h"
 #include "third_party/blink/renderer/platform/audio/media_multi_channel_resampler.h"
 #include "third_party/blink/renderer/platform/scheduler/public/thread.h"
+#include "third_party/blink/renderer/platform/wtf/threading_primitives.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/thread_safe_ref_counted.h"
 
@@ -116,11 +117,22 @@ class PLATFORM_EXPORT AudioDestination
   static float HardwareSampleRate();
   static uint32_t MaxChannelCount();
 
+  // Sets the detect silence flag for |web_audio_device_|.
+  void SetDetectSilence(bool detect_silence);
+
  private:
+  // Represents the current state of the underlying |WebAudioDevice| object
+  // (RendererWebAudioDeviceImpl).
+  enum DeviceState {
+    kRunning,
+    kPaused,
+    kStopped,
+  };
+
+  void SetDeviceState(DeviceState);
+
   // Provide input to the resampler (if used).
   void ProvideResamplerInput(int resampler_frame_delay, AudioBus* dest);
-
-  enum class PlayState { kStopped, kPlaying, kPaused };
 
   // Check if the buffer size chosen by the WebAudioDevice is too large.
   bool CheckBufferSize();
@@ -131,7 +143,6 @@ class PLATFORM_EXPORT AudioDestination
   std::unique_ptr<WebAudioDevice> web_audio_device_;
   const unsigned number_of_output_channels_;
   uint32_t callback_buffer_size_;
-  PlayState play_state_;
 
   // The task runner for AudioWorklet operation. This is only valid when
   // the AudioWorklet is activated.
@@ -152,12 +163,6 @@ class PLATFORM_EXPORT AudioDestination
   // engine. (i.e. DestinationNode)
   AudioIOCallback& callback_;
 
-  // When the last callback function from the device is called.
-  base::TimeTicks previous_callback_request_;
-
-  // The time duration spent on rendering previous render quanta per callback.
-  base::TimeDelta previous_render_duration_;
-
   // Accessed by rendering thread.
   size_t frames_elapsed_;
 
@@ -171,7 +176,15 @@ class PLATFORM_EXPORT AudioDestination
 
   // Required for RequestRender and also in the resampling callback (if used).
   AudioIOPosition output_position_;
-  AudioIOCallbackMetric metric_;
+
+  AudioCallbackMetricReporter metric_reporter_;
+
+  // This protects |device_state_| below.
+  mutable Mutex state_change_lock_;
+
+  // Modified only on the main thread, so it can be read without holding a lock
+  // there.
+  DeviceState device_state_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioDestination);
 };

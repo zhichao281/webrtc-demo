@@ -28,19 +28,20 @@ class CORE_EXPORT ImageElementBase : public CanvasImageSource,
 
   IntSize BitmapSourceSize() const override;
   ScriptPromise CreateImageBitmap(ScriptState*,
-                                  EventTarget&,
                                   base::Optional<IntRect>,
-                                  const ImageBitmapOptions*) override;
+                                  const ImageBitmapOptions*,
+                                  ExceptionState&) override;
 
   scoped_refptr<Image> GetSourceImageForCanvas(SourceImageStatus*,
-                                               AccelerationHint,
                                                const FloatSize&) override;
 
   bool WouldTaintOrigin() const override;
 
-  FloatSize ElementSize(const FloatSize& default_object_size) const override;
+  FloatSize ElementSize(const FloatSize& default_object_size,
+                        const RespectImageOrientationEnum) const override;
   FloatSize DefaultDestinationSize(
-      const FloatSize& default_object_size) const override;
+      const FloatSize& default_object_size,
+      const RespectImageOrientationEnum) const override;
 
   bool IsAccelerated() const override;
 

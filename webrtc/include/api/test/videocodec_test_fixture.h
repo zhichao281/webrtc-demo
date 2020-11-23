@@ -17,6 +17,7 @@
 #include "api/test/videocodec_test_stats.h"
 #include "api/video_codecs/video_decoder_factory.h"
 #include "api/video_codecs/video_encoder_factory.h"
+#include "media/base/h264_profile_level_id.h"
 #include "modules/video_coding/include/video_codec_interface.h"
 
 namespace webrtc {
@@ -25,7 +26,7 @@ namespace test {
 // Rates for the encoder and the frame number when to apply profile.
 struct RateProfile {
   size_t target_kbps;
-  size_t input_fps;
+  double input_fps;
   size_t frame_num;
 };
 
@@ -129,11 +130,17 @@ class VideoCodecTestFixture {
     // Print out frame level stats.
     bool print_frame_level_stats = false;
 
+    // Path to a directory where encoded or/and decoded video should be saved.
+    std::string output_path;
+
     // Should video be saved persistently to disk for post-run visualization?
     struct VisualizationParams {
       bool save_encoded_ivf = false;
       bool save_decoded_y4m = false;
     } visualization_params;
+
+    // Enables quality analysis for dropped frames.
+    bool analyze_quality_of_dropped_frames = false;
   };
 
   virtual ~VideoCodecTestFixture() = default;

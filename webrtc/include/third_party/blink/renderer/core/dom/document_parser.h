@@ -37,12 +37,11 @@ class DocumentParserClient;
 class ScriptableDocumentParser;
 class TextResourceDecoder;
 
-class CORE_EXPORT DocumentParser
-    : public GarbageCollectedFinalized<DocumentParser>,
-      public NameClient {
+class CORE_EXPORT DocumentParser : public GarbageCollected<DocumentParser>,
+                                   public NameClient {
  public:
   virtual ~DocumentParser();
-  virtual void Trace(Visitor*);
+  virtual void Trace(Visitor*) const;
   const char* NameInHeapSnapshot() const override { return "DocumentParser"; }
 
   virtual ScriptableDocumentParser* AsScriptableDocumentParser() {
@@ -107,10 +106,6 @@ class CORE_EXPORT DocumentParser
   bool DocumentWasLoadedAsPartOfNavigation() const {
     return document_was_loaded_as_part_of_navigation_;
   }
-
-  // FIXME: The names are not very accurate :(
-  virtual void PauseScheduledTasks();
-  virtual void UnpauseScheduledTasks();
 
   void AddClient(DocumentParserClient*);
   void RemoveClient(DocumentParserClient*);

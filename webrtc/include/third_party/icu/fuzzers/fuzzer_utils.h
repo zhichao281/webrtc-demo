@@ -45,10 +45,22 @@ icu::UnicodeString UnicodeStringFromUtf32(const uint8_t* data, size_t size) {
   uchars.resize(size * sizeof(uint8_t) / (sizeof(UChar32)));
   memcpy(uchars.data(), data, uchars.size() * sizeof(UChar32));
   for (size_t i = 0; i < uchars.size(); ++i) {
-    uchars[i] = std::min(uchars[i], UCHAR_MAX_VALUE);
+    // The valid range for UTF32 is [0, UCHAR_MAX_VALUE]
+    // By  % with (UCHAR_MAX_VALUE + 2) we make the output mostly valid  with
+    // a small percentage of (1 / UCHAR_MAX_VALUE) invalid data in UTF8.
+    uchars[i] = uchars[i] % (UCHAR_MAX_VALUE + 2);
   }
 
   return icu::UnicodeString::fromUTF32(uchars.data(), uchars.size());
+}
+
+std::vector<char16_t> RandomChar16Array(size_t random_value,
+                                        const uint8_t* data,
+                                        size_t size) {
+  std::vector<char16_t> arr;
+  arr.resize(random_value % size * sizeof(uint8_t) / sizeof(char16_t));
+  memcpy(arr.data(), data, arr.size() * sizeof(char16_t) / sizeof(uint8_t));
+  return arr;
 }
 
 #endif  // THIRD_PARTY_ICU_FUZZERS_FUZZER_UTILS_H_

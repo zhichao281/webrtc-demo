@@ -22,51 +22,32 @@
 #include "call/simulated_network.h"
 #include "rtc_base/constructor_magic.h"
 #include "rtc_base/copy_on_write_buffer.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/task_queue.h"
+#include "test/network/network_emulation.h"
 #include "test/scenario/column_printer.h"
-#include "test/scenario/network/network_emulation.h"
 #include "test/scenario/scenario_config.h"
 
 namespace webrtc {
 namespace test {
 
-class NullReceiver : public EmulatedNetworkReceiverInterface {
+class SimulationNode {
  public:
-  void OnPacketReceived(EmulatedIpPacket packet) override;
-};
-class ActionReceiver : public EmulatedNetworkReceiverInterface {
- public:
-  explicit ActionReceiver(std::function<void()> action);
-  virtual ~ActionReceiver() = default;
+  SimulationNode(NetworkSimulationConfig config,
+                 SimulatedNetwork* behavior,
+                 EmulatedNetworkNode* network_node);
+  static std::unique_ptr<SimulatedNetwork> CreateBehavior(
+      NetworkSimulationConfig config);
 
-  void OnPacketReceived(EmulatedIpPacket packet) override;
-
- private:
-  std::function<void()> action_;
-};
-
-// SimulationNode is a EmulatedNetworkNode that expose an interface for changing
-// run time behavior of the underlying simulation.
-class SimulationNode : public EmulatedNetworkNode {
- public:
-  void UpdateConfig(std::function<void(NetworkNodeConfig*)> modifier);
+  void UpdateConfig(std::function<void(NetworkSimulationConfig*)> modifier);
   void PauseTransmissionUntil(Timestamp until);
   ColumnPrinter ConfigPrinter() const;
+  EmulatedNetworkNode* node() { return network_node_; }
 
  private:
-  friend class Scenario;
-
-  SimulationNode(Clock* clock,
-                 rtc::TaskQueue* task_queue,
-                 NetworkNodeConfig config,
-                 std::unique_ptr<NetworkBehaviorInterface> behavior,
-                 SimulatedNetwork* simulation);
-  static std::unique_ptr<SimulationNode> Create(Clock* clock,
-                                                rtc::TaskQueue* task_queue,
-                                                NetworkNodeConfig config);
-
-  SimulatedNetwork* const simulated_network_;
-  NetworkNodeConfig config_;
+  NetworkSimulationConfig config_;
+  SimulatedNetwork* const simulation_;
+  EmulatedNetworkNode* const network_node_;
 };
 
 class NetworkNodeTransport : public Transport {
@@ -79,51 +60,25 @@ class NetworkNodeTransport : public Transport {
                const PacketOptions& options) override;
   bool SendRtcp(const uint8_t* packet, size_t length) override;
 
-  void Connect(EmulatedNetworkNode* send_node,
-               rtc::IPAddress receiver_ip,
+  void Connect(EmulatedEndpoint* endpoint,
+               const rtc::SocketAddress& receiver_address,
                DataSize packet_overhead);
   void Disconnect();
 
   DataSize packet_overhead() {
-    rtc::CritScope crit(&crit_sect_);
+    MutexLock lock(&mutex_);
     return packet_overhead_;
   }
 
  private:
-  rtc::CriticalSection crit_sect_;
+  Mutex mutex_;
   Clock* const sender_clock_;
   Call* const sender_call_;
-  // Store local address here for consistency with receiver address.
-  const rtc::SocketAddress local_address_;
-  EmulatedNetworkNode* send_net_ RTC_GUARDED_BY(crit_sect_) = nullptr;
-  rtc::SocketAddress receiver_address_ RTC_GUARDED_BY(crit_sect_);
-  DataSize packet_overhead_ RTC_GUARDED_BY(crit_sect_) = DataSize::Zero();
-  rtc::NetworkRoute current_network_route_ RTC_GUARDED_BY(crit_sect_);
-};
-
-// CrossTrafficSource is created by a Scenario and generates cross traffic. It
-// provides methods to access and print internal state.
-class CrossTrafficSource {
- public:
-  DataRate TrafficRate() const;
-  ColumnPrinter StatsPrinter();
-  ~CrossTrafficSource();
-
- private:
-  friend class Scenario;
-  CrossTrafficSource(EmulatedNetworkReceiverInterface* target,
-                     rtc::IPAddress receiver_ip,
-                     CrossTrafficConfig config);
-  void Process(Timestamp at_time, TimeDelta delta);
-
-  EmulatedNetworkReceiverInterface* const target_;
-  const rtc::SocketAddress receiver_address_;
-  CrossTrafficConfig config_;
-  webrtc::Random random_;
-
-  TimeDelta time_since_update_ = TimeDelta::Zero();
-  double intensity_ = 0;
-  DataSize pending_size_ = DataSize::Zero();
+  EmulatedEndpoint* endpoint_ RTC_GUARDED_BY(mutex_) = nullptr;
+  rtc::SocketAddress local_address_ RTC_GUARDED_BY(mutex_);
+  rtc::SocketAddress remote_address_ RTC_GUARDED_BY(mutex_);
+  DataSize packet_overhead_ RTC_GUARDED_BY(mutex_) = DataSize::Zero();
+  rtc::NetworkRoute current_network_route_ RTC_GUARDED_BY(mutex_);
 };
 }  // namespace test
 }  // namespace webrtc

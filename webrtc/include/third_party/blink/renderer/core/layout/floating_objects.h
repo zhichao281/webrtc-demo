@@ -26,7 +26,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_FLOATING_OBJECTS_H_
 
 #include <memory>
-#include "base/macros.h"
+#include "base/util/type_safety/pass_key.h"
 #include "third_party/blink/renderer/platform/geometry/layout_rect.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/list_hash_set.h"
@@ -142,20 +142,23 @@ class FloatingObject {
         is_lowest_non_overhanging_float_in_child;
   }
 
-  // FIXME: Callers of these methods are dangerous and should be whitelisted
-  // explicitly or removed.
+  // FIXME: Callers of these methods are dangerous and should be removed.
   RootInlineBox* OriginatingLine() const { return originating_line_; }
   void SetOriginatingLine(RootInlineBox* line) { originating_line_ = line; }
 
- private:
-  FloatingObject(LayoutBox*, Type);
-  FloatingObject(LayoutBox*,
+  using PassKey = util::PassKey<FloatingObject>;
+  FloatingObject(PassKey, LayoutBox*, Type);
+  FloatingObject(PassKey,
+                 LayoutBox*,
                  Type,
                  const LayoutRect&,
                  bool should_paint,
                  bool is_descendant,
                  bool is_lowest_non_overhanging_float_in_child);
+  FloatingObject(const FloatingObject&) = delete;
+  FloatingObject& operator=(const FloatingObject&) = delete;
 
+ private:
   LayoutBox* layout_object_;
   RootInlineBox* originating_line_;
   LayoutRect frame_rect_;
@@ -173,8 +176,6 @@ class FloatingObject {
   // the float IsPlaced() or not.
   unsigned has_geometry_ : 1;
 #endif
-
-  DISALLOW_COPY_AND_ASSIGN(FloatingObject);
 };
 
 struct FloatingObjectHashFunctions {
@@ -225,6 +226,8 @@ class FloatingObjects {
 
  public:
   FloatingObjects(const LayoutBlockFlow*, bool horizontal_writing_mode);
+  FloatingObjects(const FloatingObjects&) = delete;
+  FloatingObjects& operator=(const FloatingObjects&) = delete;
   ~FloatingObjects();
 
   void Clear();
@@ -267,7 +270,7 @@ class FloatingObjects {
   LayoutUnit FindNextFloatLogicalBottomBelowForBlock(LayoutUnit logical_height);
 
   LayoutUnit LowestFloatLogicalBottom(FloatingObject::Type);
-  FloatingObject* LowestFloatingObject() const;
+  FloatingObject* LowestFloatingObject();
 
  private:
   bool HasLowestFloatLogicalBottomCached(bool is_horizontal,
@@ -303,7 +306,6 @@ class FloatingObjects {
   };
   FloatBottomCachedValue lowest_float_bottom_cache_[2];
   bool cached_horizontal_writing_mode_;
-  DISALLOW_COPY_AND_ASSIGN(FloatingObjects);
 };
 
 }  // namespace blink

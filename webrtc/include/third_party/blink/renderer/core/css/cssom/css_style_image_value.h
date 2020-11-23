@@ -5,7 +5,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_CSS_CSSOM_CSS_STYLE_IMAGE_VALUE_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_CSSOM_CSS_STYLE_IMAGE_VALUE_H_
 
-#include "base/macros.h"
 #include "base/optional.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/cssom/css_resource_value.h"
@@ -20,6 +19,8 @@ class CORE_EXPORT CSSStyleImageValue : public CSSResourceValue,
   DEFINE_WRAPPERTYPEINFO();
 
  public:
+  CSSStyleImageValue(const CSSStyleImageValue&) = delete;
+  CSSStyleImageValue& operator=(const CSSStyleImageValue&) = delete;
   ~CSSStyleImageValue() override = default;
 
   // IDL
@@ -30,15 +31,13 @@ class CORE_EXPORT CSSStyleImageValue : public CSSResourceValue,
   // CanvasImageSource
   bool IsCSSImageValue() const final { return true; }
   bool WouldTaintOrigin() const final { return true; }
-  FloatSize ElementSize(const FloatSize& default_object_size) const final;
+  FloatSize ElementSize(const FloatSize& default_object_size,
+                        const RespectImageOrientationEnum) const final;
 
  protected:
   CSSStyleImageValue() = default;
 
   virtual base::Optional<IntSize> IntrinsicSize() const = 0;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(CSSStyleImageValue);
 };
 
 }  // namespace blink

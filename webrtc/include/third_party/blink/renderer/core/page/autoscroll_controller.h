@@ -28,11 +28,10 @@
 
 #include "base/gtest_prod_util.h"
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/layout/geometry/physical_offset.h"
 #include "third_party/blink/renderer/platform/geometry/float_point.h"
 #include "third_party/blink/renderer/platform/geometry/float_size.h"
-#include "third_party/blink/renderer/platform/geometry/layout_point.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "third_party/blink/renderer/platform/wtf/time.h"
 
 namespace blink {
 
@@ -68,7 +67,7 @@ class CORE_EXPORT AutoscrollController final
  public:
   explicit AutoscrollController(Page&);
 
-  void Trace(blink::Visitor*);
+  void Trace(Visitor*) const;
 
   // Selection and drag-and-drop autoscroll.
   void Animate();
@@ -81,10 +80,11 @@ class CORE_EXPORT AutoscrollController final
   void UpdateAutoscrollLayoutObject();
   void UpdateDragAndDrop(Node* target_node,
                          const FloatPoint& event_position,
-                         TimeTicks event_time);
+                         base::TimeTicks event_time);
 
   // Middle-click autoscroll.
   void StartMiddleClickAutoscroll(LocalFrame*,
+                                  LayoutBox*,
                                   const FloatPoint& position,
                                   const FloatPoint& position_global);
   void HandleMouseMoveForMiddleClickAutoscroll(
@@ -102,21 +102,24 @@ class CORE_EXPORT AutoscrollController final
 
   Member<Page> page_;
   AutoscrollType autoscroll_type_ = kNoAutoscroll;
+  LayoutBox* autoscroll_layout_object_ = nullptr;
 
   // Selection and drag-and-drop autoscroll.
   void ScheduleMainThreadAnimation();
-  LayoutBox* autoscroll_layout_object_ = nullptr;
   LayoutBox* pressed_layout_object_ = nullptr;
-  LayoutPoint drag_and_drop_autoscroll_reference_position_;
-  TimeTicks drag_and_drop_autoscroll_start_time_;
+  PhysicalOffset drag_and_drop_autoscroll_reference_position_;
+  base::TimeTicks drag_and_drop_autoscroll_start_time_;
 
   // Middle-click autoscroll.
   FloatPoint middle_click_autoscroll_start_pos_global_;
-  FloatSize last_velocity_;
+  gfx::Vector2dF last_velocity_;
   MiddleClickMode middle_click_mode_ = kMiddleClickInitial;
 
   FRIEND_TEST_ALL_PREFIXES(AutoscrollControllerTest,
                            CrashWhenLayoutStopAnimationBeforeScheduleAnimation);
+  FRIEND_TEST_ALL_PREFIXES(AutoscrollControllerTest,
+                           ContinueAutoscrollAfterMouseLeaveEvent);
+  FRIEND_TEST_ALL_PREFIXES(AutoscrollControllerTest, StopAutoscrollOnResize);
 };
 
 }  // namespace blink

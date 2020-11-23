@@ -26,66 +26,77 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_SPEECH_SPEECH_SYNTHESIS_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_SPEECH_SPEECH_SYNTHESIS_H_
 
-#include "third_party/blink/renderer/core/execution_context/context_lifecycle_observer.h"
+#include "third_party/blink/public/mojom/speech/speech_synthesis.mojom-blink-forward.h"
 #include "third_party/blink/renderer/modules/event_target_modules.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/modules/speech/speech_synthesis_utterance.h"
 #include "third_party/blink/renderer/modules/speech/speech_synthesis_voice.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "third_party/blink/renderer/platform/speech/platform_speech_synthesis_utterance.h"
-#include "third_party/blink/renderer/platform/speech/platform_speech_synthesizer.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
-class PlatformSpeechSynthesizerClient;
+class LocalDOMWindow;
 
 class MODULES_EXPORT SpeechSynthesis final
     : public EventTargetWithInlineData,
-      public ContextClient,
-      public PlatformSpeechSynthesizerClient {
+      public Supplement<LocalDOMWindow>,
+      public mojom::blink::SpeechSynthesisVoiceListObserver {
   DEFINE_WRAPPERTYPEINFO();
-  USING_GARBAGE_COLLECTED_MIXIN(SpeechSynthesis);
 
  public:
-  static SpeechSynthesis* Create(ExecutionContext*);
+  static const char kSupplementName[];
 
-  explicit SpeechSynthesis(ExecutionContext*);
+  static SpeechSynthesis* speechSynthesis(LocalDOMWindow&);
+  static void CreateForTesting(
+      LocalDOMWindow&,
+      mojo::PendingRemote<mojom::blink::SpeechSynthesis>);
+
+  explicit SpeechSynthesis(LocalDOMWindow&);
 
   bool pending() const;
   bool speaking() const;
   bool paused() const;
 
-  void speak(SpeechSynthesisUtterance*);
+  void speak(ScriptState*, SpeechSynthesisUtterance*);
   void cancel();
   void pause();
   void resume();
 
   const HeapVector<Member<SpeechSynthesisVoice>>& getVoices();
 
-  // Used in testing to use a mock platform synthesizer
-  void SetPlatformSynthesizer(PlatformSpeechSynthesizer*);
-
   DEFINE_ATTRIBUTE_EVENT_LISTENER(voiceschanged, kVoiceschanged)
 
-  ExecutionContext* GetExecutionContext() const override {
-    return ContextClient::GetExecutionContext();
+  ExecutionContext* GetExecutionContext() const override;
+
+  // GarbageCollected
+  void Trace(Visitor*) const override;
+
+  // mojom::blink::SpeechSynthesisVoiceListObserver
+  void OnSetVoiceList(
+      Vector<mojom::blink::SpeechSynthesisVoicePtr> voices) override;
+
+  // These methods are called by SpeechSynthesisUtterance:
+  void DidStartSpeaking(SpeechSynthesisUtterance*);
+  void DidPauseSpeaking(SpeechSynthesisUtterance*);
+  void DidResumeSpeaking(SpeechSynthesisUtterance*);
+  void DidFinishSpeaking(SpeechSynthesisUtterance*);
+  void SpeakingErrorOccurred(SpeechSynthesisUtterance*);
+  void WordBoundaryEventOccurred(SpeechSynthesisUtterance*,
+                                 unsigned char_index,
+                                 unsigned char_length);
+  void SentenceBoundaryEventOccurred(SpeechSynthesisUtterance*,
+                                     unsigned char_index,
+                                     unsigned char_length);
+
+  mojom::blink::SpeechSynthesis* MojomSynthesis() {
+    return mojom_synthesis_.get();
   }
 
-  void Trace(blink::Visitor*) override;
-
  private:
-  // PlatformSpeechSynthesizerClient override methods.
-  void VoicesDidChange() override;
-  void DidStartSpeaking(PlatformSpeechSynthesisUtterance*) override;
-  void DidPauseSpeaking(PlatformSpeechSynthesisUtterance*) override;
-  void DidResumeSpeaking(PlatformSpeechSynthesisUtterance*) override;
-  void DidFinishSpeaking(PlatformSpeechSynthesisUtterance*) override;
-  void SpeakingErrorOccurred(PlatformSpeechSynthesisUtterance*) override;
-  void BoundaryEventOccurred(PlatformSpeechSynthesisUtterance*,
-                             SpeechBoundary,
-                             unsigned char_index,
-                             unsigned char_length) override;
-
+  void VoicesDidChange();
   void StartSpeakingImmediately();
   void HandleSpeakingCompleted(SpeechSynthesisUtterance*, bool error_occurred);
   void FireEvent(const AtomicString& type,
@@ -107,10 +118,19 @@ class MODULES_EXPORT SpeechSynthesis final
 
   bool IsAllowedToStartByAutoplay() const;
 
-  Member<PlatformSpeechSynthesizer> platform_speech_synthesizer_;
+  void RecordVoicesForIdentifiability() const;
+
+  void SetMojomSynthesisForTesting(
+      mojo::PendingRemote<mojom::blink::SpeechSynthesis>);
+  mojom::blink::SpeechSynthesis* TryEnsureMojomSynthesis();
+
+  HeapMojoReceiver<mojom::blink::SpeechSynthesisVoiceListObserver,
+                   SpeechSynthesis>
+      receiver_;
+  HeapMojoRemote<mojom::blink::SpeechSynthesis> mojom_synthesis_;
   HeapVector<Member<SpeechSynthesisVoice>> voice_list_;
   HeapDeque<Member<SpeechSynthesisUtterance>> utterance_queue_;
-  bool is_paused_;
+  bool is_paused_ = false;
 
   // EventTarget
   const AtomicString& InterfaceName() const override;

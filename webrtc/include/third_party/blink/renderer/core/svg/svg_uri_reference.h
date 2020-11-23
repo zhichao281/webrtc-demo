@@ -24,7 +24,6 @@
 #include <memory>
 #include "base/callback.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/svg/svg_animated_href.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 
@@ -33,6 +32,9 @@ namespace blink {
 class Document;
 class Element;
 class IdTargetObserver;
+class QualifiedName;
+class SVGAnimatedHref;
+class SVGAnimatedString;
 class SVGElement;
 class TreeScope;
 
@@ -40,7 +42,7 @@ class CORE_EXPORT SVGURIReference : public GarbageCollectedMixin {
  public:
   virtual ~SVGURIReference() = default;
 
-  bool IsKnownAttribute(const QualifiedName&);
+  static bool IsKnownAttribute(const QualifiedName&);
 
   // Use this for accesses to 'href' or 'xlink:href' (in that order) for
   // elements where both are allowed and don't necessarily inherit from
@@ -57,7 +59,7 @@ class CORE_EXPORT SVGURIReference : public GarbageCollectedMixin {
                                              const TreeScope&,
                                              AtomicString* = nullptr);
 
-  const String& HrefString() const { return href_->CurrentValue()->Value(); }
+  const String& HrefString() const;
 
   // Create an 'id' observer for the href associated with this SVGURIReference
   // and its corresponding SVGElement (which should be passed as
@@ -79,9 +81,9 @@ class CORE_EXPORT SVGURIReference : public GarbageCollectedMixin {
   static void UnobserveTarget(Member<IdTargetObserver>&);
 
   // JS API
-  SVGAnimatedHref* href() const { return href_.Get(); }
+  SVGAnimatedString* href() const;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  protected:
   explicit SVGURIReference(SVGElement*);
@@ -104,7 +106,7 @@ class SVGURLReferenceResolver {
 
  private:
   const String& relative_url_;
-  Member<const Document> document_;
+  const Document* document_;
   mutable KURL absolute_url_;
   bool is_local_;
 };

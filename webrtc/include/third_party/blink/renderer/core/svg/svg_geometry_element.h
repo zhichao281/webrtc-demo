@@ -31,12 +31,12 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_SVG_SVG_GEOMETRY_ELEMENT_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_SVG_SVG_GEOMETRY_ELEMENT_H_
 
-#include "third_party/blink/renderer/core/svg/svg_animated_number.h"
 #include "third_party/blink/renderer/core/svg/svg_graphics_element.h"
 
 namespace blink {
 
 class Path;
+class SVGAnimatedNumber;
 class SVGPointTearOff;
 
 class SVGGeometryElement : public SVGGraphicsElement {
@@ -51,22 +51,22 @@ class SVGGeometryElement : public SVGGraphicsElement {
 
   SVGAnimatedNumber* pathLength() const { return path_length_.Get(); }
 
-  virtual float getTotalLength();
-  virtual SVGPointTearOff* getPointAtLength(float distance);
+  virtual float getTotalLength(ExceptionState&);
+  virtual SVGPointTearOff* getPointAtLength(float distance, ExceptionState&);
 
   float AuthorPathLength() const;
   float PathLengthScaleFactor() const;
   static float PathLengthScaleFactor(float computed_path_length,
                                      float author_path_length);
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  protected:
   SVGGeometryElement(const QualifiedName&,
                      Document&,
                      ConstructionType = kCreateSVGElement);
 
-  void SvgAttributeChanged(const QualifiedName&) override;
+  void SvgAttributeChanged(const SvgAttributeChangedParams&) override;
 
   void GeometryAttributeChanged();
   void GeometryPresentationAttributeChanged(const QualifiedName&);
@@ -79,11 +79,20 @@ class SVGGeometryElement : public SVGGraphicsElement {
   Member<SVGAnimatedNumber> path_length_;
 };
 
-inline bool IsSVGGeometryElement(const SVGElement& element) {
-  return element.IsSVGGeometryElement();
+template <>
+inline bool IsElementOfType<const SVGGeometryElement>(const Node& node) {
+  return IsA<SVGGeometryElement>(node);
 }
-
-DEFINE_SVGELEMENT_TYPE_CASTS_WITH_FUNCTION(SVGGeometryElement);
+template <>
+struct DowncastTraits<SVGGeometryElement> {
+  static bool AllowFrom(const Node& node) {
+    auto* svg_element = DynamicTo<SVGElement>(node);
+    return svg_element && AllowFrom(*svg_element);
+  }
+  static bool AllowFrom(const SVGElement& svg_element) {
+    return svg_element.IsSVGGeometryElement();
+  }
+};
 
 }  // namespace blink
 

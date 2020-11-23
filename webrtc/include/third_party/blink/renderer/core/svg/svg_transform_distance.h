@@ -21,7 +21,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_SVG_SVG_TRANSFORM_DISTANCE_H_
 
 #include "third_party/blink/renderer/core/svg/svg_transform.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
@@ -32,14 +32,14 @@ class SVGTransformDistance {
 
  public:
   SVGTransformDistance();
-  SVGTransformDistance(SVGTransform* from_transform,
-                       SVGTransform* to_transform);
+  SVGTransformDistance(const SVGTransform* from_transform,
+                       const SVGTransform* to_transform);
 
   SVGTransformDistance ScaledDistance(float scale_factor) const;
-  SVGTransform* AddToSVGTransform(SVGTransform*) const;
+  SVGTransform* AddToSVGTransform(const SVGTransform*) const;
 
-  static SVGTransform* AddSVGTransforms(SVGTransform*,
-                                        SVGTransform*,
+  static SVGTransform* AddSVGTransforms(const SVGTransform*,
+                                        const SVGTransform*,
                                         unsigned repeat_count = 1);
 
   float Distance() const;

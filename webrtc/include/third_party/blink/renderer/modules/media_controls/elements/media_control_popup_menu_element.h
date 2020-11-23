@@ -17,10 +17,6 @@ class MediaControlPopupMenuElement : public MediaControlDivElement {
 
   void SetIsWanted(bool) override;
 
-  // Only use when !IsModern to get the element that should be used an as anchor
-  // for the popup.
-  virtual Element* PopupAnchor() const = 0;
-
   // Callback run when an item is selected from the popup menu.
   virtual void OnItemSelected();
 
@@ -29,7 +25,7 @@ class MediaControlPopupMenuElement : public MediaControlDivElement {
   bool KeepEventInNode(const Event&) const override;
   void RemovedFrom(ContainerNode&) override;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
   // When clicking the scroll bar, chrome will find its first focusable parent
   // and focus on it. In order to prevent popup menu from losing focus (which
@@ -46,7 +42,7 @@ class MediaControlPopupMenuElement : public MediaControlDivElement {
  private:
   class EventListener;
 
-  Element* EffectivePopupAnchor() const;
+  Element* PopupAnchor() const;
 
   void HideIfNotFocused();
 

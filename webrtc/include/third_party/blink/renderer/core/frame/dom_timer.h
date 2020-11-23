@@ -29,8 +29,8 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/dom/user_gesture_indicator.h"
-#include "third_party/blink/renderer/core/execution_context/context_lifecycle_observer.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
+#include "third_party/blink/renderer/core/probe/async_task_id.h"
 #include "third_party/blink/renderer/platform/bindings/name_client.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/timer.h"
@@ -40,52 +40,54 @@ namespace blink {
 class ExecutionContext;
 class ScheduledAction;
 
-class CORE_EXPORT DOMTimer final : public GarbageCollectedFinalized<DOMTimer>,
-                                   public ContextLifecycleObserver,
+class CORE_EXPORT DOMTimer final : public GarbageCollected<DOMTimer>,
+                                   public ExecutionContextLifecycleObserver,
                                    public TimerBase,
                                    public NameClient {
-  USING_GARBAGE_COLLECTED_MIXIN(DOMTimer);
+  USING_PRE_FINALIZER(DOMTimer, Dispose);
 
  public:
   // Creates a new timer owned by the ExecutionContext, starts it and returns
   // its ID.
   static int Install(ExecutionContext*,
                      ScheduledAction*,
-                     TimeDelta timeout,
+                     base::TimeDelta timeout,
                      bool single_shot);
   static void RemoveByID(ExecutionContext*, int timeout_id);
 
   DOMTimer(ExecutionContext*,
            ScheduledAction*,
-           TimeDelta interval,
+           base::TimeDelta timeout,
            bool single_shot,
            int timeout_id);
   ~DOMTimer() override;
 
-  // ContextLifecycleObserver
-  void ContextDestroyed(ExecutionContext*) override;
+  // ExecutionContextLifecycleObserver
+  void ContextDestroyed() override;
 
-  // Eager finalization is needed to promptly stop this Timer object.
+  // Pre finalizer is needed to promptly stop this Timer object.
   // Otherwise timer events might fire at an object that's slated for
   // destruction (when lazily swept), but some of its members (m_action) may
   // already have been finalized & must not be accessed.
-  EAGERLY_FINALIZE();
-  void Trace(blink::Visitor*) override;
+  void Dispose();
+
+  void Trace(Visitor*) const override;
   const char* NameInHeapSnapshot() const override { return "DOMTimer"; }
 
   void Stop() override;
 
  private:
-  friend class DOMTimerCoordinator;  // For Create().
-
   void Fired() override;
 
-  scoped_refptr<base::SingleThreadTaskRunner> TimerTaskRunner() const override;
+  // Increments the nesting level, clamping at the maximum value that can be
+  // represented by |int|. Since the value is only used to compare with
+  // |kMaxTimerNestingLevel|, the clamping doesn't affect behavior.
+  void IncrementNestingLevel();
 
   int timeout_id_;
   int nesting_level_;
+  probe::AsyncTaskId async_task_id_;
   Member<ScheduledAction> action_;
-  scoped_refptr<UserGestureToken> user_gesture_token_;
 };
 
 }  // namespace blink

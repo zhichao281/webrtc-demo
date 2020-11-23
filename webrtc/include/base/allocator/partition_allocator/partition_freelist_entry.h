@@ -15,32 +15,75 @@
 namespace base {
 namespace internal {
 
-// TODO(ajwong): Introduce an EncodedFreelistEntry type and then replace
-// Transform() with Encode()/Decode() such that the API provides some static
-// type safety.
-//
-// https://crbug.com/787153
-struct PartitionFreelistEntry {
-  PartitionFreelistEntry* next;
+struct EncodedPartitionFreelistEntry;
 
-  static ALWAYS_INLINE PartitionFreelistEntry* Transform(
+class PartitionFreelistEntry {
+ public:
+  PartitionFreelistEntry() = delete;
+  ~PartitionFreelistEntry() = delete;
+
+  ALWAYS_INLINE static EncodedPartitionFreelistEntry* Encode(
       PartitionFreelistEntry* ptr) {
-// We use bswap on little endian as a fast mask for two reasons:
-// 1) If an object is freed and its vtable used where the attacker doesn't
-// get the chance to run allocations between the free and use, the vtable
-// dereference is likely to fault.
-// 2) If the attacker has a linear buffer overflow and elects to try and
-// corrupt a freelist pointer, partial pointer overwrite attacks are
-// thwarted.
-// For big endian, similar guarantees are arrived at with a negation.
+    return reinterpret_cast<EncodedPartitionFreelistEntry*>(Transform(ptr));
+  }
+
+  ALWAYS_INLINE PartitionFreelistEntry* GetNext() const;
+
+  // Regular freelists always point to an entry within the same super page.
+  ALWAYS_INLINE void SetNext(PartitionFreelistEntry* ptr) {
+    PA_DCHECK(!ptr ||
+              (reinterpret_cast<uintptr_t>(this) & kSuperPageBaseMask) ==
+                  (reinterpret_cast<uintptr_t>(ptr) & kSuperPageBaseMask));
+    next_ = Encode(ptr);
+  }
+
+  // ThreadCache freelists can point to entries across superpage boundaries.
+  ALWAYS_INLINE void SetNextForThreadCache(PartitionFreelistEntry* ptr) {
+    next_ = Encode(ptr);
+  }
+
+ private:
+  friend struct EncodedPartitionFreelistEntry;
+  ALWAYS_INLINE static void* Transform(void* ptr) {
+    // We use bswap on little endian as a fast mask for two reasons:
+    // 1) If an object is freed and its vtable used where the attacker doesn't
+    // get the chance to run allocations between the free and use, the vtable
+    // dereference is likely to fault.
+    // 2) If the attacker has a linear buffer overflow and elects to try and
+    // corrupt a freelist pointer, partial pointer overwrite attacks are
+    // thwarted.
+    // For big endian, similar guarantees are arrived at with a negation.
 #if defined(ARCH_CPU_BIG_ENDIAN)
     uintptr_t masked = ~reinterpret_cast<uintptr_t>(ptr);
 #else
     uintptr_t masked = ByteSwapUintPtrT(reinterpret_cast<uintptr_t>(ptr));
 #endif
-    return reinterpret_cast<PartitionFreelistEntry*>(masked);
+    return reinterpret_cast<void*>(masked);
+  }
+
+  EncodedPartitionFreelistEntry* next_;
+};
+
+struct EncodedPartitionFreelistEntry {
+  char scrambled[sizeof(PartitionFreelistEntry*)];
+
+  EncodedPartitionFreelistEntry() = delete;
+  ~EncodedPartitionFreelistEntry() = delete;
+
+  ALWAYS_INLINE static PartitionFreelistEntry* Decode(
+      EncodedPartitionFreelistEntry* ptr) {
+    return reinterpret_cast<PartitionFreelistEntry*>(
+        PartitionFreelistEntry::Transform(ptr));
   }
 };
+
+static_assert(sizeof(PartitionFreelistEntry) ==
+                  sizeof(EncodedPartitionFreelistEntry),
+              "Should not have padding");
+
+ALWAYS_INLINE PartitionFreelistEntry* PartitionFreelistEntry::GetNext() const {
+  return EncodedPartitionFreelistEntry::Decode(next_);
+}
 
 }  // namespace internal
 }  // namespace base

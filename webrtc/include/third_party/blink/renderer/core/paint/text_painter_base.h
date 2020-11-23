@@ -6,14 +6,15 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_PAINT_TEXT_PAINTER_BASE_H_
 
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/paint/decoration_info.h"
+#include "third_party/blink/renderer/core/layout/geometry/physical_rect.h"
+#include "third_party/blink/renderer/core/paint/text_decoration_info.h"
 #include "third_party/blink/renderer/core/paint/text_paint_style.h"
 #include "third_party/blink/renderer/core/style/applied_text_decoration.h"
+#include "third_party/blink/renderer/core/style/text_decoration_thickness.h"
 #include "third_party/blink/renderer/platform/fonts/font.h"
-#include "third_party/blink/renderer/platform/geometry/layout_rect.h"
 #include "third_party/blink/renderer/platform/graphics/color.h"
 #include "third_party/blink/renderer/platform/transforms/affine_transform.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 
 namespace blink {
@@ -34,8 +35,8 @@ class CORE_EXPORT TextPainterBase {
  public:
   TextPainterBase(GraphicsContext&,
                   const Font&,
-                  const LayoutPoint& text_origin,
-                  const LayoutRect& text_bounds,
+                  const PhysicalOffset& text_origin,
+                  const PhysicalRect& text_frame_rect,
                   bool horizontal);
   ~TextPainterBase();
 
@@ -52,28 +53,18 @@ class CORE_EXPORT TextPainterBase {
                                     GraphicsContextStateSaver&);
 
   void PaintDecorationsExceptLineThrough(const TextDecorationOffsetBase&,
-                                         const DecorationInfo&,
+                                         TextDecorationInfo&,
                                          const PaintInfo&,
                                          const Vector<AppliedTextDecoration>&,
                                          const TextPaintStyle& text_style,
                                          bool* has_line_through_decoration);
-  void PaintDecorationsOnlyLineThrough(const DecorationInfo&,
+  void PaintDecorationsOnlyLineThrough(TextDecorationInfo&,
                                        const PaintInfo&,
                                        const Vector<AppliedTextDecoration>&,
                                        const TextPaintStyle&);
   void PaintDecorationUnderOrOverLine(GraphicsContext&,
-                                      const DecorationInfo&,
-                                      const AppliedTextDecoration&,
-                                      int line_offset,
-                                      float decoration_offset);
-
-  void ComputeDecorationInfo(DecorationInfo&,
-                             const LayoutPoint& box_origin,
-                             LayoutPoint local_origin,
-                             LayoutUnit width,
-                             FontBaseline,
-                             const ComputedStyle&,
-                             const ComputedStyle* decorating_box_style);
+                                      TextDecorationInfo&,
+                                      TextDecoration line);
 
   static Color TextColorForWhiteBackground(Color);
   static TextPaintStyle TextPaintingStyle(const Document&,
@@ -83,12 +74,11 @@ class CORE_EXPORT TextPainterBase {
       const Document&,
       const ComputedStyle&,
       Node*,
-      bool have_selection,
       const PaintInfo&,
       const TextPaintStyle& text_style);
 
   enum RotationDirection { kCounterclockwise, kClockwise };
-  static AffineTransform Rotation(const LayoutRect& box_rect,
+  static AffineTransform Rotation(const PhysicalRect& box_rect,
                                   RotationDirection);
 
  protected:
@@ -106,8 +96,8 @@ class CORE_EXPORT TextPainterBase {
 
   GraphicsContext& graphics_context_;
   const Font& font_;
-  LayoutPoint text_origin_;
-  LayoutRect text_bounds_;
+  PhysicalOffset text_origin_;
+  PhysicalRect text_frame_rect_;
   bool horizontal_;
   bool has_combined_text_;
   AtomicString emphasis_mark_;
@@ -116,7 +106,7 @@ class CORE_EXPORT TextPainterBase {
 };
 
 inline AffineTransform TextPainterBase::Rotation(
-    const LayoutRect& box_rect,
+    const PhysicalRect& box_rect,
     RotationDirection rotation_direction) {
   // Why this matrix is correct: consider the case of a clockwise rotation.
 
@@ -134,10 +124,10 @@ inline AffineTransform TextPainterBase::Rotation(
 
   // A similar argument derives the counter-clockwise case.
   return rotation_direction == kClockwise
-             ? AffineTransform(0, 1, -1, 0, box_rect.X() + box_rect.MaxY(),
+             ? AffineTransform(0, 1, -1, 0, box_rect.X() + box_rect.Bottom(),
                                box_rect.Y() - box_rect.X())
              : AffineTransform(0, -1, 1, 0, box_rect.X() - box_rect.Y(),
-                               box_rect.X() + box_rect.MaxY());
+                               box_rect.X() + box_rect.Bottom());
 }
 
 }  // namespace blink

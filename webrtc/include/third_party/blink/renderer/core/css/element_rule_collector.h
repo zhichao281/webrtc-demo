@@ -23,24 +23,23 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_CSS_ELEMENT_RULE_COLLECTOR_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_ELEMENT_RULE_COLLECTOR_H_
 
-#include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
+#include "third_party/blink/renderer/core/css/css_rule_list.h"
 #include "third_party/blink/renderer/core/css/pseudo_style_request.h"
 #include "third_party/blink/renderer/core/css/resolver/element_resolve_context.h"
 #include "third_party/blink/renderer/core/css/resolver/match_request.h"
 #include "third_party/blink/renderer/core/css/resolver/match_result.h"
 #include "third_party/blink/renderer/core/css/selector_checker.h"
+#include "third_party/blink/renderer/core/style/computed_style_base_constants.h"
 #include "third_party/blink/renderer/platform/wtf/ref_counted.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
 
 class CSSStyleSheet;
-class CSSRuleList;
 class PartNames;
 class RuleData;
 class SelectorFilter;
-class StaticCSSRuleList;
 class StyleRuleUsageTracker;
 
 // TODO(kochi): ShadowV0CascadeOrder is used only for Shadow DOM V0
@@ -76,7 +75,7 @@ class MatchedRule {
     return GetRuleData()->Specificity() + specificity_;
   }
   const CSSStyleSheet* ParentStyleSheet() const { return parent_style_sheet_; }
-  void Trace(blink::Visitor* visitor) {
+  void Trace(Visitor* visitor) const {
     visitor->Trace(parent_style_sheet_);
     visitor->Trace(rule_data_);
   }
@@ -104,17 +103,21 @@ using StyleRuleList = HeapVector<Member<StyleRule>>;
 // Create one, ask what rules the ElementResolveContext matches
 // and then let it go out of scope.
 // FIXME: Currently it modifies the ComputedStyle but should not!
-class ElementRuleCollector {
+class CORE_EXPORT ElementRuleCollector {
   STACK_ALLOCATED();
 
  public:
   ElementRuleCollector(const ElementResolveContext&,
                        const SelectorFilter&,
-                       ComputedStyle* = nullptr);
+                       MatchResult&,
+                       ComputedStyle*,
+                       EInsideLink);
+  ElementRuleCollector(const ElementRuleCollector&) = delete;
+  ElementRuleCollector& operator=(const ElementRuleCollector&) = delete;
   ~ElementRuleCollector();
 
   void SetMode(SelectorChecker::Mode mode) { mode_ = mode; }
-  void SetPseudoStyleRequest(const PseudoStyleRequest& request) {
+  void SetPseudoElementStyleRequest(const PseudoElementStyleRequest& request) {
     pseudo_style_request_ = request;
   }
   void SetSameOriginOnly(bool f) { same_origin_only_ = f; }
@@ -125,7 +128,7 @@ class ElementRuleCollector {
 
   const MatchResult& MatchedResult() const;
   StyleRuleList* MatchedStyleRuleList();
-  CSSRuleList* MatchedCSSRuleList();
+  RuleIndexList* MatchedCSSRuleList();
 
   void CollectMatchingRules(const MatchRequest&,
                             ShadowV0CascadeOrder = kIgnoreCascadeOrder,
@@ -145,8 +148,8 @@ class ElementRuleCollector {
   void FinishAddingUserRules() {
     result_.FinishAddingUserRules();
   }
-  void FinishAddingAuthorRulesForTreeScope() {
-    result_.FinishAddingAuthorRulesForTreeScope();
+  void FinishAddingAuthorRulesForTreeScope(const TreeScope& tree_scope) {
+    result_.FinishAddingAuthorRulesForTreeScope(tree_scope);
   }
   void SetIncludeEmptyRules(bool include) { include_empty_rules_ = include; }
   bool IncludeEmptyRules() const { return include_empty_rules_; }
@@ -163,6 +166,9 @@ class ElementRuleCollector {
                                    const MatchRequest&,
                                    PartNames* = nullptr);
 
+  bool Match(SelectorChecker&,
+             const SelectorChecker::SelectorCheckingContext&,
+             MatchResult&);
   void DidMatchRule(const RuleData*,
                     const SelectorChecker::MatchResult&,
                     ShadowV0CascadeOrder,
@@ -170,11 +176,11 @@ class ElementRuleCollector {
 
   template <class CSSRuleCollection>
   CSSRule* FindStyleRule(CSSRuleCollection*, StyleRule*);
-  void AppendCSSOMWrapperForRule(CSSStyleSheet*, StyleRule*);
+  void AppendCSSOMWrapperForRule(CSSStyleSheet*, const RuleData*);
 
   void SortMatchedRules();
 
-  StaticCSSRuleList* EnsureRuleList();
+  RuleIndexList* EnsureRuleList();
   StyleRuleList* EnsureStyleRuleList();
 
  private:
@@ -183,20 +189,20 @@ class ElementRuleCollector {
   scoped_refptr<ComputedStyle>
       style_;  // FIXME: This can be mutated during matching!
 
-  PseudoStyleRequest pseudo_style_request_;
+  PseudoElementStyleRequest pseudo_style_request_;
   SelectorChecker::Mode mode_;
   bool can_use_fast_reject_;
   bool same_origin_only_;
   bool matching_ua_rules_;
   bool include_empty_rules_;
+  EInsideLink inside_link_;
 
   HeapVector<MatchedRule, 32> matched_rules_;
 
   // Output.
-  Member<StaticCSSRuleList> css_rule_list_;
+  Member<RuleIndexList> css_rule_list_;
   Member<StyleRuleList> style_rule_list_;
-  MatchResult result_;
-  DISALLOW_COPY_AND_ASSIGN(ElementRuleCollector);
+  MatchResult& result_;
 };
 
 }  // namespace blink

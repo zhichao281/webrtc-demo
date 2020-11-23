@@ -36,22 +36,15 @@ class RadioNodeList final : public LiveNodeList {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static RadioNodeList* Create(ContainerNode& owner_node,
-                               CollectionType type,
-                               const AtomicString& name) {
-    DCHECK(type == kRadioNodeListType || type == kRadioImgNodeListType);
-    return MakeGarbageCollected<RadioNodeList>(owner_node, name, type);
-  }
-
-  RadioNodeList(ContainerNode&, const AtomicString& name, CollectionType);
+  RadioNodeList(ContainerNode& owner_node,
+                CollectionType type,
+                const AtomicString& name);
   ~RadioNodeList() override;
 
   String value() const;
   void setValue(const String&);
 
  private:
-  bool CheckElementMatchesRadioNodeListFilter(const Element&) const;
-
   bool MatchesByIdOrName(const Element&) const;
   bool ShouldOnlyMatchImgElements() const {
     return GetType() == kRadioImgNodeListType;

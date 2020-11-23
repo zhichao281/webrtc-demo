@@ -16,6 +16,7 @@
 #define PC_RTP_RECEIVER_H_
 
 #include <stdint.h>
+
 #include <string>
 #include <vector>
 
@@ -40,7 +41,11 @@ namespace webrtc {
 // Internal class used by PeerConnection.
 class RtpReceiverInternal : public RtpReceiverInterface {
  public:
+  // Stops receiving. The track may be reactivated.
   virtual void Stop() = 0;
+  // Stops the receiver permanently.
+  // Causes the associated track to enter kEnded state. Cannot be reversed.
+  virtual void StopAndEndTrack() = 0;
 
   // Sets the underlying MediaEngine channel associated with this RtpSender.
   // A VoiceMediaChannel should be used for audio RtpSenders and
@@ -49,9 +54,12 @@ class RtpReceiverInternal : public RtpReceiverInterface {
   virtual void SetMediaChannel(cricket::MediaChannel* media_channel) = 0;
 
   // Configures the RtpReceiver with the underlying media channel, with the
-  // given SSRC as the stream identifier. If |ssrc| is 0, the receiver will
-  // receive packets on unsignaled SSRCs.
+  // given SSRC as the stream identifier.
   virtual void SetupMediaChannel(uint32_t ssrc) = 0;
+
+  // Configures the RtpReceiver with the underlying media channel to receive an
+  // unsignaled receive stream.
+  virtual void SetupUnsignaledMediaChannel() = 0;
 
   virtual void set_transport(
       rtc::scoped_refptr<DtlsTransportInterface> dtls_transport) = 0;

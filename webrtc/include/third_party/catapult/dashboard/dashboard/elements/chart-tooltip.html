@@ -64,9 +64,6 @@ was just clicked.
           }
         </style>
 
-        <!-- TODO(qyearsley): Either (1) Display alert details on mouse-over as
-             well as click (The alerts attribute is only set currently on click,
-             not on hover) OR (2) Display alert details in the triage dialog. -->
         <div class="card-content">
           <template is="dom-repeat" items="{{alerts}}">
             <div class="important">
@@ -93,7 +90,11 @@ was just clicked.
           <template is="dom-if" if="{{bugId}}">
             <div>
               <span hidden$={{alertInvalidOrIgnored}}>Bug ID:
-                <b><a target="_blank" href="http://crbug.com/{{bugId}}">{{bugId}}</a></b>
+                <b>
+                  <a target="_blank" href="http://crbug.com/{{projectId}}/{{bugId}}">
+                    {{projectId}}:{{bugId}}
+                  </a>
+                </b>
               </span>
 
               <span hidden$="{{bugNotInvalid(bugId)}}">Invalid alert</span>
@@ -130,6 +131,7 @@ was just clicked.
         <div class="card-actions">
           <bisect-button dialog-confirm xsrf-token="{{xsrfToken}}"
                          bug-id="{{bugId}}"
+                         project-id="{{projectId}}"
                          bisect-info="{{bisectInfo}}"
                          alerts="[[alerts]]"></bisect-button>
           <trace-button dialog-confirm xsrf-token="{{xsrfToken}}"
@@ -154,6 +156,10 @@ Polymer({
     bugId: {
       value: null,
       notify: true
+    },
+    projectId: {
+      type: String,
+      value: ''
     },
     hideStddev: {
       type: Boolean,
@@ -247,7 +253,8 @@ Polymer({
   onUntriaged(event, detail) {
     this.fire('triaged', {
       'alerts': this.triagedAlerts,
-      'bugid': null
+      'bugid': null,
+      'projectid': null
     });
   },
 

@@ -33,8 +33,6 @@ namespace blink {
 
 enum ShouldSendReferrer { kMaybeSendReferrer, kNeverSendReferrer };
 
-enum ShouldSetOpener { kMaybeSetOpener, kNeverSetOpener };
-
 enum ReasonForCallingAllowPlugins {
   kAboutToInstantiatePlugin,
   kNotAboutToInstantiatePlugin
@@ -48,11 +46,6 @@ enum LoadStartType {
 enum SameDocumentNavigationSource {
   kSameDocumentNavigationDefault,
   kSameDocumentNavigationHistoryApi,
-};
-
-enum HistoryScrollRestorationType {
-  kScrollRestorationAuto,
-  kScrollRestorationManual
 };
 
 enum class SavePreviousDocumentResources {
@@ -76,12 +69,26 @@ enum SinglePageAppNavigationType {
 enum class ClientNavigationReason {
   kFormSubmissionGet,
   kFormSubmissionPost,
+  kAnchorClick,
   kHttpHeaderRefresh,
   kFrameNavigation,
   kMetaTagRefresh,
   kPageBlock,
   kReload,
+  kNone
 };
+
+enum class CommitReason {
+  // Committing initial empty document.
+  kInitialization,
+  // Committing navigation as a result of javascript URL execution.
+  kJavascriptUrl,
+  // Committing a replacement document from XSLT.
+  kXSLT,
+  // All other navigations.
+  kRegular
+};
+
 }  // namespace blink
 
 #endif

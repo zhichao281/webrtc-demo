@@ -5,34 +5,17 @@
 #ifndef THIRD_PARTY_BLINK_PUBLIC_COMMON_MEDIASTREAM_MEDIA_STREAM_MOJOM_TRAITS_H_
 #define THIRD_PARTY_BLINK_PUBLIC_COMMON_MEDIASTREAM_MEDIA_STREAM_MOJOM_TRAITS_H_
 
+#include "third_party/blink/public/common/common_export.h"
 #include "third_party/blink/public/common/mediastream/media_stream_controls.h"
 #include "third_party/blink/public/common/mediastream/media_stream_request.h"
-#include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
+#include "third_party/blink/public/mojom/mediastream/media_stream.mojom-forward.h"
 
 namespace mojo {
 
 template <>
-struct EnumTraits<blink::mojom::MediaStreamType, blink::MediaStreamType> {
-  static blink::mojom::MediaStreamType ToMojom(blink::MediaStreamType type);
-
-  static bool FromMojom(blink::mojom::MediaStreamType input,
-                        blink::MediaStreamType* out);
-};
-
-template <>
-struct EnumTraits<blink::mojom::MediaStreamRequestResult,
-                  blink::MediaStreamRequestResult> {
-  static blink::mojom::MediaStreamRequestResult ToMojom(
-      blink::MediaStreamRequestResult result);
-
-  static bool FromMojom(blink::mojom::MediaStreamRequestResult input,
-                        blink::MediaStreamRequestResult* out);
-};
-
-template <>
-struct StructTraits<blink::mojom::MediaStreamDeviceDataView,
-                    blink::MediaStreamDevice> {
-  static const blink::MediaStreamType& type(
+struct BLINK_COMMON_EXPORT StructTraits<blink::mojom::MediaStreamDeviceDataView,
+                                        blink::MediaStreamDevice> {
+  static const blink::mojom::MediaStreamType& type(
       const blink::MediaStreamDevice& device) {
     return device.type;
   }
@@ -65,8 +48,9 @@ struct StructTraits<blink::mojom::MediaStreamDeviceDataView,
     return device.input;
   }
 
-  static int session_id(const blink::MediaStreamDevice& device) {
-    return device.session_id;
+  static const base::Optional<base::UnguessableToken>& session_id(
+      const blink::MediaStreamDevice& device) {
+    return device.serializable_session_id();
   }
 
   static const base::Optional<media::mojom::DisplayMediaInformationPtr>&
@@ -79,12 +63,13 @@ struct StructTraits<blink::mojom::MediaStreamDeviceDataView,
 };
 
 template <>
-struct StructTraits<blink::mojom::TrackControlsDataView, blink::TrackControls> {
+struct BLINK_COMMON_EXPORT
+    StructTraits<blink::mojom::TrackControlsDataView, blink::TrackControls> {
   static bool requested(const blink::TrackControls& controls) {
     return controls.requested;
   }
 
-  static const blink::MediaStreamType& stream_type(
+  static const blink::mojom::MediaStreamType& stream_type(
       const blink::TrackControls& controls) {
     return controls.stream_type;
   }
@@ -98,8 +83,8 @@ struct StructTraits<blink::mojom::TrackControlsDataView, blink::TrackControls> {
 };
 
 template <>
-struct StructTraits<blink::mojom::StreamControlsDataView,
-                    blink::StreamControls> {
+struct BLINK_COMMON_EXPORT
+    StructTraits<blink::mojom::StreamControlsDataView, blink::StreamControls> {
   static const blink::TrackControls& audio(
       const blink::StreamControls& controls) {
     return controls.audio;
@@ -116,6 +101,11 @@ struct StructTraits<blink::mojom::StreamControlsDataView,
 
   static bool disable_local_echo(const blink::StreamControls& controls) {
     return controls.disable_local_echo;
+  }
+
+  static bool request_pan_tilt_zoom_permission(
+      const blink::StreamControls& controls) {
+    return controls.request_pan_tilt_zoom_permission;
   }
 
   static bool Read(blink::mojom::StreamControlsDataView input,

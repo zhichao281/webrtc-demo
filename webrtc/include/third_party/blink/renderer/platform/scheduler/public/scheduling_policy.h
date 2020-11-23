@@ -6,6 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_SCHEDULER_PUBLIC_SCHEDULING_POLICY_H_
 
 #include "base/traits_bag.h"
+#include "third_party/blink/public/common/scheduler/web_scheduler_tracked_feature.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 
 namespace blink {
@@ -14,30 +15,15 @@ namespace blink {
 // if the page is using this feature.
 // See FrameOrWorkerScheduler::RegisterFeature.
 struct PLATFORM_EXPORT SchedulingPolicy {
-  // List of features which can trigger the policy changes.
-  enum class Feature {
-    kWebSocket = 0,
-    kWebRTC = 1,
-
-    kMainResourceHasCacheControlNoCache = 2,
-    kMainResourceHasCacheControlNoStore = 3,
-    kSubresourceHasCacheControlNoCache = 4,
-    kSubresourceHasCacheControlNoStore = 5,
-
-    kCount = 6
-  };
-
-  // Sticky features can't be unregistered and remain active for the rest
-  // of the lifetime of the page.
-  static bool IsFeatureSticky(Feature feature);
+  using Feature = scheduler::WebSchedulerTrackedFeature;
 
   // List of opt-outs which form a policy.
   struct DisableAggressiveThrottling {};
-  struct DisableBackForwardCache {};
+  struct RecordMetricsForBackForwardCache {};
 
   struct ValidPolicies {
     ValidPolicies(DisableAggressiveThrottling);
-    ValidPolicies(DisableBackForwardCache);
+    ValidPolicies(RecordMetricsForBackForwardCache);
   };
 
   template <class... ArgTypes,
@@ -46,10 +32,11 @@ struct PLATFORM_EXPORT SchedulingPolicy {
                                                     ArgTypes...>::value>>
   constexpr SchedulingPolicy(ArgTypes... args)
       : disable_aggressive_throttling(
-            base::trait_helpers::HasTrait<DisableAggressiveThrottling>(
-                args...)),
+            base::trait_helpers::HasTrait<DisableAggressiveThrottling,
+                                          ArgTypes...>()),
         disable_back_forward_cache(
-            base::trait_helpers::HasTrait<DisableBackForwardCache>(args...)) {}
+            base::trait_helpers::HasTrait<RecordMetricsForBackForwardCache,
+                                          ArgTypes...>()) {}
 
   SchedulingPolicy() {}
 

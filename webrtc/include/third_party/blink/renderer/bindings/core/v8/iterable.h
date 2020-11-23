@@ -79,8 +79,9 @@ class Iterable {
 
       if (callback
               ->Invoke(v8_callback_this_value,
-                       ScriptValue(script_state, v8_value),
-                       ScriptValue(script_state, v8_key), this_value)
+                       ScriptValue(script_state->GetIsolate(), v8_value),
+                       ScriptValue(script_state->GetIsolate(), v8_key),
+                       this_value)
               .IsNothing()) {
         exception_state.RethrowV8Exception(try_catch.Exception());
         return;
@@ -88,7 +89,7 @@ class Iterable {
     }
   }
 
-  class IterationSource : public GarbageCollectedFinalized<IterationSource> {
+  class IterationSource : public GarbageCollected<IterationSource> {
    public:
     virtual ~IterationSource() = default;
 
@@ -96,7 +97,7 @@ class Iterable {
     // false.  Otherwise: set |key| and |value| and return true.
     virtual bool Next(ScriptState*, KeyType&, ValueType&, ExceptionState&) = 0;
 
-    virtual void Trace(blink::Visitor* visitor) {}
+    virtual void Trace(Visitor* visitor) const {}
   };
 
  private:
@@ -120,18 +121,18 @@ class Iterable {
   };
   struct EntrySelector {
     STATIC_ONLY(EntrySelector);
-    static Vector<ScriptValue, 2> Select(ScriptState* script_state,
-                                         const KeyType& key,
-                                         const ValueType& value) {
+    static HeapVector<ScriptValue, 2> Select(ScriptState* script_state,
+                                             const KeyType& key,
+                                             const ValueType& value) {
       v8::Local<v8::Object> creation_context =
           script_state->GetContext()->Global();
       v8::Isolate* isolate = script_state->GetIsolate();
 
-      Vector<ScriptValue, 2> entry;
+      HeapVector<ScriptValue, 2> entry;
       entry.push_back(
-          ScriptValue(script_state, ToV8(key, creation_context, isolate)));
+          ScriptValue(isolate, ToV8(key, creation_context, isolate)));
       entry.push_back(
-          ScriptValue(script_state, ToV8(value, creation_context, isolate)));
+          ScriptValue(isolate, ToV8(value, creation_context, isolate)));
       return entry;
     }
   };
@@ -159,7 +160,7 @@ class Iterable {
       return next(script_state, exception_state);
     }
 
-    void Trace(blink::Visitor* visitor) override {
+    void Trace(Visitor* visitor) const override {
       visitor->Trace(source_);
       Iterator::Trace(visitor);
     }

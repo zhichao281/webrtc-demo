@@ -28,6 +28,7 @@
 #include "third_party/blink/renderer/platform/geometry/float_point_3d.h"
 #include "third_party/blink/renderer/platform/transforms/rotation.h"
 #include "third_party/blink/renderer/platform/transforms/transform_operation.h"
+#include "third_party/blink/renderer/platform/wtf/casting.h"
 
 namespace blink {
 
@@ -69,9 +70,8 @@ class PLATFORM_EXPORT RotateTransformOperation : public TransformOperation {
                             double& result_angle_a,
                             double& result_angle_b);
 
-  bool CanBlendWith(const TransformOperation& other) const override;
   OperationType GetType() const override { return type_; }
-  OperationType PrimitiveType() const final { return kRotate3D; }
+  OperationType PrimitiveType() const override { return kRotate3D; }
 
   void Apply(TransformationMatrix& transform,
              const FloatSize& /*borderBoxSize*/) const override {
@@ -86,6 +86,12 @@ class PLATFORM_EXPORT RotateTransformOperation : public TransformOperation {
  protected:
   bool operator==(const TransformOperation&) const override;
 
+  bool HasNonTrivial3DComponent() const override {
+    return Angle() && (X() || Y());
+  }
+
+  scoped_refptr<TransformOperation> Accumulate(
+      const TransformOperation& other) override;
   scoped_refptr<TransformOperation> Blend(
       const TransformOperation* from,
       double progress,
@@ -101,7 +107,13 @@ class PLATFORM_EXPORT RotateTransformOperation : public TransformOperation {
   const OperationType type_;
 };
 
-DEFINE_TRANSFORM_TYPE_CASTS(RotateTransformOperation);
+template <>
+struct DowncastTraits<RotateTransformOperation> {
+  static bool AllowFrom(const TransformOperation& transform) {
+    return RotateTransformOperation::IsMatchingOperationType(
+        transform.GetType());
+  }
+};
 
 class PLATFORM_EXPORT RotateAroundOriginTransformOperation final
     : public RotateTransformOperation {
@@ -117,6 +129,7 @@ class PLATFORM_EXPORT RotateAroundOriginTransformOperation final
   static bool IsMatchingOperationType(OperationType type) {
     return type == kRotateAroundOrigin;
   }
+  OperationType PrimitiveType() const override { return kRotateAroundOrigin; }
 
  private:
   RotateAroundOriginTransformOperation(double angle,
@@ -135,7 +148,13 @@ class PLATFORM_EXPORT RotateAroundOriginTransformOperation final
   double origin_y_;
 };
 
-DEFINE_TRANSFORM_TYPE_CASTS(RotateAroundOriginTransformOperation);
+template <>
+struct DowncastTraits<RotateAroundOriginTransformOperation> {
+  static bool AllowFrom(const TransformOperation& transform) {
+    return RotateAroundOriginTransformOperation::IsMatchingOperationType(
+        transform.GetType());
+  }
+};
 
 }  // namespace blink
 

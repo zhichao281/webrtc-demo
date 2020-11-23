@@ -5,6 +5,7 @@
 #ifndef BASE_FILES_IMPORTANT_FILE_WRITER_H_
 #define BASE_FILES_IMPORTANT_FILE_WRITER_H_
 
+#include <memory>
 #include <string>
 
 #include "base/base_export.h"
@@ -122,6 +123,25 @@ class BASE_EXPORT ImportantFileWriter {
   }
   OneShotTimer& timer() { return timer_override_ ? *timer_override_ : timer_; }
 
+  // Helper function to call WriteFileAtomically() with a
+  // std::unique_ptr<std::string>.
+  static void WriteScopedStringToFileAtomically(
+      const FilePath& path,
+      std::unique_ptr<std::string> data,
+      OnceClosure before_write_callback,
+      OnceCallback<void(bool success)> after_write_callback,
+      const std::string& histogram_suffix);
+
+  // Writes |data| to |path|, recording histograms with an optional
+  // |histogram_suffix|. |from_instance| indicates whether the call originates
+  // from an instance of ImportantFileWriter or a direct call to
+  // WriteFileAtomically. When false, the directory containing |path| is added
+  // to the set cleaned by the ImportantFileWriterCleaner (Windows only).
+  static bool WriteFileAtomicallyImpl(const FilePath& path,
+                                      StringPiece data,
+                                      StringPiece histogram_suffix,
+                                      bool from_instance);
+
   void ClearPendingWrite();
 
   // Invoked synchronously on the next write event.
@@ -151,7 +171,7 @@ class BASE_EXPORT ImportantFileWriter {
 
   SEQUENCE_CHECKER(sequence_checker_);
 
-  WeakPtrFactory<ImportantFileWriter> weak_factory_;
+  WeakPtrFactory<ImportantFileWriter> weak_factory_{this};
 
   DISALLOW_COPY_AND_ASSIGN(ImportantFileWriter);
 };

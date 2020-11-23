@@ -22,7 +22,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_SVG_SVG_FE_LIGHT_ELEMENT_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_SVG_SVG_FE_LIGHT_ELEMENT_H_
 
-#include "third_party/blink/renderer/core/svg/svg_animated_number.h"
 #include "third_party/blink/renderer/core/svg/svg_element.h"
 #include "third_party/blink/renderer/core/svg_names.h"
 #include "third_party/blink/renderer/platform/graphics/filters/light_source.h"
@@ -31,6 +30,7 @@
 namespace blink {
 
 class Filter;
+class SVGAnimatedNumber;
 
 class SVGFELightElement : public SVGElement {
  public:
@@ -65,13 +65,13 @@ class SVGFELightElement : public SVGElement {
     return limiting_cone_angle_.Get();
   }
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  protected:
   SVGFELightElement(const QualifiedName&, Document&);
 
  private:
-  void SvgAttributeChanged(const QualifiedName&) final;
+  void SvgAttributeChanged(const SvgAttributeChangedParams&) final;
   void ChildrenChanged(const ChildrenChange&) final;
 
   bool LayoutObjectIsNeeded(const ComputedStyle&) const override {
@@ -90,13 +90,22 @@ class SVGFELightElement : public SVGElement {
   Member<SVGAnimatedNumber> limiting_cone_angle_;
 };
 
-inline bool IsSVGFELightElement(const SVGElement& element) {
-  return element.HasTagName(svg_names::kFEDistantLightTag) ||
-         element.HasTagName(svg_names::kFEPointLightTag) ||
-         element.HasTagName(svg_names::kFESpotLightTag);
+template <>
+inline bool IsElementOfType<const SVGFELightElement>(const Node& node) {
+  return IsA<SVGFELightElement>(node);
 }
-
-DEFINE_SVGELEMENT_TYPE_CASTS_WITH_FUNCTION(SVGFELightElement);
+template <>
+struct DowncastTraits<SVGFELightElement> {
+  static bool AllowFrom(const Node& node) {
+    auto* svg_element = DynamicTo<SVGElement>(node);
+    return svg_element && AllowFrom(*svg_element);
+  }
+  static bool AllowFrom(const SVGElement& svg_element) {
+    return svg_element.HasTagName(svg_names::kFEDistantLightTag) ||
+           svg_element.HasTagName(svg_names::kFEPointLightTag) ||
+           svg_element.HasTagName(svg_names::kFESpotLightTag);
+  }
+};
 
 }  // namespace blink
 

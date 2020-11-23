@@ -8,11 +8,12 @@
 #include "base/macros.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread_restrictions.h"
+#include "third_party/webrtc/rtc_base/system/rtc_export.h"
 
 namespace rtc {
 
 // Overrides WebRTC's internal event implementation to use Chromium's.
-class Event {
+class RTC_EXPORT Event {
  public:
   static const int kForever = -1;
 
@@ -24,8 +25,11 @@ class Event {
   void Reset();
 
   // Wait for the event to become signaled, for the specified number of
-  // |milliseconds|.  To wait indefinetly, pass kForever.
-  bool Wait(int milliseconds);
+  // milliseconds.  To wait indefinetly, pass kForever.
+  bool Wait(int give_up_after_ms);
+  bool Wait(int give_up_after_ms, int /*warn_after_ms*/) {
+    return Wait(give_up_after_ms);
+  }
 
  private:
   base::WaitableEvent event_;

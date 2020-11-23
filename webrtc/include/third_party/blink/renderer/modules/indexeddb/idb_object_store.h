@@ -28,10 +28,11 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "third_party/blink/public/common/indexeddb/web_idb_types.h"
+#include "third_party/blink/public/mojom/indexeddb/indexeddb.mojom-blink-forward.h"
 #include "third_party/blink/renderer/bindings/core/v8/serialization/serialized_script_value.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_idb_index_parameters.h"
 #include "third_party/blink/renderer/modules/indexeddb/idb_cursor.h"
 #include "third_party/blink/renderer/modules/indexeddb/idb_index.h"
-#include "third_party/blink/renderer/modules/indexeddb/idb_index_parameters.h"
 #include "third_party/blink/renderer/modules/indexeddb/idb_key.h"
 #include "third_party/blink/renderer/modules/indexeddb/idb_key_range.h"
 #include "third_party/blink/renderer/modules/indexeddb/idb_metadata.h"
@@ -54,10 +55,16 @@ class MODULES_EXPORT IDBObjectStore final : public ScriptWrappable {
   IDBObjectStore(scoped_refptr<IDBObjectStoreMetadata>, IDBTransaction*);
   ~IDBObjectStore() override = default;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
   const IDBObjectStoreMetadata& Metadata() const { return *metadata_; }
   const IDBKeyPath& IdbKeyPath() const { return Metadata().key_path; }
+
+  // Per spec prose, keyPath attribute should return the same object each time
+  // (if it is not just a primitive type). The IDL cannot use [SameObject]
+  // because the key path may not be an 'object'. So use [CachedAttribute],
+  // but never dirty the cache.
+  bool IsKeyPathDirty() const { return false; }
 
   // Implement the IDBObjectStore IDL
   int64_t Id() const { return Metadata().id; }
@@ -90,12 +97,21 @@ class MODULES_EXPORT IDBObjectStore final : public ScriptWrappable {
   IDBRequest* getAllKeys(ScriptState*,
                          const ScriptValue& range,
                          ExceptionState&);
+  IDBRequest* add(ScriptState*, const ScriptValue& value, ExceptionState&);
   IDBRequest* add(ScriptState*,
-                  const ScriptValue&,
+                  const ScriptValue& value,
                   const ScriptValue& key,
                   ExceptionState&);
+  IDBRequest* put(ScriptState*, const ScriptValue& value, ExceptionState&);
+  IDBRequest* putAllValues(ScriptState*,
+                           const HeapVector<ScriptValue>& values,
+                           ExceptionState&);
+  IDBRequest* DoPutAll(ScriptState* script_state,
+                       const HeapVector<ScriptValue>& values,
+                       const HeapVector<ScriptValue>& key_values,
+                       ExceptionState& exception_state);
   IDBRequest* put(ScriptState*,
-                  const ScriptValue&,
+                  const ScriptValue& value,
                   const ScriptValue& key,
                   ExceptionState&);
   IDBRequest* Delete(ScriptState*, const ScriptValue& key, ExceptionState&);

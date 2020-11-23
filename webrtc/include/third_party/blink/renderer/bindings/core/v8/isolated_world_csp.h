@@ -8,14 +8,14 @@
 #include "base/macros.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
 
 class ContentSecurityPolicy;
-class Document;
+class LocalDOMWindow;
 
 // A singleton storing content security policy for each isolated world.
 class CORE_EXPORT IsolatedWorldCSP {
@@ -29,21 +29,18 @@ class CORE_EXPORT IsolatedWorldCSP {
   // world should be restricted based on the isolated world's CSP, not the
   // main world's.
   //
-  // TODO(crbug.com/896041): Right now, resource injection simply bypasses the
-  // main world's CSP. More work is necessary to allow the isolated world's
-  // policy to be applied correctly.
   // Note: If |policy| is null, the PolicyInfo for |world_id| is cleared. If
   // |policy| is specified, |self_origin| must not be null.
-  void SetContentSecurityPolicy(int world_id,
+  void SetContentSecurityPolicy(int32_t world_id,
                                 const String& policy,
                                 scoped_refptr<SecurityOrigin> self_origin);
-  bool HasContentSecurityPolicy(int world_id) const;
+  bool HasContentSecurityPolicy(int32_t world_id) const;
 
   // Creates a ContentSecurityPolicy instance for the given isolated |world_id|
-  // and |document|. Returns null if no ContentSecurityPolicy is defined for the
+  // and |window|. Returns null if no ContentSecurityPolicy is defined for the
   // given isolated |world_id|.
-  ContentSecurityPolicy* CreateIsolatedWorldCSP(Document& document,
-                                                int world_id);
+  ContentSecurityPolicy* CreateIsolatedWorldCSP(LocalDOMWindow& window,
+                                                int32_t world_id);
 
  private:
   struct PolicyInfo {

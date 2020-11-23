@@ -13,10 +13,8 @@
 namespace blink {
 
 class MockFontResourceClient final
-    : public GarbageCollectedFinalized<MockFontResourceClient>,
+    : public GarbageCollected<MockFontResourceClient>,
       public FontResourceClient {
-  USING_GARBAGE_COLLECTED_MIXIN(MockFontResourceClient);
-
  public:
   MockFontResourceClient();
   ~MockFontResourceClient() override;

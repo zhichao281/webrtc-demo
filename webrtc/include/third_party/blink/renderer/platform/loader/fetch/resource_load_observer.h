@@ -8,16 +8,20 @@
 #include <inttypes.h>
 
 #include "base/containers/span.h"
+#include "base/util/type_safety/strong_alias.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource.h"
+#include "third_party/blink/renderer/platform/loader/fetch/resource_load_priority.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 
 namespace blink {
 
 class KURL;
+class FetchParameters;
 class ResourceError;
 class ResourceRequest;
 class ResourceResponse;
+enum class ResourceType : uint8_t;
 struct FetchInitiatorInfo;
 
 // ResourceLoadObserver is a collection of functions which meet following
@@ -30,10 +34,16 @@ struct FetchInitiatorInfo;
 //    from network - For example, this class may have a function which is called
 //    when ResourceFetcher::RequestResource is called. On the other hand, this
 //    class will not have "operation"s, such as PrepareRequest.
+//
+// All functions except for the destructor and the trace method must be pure
+// virtual, and must not be called when the associated fetcher is detached.
 class PLATFORM_EXPORT ResourceLoadObserver
-    : public GarbageCollectedFinalized<ResourceLoadObserver> {
+    : public GarbageCollected<ResourceLoadObserver> {
  public:
   virtual ~ResourceLoadObserver() = default;
+
+  // Called when ResourceFetcher::RequestResource is called.
+  virtual void DidStartRequest(const FetchParameters&, ResourceType) = 0;
 
   // Called when the request is about to be sent. This is called on initial and
   // every redirect request.
@@ -42,6 +52,11 @@ class PLATFORM_EXPORT ResourceLoadObserver
                                const ResourceResponse& redirect_response,
                                ResourceType,
                                const FetchInitiatorInfo&) = 0;
+
+  // Called when the priority of the request changes.
+  virtual void DidChangePriority(uint64_t identifier,
+                                 ResourceLoadPriority,
+                                 int intra_priority_value) = 0;
 
   enum ResponseSource { kFromMemoryCache, kNotFromMemoryCache };
   // Called when a response is received.
@@ -68,20 +83,20 @@ class PLATFORM_EXPORT ResourceLoadObserver
 
   // Called when a request finishes successfully.
   virtual void DidFinishLoading(uint64_t identifier,
-                                TimeTicks finish_time,
+                                base::TimeTicks finish_time,
                                 int64_t encoded_data_length,
                                 int64_t decoded_body_length,
-                                bool should_report_corb_blocking,
-                                ResponseSource) = 0;
+                                bool should_report_corb_blocking) = 0;
 
+  using IsInternalRequest = util::StrongAlias<class IsInternalRequestTag, bool>;
   // Called when a request fails.
   virtual void DidFailLoading(const KURL&,
                               uint64_t identifier,
                               const ResourceError&,
                               int64_t encoded_data_length,
-                              bool is_internal_request) = 0;
+                              IsInternalRequest) = 0;
 
-  virtual void Trace(Visitor*) {}
+  virtual void Trace(Visitor*) const {}
 };
 
 }  // namespace blink

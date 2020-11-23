@@ -11,6 +11,8 @@
 #include "third_party/blink/renderer/modules/canvas/canvas2d/canvas_rendering_context_2d.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/modules/shapedetection/shape_detector.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
 
 namespace blink {
 
@@ -24,7 +26,7 @@ class MODULES_EXPORT TextDetector final : public ShapeDetector {
 
   explicit TextDetector(ExecutionContext*);
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   ~TextDetector() override = default;
@@ -35,7 +37,9 @@ class MODULES_EXPORT TextDetector final : public ShapeDetector {
       Vector<shape_detection::mojom::blink::TextDetectionResultPtr>);
   void OnTextServiceConnectionError();
 
-  shape_detection::mojom::blink::TextDetectionPtr text_service_;
+  HeapMojoRemote<shape_detection::mojom::blink::TextDetection,
+                 HeapMojoWrapperMode::kWithoutContextObserver>
+      text_service_;
 
   HeapHashSet<Member<ScriptPromiseResolver>> text_service_requests_;
 };

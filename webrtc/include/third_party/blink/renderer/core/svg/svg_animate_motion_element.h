@@ -33,37 +33,35 @@ class SVGAnimateMotionElement final : public SVGAnimationElement {
   explicit SVGAnimateMotionElement(Document&);
   ~SVGAnimateMotionElement() override;
 
-  DECLARE_NODE_FACTORY(SVGAnimateMotionElement);
   void UpdateAnimationPath();
 
  private:
-  bool HasValidTarget() override;
+  bool HasValidAnimation() const override;
+  void WillChangeAnimationTarget() override;
+  void DidChangeAnimationTarget() override;
 
   void ParseAttribute(const AttributeModificationParams&) override;
 
-  void ResetAnimatedType() override;
-  void ClearAnimatedType() override;
+  SMILAnimationValue CreateAnimationValue(
+      bool needs_underlying_value) const override;
+  void ClearAnimationValue() override;
   bool CalculateToAtEndOfDurationValue(
       const String& to_at_end_of_duration_string) override;
   bool CalculateFromAndToValues(const String& from_string,
                                 const String& to_string) override;
   bool CalculateFromAndByValues(const String& from_string,
                                 const String& by_string) override;
-  void CalculateAnimatedValue(float percentage,
-                              unsigned repeat_count,
-                              SVGSMILElement* result_element) override;
-  void ApplyResultsToTarget() override;
+  void CalculateAnimationValue(SMILAnimationValue&,
+                               float percentage,
+                               unsigned repeat_count) const override;
+  void ApplyResultsToTarget(const SMILAnimationValue&) override;
   float CalculateDistance(const String& from_string,
                           const String& to_string) override;
 
   enum RotateMode { kRotateAngle, kRotateAuto, kRotateAutoReverse };
   RotateMode GetRotateMode() const;
 
-  bool has_to_point_at_end_of_duration_;
-
   void UpdateAnimationMode() override;
-
-  void InvalidateForAnimateMotionTransformChange(LayoutObject& target);
 
   // Note: we do not support percentage values for to/from coords as the spec
   // implies we should (opera doesn't either)

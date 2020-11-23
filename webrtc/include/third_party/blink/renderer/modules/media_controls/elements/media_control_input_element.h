@@ -17,8 +17,6 @@ class MediaControlsImpl;
 // buttons and sliders.
 class MODULES_EXPORT MediaControlInputElement : public HTMLInputElement,
                                                 public MediaControlElementBase {
-  USING_GARBAGE_COLLECTED_MIXIN(MediaControlInputElement);
-
  public:
   static bool ShouldRecordDisplayStates(const HTMLMediaElement&);
 
@@ -31,7 +29,7 @@ class MODULES_EXPORT MediaControlInputElement : public HTMLInputElement,
   void SetOverflowElementIsWanted(bool) final;
   void MaybeRecordDisplayed() final;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
   MediaControlInputElement* OverflowElementForTests() const {
     return overflow_element_;
@@ -43,16 +41,16 @@ class MODULES_EXPORT MediaControlInputElement : public HTMLInputElement,
   bool IsDisabled() const override;
 
  protected:
-  MediaControlInputElement(MediaControlsImpl&, MediaControlElementType);
+  MediaControlInputElement(MediaControlsImpl&);
 
   // Returns a string that represents the button for metrics purposes. This
   // will be used as a suffix for histograms.
   virtual const char* GetNameForHistograms() const = 0;
 
-  // Returns a string representation of the media control element.
-  // Subclasses should override this method to return the string representation
+  // Returns a string resource id of the media control element.
+  // Subclasses should override this method to return the string resource id
   // of the overflow button.
-  virtual WebLocalizedString::Name GetOverflowStringName() const;
+  virtual int GetOverflowStringId() const;
 
   // Implements a default event handler to record interaction on click.
   void DefaultEventHandler(Event&) override;
@@ -106,7 +104,7 @@ class MODULES_EXPORT MediaControlInputElement : public HTMLInputElement,
   enum class CTREvent {
     kDisplayed = 0,
     kInteracted,
-    kCount,
+    kMaxValue = kInteracted,
   };
 
   // Records the CTR event.

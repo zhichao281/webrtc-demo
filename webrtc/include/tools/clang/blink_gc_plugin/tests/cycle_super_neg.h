@@ -17,14 +17,14 @@ class C;
 // should not transitively imply sub-class relationships.
 // I.e. B -/-> D
 
-class A : public GarbageCollectedFinalized<A> {
-public:
-    virtual void Trace(Visitor*) {}
+class A : public GarbageCollected<A> {
+ public:
+  virtual void Trace(Visitor*) const {}
 };
 
 class B : public A {
 public:
-    virtual void Trace(Visitor*);
+ virtual void Trace(Visitor*) const;
 };
 
 class C : public RefCounted<C> {
@@ -34,9 +34,10 @@ private:
 
 class D : public A {
 public:
-    virtual void Trace(Visitor*);
+ virtual void Trace(Visitor*) const;
+
 private:
-    RefPtr<C> m_c;
+    scoped_refptr<C> m_c;
 };
 
 }

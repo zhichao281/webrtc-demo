@@ -13,6 +13,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
 #include <array>
 #include <memory>
 #include <string>
@@ -21,9 +22,9 @@
 #include "p2p/base/basic_packet_socket_factory.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/constructor_magic.h"
-#include "rtc_base/critical_section.h"
 #include "rtc_base/ignore_wundef.h"
 #include "rtc_base/socket_address.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/synchronization/sequence_checker.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread_annotations.h"
@@ -34,7 +35,6 @@
 #ifdef WEBRTC_NETWORK_TESTER_PROTO
 RTC_PUSH_IGNORING_WUNDEF()
 #include "rtc_tools/network_tester/network_tester_packet.pb.h"
-
 RTC_POP_IGNORING_WUNDEF()
 using webrtc::network_tester::packet::NetworkTesterPacket;
 #else
@@ -74,7 +74,7 @@ class TestController : public sigslot::has_slots<> {
   rtc::BasicPacketSocketFactory socket_factory_;
   const std::string config_file_path_;
   PacketLogger packet_logger_;
-  rtc::CriticalSection local_test_done_lock_;
+  Mutex local_test_done_lock_;
   bool local_test_done_ RTC_GUARDED_BY(local_test_done_lock_);
   bool remote_test_done_;
   std::array<char, kEthernetMtu> send_data_;

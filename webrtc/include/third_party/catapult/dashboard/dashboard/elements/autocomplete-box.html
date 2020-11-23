@@ -42,6 +42,8 @@ property 'group' sets to the header item name.
 -->
 
 <link rel="import" href="/components/iron-flex-layout/iron-flex-layout-classes.html">
+<link rel="import" href="/components/iron-form-element-behavior/iron-form-element-behavior.html">
+<link rel="import" href="/components/iron-validatable-behavior/iron-validatable-behavior.html">
 <link rel="import" href="/components/paper-input/paper-input.html">
 <link rel="import" href="/components/paper-item/paper-item.html">
 <link rel="import" href="/components/paper-material/paper-material.html">
@@ -66,7 +68,7 @@ property 'group' sets to the header item name.
         z-index: var(--layer-menus);
       }
 
-      .dropdown-scroller {
+      paper-menu {
         overflow-y: auto;
         overflow-x: hidden;
         max-height: 300px;
@@ -147,40 +149,38 @@ property 'group' sets to the header item name.
     </style>
 
     <div id="container">
-      <div id="textbox-container" class="layout vertical">
-        <paper-input label="{{placeholder}}"
-                     on-click="onClickInput"
-                     on-focus="onFocusInput"
-                     on-blur="onBlurInput"
-                     on-keydown="onInputKeydown"
-                     disabled$="{{disabled}}"
-                     id="textbox"
-                     value="{{query::input}}">
-          <paper-icon-button suffix on-tap="onClearInput_"
-            id="clear" icon="clear" alt="clear" title="clear">
-        </paper-input>
-      </div>
+      <paper-input label="{{placeholder}}"
+                   on-click="onClickInput"
+                   on-focus="onFocusInput"
+                   on-blur="onBlurInput"
+                   on-keydown="onInputKeydown"
+                   disabled$="{{disabled}}"
+                   id="textbox"
+                   required$="[[required]]"
+                   value="{{query::input}}">
+        <paper-icon-button suffix on-tap="onClearInput_"
+          id="clear" icon="clear" alt="clear" title="clear">
+        </paper-icon-button>
+      </paper-input>
       <paper-material
           id="dropdown-container"
           hidden$="[[!showDropdown]]">
-        <div class="dropdown-scroller" layered>
-          <paper-menu id="dropdown"
-                      tabindex="-1"
-                      on-mousedown="onDropdownMouseDown"
-                      on-iron-select="onDropdownSelect"
-                      on-iron-items-changed="onItemsChanged">
-            <template is="dom-repeat" items="[[suggestedItems]]">
-                <paper-item
-                    item="[[item]]"
-                    head$="[[item.head]]"
-                    hidden$="[[!showDropdown]]"
-                    class$="layout horizontal [[locusClassIfLocus(locusItem, item)]]">
-                <div class="flex">[[item.name]]</div>
-                <div class="tag">[[item.tag]]</div>
-              </paper-item>
-            </template>
-          </paper-menu>
-        </div>
+        <paper-menu id="dropdown"
+                    tabindex="-1"
+                    on-mousedown="onDropdownMouseDown"
+                    on-iron-select="onDropdownSelect"
+                    on-iron-items-changed="onItemsChanged">
+          <template is="dom-repeat" items="[[suggestedItems]]">
+              <paper-item
+                  item="[[item]]"
+                  head$="[[item.head]]"
+                  hidden$="[[!showDropdown]]"
+                  class$="layout horizontal [[locusClassIfLocus(locusItem, item)]]">
+              <div class="flex">[[item.name]]</div>
+              <div class="tag">[[item.tag]]</div>
+            </paper-item>
+          </template>
+        </paper-menu>
       </paper-material>
     </div>
     <span id="size-check">{{value}}</span>
@@ -250,6 +250,15 @@ const AutocompleteBoxBehavior = {
       */
     selectedName: {
       type: String,
+      notify: true,
+      readOnly: true,
+      computed: 'computeSelectedName(selectedItem)'
+    },
+
+    value: {
+      type: String,
+      notify: true,
+      readOnly: true,
       computed: 'computeSelectedName(selectedItem)'
     },
   },
@@ -285,7 +294,6 @@ const AutocompleteBoxBehavior = {
     this.fire('dropdownselect');
     if (this.selectedItem) this.set('query', this.selectedItem.name);
     if (!this.$) return;
-    this.$.textbox.readonly = true;
   },
 
   computeSuggestedItems(query, _itemsChange) {
@@ -302,16 +310,39 @@ const AutocompleteBoxBehavior = {
     return this.hasSuggestions && this.dropdownOpen;
   },
 
+  clearItem() {
+    this.set('selectedItem', null);
+    this.set('query', '');
+  },
+
   selectItem(item) {
     if (item.head) return;
     this.set('dropdownOpen', false);
     this.set('selectedItem', item);
   },
 
-  maybeBackspaceSelection() {
-    if (this.get('query') === '') {
-      this.set('selectedItem', null);
+  tryReselectQuery() {
+    if (this.disabled) {
+      return;
     }
+    if (this.selectedItem && this.selectedItem.name === this.query) {
+      return;
+    }
+    const i = this.findItemByName(this.query);
+    if (!!i) {
+      this.selectItem(i);
+      return;
+    }
+    this.clearItem();
+  },
+
+  findItemByName(name) {
+    for (const i of this.items) {
+      if (i.name === name) {
+        return i;
+      }
+    }
+    return null;
   },
 
   maybeSelectLocus() {
@@ -349,7 +380,11 @@ const AutocompleteBoxBehavior = {
 
 Polymer({
   is: 'autocomplete-box',
-  behaviors: [AutocompleteBoxBehavior],
+  behaviors: [
+    AutocompleteBoxBehavior,
+    Polymer.IronFormElementBehavior,
+    Polymer.IronValidatableBehavior,
+  ],
 
   properties: {
     disabled: {
@@ -358,12 +393,20 @@ Polymer({
       value: false
     },
     placeholder: { notify: true },
+    required: {
+      type: Boolean,
+      value: false
+    },
   },
 
   observers: [
     'updateSelected(selectedItem)',
     'updateSelected(locusItem)',
   ],
+
+  _getValidity(values) {
+    return this.$.textbox.validate(values);
+  },
 
   shouldIgnoreSelectionEvents() {
     if (this.muffleSelection === undefined) this.muffleSelection = false;
@@ -382,12 +425,19 @@ Polymer({
   },
 
   onFocusInput() {
+    if (this.id === 'selection-0' && !this.selectedItem && window.METRICS) {
+      METRICS.startChartAction();
+    }
     this.set('dropdownOpen', true);
     this.$.textbox.readonly = false;
   },
 
   onBlurInput() {
     this.set('dropdownOpen', false);
+    if (!this.selectedItem || this.selectedItem.name != this.query) {
+      const item = this.suggestedItems.find(i => i.name == this.query, this);
+      this.set('selectedItem', item || {name: this.query});
+    }
     this.$.textbox.readonly = true;
   },
 
@@ -399,9 +449,7 @@ Polymer({
   onInputKeydown(event) {
     this.set('dropdownOpen', true);
     const key = event.keyCode || event.charCode;
-    if (key === 8 || key === 46) {  // Backspace and Delete.
-      this.maybeBackspaceSelection();
-    } else if (key === 40) {
+    if (key === 40) {
       this.moveLocus(true /* down */);
       this.scrollLocusIntoView();
     } else if (key === 38) {
@@ -414,11 +462,12 @@ Polymer({
 
   onQueryChanged_() {
     this.$.clear.style.display = this.query ? 'inline' : '';
-
     // The selectedItem should reflect the query.
-    // When the query is cleared, the selectedItem needs to be manually
+    // When the query is changed, the selectedItem needs to be manually
     // cleared.
-    if (!this.query) this.selectedItem = undefined;
+    if (this.selectedItem && this.selectedItem.name != this.query) {
+      this.selectedItem = undefined;
+    }
   },
 
   scrollLocusIntoView() {
@@ -470,6 +519,7 @@ Polymer({
     const index = this.$.dropdown.indexOf(detail.item);
     const item = this.suggestedItems[index];
     this.selectItem(item);
+    this.$.textbox.readonly = true;
   },
 });
 </script>

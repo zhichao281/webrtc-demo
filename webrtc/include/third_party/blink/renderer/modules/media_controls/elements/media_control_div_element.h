@@ -16,8 +16,6 @@ class MediaControlsImpl;
 // floating UI.
 class MODULES_EXPORT MediaControlDivElement : public HTMLDivElement,
                                               public MediaControlElementBase {
-  USING_GARBAGE_COLLECTED_MIXIN(MediaControlDivElement);
-
  public:
   // Implements MediaControlElementBase.
   void SetOverflowElementIsWanted(bool) final;
@@ -29,10 +27,10 @@ class MODULES_EXPORT MediaControlDivElement : public HTMLDivElement,
 
   bool IsDisabled() const override;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  protected:
-  MediaControlDivElement(MediaControlsImpl&, MediaControlElementType);
+  MediaControlDivElement(MediaControlsImpl&);
 
  private:
   bool IsMediaControlElement() const final;

@@ -14,7 +14,6 @@
 
 namespace blink {
 
-class WebSecurityOrigin;
 class WebURL;
 
 // This class provides the content settings information which tells
@@ -25,28 +24,31 @@ class WebContentSettingsClient {
   // this WebContentSettingsClient so it can be used by another worker thread.
   virtual std::unique_ptr<WebContentSettingsClient> Clone() { return nullptr; }
 
-  // Controls whether access to Web Databases is allowed for this frame.
-  virtual bool AllowDatabase() { return true; }
+  enum class StorageType {
+    kDatabase,
+    kCacheStorage,
+    kIndexedDB,
+    kFileSystem,
+    kWebLocks,
+    kLocalStorage,
+    kSessionStorage
+  };
 
-  // Controls whether access to File System is allowed for this frame.
-  virtual bool RequestFileSystemAccessSync() { return true; }
-
-  // Controls whether access to File System is allowed for this frame.
-  virtual void RequestFileSystemAccessAsync(
-      base::OnceCallback<void(bool)> callback) {
+  // Controls whether access to the given StorageType is allowed for this frame.
+  // Runs asynchronously.
+  virtual void AllowStorageAccess(StorageType storage_type,
+                                  base::OnceCallback<void(bool)> callback) {
     std::move(callback).Run(true);
   }
+
+  // Controls whether access to the given StorageType is allowed for this frame.
+  // Blocks until done.
+  virtual bool AllowStorageAccessSync(StorageType storage_type) { return true; }
 
   // Controls whether images are allowed for this frame.
   virtual bool AllowImage(bool enabled_per_settings, const WebURL& image_url) {
     return enabled_per_settings;
   }
-
-  // Controls whether access to Indexed DB are allowed for this frame.
-  virtual bool AllowIndexedDB(const WebSecurityOrigin&) { return true; }
-
-  // Controls whether access to CacheStorage is allowed for this frame.
-  virtual bool AllowCacheStorage(const WebSecurityOrigin&) { return true; }
 
   // Controls whether scripts are allowed to execute for this frame.
   virtual bool AllowScript(bool enabled_per_settings) {
@@ -60,22 +62,11 @@ class WebContentSettingsClient {
     return enabled_per_settings;
   }
 
-  // Retrieves the client hints that should be attached to the request for the
-  // given URL.
-  virtual void GetAllowedClientHintsFromSource(const blink::WebURL& url,
-                                               WebEnabledClientHints*) const {}
-
   // Controls whether insecure scripts are allowed to execute for this frame.
   virtual bool AllowRunningInsecureContent(bool enabled_per_settings,
-                                           const WebSecurityOrigin&,
                                            const WebURL&) {
     return enabled_per_settings;
   }
-
-  // Controls whether HTML5 Web Storage is allowed for this frame.
-  // If local is true, then this is for local storage, otherwise it's for
-  // session storage.
-  virtual bool AllowStorage(bool local) { return true; }
 
   // Controls whether access to read the clipboard is allowed for this frame.
   virtual bool AllowReadFromClipboard(bool default_value) {
@@ -95,9 +86,6 @@ class WebContentSettingsClient {
   // MutationEvents, but it's been named for consistency with the rest of the
   // interface.
   virtual bool AllowMutationEvents(bool default_value) { return default_value; }
-
-  // Controls whether autoplay is allowed for this frame.
-  virtual bool AllowAutoplay(bool default_value) { return default_value; }
 
   virtual bool AllowPopupsAndRedirects(bool default_value) {
     return default_value;
@@ -120,6 +108,10 @@ class WebContentSettingsClient {
       const WebEnabledClientHints& enabled_client_hints,
       base::TimeDelta duration,
       const blink::WebURL& url) {}
+
+  // Controls whether mixed content autoupgrades should be allowed in this
+  // frame.
+  virtual bool ShouldAutoupgradeMixedContent() { return true; }
 
   virtual ~WebContentSettingsClient() = default;
 };

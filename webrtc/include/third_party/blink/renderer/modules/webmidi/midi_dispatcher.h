@@ -6,21 +6,47 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_WEBMIDI_MIDI_DISPATCHER_H_
 
 #include "media/midi/midi_service.mojom-blink.h"
-#include "mojo/public/cpp/bindings/binding.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
 
-class MIDIAccessor;
-
-class MIDIDispatcher : public midi::mojom::blink::MidiSessionClient {
+class MIDIDispatcher : public GarbageCollected<MIDIDispatcher>,
+                       public midi::mojom::blink::MidiSessionClient {
  public:
-  MIDIDispatcher(scoped_refptr<base::SingleThreadTaskRunner> task_runner,
-                 MIDIAccessor* accessor);
+  class Client {
+   public:
+    virtual void DidAddInputPort(const String& id,
+                                 const String& manufacturer,
+                                 const String& name,
+                                 const String& version,
+                                 midi::mojom::PortState) = 0;
+    virtual void DidAddOutputPort(const String& id,
+                                  const String& manufacturer,
+                                  const String& name,
+                                  const String& version,
+                                  midi::mojom::PortState) = 0;
+    virtual void DidSetInputPortState(unsigned port_index,
+                                      midi::mojom::PortState) = 0;
+    virtual void DidSetOutputPortState(unsigned port_index,
+                                       midi::mojom::PortState) = 0;
+
+    virtual void DidStartSession(midi::mojom::Result) = 0;
+    virtual void DidReceiveMIDIData(unsigned port_index,
+                                    const unsigned char* data,
+                                    wtf_size_t length,
+                                    base::TimeTicks time_stamp) = 0;
+  };
+
+  explicit MIDIDispatcher(ExecutionContext* execution_context);
   ~MIDIDispatcher() override;
 
-  void SendMidiData(uint32_t port,
+  void SetClient(Client* client) { client_ = client; }
+
+  void SendMIDIData(uint32_t port,
                     const uint8_t* data,
                     wtf_size_t length,
                     base::TimeTicks timestamp);
@@ -39,10 +65,10 @@ class MIDIDispatcher : public midi::mojom::blink::MidiSessionClient {
                     const Vector<uint8_t>& data,
                     base::TimeTicks timestamp) override;
 
+  void Trace(Visitor* visitor) const;
+
  private:
-  // Keeps track of a MIDI accessor. As a MIDIAccessor owns a MIDIDispatcher, a
-  // raw pointer is fine.
-  MIDIAccessor* const accessor_;
+  Client* client_ = nullptr;
 
   bool initialized_ = false;
 
@@ -53,12 +79,12 @@ class MIDIDispatcher : public midi::mojom::blink::MidiSessionClient {
   // TODO(toyoshim): Consider to have a per-process limit.
   size_t unacknowledged_bytes_sent_ = 0u;
 
-  midi::mojom::blink::MidiSessionPtr midi_session_;
+  HeapMojoRemote<midi::mojom::blink::MidiSession> midi_session_;
 
-  mojo::Binding<midi::mojom::blink::MidiSessionClient> binding_;
-  midi::mojom::blink::MidiSessionProviderPtr midi_session_provider_;
-
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  HeapMojoReceiver<midi::mojom::blink::MidiSessionClient, MIDIDispatcher>
+      receiver_;
+  HeapMojoRemote<midi::mojom::blink::MidiSessionProvider>
+      midi_session_provider_;
 };
 
 }  // namespace blink

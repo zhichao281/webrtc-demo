@@ -31,14 +31,10 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_PAGE_PAGE_WIDGET_DELEGATE_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_PAGE_PAGE_WIDGET_DELEGATE_H_
 
-#include "third_party/blink/public/platform/web_coalesced_input_event.h"
+#include "third_party/blink/public/common/input/web_coalesced_input_event.h"
 #include "third_party/blink/public/web/web_widget.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
-
-namespace cc {
-class PaintCanvas;
-}
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 class LocalFrame;
@@ -52,13 +48,15 @@ class WebPointerEvent;
 
 class CORE_EXPORT PageWidgetEventHandler {
  public:
-  virtual void HandleMouseMove(LocalFrame& main_frame,
-                               const WebMouseEvent&,
-                               const std::vector<const WebInputEvent*>&,
-                               const std::vector<const WebInputEvent*>&);
+  virtual void HandleMouseMove(
+      LocalFrame& main_frame,
+      const WebMouseEvent&,
+      const std::vector<std::unique_ptr<WebInputEvent>>&,
+      const std::vector<std::unique_ptr<WebInputEvent>>&);
   virtual void HandleMouseLeave(LocalFrame& main_frame, const WebMouseEvent&);
   virtual void HandleMouseDown(LocalFrame& main_frame, const WebMouseEvent&);
-  virtual void HandleMouseUp(LocalFrame& main_frame, const WebMouseEvent&);
+  virtual WebInputEventResult HandleMouseUp(LocalFrame& main_frame,
+                                            const WebMouseEvent&);
   virtual WebInputEventResult HandleMouseWheel(LocalFrame& main_frame,
                                                const WebMouseWheelEvent&);
   virtual WebInputEventResult HandleKeyEvent(const WebKeyboardEvent&) = 0;
@@ -67,9 +65,9 @@ class CORE_EXPORT PageWidgetEventHandler {
   virtual WebInputEventResult HandlePointerEvent(
       LocalFrame& main_frame,
       const WebPointerEvent&,
-      const std::vector<const WebInputEvent*>&,
-      const std::vector<const WebInputEvent*>&);
-  virtual ~PageWidgetEventHandler() {}
+      const std::vector<std::unique_ptr<WebInputEvent>>&,
+      const std::vector<std::unique_ptr<WebInputEvent>>&);
+  virtual ~PageWidgetEventHandler() = default;
 };
 
 // Common implementation of WebViewImpl and WebPagePopupImpl.
@@ -78,21 +76,20 @@ class CORE_EXPORT PageWidgetDelegate {
 
  public:
   static void Animate(Page&, base::TimeTicks monotonic_frame_begin_time);
+  static void PostAnimate(Page&);
 
-  // For the following methods, the |root| argument indicates a root localFrame
+  // For the following methods, the |root| argument indicates a root LocalFrame
   // from which to start performing the specified operation.
 
   // See comment of WebWidget::UpdateLifecycle.
   static void UpdateLifecycle(Page&,
                               LocalFrame& root,
-                              WebWidget::LifecycleUpdate requested_update,
-                              WebWidget::LifecycleUpdateReason reason);
+                              WebLifecycleUpdate requested_update,
+                              DocumentUpdateReason reason);
 
-  // See comment of WebWidget::DidBeginFrame
+  // See comment of WebWidget::DidBeginFrame.
   static void DidBeginFrame(LocalFrame& root);
 
-  // See documents of methods with the same names in FrameView class.
-  static void PaintContent(cc::PaintCanvas*, const WebRect&, LocalFrame& root);
   // See FIXME in the function body about nullptr |root|.
   static WebInputEventResult HandleInputEvent(
       PageWidgetEventHandler&,

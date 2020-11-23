@@ -23,19 +23,22 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_LAYOUT_VIEW_H_
 
 #include <memory>
+#include "third_party/blink/public/mojom/scroll/scrollbar_mode.mojom-blink.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/hit_test_cache.h"
 #include "third_party/blink/renderer/core/layout/hit_test_result.h"
 #include "third_party/blink/renderer/core/layout/layout_block_flow.h"
 #include "third_party/blink/renderer/core/layout/layout_state.h"
 #include "third_party/blink/renderer/core/scroll/scrollable_area.h"
-#include "third_party/blink/renderer/platform/graphics/scroll_types.h"
+#include "third_party/blink/renderer/platform/graphics/overlay_scrollbar_clip_behavior.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
+#include "third_party/blink/renderer/platform/wtf/casting.h"
 
 namespace blink {
 
 class LayoutQuote;
 class LocalFrameView;
+class NamedPagesMapper;
 class PaintLayerCompositor;
 class ViewFragmentationContext;
 
@@ -59,7 +62,12 @@ class CORE_EXPORT LayoutView final : public LayoutBlockFlow {
  public:
   explicit LayoutView(Document*);
   ~LayoutView() override;
+
   void WillBeDestroyed() override;
+
+  // Called when the Document is shutdown, to have the compositor clean up
+  // during frame detach, while pointers remain valid.
+  void CleanUpCompositor();
 
   // hitTest() will update layout, style and compositing first while
   // hitTestNoLifecycleUpdate() does not.
@@ -68,18 +76,29 @@ class CORE_EXPORT LayoutView final : public LayoutBlockFlow {
                                 HitTestResult&);
 
   // Returns the total count of calls to HitTest, for testing.
-  unsigned HitTestCount() const { return hit_test_count_; }
-  unsigned HitTestCacheHits() const { return hit_test_cache_hits_; }
+  unsigned HitTestCount() const {
+    NOT_DESTROYED();
+    return hit_test_count_;
+  }
+  unsigned HitTestCacheHits() const {
+    NOT_DESTROYED();
+    return hit_test_cache_hits_;
+  }
 
   void ClearHitTestCache();
 
-  const char* GetName() const override { return "LayoutView"; }
+  const char* GetName() const override {
+    NOT_DESTROYED();
+    return "LayoutView";
+  }
 
   bool IsOfType(LayoutObjectType type) const override {
-    return type == kLayoutObjectLayoutView || LayoutBlockFlow::IsOfType(type);
+    NOT_DESTROYED();
+    return type == kLayoutObjectView || LayoutBlockFlow::IsOfType(type);
   }
 
   PaintLayerType LayerTypeRequired() const override {
+    NOT_DESTROYED();
     return kNormalPaintLayer;
   }
 
@@ -93,16 +112,18 @@ class CORE_EXPORT LayoutView final : public LayoutBlockFlow {
 
   // Based on LocalFrameView::LayoutSize, but:
   // - checks for null LocalFrameView
-  // - returns 0x0 if using printing layout
+  // - Replaces logical height with PageLogicalHeight() if using printing layout
   // - scrollbar exclusion is compatible with root layer scrolling
   IntSize GetLayoutSize(IncludeScrollbarsInRect = kExcludeScrollbars) const;
 
   int ViewHeight(
       IncludeScrollbarsInRect scrollbar_inclusion = kExcludeScrollbars) const {
+    NOT_DESTROYED();
     return GetLayoutSize(scrollbar_inclusion).Height();
   }
   int ViewWidth(
       IncludeScrollbarsInRect scrollbar_inclusion = kExcludeScrollbars) const {
+    NOT_DESTROYED();
     return GetLayoutSize(scrollbar_inclusion).Width();
   }
 
@@ -113,14 +134,17 @@ class CORE_EXPORT LayoutView final : public LayoutBlockFlow {
 
   float ZoomFactor() const;
 
-  LocalFrameView* GetFrameView() const { return frame_view_; }
+  LocalFrameView* GetFrameView() const {
+    NOT_DESTROYED();
+    return frame_view_;
+  }
   const LayoutBox& RootBox() const;
 
   void UpdateAfterLayout() override;
 
   // See comments for the equivalent method on LayoutObject.
   bool MapToVisualRectInAncestorSpace(const LayoutBoxModelObject* ancestor,
-                                      LayoutRect&,
+                                      PhysicalRect&,
                                       MapCoordinatesFlags mode,
                                       VisualRectFlags) const;
 
@@ -137,154 +161,183 @@ class CORE_EXPORT LayoutView final : public LayoutBlockFlow {
       const LayoutBoxModelObject* ancestor,
       TransformState&,
       VisualRectFlags = kDefaultVisualRectFlags) const override;
-  LayoutSize OffsetForFixedPosition() const;
-
-  void InvalidatePaintForViewAndCompositedLayers();
+  PhysicalOffset OffsetForFixedPosition() const;
+  PhysicalOffset PixelSnappedOffsetForFixedPosition() const;
 
   void Paint(const PaintInfo&) const override;
   void PaintBoxDecorationBackground(
       const PaintInfo&,
-      const LayoutPoint& paint_offset) const override;
+      const PhysicalOffset& paint_offset) const override;
 
   void CommitPendingSelection();
 
-  void AbsoluteRects(Vector<IntRect>&,
-                     const LayoutPoint& accumulated_offset) const override;
   void AbsoluteQuads(Vector<FloatQuad>&,
                      MapCoordinatesFlags mode = 0) const override;
 
-  LayoutRect ViewRect() const override;
-  LayoutRect OverflowClipRect(
-      const LayoutPoint& location,
-      OverlayScrollbarClipBehavior =
-          kIgnorePlatformOverlayScrollbarSize) const override;
+  PhysicalRect ViewRect() const override;
+  PhysicalRect OverflowClipRect(const PhysicalOffset& location,
+                                OverlayScrollbarClipBehavior =
+                                    kIgnoreOverlayScrollbarSize) const override;
 
   // If either direction has a non-auto mode, the other must as well.
-  void SetAutosizeScrollbarModes(ScrollbarMode h_mode, ScrollbarMode v_mode);
-  ScrollbarMode AutosizeHorizontalScrollbarMode() const {
+  void SetAutosizeScrollbarModes(mojom::blink::ScrollbarMode h_mode,
+                                 mojom::blink::ScrollbarMode v_mode);
+  mojom::blink::ScrollbarMode AutosizeHorizontalScrollbarMode() const {
+    NOT_DESTROYED();
     return autosize_h_scrollbar_mode_;
   }
-  ScrollbarMode AutosizeVerticalScrollbarMode() const {
+  mojom::blink::ScrollbarMode AutosizeVerticalScrollbarMode() const {
+    NOT_DESTROYED();
     return autosize_v_scrollbar_mode_;
   }
 
-  void CalculateScrollbarModes(ScrollbarMode& h_mode,
-                               ScrollbarMode& v_mode) const;
+  void CalculateScrollbarModes(mojom::blink::ScrollbarMode& h_mode,
+                               mojom::blink::ScrollbarMode& v_mode) const;
 
-  void MayUpdateHoverWhenContentUnderMouseChanged(EventHandler&) override;
+  LayoutState* GetLayoutState() const {
+    NOT_DESTROYED();
+    return layout_state_;
+  }
 
-  LayoutState* GetLayoutState() const { return layout_state_; }
+  bool CanHaveAdditionalCompositingReasons() const override {
+    NOT_DESTROYED();
+    return true;
+  }
+  CompositingReasons AdditionalCompositingReasons() const override;
 
-  void UpdateHitTestResult(HitTestResult&, const LayoutPoint&) const override;
+  void UpdateHitTestResult(HitTestResult&,
+                           const PhysicalOffset&) const override;
 
   ViewFragmentationContext* FragmentationContext() const {
+    NOT_DESTROYED();
     return fragmentation_context_.get();
   }
 
-  LayoutUnit PageLogicalHeight() const { return page_logical_height_; }
+  LayoutUnit PageLogicalHeight() const {
+    NOT_DESTROYED();
+    return page_logical_height_;
+  }
   void SetPageLogicalHeight(LayoutUnit height) {
+    NOT_DESTROYED();
     page_logical_height_ = height;
   }
 
-  // Notification that this view moved into or out of a native window.
-  void SetIsInWindow(bool);
+  NamedPagesMapper* GetNamedPagesMapper() const {
+    NOT_DESTROYED();
+    return named_pages_mapper_.get();
+  }
 
   PaintLayerCompositor* Compositor();
   bool UsesCompositing() const;
 
-  IntRect DocumentRect() const;
+  PhysicalRect DocumentRect() const;
 
   IntervalArena* GetIntervalArena();
 
-  void SetLayoutQuoteHead(LayoutQuote* head) { layout_quote_head_ = head; }
-  LayoutQuote* LayoutQuoteHead() const { return layout_quote_head_; }
+  void SetLayoutQuoteHead(LayoutQuote* head) {
+    NOT_DESTROYED();
+    layout_quote_head_ = head;
+  }
+  LayoutQuote* LayoutQuoteHead() const {
+    NOT_DESTROYED();
+    return layout_quote_head_;
+  }
 
   // FIXME: This is a work around because the current implementation of counters
   // requires walking the entire tree repeatedly and most pages don't actually
   // use either feature so we shouldn't take the performance hit when not
   // needed. Long term we should rewrite the counter and quotes code.
   void AddLayoutCounter() {
+    NOT_DESTROYED();
     layout_counter_count_++;
     SetNeedsCounterUpdate();
   }
   void RemoveLayoutCounter() {
+    NOT_DESTROYED();
     DCHECK_GT(layout_counter_count_, 0u);
     layout_counter_count_--;
   }
-  bool HasLayoutCounters() { return layout_counter_count_; }
-  void SetNeedsCounterUpdate() { needs_counter_update_ = true; }
+  bool HasLayoutCounters() {
+    NOT_DESTROYED();
+    return layout_counter_count_;
+  }
+  void SetNeedsCounterUpdate() {
+    NOT_DESTROYED();
+    needs_counter_update_ = true;
+  }
   void UpdateCounters();
 
   bool BackgroundIsKnownToBeOpaqueInRect(
-      const LayoutRect& local_rect) const override;
+      const PhysicalRect& local_rect) const override;
 
   // Returns the viewport size in (CSS pixels) that vh and vw units are
   // calculated from.
   FloatSize ViewportSizeForViewportUnits() const;
 
   void PushLayoutState(LayoutState& layout_state) {
+    NOT_DESTROYED();
     layout_state_ = &layout_state;
   }
   void PopLayoutState() {
+    NOT_DESTROYED();
     DCHECK(layout_state_);
     layout_state_ = layout_state_->Next();
   }
 
-  LayoutRect LocalVisualRectIgnoringVisibility() const override;
+  PhysicalRect LocalVisualRectIgnoringVisibility() const override;
 
   // Invalidates paint for the entire view, including composited descendants,
   // but not including child frames.
   // It is very likely you do not want to call this method.
-  void SetShouldDoFullPaintInvalidationForViewAndAllDescendants();
+  void InvalidatePaintForViewAndDescendants();
 
   bool ShouldPlaceBlockDirectionScrollbarOnLogicalLeft() const override;
 
-  LayoutRect DebugRect() const override;
+  PhysicalRect DebugRect() const override;
 
   // Returns the coordinates of find-in-page scrollbar tickmarks.  These come
-  // from DocumentMarkerController, unless overridden by SetTickmarks.
+  // from DocumentMarkerController.
   Vector<IntRect> GetTickmarks() const;
+  bool HasTickmarks() const;
 
-  // Sets the coordinates of find-in-page scrollbar tickmarks, bypassing
-  // DocumentMarkerController.  This is used by the PDF plugin.
-  void OverrideTickmarks(const Vector<IntRect>&);
-
-  // Issues a paint invalidation on the layout viewport's vertical scrollbar
-  // (which is responsible for painting the tickmarks).
-  void InvalidatePaintForTickmarks();
-
-  bool RecalcLayoutOverflow() final;
+  RecalcLayoutOverflowResult RecalcLayoutOverflow() final;
 
   // The visible background area, in the local coordinates. The view background
   // will be painted in this rect. It's also the positioning area of fixed-
   // attachment backgrounds.
-  LayoutRect BackgroundRect() const { return OverflowClipRect(LayoutPoint()); }
+  PhysicalRect BackgroundRect() const {
+    NOT_DESTROYED();
+    return OverflowClipRect(PhysicalOffset());
+  }
 
   // The previous BackgroundRect after the previous paint invalidation.
-  LayoutRect PreviousBackgroundRect() const {
+  PhysicalRect PreviousBackgroundRect() const {
+    NOT_DESTROYED();
     DCHECK_EQ(GetDocument().Lifecycle().GetState(),
               DocumentLifecycle::kInPrePaint);
     return previous_background_rect_;
   }
-  void SetPreviousBackgroundRect(const LayoutRect& r) const {
+  void SetPreviousBackgroundRect(const PhysicalRect& r) const {
+    NOT_DESTROYED();
     DCHECK_EQ(GetDocument().Lifecycle().GetState(),
               DocumentLifecycle::kInPrePaint);
     previous_background_rect_ = r;
   }
 
- private:
-  void MapLocalToAncestor(
-      const LayoutBoxModelObject* ancestor,
-      TransformState&,
-      MapCoordinatesFlags = kApplyContainerFlip) const override;
-
-  const LayoutObject* PushMappingToContainer(
-      const LayoutBoxModelObject* ancestor_to_stop_at,
-      LayoutGeometryMap&) const override;
   void MapAncestorToLocal(const LayoutBoxModelObject*,
                           TransformState&,
                           MapCoordinatesFlags) const override;
 
+  bool ShouldUsePrintingLayout() const;
+
+  void MapLocalToAncestor(const LayoutBoxModelObject* ancestor,
+                          TransformState&,
+                          MapCoordinatesFlags) const override;
+
+ private:
+  const LayoutObject* PushMappingToContainer(
+      const LayoutBoxModelObject* ancestor_to_stop_at,
+      LayoutGeometryMap&) const override;
   bool CanHaveChildren() const override;
 
   void UpdateBlockLayout(bool relayout_children) override;
@@ -295,12 +348,12 @@ class CORE_EXPORT LayoutView final : public LayoutBlockFlow {
 
   void UpdateFromStyle() override;
 
-  bool ShouldUsePrintingLayout() const;
-
   int ViewLogicalWidthForBoxSizing() const {
+    NOT_DESTROYED();
     return ViewLogicalWidth(kIncludeScrollbars);
   }
   int ViewLogicalHeightForBoxSizing() const {
+    NOT_DESTROYED();
     return ViewLogicalHeight(kIncludeScrollbars);
   }
 
@@ -320,6 +373,7 @@ class CORE_EXPORT LayoutView final : public LayoutBlockFlow {
   LayoutState* layout_state_;
 
   std::unique_ptr<ViewFragmentationContext> fragmentation_context_;
+  std::unique_ptr<NamedPagesMapper> named_pages_mapper_;
   std::unique_ptr<PaintLayerCompositor> compositor_;
   scoped_refptr<IntervalArena> interval_arena_;
 
@@ -334,15 +388,18 @@ class CORE_EXPORT LayoutView final : public LayoutBlockFlow {
   // FrameViewAutoSizeInfo controls scrollbar appearance manually rather than
   // relying on layout. These members are used to override the ScrollbarModes
   // calculated from style. kScrollbarAuto disables the override.
-  ScrollbarMode autosize_h_scrollbar_mode_;
-  ScrollbarMode autosize_v_scrollbar_mode_;
+  mojom::blink::ScrollbarMode autosize_h_scrollbar_mode_;
+  mojom::blink::ScrollbarMode autosize_v_scrollbar_mode_;
 
-  Vector<IntRect> tickmarks_override_;
-
-  mutable LayoutRect previous_background_rect_;
+  mutable PhysicalRect previous_background_rect_;
 };
 
-DEFINE_LAYOUT_OBJECT_TYPE_CASTS(LayoutView, IsLayoutView());
+template <>
+struct DowncastTraits<LayoutView> {
+  static bool AllowFrom(const LayoutObject& object) {
+    return object.IsLayoutView();
+  }
+};
 
 }  // namespace blink
 

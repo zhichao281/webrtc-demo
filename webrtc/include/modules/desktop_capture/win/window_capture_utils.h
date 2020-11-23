@@ -8,10 +8,14 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#ifndef MODULES_DESKTOP_CAPTURE_WIN_WINDOW_CAPTURE_UTILS_H_
+#define MODULES_DESKTOP_CAPTURE_WIN_WINDOW_CAPTURE_UTILS_H_
+
 #include <shlobj.h>
 #include <windows.h>
 #include <wrl/client.h>
 
+#include "modules/desktop_capture/desktop_capturer.h"
 #include "modules/desktop_capture/desktop_geometry.h"
 #include "rtc_base/constructor_magic.h"
 
@@ -23,7 +27,10 @@ namespace webrtc {
 bool GetWindowRect(HWND window, DesktopRect* result);
 
 // Outputs the window rect, with the left/right/bottom frame border cropped if
-// the window is maximized. |cropped_rect| is the cropped rect relative to the
+// the window is maximized or has a transparent resize border.
+// |avoid_cropping_border| may be set to true to avoid cropping the visible
+// border when cropping any resize border.
+// |cropped_rect| is the cropped rect relative to the
 // desktop. |original_rect| is the original rect returned from GetWindowRect.
 // Returns true if all API calls succeeded. The returned DesktopRect is in
 // system coordinates, i.e. the primary monitor on the system always starts from
@@ -34,9 +41,10 @@ bool GetWindowRect(HWND window, DesktopRect* result);
 // This function should only be used by CroppingWindowCapturerWin. Instead a
 // DesktopRect CropWindowRect(const DesktopRect& rect)
 // should be added as a utility function to help CroppingWindowCapturerWin and
-// WindowCapturerWin to crop out the borders or shadow according to their
+// WindowCapturerWinGdi to crop out the borders or shadow according to their
 // scenarios. But this function is too generic and easy to be misused.
 bool GetCroppedWindowRect(HWND window,
+                          bool avoid_cropping_border,
                           DesktopRect* cropped_rect,
                           DesktopRect* original_rect);
 
@@ -59,7 +67,30 @@ bool GetDcSize(HDC hdc, DesktopSize* size);
 // function returns false if native APIs fail.
 bool IsWindowMaximized(HWND window, bool* result);
 
+// Checks that the HWND is for a valid window, that window's visibility state is
+// visible, and that it is not minimized.
+bool IsWindowValidAndVisible(HWND window);
+
+enum GetWindowListFlags {
+  kNone = 0x00,
+  kIgnoreUntitled = 1 << 0,
+  kIgnoreUnresponsive = 1 << 1,
+};
+
+// Retrieves the list of top-level windows on the screen.
+// Some windows will be ignored:
+// - Those that are invisible or minimized.
+// - Program Manager & Start menu.
+// - [with kIgnoreUntitled] windows with no title.
+// - [with kIgnoreUnresponsive] windows that unresponsive.
+// Returns false if native APIs failed.
+bool GetWindowList(int flags, DesktopCapturer::SourceList* windows);
+
 typedef HRESULT(WINAPI* DwmIsCompositionEnabledFunc)(BOOL* enabled);
+typedef HRESULT(WINAPI* DwmGetWindowAttributeFunc)(HWND hwnd,
+                                                   DWORD flag,
+                                                   PVOID result_ptr,
+                                                   DWORD result_size);
 class WindowCaptureHelperWin {
  public:
   WindowCaptureHelperWin();
@@ -67,16 +98,18 @@ class WindowCaptureHelperWin {
 
   bool IsAeroEnabled();
   bool IsWindowChromeNotification(HWND hwnd);
-  bool IsWindowIntersectWithSelectedWindow(
-      HWND hwnd,
-      HWND selected_hwnd,
-      const DesktopRect& selected_window_rect);
+  bool AreWindowsOverlapping(HWND hwnd,
+                             HWND selected_hwnd,
+                             const DesktopRect& selected_window_rect);
   bool IsWindowOnCurrentDesktop(HWND hwnd);
   bool IsWindowVisibleOnCurrentDesktop(HWND hwnd);
+  bool IsWindowCloaked(HWND hwnd);
+  bool EnumerateCapturableWindows(DesktopCapturer::SourceList* results);
 
  private:
-  HMODULE dwmapi_library_;
-  DwmIsCompositionEnabledFunc func_;
+  HMODULE dwmapi_library_ = nullptr;
+  DwmIsCompositionEnabledFunc func_ = nullptr;
+  DwmGetWindowAttributeFunc dwm_get_window_attribute_func_ = nullptr;
 
   // Only used on Win10+.
   Microsoft::WRL::ComPtr<IVirtualDesktopManager> virtual_desktop_manager_;
@@ -85,3 +118,5 @@ class WindowCaptureHelperWin {
 };
 
 }  // namespace webrtc
+
+#endif  // MODULES_DESKTOP_CAPTURE_WIN_WINDOW_CAPTURE_UTILS_H_

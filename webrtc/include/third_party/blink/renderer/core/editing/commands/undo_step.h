@@ -39,7 +39,7 @@ namespace blink {
 
 class SimpleEditCommand;
 
-class UndoStep : public GarbageCollectedFinalized<UndoStep> {
+class UndoStep final : public GarbageCollected<UndoStep> {
  public:
   UndoStep(Document*,
            const SelectionForUndoStep& starting_selection,
@@ -73,7 +73,7 @@ class UndoStep : public GarbageCollectedFinalized<UndoStep> {
 
   uint64_t SequenceNumber() const { return sequence_number_; }
 
-  void Trace(Visitor*);
+  void Trace(Visitor*) const;
 
  private:
   Member<Document> document_;

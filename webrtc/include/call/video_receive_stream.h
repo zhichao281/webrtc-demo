@@ -13,31 +13,56 @@
 
 #include <limits>
 #include <map>
+#include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "api/call/transport.h"
 #include "api/crypto/crypto_options.h"
-#include "api/media_transport_interface.h"
+#include "api/crypto/frame_decryptor_interface.h"
+#include "api/frame_transformer_interface.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_parameters.h"
-#include "api/rtp_receiver_interface.h"
+#include "api/transport/rtp/rtp_source.h"
+#include "api/video/recordable_encoded_frame.h"
 #include "api/video/video_content_type.h"
+#include "api/video/video_frame.h"
 #include "api/video/video_sink_interface.h"
 #include "api/video/video_timing.h"
 #include "api/video_codecs/sdp_video_format.h"
 #include "call/rtp_config.h"
+#include "common_video/frame_counts.h"
 #include "modules/rtp_rtcp/include/rtcp_statistics.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 
 namespace webrtc {
 
-class FrameDecryptorInterface;
 class RtpPacketSinkInterface;
 class VideoDecoderFactory;
 
 class VideoReceiveStream {
  public:
+  // Class for handling moving in/out recording state.
+  struct RecordingState {
+    RecordingState() = default;
+    explicit RecordingState(
+        std::function<void(const RecordableEncodedFrame&)> callback)
+        : callback(std::move(callback)) {}
+
+    // Callback stored from the VideoReceiveStream. The VideoReceiveStream
+    // client should not interpret the attribute.
+    std::function<void(const RecordableEncodedFrame&)> callback;
+    // Memento of internal state in VideoReceiveStream, recording wether
+    // we're currently causing generation of a keyframe from the sender. Needed
+    // to avoid sending double keyframe requests. The VideoReceiveStream client
+    // should not interpret the attribute.
+    bool keyframe_needed = false;
+    // Memento of when a keyframe request was last sent. The VideoReceiveStream
+    // client should not interpret the attribute.
+    absl::optional<int64_t> last_keyframe_request_ms;
+  };
+
   // TODO(mflodman) Move all these settings to VideoDecoder and move the
   // declaration to common_types.h.
   struct Decoder {
@@ -46,10 +71,6 @@ class VideoReceiveStream {
     ~Decoder();
     std::string ToString() const;
 
-    // Ownership stays with WebrtcVideoEngine (delegated from PeerConnection).
-    // TODO(nisse): Move one level out, to VideoReceiveStream::Config, and later
-    // to the configuration of VideoStreamDecoder.
-    VideoDecoderFactory* decoder_factory = nullptr;
     SdpVideoFormat video_format;
 
     // Received RTP packets with this payload type will be sent to this decoder
@@ -75,10 +96,25 @@ class VideoReceiveStream {
     int current_delay_ms = 0;
     int target_delay_ms = 0;
     int jitter_buffer_ms = 0;
+    // https://w3c.github.io/webrtc-stats/#dom-rtcvideoreceiverstats-jitterbufferdelay
+    double jitter_buffer_delay_seconds = 0;
+    // https://w3c.github.io/webrtc-stats/#dom-rtcvideoreceiverstats-jitterbufferemittedcount
+    uint64_t jitter_buffer_emitted_count = 0;
     int min_playout_delay_ms = 0;
     int render_delay_ms = 10;
     int64_t interframe_delay_max_ms = -1;
+    // Frames dropped due to decoding failures or if the system is too slow.
+    // https://www.w3.org/TR/webrtc-stats/#dom-rtcvideoreceiverstats-framesdropped
+    uint32_t frames_dropped = 0;
     uint32_t frames_decoded = 0;
+    // https://w3c.github.io/webrtc-stats/#dom-rtcinboundrtpstreamstats-totaldecodetime
+    uint64_t total_decode_time_ms = 0;
+    // Total inter frame delay in seconds.
+    // https://w3c.github.io/webrtc-stats/#dom-rtcinboundrtpstreamstats-totalinterframedelay
+    double total_inter_frame_delay = 0;
+    // Total squared inter frame delay in seconds^2.
+    // https://w3c.github.io/webrtc-stats/#dom-rtcinboundrtpstreamstats-totalsqauredinterframedelay
+    double total_squared_inter_frame_delay = 0;
     int64_t first_frame_received_to_decoded_ms = -1;
     absl::optional<uint64_t> qp_sum;
 
@@ -98,13 +134,14 @@ class VideoReceiveStream {
 
     VideoContentType content_type = VideoContentType::UNSPECIFIED;
 
+    // https://w3c.github.io/webrtc-stats/#dom-rtcinboundrtpstreamstats-estimatedplayouttimestamp
+    absl::optional<int64_t> estimated_playout_ntp_timestamp_ms;
     int sync_offset_ms = std::numeric_limits<int>::max();
 
     uint32_t ssrc = 0;
     std::string c_name;
-    StreamDataCounters rtp_stats;
+    RtpReceiveStats rtp_stats;
     RtcpPacketTypeCounter rtcp_packet_type_counts;
-    RtcpStatistics rtcp_stats;
 
     // Timing frame info: all important timestamps for a full lifetime of a
     // single 'timing frame'.
@@ -120,8 +157,6 @@ class VideoReceiveStream {
    public:
     Config() = delete;
     Config(Config&&);
-    Config(Transport* rtcp_send_transport,
-           MediaTransportInterface* media_transport);
     explicit Config(Transport* rtcp_send_transport);
     Config& operator=(Config&&);
     Config& operator=(const Config&) = delete;
@@ -134,6 +169,9 @@ class VideoReceiveStream {
 
     // Decoders for every payload that we can receive.
     std::vector<Decoder> decoders;
+
+    // Ownership stays with WebrtcVideoEngine (delegated from PeerConnection).
+    VideoDecoderFactory* decoder_factory = nullptr;
 
     // Receive-stream specific RTP settings.
     struct Rtp {
@@ -158,20 +196,11 @@ class VideoReceiveStream {
         bool receiver_reference_time_report = false;
       } rtcp_xr;
 
-      // TODO(nisse): This remb setting is currently set but never
-      // applied. REMB logic is now the responsibility of
-      // PacketRouter, and it will generate REMB feedback if
-      // OnReceiveBitrateChanged is used, which depends on how the
-      // estimators belonging to the ReceiveSideCongestionController
-      // are configured. Decide if this setting should be deleted, and
-      // if it needs to be replaced by a setting in PacketRouter to
-      // disable REMB feedback.
-
-      // See draft-alvestrand-rmcat-remb for information.
-      bool remb = false;
-
       // See draft-holmer-rmcat-transport-wide-cc-extensions for details.
       bool transport_cc = false;
+
+      // See LntfConfig for description.
+      LntfConfig lntf;
 
       // See NackConfig for description.
       NackConfig nack;
@@ -190,14 +219,18 @@ class VideoReceiveStream {
       // For RTX to be enabled, both an SSRC and this mapping are needed.
       std::map<int, int> rtx_associated_payload_types;
 
+      // Payload types that should be depacketized using raw depacketizer
+      // (payload header will not be parsed and must not be present, additional
+      // meta data is expected to be present in generic frame descriptor
+      // RTP header extension).
+      std::set<int> raw_payload_types;
+
       // RTP header extensions used for the received stream.
       std::vector<RtpExtension> extensions;
     } rtp;
 
     // Transport for outgoing packets (RTCP).
     Transport* rtcp_send_transport = nullptr;
-
-    MediaTransportInterface* media_transport = nullptr;
 
     // Must always be set.
     rtc::VideoSinkInterface<VideoFrame>* renderer = nullptr;
@@ -230,6 +263,8 @@ class VideoReceiveStream {
 
     // Per PeerConnection cryptography options.
     CryptoOptions crypto_options;
+
+    rtc::scoped_refptr<webrtc::FrameTransformerInterface> frame_transformer;
   };
 
   // Starts stream activity.
@@ -264,6 +299,26 @@ class VideoReceiveStream {
   // creation without resetting the decoder state.
   virtual void SetFrameDecryptor(
       rtc::scoped_refptr<FrameDecryptorInterface> frame_decryptor) = 0;
+
+  // Allows a frame transformer to be attached to a VideoReceiveStream after
+  // creation without resetting the decoder state.
+  virtual void SetDepacketizerToDecoderFrameTransformer(
+      rtc::scoped_refptr<FrameTransformerInterface> frame_transformer) = 0;
+
+  // Sets and returns recording state. The old state is moved out
+  // of the video receive stream and returned to the caller, and |state|
+  // is moved in. If the state's callback is set, it will be called with
+  // recordable encoded frames as they arrive.
+  // If |generate_key_frame| is true, the method will generate a key frame.
+  // When the function returns, it's guaranteed that all old callouts
+  // to the returned callback has ceased.
+  // Note: the client should not interpret the returned state's attributes, but
+  // instead treat it as opaque data.
+  virtual RecordingState SetAndGetRecordingState(RecordingState state,
+                                                 bool generate_key_frame) = 0;
+
+  // Cause eventual generation of a key frame from the sender.
+  virtual void GenerateKeyFrame() = 0;
 
  protected:
   virtual ~VideoReceiveStream() {}

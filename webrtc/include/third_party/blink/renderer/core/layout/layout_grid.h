@@ -42,12 +42,12 @@ struct GridSpan;
 struct ContentAlignmentData {
  public:
   ContentAlignmentData() = default;
+  ContentAlignmentData(const ContentAlignmentData&) = delete;
+  ContentAlignmentData& operator=(const ContentAlignmentData&) = delete;
   bool IsValid() { return position_offset >= 0 && distribution_offset >= 0; }
 
   LayoutUnit position_offset = LayoutUnit(-1);
   LayoutUnit distribution_offset = LayoutUnit(-1);
-
-  DISALLOW_COPY_AND_ASSIGN(ContentAlignmentData);
 };
 
 enum GridAxisPosition { kGridAxisStart, kGridAxisEnd, kGridAxisCenter };
@@ -58,7 +58,10 @@ class LayoutGrid final : public LayoutBlock {
   ~LayoutGrid() override;
 
   static LayoutGrid* CreateAnonymous(Document*);
-  const char* GetName() const override { return "LayoutGrid"; }
+  const char* GetName() const override {
+    NOT_DESTROYED();
+    return "LayoutGrid";
+  }
 
   void UpdateBlockLayout(bool relayout_children) override;
 
@@ -67,11 +70,13 @@ class LayoutGrid final : public LayoutBlock {
   Vector<LayoutUnit> TrackSizesForComputedStyle(GridTrackSizingDirection) const;
 
   const Vector<LayoutUnit>& ColumnPositions() const {
+    NOT_DESTROYED();
     DCHECK(!grid_->NeedsItemsPlacement());
     return column_positions_;
   }
 
   const Vector<LayoutUnit>& RowPositions() const {
+    NOT_DESTROYED();
     DCHECK(!grid_->NeedsItemsPlacement());
     return row_positions_;
   }
@@ -79,6 +84,7 @@ class LayoutGrid final : public LayoutBlock {
   // TODO(svillar): rename this method as this does not return a
   // GridCell but its contents.
   const GridItemList& GetGridCell(int row, int column) const {
+    NOT_DESTROYED();
     SECURITY_DCHECK(!grid_->NeedsItemsPlacement());
     return grid_->Cell(row, column);
   }
@@ -86,6 +92,13 @@ class LayoutGrid final : public LayoutBlock {
   size_t AutoRepeatCountForDirection(GridTrackSizingDirection direction) const {
     return grid_->AutoRepeatTracks(direction);
   }
+
+  size_t ExplicitGridStartForDirection(
+      GridTrackSizingDirection direction) const {
+    return grid_->ExplicitGridStart(direction);
+  }
+
+  LayoutUnit TranslateRTLCoordinate(LayoutUnit) const;
 
   LayoutUnit TranslateOutOfFlowRTLCoordinate(const LayoutBox&,
                                              LayoutUnit) const;
@@ -113,12 +126,18 @@ class LayoutGrid final : public LayoutBlock {
 
   StyleContentAlignmentData ContentAlignment(GridTrackSizingDirection) const;
 
+  size_t ExplicitGridEndForDirection(GridTrackSizingDirection) const;
+
   // Exposed for testing *ONLY*.
-  Grid* InternalGrid() const { return grid_.get(); }
+  Grid* InternalGrid() const {
+    NOT_DESTROYED();
+    return grid_.get();
+  }
 
  protected:
   ItemPosition SelfAlignmentNormalBehavior(
       const LayoutBox* child = nullptr) const override {
+    NOT_DESTROYED();
     DCHECK(child);
     return child->IsLayoutReplaced() ? ItemPosition::kStart
                                      : ItemPosition::kStretch;
@@ -126,11 +145,10 @@ class LayoutGrid final : public LayoutBlock {
 
  private:
   bool IsOfType(LayoutObjectType type) const override {
-    return type == kLayoutObjectLayoutGrid || LayoutBlock::IsOfType(type);
+    NOT_DESTROYED();
+    return type == kLayoutObjectGrid || LayoutBlock::IsOfType(type);
   }
-  void ComputeIntrinsicLogicalWidths(
-      LayoutUnit& min_logical_width,
-      LayoutUnit& max_logical_width) const override;
+  MinMaxSizes ComputeIntrinsicLogicalWidths() const override;
 
   void AddChild(LayoutObject* new_child,
                 LayoutObject* before_child = nullptr) override;
@@ -179,11 +197,11 @@ class LayoutGrid final : public LayoutBlock {
   GridTrackSizingDirection AutoPlacementMajorAxisDirection() const;
   GridTrackSizingDirection AutoPlacementMinorAxisDirection() const;
 
-  void ComputeTrackSizesForIndefiniteSize(
-      GridTrackSizingAlgorithm&,
-      GridTrackSizingDirection,
-      LayoutUnit* min_intrinsic_size = nullptr,
-      LayoutUnit* max_intrinsic_size = nullptr) const;
+  base::Optional<LayoutUnit> OverrideIntrinsicContentLogicalSize(
+      GridTrackSizingDirection) const;
+
+  void ComputeTrackSizesForIndefiniteSize(GridTrackSizingAlgorithm&,
+                                          GridTrackSizingDirection) const;
   void ComputeTrackSizesForDefiniteSize(GridTrackSizingDirection,
                                         LayoutUnit free_space);
 
@@ -238,7 +256,7 @@ class LayoutGrid final : public LayoutBlock {
       GridTrackSizingDirection) const;
 
   void PaintChildren(const PaintInfo&,
-                     const LayoutPoint& paint_offset) const override;
+                     const PhysicalOffset& paint_offset) const override;
 
   LayoutUnit AvailableAlignmentSpaceForChildBeforeStretching(
       LayoutUnit grid_area_breadth_for_child,
@@ -253,18 +271,22 @@ class LayoutGrid final : public LayoutBlock {
   bool DefaultAlignmentIsStretchOrNormal(GridAxis, const ComputedStyle&) const;
   void ApplyStretchAlignmentToChildIfNeeded(LayoutBox&);
   bool HasAutoSizeInColumnAxis(const LayoutBox& child) const {
+    NOT_DESTROYED();
     return IsHorizontalWritingMode() ? child.StyleRef().Height().IsAuto()
                                      : child.StyleRef().Width().IsAuto();
   }
   bool HasAutoSizeInRowAxis(const LayoutBox& child) const {
+    NOT_DESTROYED();
     return IsHorizontalWritingMode() ? child.StyleRef().Width().IsAuto()
                                      : child.StyleRef().Height().IsAuto();
   }
   bool AllowedToStretchChildAlongColumnAxis(const LayoutBox& child) const {
+    NOT_DESTROYED();
     return AlignSelfForChild(child).GetPosition() == ItemPosition::kStretch &&
            HasAutoSizeInColumnAxis(child) && !HasAutoMarginsInColumnAxis(child);
   }
   bool AllowedToStretchChildAlongRowAxis(const LayoutBox& child) const {
+    NOT_DESTROYED();
     return JustifySelfForChild(child).GetPosition() == ItemPosition::kStretch &&
            HasAutoSizeInRowAxis(child) && !HasAutoMarginsInRowAxis(child);
   }
@@ -292,8 +314,6 @@ class LayoutGrid final : public LayoutBlock {
   size_t NonCollapsedTracks(GridTrackSizingDirection) const;
   size_t NumTracks(GridTrackSizingDirection, const Grid&) const;
 
-  LayoutUnit TranslateRTLCoordinate(LayoutUnit) const;
-
   static LayoutUnit OverrideContainingBlockContentSizeForChild(
       const LayoutBox& child,
       GridTrackSizingDirection);
@@ -319,7 +339,12 @@ class LayoutGrid final : public LayoutBlock {
   base::Optional<bool> has_definite_logical_height_;
 };
 
-DEFINE_LAYOUT_OBJECT_TYPE_CASTS(LayoutGrid, IsLayoutGrid());
+template <>
+struct DowncastTraits<LayoutGrid> {
+  static bool AllowFrom(const LayoutObject& object) {
+    return object.IsLayoutGrid();
+  }
+};
 
 }  // namespace blink
 

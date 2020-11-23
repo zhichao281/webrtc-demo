@@ -5,15 +5,15 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_SCHEDULER_COMMON_THROTTLING_BUDGET_POOL_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_SCHEDULER_COMMON_THROTTLING_BUDGET_POOL_H_
 
-#include <unordered_set>
-
 #include "base/callback.h"
 #include "base/macros.h"
 #include "base/optional.h"
 #include "base/task/sequence_manager/lazy_now.h"
+#include "base/task/sequence_manager/task_queue.h"
 #include "base/time/time.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/hash_set.h"
 
 namespace base {
 namespace sequence_manager {
@@ -55,10 +55,9 @@ class PLATFORM_EXPORT BudgetPool {
   virtual bool CanRunTasksAt(base::TimeTicks moment, bool is_wake_up) const = 0;
 
   // Returns a point in time until which tasks are allowed to run.
-  // base::nullopt means that there are no known limits.
-  virtual base::Optional<base::TimeTicks> GetTimeTasksCanRunUntil(
-      base::TimeTicks now,
-      bool is_wake_up) const = 0;
+  // base::TimeTicks::Max() means that there are no known limits.
+  virtual base::TimeTicks GetTimeTasksCanRunUntil(base::TimeTicks now,
+                                                  bool is_wake_up) const = 0;
 
   // Notifies budget pool that queue has work with desired run time.
   virtual void OnQueueNextWakeUpChanged(
@@ -66,7 +65,10 @@ class PLATFORM_EXPORT BudgetPool {
       base::TimeTicks now,
       base::TimeTicks desired_run_time) = 0;
 
-  // Notifies budget pool that wakeup has happened.
+  // Invoked as part of a global wake up if any of the task queues associated
+  // with the budget pool has reached its next allowed run time. The next
+  // allowed run time of a queue is the maximum value returned from
+  // GetNextAllowedRunTime() among all the budget pools it is part of.
   virtual void OnWakeUp(base::TimeTicks now) = 0;
 
   // Specify how this budget pool should block affected queues.
@@ -104,8 +106,10 @@ class PLATFORM_EXPORT BudgetPool {
   // All queues should be removed before calling Close().
   void Close();
 
-  // Block all associated queues and schedule them to run when appropriate.
-  void BlockThrottledQueues(base::TimeTicks now);
+  // Ensures that a pump is scheduled and that a fence is installed for all
+  // queues in this pool, based on state of those queues and latest values from
+  // CanRunTasksAt/GetTimeTasksCanRunUntil/GetNextAllowedRunTime.
+  void UpdateThrottlingStateForAllQueues(base::TimeTicks now);
 
  protected:
   BudgetPool(const char* name, BudgetPoolController* budget_pool_controller);
@@ -114,8 +118,7 @@ class PLATFORM_EXPORT BudgetPool {
 
   BudgetPoolController* budget_pool_controller_;
 
-  std::unordered_set<base::sequence_manager::TaskQueue*>
-      associated_task_queues_;
+  HashSet<base::sequence_manager::TaskQueue*> associated_task_queues_;
   bool is_enabled_;
 
  private:

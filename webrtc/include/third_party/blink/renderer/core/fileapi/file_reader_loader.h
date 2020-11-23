@@ -34,16 +34,16 @@
 #include <memory>
 
 #include "base/memory/weak_ptr.h"
-#include "mojo/public/cpp/bindings/binding.h"
+#include "mojo/public/cpp/bindings/receiver.h"
 #include "third_party/blink/public/mojom/blob/blob.mojom-blink.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/fileapi/file_error.h"
+#include "third_party/blink/renderer/core/typed_arrays/array_buffer/array_buffer_contents.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/text/text_encoding.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
-#include "third_party/blink/renderer/platform/wtf/typed_arrays/array_buffer.h"
 
 namespace blink {
 
@@ -85,6 +85,7 @@ class CORE_EXPORT FileReaderLoader : public mojom::blink::BlobReaderClient {
 
   DOMArrayBuffer* ArrayBufferResult();
   String StringResult();
+  ArrayBufferContents TakeContents();
 
   // Returns the total bytes received. Bytes ignored by m_rawData won't be
   // counted.
@@ -124,7 +125,7 @@ class CORE_EXPORT FileReaderLoader : public mojom::blink::BlobReaderClient {
     // into this bucket. If there are a large number of errors reported here,
     // then there can be a new enumeration reported for mojo pipe errors.
     kMojoPipeUnexpectedReadError = 10,
-    kCount
+    kMaxValue = kMojoPipeUnexpectedReadError,
   };
 
   void Cleanup();
@@ -142,9 +143,6 @@ class CORE_EXPORT FileReaderLoader : public mojom::blink::BlobReaderClient {
   void OnComplete(int32_t status, uint64_t data_length) override;
   void OnDataPipeReadable(MojoResult);
 
-  void AdjustReportedMemoryUsageToV8(int64_t usage);
-  void UnadjustReportedMemoryUsageToV8();
-
   String ConvertToText();
   String ConvertToDataURL();
   void SetStringResult(const String&);
@@ -154,7 +152,7 @@ class CORE_EXPORT FileReaderLoader : public mojom::blink::BlobReaderClient {
   WTF::TextEncoding encoding_;
   String data_type_;
 
-  scoped_refptr<ArrayBuffer> raw_data_;
+  ArrayBufferContents raw_data_;
   bool is_raw_data_converted_ = false;
 
   Persistent<DOMArrayBuffer> array_buffer_result_;
@@ -169,14 +167,16 @@ class CORE_EXPORT FileReaderLoader : public mojom::blink::BlobReaderClient {
   // it is known, and  the buffer for receiving data of total_bytes_ is
   // allocated and never grow even when extra data is appended.
   base::Optional<uint64_t> total_bytes_;
-  int64_t memory_usage_reported_to_v8_ = 0;
 
   int32_t net_error_ = 0;  // net::OK
   FileErrorCode error_code_ = FileErrorCode::kOK;
 
   mojo::ScopedDataPipeConsumerHandle consumer_handle_;
   mojo::SimpleWatcher handle_watcher_;
-  mojo::Binding<mojom::blink::BlobReaderClient> binding_;
+  // TODO(crbug.com/937038, crbug.com/1049056): Make FileReaderLoaderClient
+  // GarbageCollected. It will then be possible to use the HeapMojoReceiver
+  // wrapper for receiver_.
+  mojo::Receiver<mojom::blink::BlobReaderClient> receiver_{this};
   bool received_all_data_ = false;
   bool received_on_complete_ = false;
 #if DCHECK_IS_ON()
@@ -185,7 +185,7 @@ class CORE_EXPORT FileReaderLoader : public mojom::blink::BlobReaderClient {
 
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 
-  base::WeakPtrFactory<FileReaderLoader> weak_factory_;
+  base::WeakPtrFactory<FileReaderLoader> weak_factory_{this};
 };
 
 }  // namespace blink

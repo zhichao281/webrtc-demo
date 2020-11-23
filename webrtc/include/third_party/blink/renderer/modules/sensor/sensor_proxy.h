@@ -8,10 +8,11 @@
 #include "base/macros.h"
 #include "services/device/public/cpp/generic_sensor/sensor_reading.h"
 #include "services/device/public/cpp/generic_sensor/sensor_reading_shared_buffer_reader.h"
-#include "services/device/public/mojom/sensor.mojom-blink.h"
+#include "services/device/public/mojom/sensor.mojom-blink-forward.h"
 #include "services/device/public/mojom/sensor_provider.mojom-blink.h"
 #include "third_party/blink/renderer/core/page/focus_changed_observer.h"
 #include "third_party/blink/renderer/core/page/page_visibility_observer.h"
+#include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/exception_code.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 
@@ -21,11 +22,9 @@ class SensorProviderProxy;
 
 // This class wraps 'Sensor' mojo interface and used by multiple
 // JS sensor instances of the same type (within a single frame).
-class SensorProxy : public GarbageCollectedFinalized<SensorProxy>,
-                    public PageVisibilityObserver,
-                    public FocusChangedObserver {
-  USING_GARBAGE_COLLECTED_MIXIN(SensorProxy);
-
+class MODULES_EXPORT SensorProxy : public GarbageCollected<SensorProxy>,
+                                   public PageVisibilityObserver,
+                                   public FocusChangedObserver {
  public:
   class Observer : public GarbageCollectedMixin {
    public:
@@ -70,7 +69,7 @@ class SensorProxy : public GarbageCollectedFinalized<SensorProxy>,
   // Detach from the local frame's SensorProviderProxy.
   void Detach();
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
   static const char kDefaultErrorDescription[];
 
@@ -82,7 +81,7 @@ class SensorProxy : public GarbageCollectedFinalized<SensorProxy>,
   virtual void Suspend() {}
   virtual void Resume() {}
 
-  device::mojom::blink::SensorProvider* sensor_provider() const;
+  SensorProviderProxy* sensor_provider_proxy() const { return provider_; }
 
   device::mojom::blink::SensorType type_;
   using ObserversSet = HeapHashSet<WeakMember<Observer>>;
@@ -93,8 +92,6 @@ class SensorProxy : public GarbageCollectedFinalized<SensorProxy>,
 
   device::SensorReading reading_;
   mutable device::SensorReading remapped_reading_;
-
-  using ReadingBuffer = device::SensorReadingSharedBuffer;
 
  private:
   // PageVisibilityObserver overrides.
@@ -110,7 +107,7 @@ class SensorProxy : public GarbageCollectedFinalized<SensorProxy>,
   bool detached_ = false;
 
   static_assert(
-      sizeof(ReadingBuffer) ==
+      sizeof(device::SensorReadingSharedBuffer) ==
           device::mojom::blink::SensorInitParams::kReadBufferSizeForTests,
       "Check reading buffer size for tests");
 

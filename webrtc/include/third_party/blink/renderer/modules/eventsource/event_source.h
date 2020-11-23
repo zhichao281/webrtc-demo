@@ -33,9 +33,10 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_EVENTSOURCE_EVENT_SOURCE_H_
 
 #include <memory>
+#include "base/memory/scoped_refptr.h"
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
-#include "third_party/blink/renderer/core/execution_context/context_lifecycle_observer.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/core/loader/threadable_loader.h"
 #include "third_party/blink/renderer/core/loader/threadable_loader_client.h"
 #include "third_party/blink/renderer/modules/eventsource/event_source_parser.h"
@@ -47,6 +48,7 @@
 
 namespace blink {
 
+class DOMWrapperWorld;
 class EventSourceInit;
 class ExceptionState;
 class ResourceResponse;
@@ -55,10 +57,9 @@ class MODULES_EXPORT EventSource final
     : public EventTargetWithInlineData,
       public ThreadableLoaderClient,
       public ActiveScriptWrappable<EventSource>,
-      public ContextLifecycleObserver,
+      public ExecutionContextLifecycleObserver,
       public EventSourceParser::Client {
   DEFINE_WRAPPERTYPEINFO();
-  USING_GARBAGE_COLLECTED_MIXIN(EventSource);
 
  public:
   static EventSource* Create(ExecutionContext*,
@@ -87,19 +88,18 @@ class MODULES_EXPORT EventSource final
   const AtomicString& InterfaceName() const override;
   ExecutionContext* GetExecutionContext() const override;
 
-  // ContextLifecycleObserver
+  // ExecutionContextLifecycleObserver
   //
-  // Note: We don't need to inherit from ContextLifecycleStateObserver since
-  // ScopedPageLoadDeferrer calls Page::setDefersLoading() and
-  // it defers delivery of events from the loader, and therefore
-  // the methods of this class for receiving asynchronous events
-  // from the loader won't be invoked.
-  void ContextDestroyed(ExecutionContext*) override;
+  // Note: We don't need to inherit from ExecutionContextLifecycleStateObserver
+  // since ScopedPageLoadDeferrer calls Page::setDefersLoading() and it defers
+  // delivery of events from the loader, and therefore the methods of this class
+  // for receiving asynchronous events from the loader won't be invoked.
+  void ContextDestroyed() override;
 
   // ScriptWrappable
   bool HasPendingActivity() const final;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   void DidReceiveResponse(uint64_t, const ResourceResponse&) override;
@@ -136,6 +136,10 @@ class MODULES_EXPORT EventSource final
   uint64_t reconnect_delay_;
   String event_stream_origin_;
   uint64_t resource_identifier_ = 0;
+
+  // The world in which this EventSource was created. We need to store this
+  // because EventSource::Connect can be triggered by |connect_timer_|.
+  scoped_refptr<const DOMWrapperWorld> world_;
 };
 
 }  // namespace blink

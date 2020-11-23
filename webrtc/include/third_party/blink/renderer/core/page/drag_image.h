@@ -36,7 +36,7 @@
 #include "third_party/blink/renderer/platform/graphics/image_orientation.h"
 #include "third_party/blink/renderer/platform/graphics/paint/display_item_client.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_image.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 
@@ -52,7 +52,7 @@ class CORE_EXPORT DragImage {
  public:
   static std::unique_ptr<DragImage> Create(
       Image*,
-      RespectImageOrientationEnum = kDoNotRespectImageOrientation,
+      RespectImageOrientationEnum = kRespectImageOrientation,
       float device_scale_factor = 1,
       InterpolationQuality = kInterpolationDefault,
       float opacity = 1,

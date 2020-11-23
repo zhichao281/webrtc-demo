@@ -31,7 +31,7 @@
 #ifndef THIRD_PARTY_BLINK_PUBLIC_PLATFORM_WEB_VECTOR_H_
 #define THIRD_PARTY_BLINK_PUBLIC_PLATFORM_WEB_VECTOR_H_
 
-#include "base/logging.h"
+#include "base/check_op.h"
 #include "build/build_config.h"
 #include "third_party/blink/public/platform/web_common.h"
 
@@ -173,6 +173,18 @@ class WebVector {
 
   void Swap(WebVector<T>& other) { data_.swap(other.data_); }
   void Clear() { data_.clear(); }
+
+  T& front() { return data_.front(); }
+  const T& front() const { return data_.front(); }
+  T& back() { return data_.back(); }
+  const T& back() const { return data_.back(); }
+
+  void EraseAt(size_t index) { data_.erase(begin() + index); }
+  void Insert(size_t index, const T& value) {
+    data_.insert(begin() + index, value);
+  }
+
+  bool Equals(const WebVector<T>& other) const { return data_ == other.data_; }
 
  private:
   std::vector<T> data_;

@@ -34,6 +34,7 @@ namespace blink {
 
 class CSSParserContext;
 class CSSSelectorList;
+class Node;
 
 // This class represents a simple selector for a StyleRule.
 
@@ -107,9 +108,23 @@ class CORE_EXPORT CSSSelector {
   static constexpr unsigned kClassLikeSpecificity = 0x000100;
   static constexpr unsigned kTagSpecificity = 0x000001;
 
+  // TODO(crbug.com/1143404): Fix :host pseudos and remove this enum.
+  enum class SpecificityMode {
+    // Normal mode currently treats :host() and :host-context() as zero.
+    // (The actual specificity is determined dynamically during selector
+    // matching).
+    kNormal,
+    // This mode calculates the specificity for :host() and :host-context()
+    // like it's calculated for :is(), i.e. the specificity is that of the
+    // most specific argument.
+    //
+    // This mode is intended for use-counting purposes only.
+    kIncludeHostPseudos
+  };
+
   // http://www.w3.org/TR/css3-selectors/#specificity
   // We use 256 as the base of the specificity number system.
-  unsigned Specificity() const;
+  unsigned Specificity(SpecificityMode = SpecificityMode::kNormal) const;
 
   /* how the attribute value has to match.... Default is Exact */
   enum MatchType {
@@ -160,6 +175,7 @@ class CORE_EXPORT CSSSelector {
     kPseudoNthLastChild,
     kPseudoNthLastOfType,
     kPseudoPart,
+    kPseudoState,
     kPseudoLink,
     kPseudoVisited,
     kPseudoAny,
@@ -192,6 +208,8 @@ class CORE_EXPORT CSSSelector {
     kPseudoTarget,
     kPseudoBefore,
     kPseudoAfter,
+    kPseudoMarker,
+    kPseudoModal,
     kPseudoBackdrop,
     kPseudoLang,
     kPseudoNot,
@@ -229,9 +247,10 @@ class CORE_EXPORT CSSSelector {
     kPseudoPictureInPicture,
     kPseudoInRange,
     kPseudoOutOfRange,
+    kPseudoXrOverlay,
     // Pseudo elements in UA ShadowRoots. Available in any stylesheets.
     kPseudoWebKitCustomElement,
-    // Pseudo elements in UA ShadowRoots. Availble only in UA stylesheets.
+    // Pseudo elements in UA ShadowRoots. Available only in UA stylesheets.
     kPseudoBlinkInternalElement,
     kPseudoCue,
     kPseudoFutureCue,
@@ -239,6 +258,7 @@ class CORE_EXPORT CSSSelector {
     kPseudoUnresolved,
     kPseudoDefined,
     kPseudoContent,
+    kPseudoHasDatalist,
     kPseudoHost,
     kPseudoHostContext,
     kPseudoShadow,
@@ -246,13 +266,15 @@ class CORE_EXPORT CSSSelector {
     kPseudoSpatialNavigationInterest,
     kPseudoIsHtml,
     kPseudoListBox,
+    kPseudoMultiSelectFocus,
     kPseudoHostHasAppearance,
     kPseudoSlotted,
     kPseudoVideoPersistent,
     kPseudoVideoPersistentAncestor,
+    kPseudoTargetText,
   };
 
-  enum AttributeMatchType {
+  enum class AttributeMatchType {
     kCaseSensitive,
     kCaseInsensitive,
   };
@@ -268,7 +290,7 @@ class CORE_EXPORT CSSSelector {
   void UpdatePseudoPage(const AtomicString&);
 
   static PseudoType ParsePseudoType(const AtomicString&, bool has_arguments);
-  static PseudoId ParsePseudoId(const String&);
+  static PseudoId ParsePseudoId(const String&, const Node*);
   static PseudoId GetPseudoId(PseudoType);
 
   // Selectors are kept in an array by CSSSelectorList. The next component of
@@ -299,6 +321,9 @@ class CORE_EXPORT CSSSelector {
   const CSSSelectorList* SelectorList() const {
     return has_rare_data_ ? data_.rare_data_->selector_list_.get() : nullptr;
   }
+  const Vector<AtomicString>* PartNames() const {
+    return has_rare_data_ ? data_.rare_data_->part_names_.get() : nullptr;
+  }
 
 #ifndef NDEBUG
   void Show() const;
@@ -310,6 +335,7 @@ class CORE_EXPORT CSSSelector {
   void SetAttribute(const QualifiedName&, AttributeMatchType);
   void SetArgument(const AtomicString&);
   void SetSelectorList(std::unique_ptr<CSSSelectorList>);
+  void SetPartNames(std::unique_ptr<Vector<AtomicString>>);
 
   void SetNth(int a, int b);
   bool MatchNth(unsigned count) const;
@@ -358,9 +384,6 @@ class CORE_EXPORT CSSSelector {
   bool IsLastInTagHistory() const { return is_last_in_tag_history_; }
   void SetLastInTagHistory(bool is_last) { is_last_in_tag_history_ = is_last; }
 
-  bool IgnoreSpecificity() const { return ignore_specificity_; }
-  void SetIgnoreSpecificity(bool ignore) { ignore_specificity_ = ignore; }
-
   // https://drafts.csswg.org/selectors/#compound
   bool IsCompound() const;
 
@@ -369,7 +392,10 @@ class CORE_EXPORT CSSSelector {
     kMatchVisited = 2,
     kMatchAll = kMatchLink | kMatchVisited
   };
-  unsigned ComputeLinkMatchType(unsigned link_match_type) const;
+
+  // True if :link or :visited pseudo-classes are found anywhere in
+  // the selector.
+  bool HasLinkOrVisited() const;
 
   bool IsForPage() const { return is_for_page_; }
   void SetForPage() { is_for_page_ = true; }
@@ -391,8 +417,8 @@ class CORE_EXPORT CSSSelector {
   // Returns true if the immediately preceeding simple selector is ::part.
   bool FollowsPart() const;
   bool NeedsUpdatedDistribution() const;
-  bool HasPseudoIs() const;
-  bool HasPseudoWhere() const;
+
+  static String FormatPseudoTypeForDebugging(PseudoType);
 
  private:
   unsigned relation_ : 4;     // enum RelationType
@@ -405,7 +431,6 @@ class CORE_EXPORT CSSSelector {
   unsigned tag_is_implicit_ : 1;
   unsigned relation_is_affected_by_pseudo_content_ : 1;
   unsigned is_last_in_original_list_ : 1;
-  unsigned ignore_specificity_ : 1;
 
   void SetPseudoType(PseudoType pseudo_type) {
     pseudo_type_ = pseudo_type;
@@ -413,7 +438,8 @@ class CORE_EXPORT CSSSelector {
               pseudo_type);  // using a bitfield.
   }
 
-  unsigned SpecificityForOneSelector() const;
+  unsigned SpecificityForOneSelector(
+      SpecificityMode = SpecificityMode::kNormal) const;
   unsigned SpecificityForPage() const;
   const CSSSelector* SerializeCompound(StringBuilder&) const;
 
@@ -444,17 +470,44 @@ class CORE_EXPORT CSSSelector {
     AtomicString argument_;    // Used for :contains, :lang, :nth-*
     std::unique_ptr<CSSSelectorList>
         selector_list_;  // Used for :-webkit-any and :not
+    std::unique_ptr<Vector<AtomicString>>
+        part_names_;  // Used for ::part() selectors.
 
    private:
     RareData(const AtomicString& value);
   };
   void CreateRareData();
 
+  // The type tag for DataUnion is actually inferred from multiple state variables in the
+  // containing CSSSelector using the following rules.
+  //
+  //  if (match_ == kTag) {
+  //     /* data_.tag_q_name_ is valid */
+  //  } else if (has_rare_data_) {
+  //     /* data_.rare_data_ is valid */
+  //  } else {
+  //     /* data_.value_ is valid */
+  //  }
+  //
+  // Note that it is important to placement-new and explicitly destruct the fields when
+  // shifting between types tags for a DataUnion! Otherwise there will be undefined
+  // behavior! This luckily only happens when transitioning from a normal |value_| to
+  // a |rare_data_|.
   union DataUnion {
-    DataUnion() : value_(nullptr) {}
-    StringImpl* value_;
-    QualifiedName::QualifiedNameImpl* tag_q_name_;
-    RareData* rare_data_;
+    enum ConstructUninitializedTag { kConstructUninitialized };
+    explicit DataUnion(ConstructUninitializedTag) {}
+
+    enum ConstructEmptyValueTag { kConstructEmptyValue };
+    explicit DataUnion(ConstructEmptyValueTag) : value_() {}
+
+    explicit DataUnion(const QualifiedName& tag_q_name)
+        : tag_q_name_(tag_q_name) {}
+
+    ~DataUnion() {}
+
+    AtomicString value_;
+    QualifiedName tag_q_name_;
+    scoped_refptr<RareData> rare_data_;
   } data_;
 };
 
@@ -484,12 +537,9 @@ inline void CSSSelector::SetValue(const AtomicString& value,
   if (match_lower_case && !has_rare_data_ && !IsASCIILower(value)) {
     CreateRareData();
   }
-  // Need to do ref counting manually for the union.
+
   if (!has_rare_data_) {
-    if (data_.value_)
-      data_.value_->Release();
-    data_.value_ = value.Impl();
-    data_.value_->AddRef();
+    data_.value_ = value;
     return;
   }
   data_.rare_data_->matching_value_ =
@@ -508,7 +558,7 @@ inline CSSSelector::CSSSelector()
       tag_is_implicit_(false),
       relation_is_affected_by_pseudo_content_(false),
       is_last_in_original_list_(false),
-      ignore_specificity_(false) {}
+      data_(DataUnion::kConstructEmptyValue) {}
 
 inline CSSSelector::CSSSelector(const QualifiedName& tag_q_name,
                                 bool tag_is_implicit)
@@ -522,10 +572,7 @@ inline CSSSelector::CSSSelector(const QualifiedName& tag_q_name,
       tag_is_implicit_(tag_is_implicit),
       relation_is_affected_by_pseudo_content_(false),
       is_last_in_original_list_(false),
-      ignore_specificity_(false) {
-  data_.tag_q_name_ = tag_q_name.Impl();
-  data_.tag_q_name_->AddRef();
-}
+      data_(tag_q_name) {}
 
 inline CSSSelector::CSSSelector(const CSSSelector& o)
     : relation_(o.relation_),
@@ -539,49 +586,42 @@ inline CSSSelector::CSSSelector(const CSSSelector& o)
       relation_is_affected_by_pseudo_content_(
           o.relation_is_affected_by_pseudo_content_),
       is_last_in_original_list_(o.is_last_in_original_list_),
-      ignore_specificity_(o.ignore_specificity_) {
+      data_(DataUnion::kConstructUninitialized) {
   if (o.match_ == kTag) {
-    data_.tag_q_name_ = o.data_.tag_q_name_;
-    data_.tag_q_name_->AddRef();
+    new (&data_.tag_q_name_) QualifiedName(o.data_.tag_q_name_);
   } else if (o.has_rare_data_) {
-    data_.rare_data_ = o.data_.rare_data_;
-    data_.rare_data_->AddRef();
-  } else if (o.data_.value_) {
-    data_.value_ = o.data_.value_;
-    data_.value_->AddRef();
+    new (&data_.rare_data_) scoped_refptr<RareData>(o.data_.rare_data_);
+  } else {
+    new (&data_.value_) AtomicString(o.data_.value_);
   }
 }
 
 inline CSSSelector::~CSSSelector() {
   if (match_ == kTag)
-    data_.tag_q_name_->Release();
+    data_.tag_q_name_.~QualifiedName();
   else if (has_rare_data_)
-    data_.rare_data_->Release();
-  else if (data_.value_)
-    data_.value_->Release();
+    data_.rare_data_.~scoped_refptr<RareData>();
+  else
+    data_.value_.~AtomicString();
 }
 
 inline const QualifiedName& CSSSelector::TagQName() const {
   DCHECK_EQ(match_, static_cast<unsigned>(kTag));
-  return *reinterpret_cast<const QualifiedName*>(&data_.tag_q_name_);
+  return data_.tag_q_name_;
 }
 
 inline const AtomicString& CSSSelector::Value() const {
   DCHECK_NE(match_, static_cast<unsigned>(kTag));
   if (has_rare_data_)
     return data_.rare_data_->matching_value_;
-  // AtomicString is really just a StringImpl* so the cast below is safe.
-  // FIXME: Perhaps call sites could be changed to accept StringImpl?
-  return *reinterpret_cast<const AtomicString*>(&data_.value_);
+  return data_.value_;
 }
 
 inline const AtomicString& CSSSelector::SerializingValue() const {
   DCHECK_NE(match_, static_cast<unsigned>(kTag));
   if (has_rare_data_)
     return data_.rare_data_->serializing_value_;
-  // AtomicString is really just a StringImpl* so the cast below is safe.
-  // FIXME: Perhaps call sites could be changed to accept StringImpl?
-  return *reinterpret_cast<const AtomicString*>(&data_.value_);
+  return data_.value_;
 }
 
 inline bool CSSSelector::IsUserActionPseudoClass() const {

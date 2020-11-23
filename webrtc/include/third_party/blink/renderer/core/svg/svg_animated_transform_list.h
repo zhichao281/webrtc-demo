@@ -34,6 +34,7 @@
 #include "third_party/blink/renderer/core/svg/properties/svg_animated_property.h"
 #include "third_party/blink/renderer/core/svg/svg_transform_list_tear_off.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
+#include "third_party/blink/renderer/platform/heap/heap.h"
 
 namespace blink {
 
@@ -43,26 +44,18 @@ class SVGAnimatedTransformList final
     : public ScriptWrappable,
       public SVGAnimatedProperty<SVGTransformList> {
   DEFINE_WRAPPERTYPEINFO();
-  USING_GARBAGE_COLLECTED_MIXIN(SVGAnimatedTransformList);
 
  public:
-  static SVGAnimatedTransformList* Create(
-      SVGElement* context_element,
-      const QualifiedName& attribute_name,
-      CSSPropertyID css_property_id = CSSPropertyID::kInvalid) {
-    return MakeGarbageCollected<SVGAnimatedTransformList>(
-        context_element, attribute_name, css_property_id);
-  }
-
   SVGAnimatedTransformList(SVGElement* context_element,
                            const QualifiedName& attribute_name,
                            CSSPropertyID css_property_id)
-      : SVGAnimatedProperty<SVGTransformList>(context_element,
-                                              attribute_name,
-                                              SVGTransformList::Create(),
-                                              css_property_id) {}
+      : SVGAnimatedProperty<SVGTransformList>(
+            context_element,
+            attribute_name,
+            MakeGarbageCollected<SVGTransformList>(),
+            css_property_id) {}
 
-  void Trace(blink::Visitor* visitor) override {
+  void Trace(Visitor* visitor) const override {
     SVGAnimatedProperty<SVGTransformList>::Trace(visitor);
     ScriptWrappable::Trace(visitor);
   }

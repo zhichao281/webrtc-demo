@@ -617,7 +617,7 @@ class WebGL2RenderingContextBase : public WebGLRenderingContextBase {
   void uniform3ui(const WebGLUniformLocation*, GLuint, GLuint, GLuint);
   void uniform4ui(const WebGLUniformLocation*, GLuint, GLuint, GLuint, GLuint);
   void uniform1fv(const WebGLUniformLocation*,
-                  const FlexibleFloat32ArrayView&,
+                  const FlexibleFloat32Array&,
                   GLuint,
                   GLuint);
   void uniform1fv(const WebGLUniformLocation*,
@@ -625,7 +625,7 @@ class WebGL2RenderingContextBase : public WebGLRenderingContextBase {
                   GLuint,
                   GLuint);
   void uniform2fv(const WebGLUniformLocation*,
-                  const FlexibleFloat32ArrayView&,
+                  const FlexibleFloat32Array&,
                   GLuint,
                   GLuint);
   void uniform2fv(const WebGLUniformLocation*,
@@ -633,7 +633,7 @@ class WebGL2RenderingContextBase : public WebGLRenderingContextBase {
                   GLuint,
                   GLuint);
   void uniform3fv(const WebGLUniformLocation*,
-                  const FlexibleFloat32ArrayView&,
+                  const FlexibleFloat32Array&,
                   GLuint,
                   GLuint);
   void uniform3fv(const WebGLUniformLocation*,
@@ -641,7 +641,7 @@ class WebGL2RenderingContextBase : public WebGLRenderingContextBase {
                   GLuint,
                   GLuint);
   void uniform4fv(const WebGLUniformLocation*,
-                  const FlexibleFloat32ArrayView&,
+                  const FlexibleFloat32Array&,
                   GLuint,
                   GLuint);
   void uniform4fv(const WebGLUniformLocation*,
@@ -649,27 +649,27 @@ class WebGL2RenderingContextBase : public WebGLRenderingContextBase {
                   GLuint,
                   GLuint);
   void uniform1iv(const WebGLUniformLocation*,
-                  const FlexibleInt32ArrayView&,
+                  const FlexibleInt32Array&,
                   GLuint,
                   GLuint);
   void uniform1iv(const WebGLUniformLocation*, Vector<GLint>&, GLuint, GLuint);
   void uniform2iv(const WebGLUniformLocation*,
-                  const FlexibleInt32ArrayView&,
+                  const FlexibleInt32Array&,
                   GLuint,
                   GLuint);
   void uniform2iv(const WebGLUniformLocation*, Vector<GLint>&, GLuint, GLuint);
   void uniform3iv(const WebGLUniformLocation*,
-                  const FlexibleInt32ArrayView&,
+                  const FlexibleInt32Array&,
                   GLuint,
                   GLuint);
   void uniform3iv(const WebGLUniformLocation*, Vector<GLint>&, GLuint, GLuint);
   void uniform4iv(const WebGLUniformLocation*,
-                  const FlexibleInt32ArrayView&,
+                  const FlexibleInt32Array&,
                   GLuint,
                   GLuint);
   void uniform4iv(const WebGLUniformLocation*, Vector<GLint>&, GLuint, GLuint);
   void uniform1uiv(const WebGLUniformLocation*,
-                   const FlexibleUint32ArrayView&,
+                   const FlexibleUint32Array&,
                    GLuint,
                    GLuint);
   void uniform1uiv(const WebGLUniformLocation*,
@@ -677,7 +677,7 @@ class WebGL2RenderingContextBase : public WebGLRenderingContextBase {
                    GLuint,
                    GLuint);
   void uniform2uiv(const WebGLUniformLocation*,
-                   const FlexibleUint32ArrayView&,
+                   const FlexibleUint32Array&,
                    GLuint,
                    GLuint);
   void uniform2uiv(const WebGLUniformLocation*,
@@ -685,7 +685,7 @@ class WebGL2RenderingContextBase : public WebGLRenderingContextBase {
                    GLuint,
                    GLuint);
   void uniform3uiv(const WebGLUniformLocation*,
-                   const FlexibleUint32ArrayView&,
+                   const FlexibleUint32Array&,
                    GLuint,
                    GLuint);
   void uniform3uiv(const WebGLUniformLocation*,
@@ -693,7 +693,7 @@ class WebGL2RenderingContextBase : public WebGLRenderingContextBase {
                    GLuint,
                    GLuint);
   void uniform4uiv(const WebGLUniformLocation*,
-                   const FlexibleUint32ArrayView&,
+                   const FlexibleUint32Array&,
                    GLuint,
                    GLuint);
   void uniform4uiv(const WebGLUniformLocation*,
@@ -793,21 +793,21 @@ class WebGL2RenderingContextBase : public WebGLRenderingContextBase {
   // Have to re-declare/re-define the following uniform*()
   // functions from the base class. This is because the above
   // uniform*() hide the name from base class.
-  void uniform1fv(const WebGLUniformLocation*, const FlexibleFloat32ArrayView&);
+  void uniform1fv(const WebGLUniformLocation*, const FlexibleFloat32Array&);
   void uniform1fv(const WebGLUniformLocation*, Vector<GLfloat>&);
-  void uniform2fv(const WebGLUniformLocation*, const FlexibleFloat32ArrayView&);
+  void uniform2fv(const WebGLUniformLocation*, const FlexibleFloat32Array&);
   void uniform2fv(const WebGLUniformLocation*, Vector<GLfloat>&);
-  void uniform3fv(const WebGLUniformLocation*, const FlexibleFloat32ArrayView&);
+  void uniform3fv(const WebGLUniformLocation*, const FlexibleFloat32Array&);
   void uniform3fv(const WebGLUniformLocation*, Vector<GLfloat>&);
-  void uniform4fv(const WebGLUniformLocation*, const FlexibleFloat32ArrayView&);
+  void uniform4fv(const WebGLUniformLocation*, const FlexibleFloat32Array&);
   void uniform4fv(const WebGLUniformLocation*, Vector<GLfloat>&);
-  void uniform1iv(const WebGLUniformLocation*, const FlexibleInt32ArrayView&);
+  void uniform1iv(const WebGLUniformLocation*, const FlexibleInt32Array&);
   void uniform1iv(const WebGLUniformLocation*, Vector<GLint>&);
-  void uniform2iv(const WebGLUniformLocation*, const FlexibleInt32ArrayView&);
+  void uniform2iv(const WebGLUniformLocation*, const FlexibleInt32Array&);
   void uniform2iv(const WebGLUniformLocation*, Vector<GLint>&);
-  void uniform3iv(const WebGLUniformLocation*, const FlexibleInt32ArrayView&);
+  void uniform3iv(const WebGLUniformLocation*, const FlexibleInt32Array&);
   void uniform3iv(const WebGLUniformLocation*, Vector<GLint>&);
-  void uniform4iv(const WebGLUniformLocation*, const FlexibleInt32ArrayView&);
+  void uniform4iv(const WebGLUniformLocation*, const FlexibleInt32Array&);
   void uniform4iv(const WebGLUniformLocation*, Vector<GLint>&);
   void uniformMatrix2fv(const WebGLUniformLocation*,
                         GLboolean transpose,
@@ -907,7 +907,7 @@ class WebGL2RenderingContextBase : public WebGLRenderingContextBase {
   /* Uniform Buffer Objects and Transform Feedback Buffers */
   void bindBufferBase(GLenum, GLuint, WebGLBuffer*);
   void bindBufferRange(GLenum, GLuint, WebGLBuffer*, int64_t, int64_t);
-  ScriptValue getIndexedParameter(ScriptState*, GLenum, GLuint);
+  virtual ScriptValue getIndexedParameter(ScriptState*, GLenum, GLuint);
   Vector<GLuint> getUniformIndices(WebGLProgram*, const Vector<String>&);
   ScriptValue getActiveUniforms(ScriptState*,
                                 WebGLProgram*,
@@ -970,7 +970,7 @@ class WebGL2RenderingContextBase : public WebGLRenderingContextBase {
   /* Helpers */
   GLint GetMaxTransformFeedbackSeparateAttribs() const;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  protected:
   friend class V8WebGL2RenderingContext;
@@ -997,21 +997,13 @@ class WebGL2RenderingContextBase : public WebGLRenderingContextBase {
 
   bool ValidateClearBuffer(const char* function_name,
                            GLenum buffer,
-                           GLsizei length,
+                           size_t length,
                            GLuint src_offset);
 
   enum TexStorageType {
     kTexStorageType2D,
     kTexStorageType3D,
   };
-  bool ValidateTexStorage(const char*,
-                          GLenum,
-                          GLsizei,
-                          GLenum,
-                          GLsizei,
-                          GLsizei,
-                          GLsizei,
-                          TexStorageType);
 
   bool ValidateUniformBlockIndex(const char*, WebGLProgram*, GLuint);
 
@@ -1021,13 +1013,16 @@ class WebGL2RenderingContextBase : public WebGLRenderingContextBase {
 
   bool IsBufferBoundToTransformFeedback(WebGLBuffer*);
   bool IsBufferBoundToNonTransformFeedback(WebGLBuffer*);
-  bool ValidateBufferTargetCompatibility(const char*, GLenum, WebGLBuffer*);
+  virtual bool ValidateBufferTargetCompatibility(const char*,
+                                                 GLenum,
+                                                 WebGLBuffer*);
 
-  bool ValidateBufferBaseTarget(const char* function_name, GLenum target);
-  bool ValidateAndUpdateBufferBindBaseTarget(const char* function_name,
-                                             GLenum,
-                                             GLuint,
-                                             WebGLBuffer*);
+  virtual bool ValidateBufferBaseTarget(const char* function_name,
+                                        GLenum target);
+  virtual bool ValidateAndUpdateBufferBindBaseTarget(const char* function_name,
+                                                     GLenum,
+                                                     GLuint,
+                                                     WebGLBuffer*);
 
   WebGLImageConversion::PixelStoreParams GetPackPixelStoreParams() override;
   WebGLImageConversion::PixelStoreParams GetUnpackPixelStoreParams(
@@ -1117,8 +1112,7 @@ class WebGL2RenderingContextBase : public WebGLRenderingContextBase {
   // Member rather than Member.
   Member<WebGLTransformFeedback> default_transform_feedback_;
 
-  std::set<GLenum> supported_internal_formats_storage_;
-  std::set<GLenum> compressed_texture_formats_etc2eac_;
+  GLenumHashSet supported_internal_formats_storage_;
 
   Member<WebGLBuffer> bound_copy_read_buffer_;
   Member<WebGLBuffer> bound_copy_write_buffer_;
@@ -1126,11 +1120,7 @@ class WebGL2RenderingContextBase : public WebGLRenderingContextBase {
   Member<WebGLBuffer> bound_pixel_unpack_buffer_;
   Member<WebGLBuffer> bound_transform_feedback_buffer_;
   Member<WebGLBuffer> bound_uniform_buffer_;
-  Member<WebGLBuffer> bound_atomic_counter_buffer_;
-  Member<WebGLBuffer> bound_shader_storage_buffer_;
 
-  HeapVector<Member<WebGLBuffer>> bound_indexed_atomic_counter_buffers_;
-  HeapVector<Member<WebGLBuffer>> bound_indexed_shader_storage_buffers_;
   HeapVector<Member<WebGLBuffer>> bound_indexed_uniform_buffers_;
   GLint max_transform_feedback_separate_attribs_;
   wtf_size_t max_bound_uniform_buffer_index_;
@@ -1145,17 +1135,12 @@ class WebGL2RenderingContextBase : public WebGLRenderingContextBase {
   GLint pack_skip_rows_;
   GLint unpack_image_height_;
   GLint unpack_skip_images_;
-};
 
-DEFINE_TYPE_CASTS(WebGL2RenderingContextBase,
-                  CanvasRenderingContext,
-                  context,
-                  context->Is3d() &&
-                      WebGLRenderingContextBase::GetWebGLVersion(context) ==
-                          Platform::kWebGL2ContextType,
-                  context.Is3d() &&
-                      WebGLRenderingContextBase::GetWebGLVersion(&context) ==
-                          Platform::kWebGL2ContextType);
+ private:
+  void RecordInternalFormatParameter(GLenum internalformat,
+                                     GLint* values,
+                                     GLint length);
+};
 
 }  // namespace blink
 

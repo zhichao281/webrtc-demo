@@ -34,8 +34,8 @@
 #include <memory>
 #include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
+#include "third_party/blink/public/common/tokens/tokens.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/messaging/blink_transferable_message.h"
 #include "third_party/blink/renderer/core/messaging/message_port.h"
 #include "third_party/blink/renderer/core/workers/threaded_object_proxy_base.h"
 #include "third_party/blink/renderer/core/workers/worker_reporting_proxy.h"
@@ -43,6 +43,7 @@
 
 namespace blink {
 
+struct BlinkTransferableMessage;
 class DedicatedWorkerMessagingProxy;
 class ParentExecutionContextTaskRunners;
 class ThreadedMessagingProxyBase;
@@ -56,7 +57,8 @@ class CORE_EXPORT DedicatedWorkerObjectProxy : public ThreadedObjectProxyBase {
 
  public:
   DedicatedWorkerObjectProxy(DedicatedWorkerMessagingProxy*,
-                             ParentExecutionContextTaskRunners*);
+                             ParentExecutionContextTaskRunners*,
+                             const DedicatedWorkerToken&);
   ~DedicatedWorkerObjectProxy() override;
 
   void PostMessageToWorkerObject(BlinkTransferableMessage);
@@ -69,8 +71,9 @@ class CORE_EXPORT DedicatedWorkerObjectProxy : public ThreadedObjectProxyBase {
                        int exception_id) override;
   void DidFailToFetchClassicScript() final;
   void DidFailToFetchModuleScript() final;
-  void DidEvaluateClassicScript(bool success) override;
-  void DidEvaluateModuleScript(bool success) override;
+  void DidEvaluateTopLevelScript(bool success) override;
+
+  const DedicatedWorkerToken& token() const { return token_; }
 
  protected:
   CrossThreadWeakPersistent<ThreadedMessagingProxyBase> MessagingProxyWeakPtr()
@@ -78,6 +81,8 @@ class CORE_EXPORT DedicatedWorkerObjectProxy : public ThreadedObjectProxyBase {
 
  private:
   friend class DedicatedWorkerObjectProxyForTest;
+
+  const DedicatedWorkerToken token_;
 
   // No guarantees about the lifetimes of tasks posted by this proxy wrt the
   // DedicatedWorkerMessagingProxy so a weak pointer must be used when posting

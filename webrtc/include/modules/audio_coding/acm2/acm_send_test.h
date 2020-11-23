@@ -55,7 +55,7 @@ class AcmSendTestOldApi : public AudioPacketizationCallback,
                    uint32_t timestamp,
                    const uint8_t* payload_data,
                    size_t payload_len_bytes,
-                   const RTPFragmentationHeader* fragmentation) override;
+                   int64_t absolute_capture_timestamp_ms) override;
 
   AudioCodingModule* acm() { return acm_.get(); }
 

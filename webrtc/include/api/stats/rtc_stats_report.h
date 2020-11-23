@@ -13,6 +13,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
 #include <map>
 #include <memory>
 #include <string>
@@ -32,7 +33,7 @@ class RTC_EXPORT RTCStatsReport : public rtc::RefCountInterface {
  public:
   typedef std::map<std::string, std::unique_ptr<const RTCStats>> StatsMap;
 
-  class ConstIterator {
+  class RTC_EXPORT ConstIterator {
    public:
     ConstIterator(ConstIterator&& other);
     ~ConstIterator();
@@ -83,8 +84,8 @@ class RTC_EXPORT RTCStatsReport : public rtc::RefCountInterface {
   // Removes the stats object from the report, returning ownership of it or null
   // if there is no object with |id|.
   std::unique_ptr<const RTCStats> Take(const std::string& id);
-  // Takes ownership of all the stats in |victim|, leaving it empty.
-  void TakeMembersFrom(rtc::scoped_refptr<RTCStatsReport> victim);
+  // Takes ownership of all the stats in |other|, leaving it empty.
+  void TakeMembersFrom(rtc::scoped_refptr<RTCStatsReport> other);
 
   // Stats iterators. Stats are ordered lexicographically on |RTCStats::id|.
   ConstIterator begin() const;

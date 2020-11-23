@@ -29,10 +29,11 @@
 
 #include <memory>
 
-#include "base/macros.h"
 #include "third_party/blink/renderer/core/accessibility/axid.h"
+#include "third_party/blink/renderer/core/accessibility/blink_ax_event_intent.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/document.h"
+#include "third_party/blink/renderer/platform/wtf/hash_counted_set.h"
 
 namespace blink {
 
@@ -40,21 +41,25 @@ class AbstractInlineTextBox;
 class AccessibleNode;
 class HTMLCanvasElement;
 class HTMLOptionElement;
+class HTMLFrameOwnerElement;
 class HTMLSelectElement;
-class LayoutMenuList;
+class IntPoint;
+class LayoutRect;
 class LineLayoutItem;
 class LocalFrameView;
 
-class CORE_EXPORT AXObjectCache
-    : public GarbageCollectedFinalized<AXObjectCache>,
-      public ContextLifecycleObserver {
-  USING_GARBAGE_COLLECTED_MIXIN(AXObjectCache);
-
+class CORE_EXPORT AXObjectCache : public GarbageCollected<AXObjectCache> {
  public:
+  using BlinkAXEventIntentsSet = HashCountedSet<BlinkAXEventIntent,
+                                                BlinkAXEventIntentHash,
+                                                BlinkAXEventIntentHashTraits>;
+
   static AXObjectCache* Create(Document&);
 
-  virtual ~AXObjectCache();
-  void Trace(blink::Visitor*) override;
+  AXObjectCache(const AXObjectCache&) = delete;
+  AXObjectCache& operator=(const AXObjectCache&) = delete;
+  virtual ~AXObjectCache() = default;
+  virtual void Trace(Visitor*) const {}
 
   virtual void Dispose() = 0;
 
@@ -64,15 +69,15 @@ class CORE_EXPORT AXObjectCache
 
   virtual void SelectionChanged(Node*) = 0;
   virtual void ChildrenChanged(Node*) = 0;
-  virtual void ChildrenChanged(LayoutObject*) = 0;
+  virtual void ChildrenChanged(const LayoutObject*) = 0;
   virtual void ChildrenChanged(AccessibleNode*) = 0;
   virtual void CheckedStateChanged(Node*) = 0;
   virtual void ListboxOptionStateChanged(HTMLOptionElement*) = 0;
   virtual void ListboxSelectedChildrenChanged(HTMLSelectElement*) = 0;
   virtual void ListboxActiveIndexChanged(HTMLSelectElement*) = 0;
-  virtual void LocationChanged(LayoutObject*) = 0;
+  virtual void LocationChanged(const LayoutObject*) = 0;
   virtual void RadiobuttonRemovedFromGroup(HTMLInputElement*) = 0;
-  virtual void ImageLoaded(LayoutObject*) = 0;
+  virtual void ImageLoaded(const LayoutObject*) = 0;
 
   virtual void Remove(AccessibleNode*) = 0;
   virtual void Remove(LayoutObject*) = 0;
@@ -81,9 +86,12 @@ class CORE_EXPORT AXObjectCache
 
   virtual const Element* RootAXEditableElement(const Node*) = 0;
 
+  // Called when aspects of the style (e.g. color, alignment) change.
+  virtual void StyleChanged(const LayoutObject*) = 0;
+
   // Called by a node when text or a text equivalent (e.g. alt) attribute is
   // changed.
-  virtual void TextChanged(LayoutObject*) = 0;
+  virtual void TextChanged(const LayoutObject*) = 0;
   virtual void DocumentTitleChanged() = 0;
   // Called when a node has just been attached, so we can make sure we have the
   // right subclass of AXObject.
@@ -91,33 +99,40 @@ class CORE_EXPORT AXObjectCache
   virtual void DidInsertChildrenOfNode(Node*) = 0;
 
   // Returns true if the AXObjectCache cares about this attribute
-  virtual bool HandleAttributeChanged(const QualifiedName& attr_name,
+  virtual void HandleAttributeChanged(const QualifiedName& attr_name,
                                       Element*) = 0;
-  virtual void HandleFocusedUIElementChanged(Node* old_focused_node,
-                                             Node* new_focused_node) = 0;
+  virtual void HandleFocusedUIElementChanged(Element* old_focused_node,
+                                             Element* new_focused_node) = 0;
   virtual void HandleInitialFocus() = 0;
   virtual void HandleEditableTextContentChanged(Node*) = 0;
   virtual void HandleScaleAndLocationChanged(Document*) = 0;
   virtual void HandleTextMarkerDataAdded(Node* start, Node* end) = 0;
   virtual void HandleTextFormControlChanged(Node*) = 0;
   virtual void HandleValueChanged(Node*) = 0;
-  virtual void HandleUpdateActiveMenuOption(LayoutMenuList*,
+  virtual void HandleUpdateActiveMenuOption(LayoutObject*,
                                             int option_index) = 0;
-  virtual void DidShowMenuListPopup(LayoutMenuList*) = 0;
-  virtual void DidHideMenuListPopup(LayoutMenuList*) = 0;
+  virtual void DidShowMenuListPopup(LayoutObject*) = 0;
+  virtual void DidHideMenuListPopup(LayoutObject*) = 0;
   virtual void HandleLoadComplete(Document*) = 0;
   virtual void HandleLayoutComplete(Document*) = 0;
   virtual void HandleClicked(Node*) = 0;
-  virtual void HandleAutofillStateChanged(Element*, bool) = 0;
   virtual void HandleValidationMessageVisibilityChanged(
-      const Element* form_control) = 0;
+      const Node* form_control) = 0;
+  virtual void HandleEventListenerAdded(const Node& node,
+                                        const AtomicString& event_type) = 0;
+  virtual void HandleEventListenerRemoved(const Node& node,
+                                          const AtomicString& event_type) = 0;
 
   // Handle any notifications which arrived while layout was dirty.
-  virtual void ProcessUpdatesAfterLayout(Document&) = 0;
+  virtual void ProcessDeferredAccessibilityEvents(Document&) = 0;
 
   // Changes to virtual Accessibility Object Model nodes.
   virtual void HandleAttributeChanged(const QualifiedName& attr_name,
                                       AccessibleNode*) = 0;
+
+  // Called when a HTMLFrameOwnerElement (such as an iframe element) changes the
+  // embedding token of its child frame.
+  virtual void EmbeddingTokenChanged(HTMLFrameOwnerElement*) = 0;
 
   virtual void SetCanvasObjectBounds(HTMLCanvasElement*,
                                      Element*,
@@ -129,13 +144,14 @@ class CORE_EXPORT AXObjectCache
   virtual void HandleScrollPositionChanged(LocalFrameView*) = 0;
   virtual void HandleScrollPositionChanged(LayoutObject*) = 0;
 
-  // Called when scroll bars are added / removed (as the view resizes).
-  virtual void HandleLayoutComplete(LayoutObject*) = 0;
   virtual void HandleScrolledToAnchor(const Node* anchor_node) = 0;
 
   // Called when the frame rect changes, which can sometimes happen
   // without producing any layout or other notifications.
   virtual void HandleFrameRectsChanged(Document&) = 0;
+
+  // Called when a layout object's bounding box may have changed.
+  virtual void InvalidateBoundingBox(const LayoutObject*) = 0;
 
   virtual const AtomicString& ComputedRoleForNode(Node*) = 0;
   virtual String ComputedNameForNode(Node*) = 0;
@@ -151,14 +167,29 @@ class CORE_EXPORT AXObjectCache
   // Static helper functions.
   static bool IsInsideFocusableElementOrARIAWidget(const Node&);
 
+  // Returns true if there are any pending updates that need processing.
+  virtual bool IsDirty() const = 0;
+
+ protected:
+  friend class ScopedBlinkAXEventIntent;
+  FRIEND_TEST_ALL_PREFIXES(ScopedBlinkAXEventIntentTest, SingleIntent);
+  FRIEND_TEST_ALL_PREFIXES(ScopedBlinkAXEventIntentTest,
+                           MultipleIdenticalIntents);
+  FRIEND_TEST_ALL_PREFIXES(ScopedBlinkAXEventIntentTest,
+                           NestedIndividualIntents);
+  FRIEND_TEST_ALL_PREFIXES(ScopedBlinkAXEventIntentTest, NestedMultipleIntents);
+  FRIEND_TEST_ALL_PREFIXES(ScopedBlinkAXEventIntentTest,
+                           NestedIdenticalIntents);
+
+  virtual BlinkAXEventIntentsSet& ActiveEventIntents() = 0;
+
  private:
   friend class AXObjectCacheBase;
-  AXObjectCache(Document&);
+  AXObjectCache() = default;
 
   static AXObjectCacheCreateFunction create_function_;
-  DISALLOW_COPY_AND_ASSIGN(AXObjectCache);
 };
 
 }  // namespace blink
 
-#endif
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_ACCESSIBILITY_AX_OBJECT_CACHE_H_

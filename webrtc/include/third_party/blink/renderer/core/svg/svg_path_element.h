@@ -21,42 +21,39 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_SVG_SVG_PATH_ELEMENT_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_SVG_SVG_PATH_ELEMENT_H_
 
-#include "third_party/blink/renderer/core/svg/svg_animated_path.h"
 #include "third_party/blink/renderer/core/svg/svg_geometry_element.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 
 namespace blink {
 
+class SVGAnimatedPath;
+class SVGPathByteStream;
 class StylePath;
 
 class SVGPathElement final : public SVGGeometryElement {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  DECLARE_NODE_FACTORY(SVGPathElement);
-
   explicit SVGPathElement(Document&);
 
   Path AsPath() const override;
   Path AttributePath() const;
 
-  float getTotalLength() override;
-  SVGPointTearOff* getPointAtLength(float distance) override;
+  float getTotalLength(ExceptionState&) override;
+  SVGPointTearOff* getPointAtLength(float distance, ExceptionState&) override;
 
   SVGAnimatedPath* GetPath() const { return path_.Get(); }
   float ComputePathLength() const override;
-  const SVGPathByteStream& PathByteStream() const {
-    return GetStylePath()->ByteStream();
-  }
+  const SVGPathByteStream& PathByteStream() const;
 
   FloatRect GetBBox() override;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   const StylePath* GetStylePath() const;
 
-  void SvgAttributeChanged(const QualifiedName&) override;
+  void SvgAttributeChanged(const SvgAttributeChangedParams&) override;
 
   void CollectStyleForPresentationAttribute(
       const QualifiedName&,

@@ -26,31 +26,39 @@
 
 namespace blink {
 
+struct MarkerPosition;
+
 class LayoutSVGResourceMarker final : public LayoutSVGResourceContainer {
  public:
   explicit LayoutSVGResourceMarker(SVGMarkerElement*);
   ~LayoutSVGResourceMarker() override;
 
-  const char* GetName() const override { return "LayoutSVGResourceMarker"; }
+  const char* GetName() const override {
+    NOT_DESTROYED();
+    return "LayoutSVGResourceMarker";
+  }
 
-  void RemoveAllClientsFromCache(bool mark_for_invalidation = true) override;
+  void RemoveAllClientsFromCache() override;
 
   // Calculates marker boundaries, mapped to the target element's coordinate
   // space.
   FloatRect MarkerBoundaries(
       const AffineTransform& marker_transformation) const;
-  AffineTransform MarkerTransformation(const FloatPoint& origin,
-                                       float angle,
+  AffineTransform MarkerTransformation(const MarkerPosition&,
                                        float stroke_width) const;
 
   AffineTransform LocalToSVGParentTransform() const final {
+    NOT_DESTROYED();
     return local_to_parent_transform_;
   }
   void SetNeedsTransformUpdate() final;
 
   // The viewport origin is (0,0) and not the reference point because each
   // marker instance includes the reference in markerTransformation().
-  FloatRect Viewport() const { return FloatRect(FloatPoint(), viewport_size_); }
+  FloatRect Viewport() const {
+    NOT_DESTROYED();
+    return FloatRect(FloatPoint(), viewport_size_);
+  }
 
   bool ShouldPaint() const;
 
@@ -60,19 +68,27 @@ class LayoutSVGResourceMarker final : public LayoutSVGResourceContainer {
   SVGMarkerOrientType OrientType() const;
 
   static const LayoutSVGResourceType kResourceType = kMarkerResourceType;
-  LayoutSVGResourceType ResourceType() const override { return kResourceType; }
+  LayoutSVGResourceType ResourceType() const override {
+    NOT_DESTROYED();
+    return kResourceType;
+  }
 
  private:
   void UpdateLayout() override;
-  SVGTransformChange CalculateLocalTransform() final;
+  SVGTransformChange CalculateLocalTransform(bool bounds_changed) final;
 
   AffineTransform local_to_parent_transform_;
   FloatSize viewport_size_;
   bool needs_transform_update_;
+  bool is_in_layout_;
 };
 
-DEFINE_LAYOUT_SVG_RESOURCE_TYPE_CASTS(LayoutSVGResourceMarker,
-                                      kMarkerResourceType);
+template <>
+struct DowncastTraits<LayoutSVGResourceMarker> {
+  static bool AllowFrom(const LayoutSVGResourceContainer& container) {
+    return container.ResourceType() == kMarkerResourceType;
+  }
+};
 
 }  // namespace blink
 

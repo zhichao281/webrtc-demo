@@ -6,9 +6,12 @@
 #define THIRD_PARTY_BLINK_PUBLIC_COMMON_INDEXEDDB_INDEXED_DB_DEFAULT_MOJOM_TRAITS_H_
 
 #include "base/containers/span.h"
+#include "mojo/public/cpp/bindings/array_traits_span.h"
 #include "third_party/blink/public/common/common_export.h"
 #include "third_party/blink/public/common/indexeddb/indexeddb_key.h"
-#include "third_party/blink/public/mojom/indexeddb/indexeddb.mojom.h"
+#include "third_party/blink/public/common/indexeddb/indexeddb_key_range.h"
+#include "third_party/blink/public/common/indexeddb/indexeddb_metadata.h"
+#include "third_party/blink/public/mojom/indexeddb/indexeddb.mojom-forward.h"
 
 namespace mojo {
 
@@ -34,6 +37,9 @@ struct BLINK_COMMON_EXPORT
       const blink::IndexedDBDatabaseMetadata& metadata) {
     return metadata.object_stores;
   }
+  static bool was_cold_open(const blink::IndexedDBDatabaseMetadata& metadata) {
+    return metadata.was_cold_open;
+  }
   static bool Read(blink::mojom::IDBDatabaseMetadataDataView data,
                    blink::IndexedDBDatabaseMetadata* out);
 };
@@ -42,11 +48,11 @@ template <>
 struct BLINK_COMMON_EXPORT StructTraits<blink::mojom::IDBIndexKeysDataView,
                                         blink::IndexedDBIndexKeys> {
   static int64_t index_id(const blink::IndexedDBIndexKeys& index_keys) {
-    return index_keys.first;
+    return index_keys.id;
   }
   static const std::vector<blink::IndexedDBKey>& index_keys(
       const blink::IndexedDBIndexKeys& index_keys) {
-    return index_keys.second;
+    return index_keys.keys;
   }
   static bool Read(blink::mojom::IDBIndexKeysDataView data,
                    blink::IndexedDBIndexKeys* out);
@@ -78,11 +84,10 @@ struct BLINK_COMMON_EXPORT StructTraits<blink::mojom::IDBIndexMetadataDataView,
 
 template <>
 struct BLINK_COMMON_EXPORT
-    UnionTraits<blink::mojom::IDBKeyDataDataView, blink::IndexedDBKey> {
-  static blink::mojom::IDBKeyDataDataView::Tag GetTag(
+    UnionTraits<blink::mojom::IDBKeyDataView, blink::IndexedDBKey> {
+  static blink::mojom::IDBKeyDataView::Tag GetTag(
       const blink::IndexedDBKey& key);
-  static bool Read(blink::mojom::IDBKeyDataDataView data,
-                   blink::IndexedDBKey* out);
+  static bool Read(blink::mojom::IDBKeyDataView data, blink::IndexedDBKey* out);
   static const std::vector<blink::IndexedDBKey>& key_array(
       const blink::IndexedDBKey& key) {
     return key.array();
@@ -100,16 +105,9 @@ struct BLINK_COMMON_EXPORT
   static bool other_invalid(const blink::IndexedDBKey& key) {
     return key.type() == blink::mojom::IDBKeyType::Invalid;
   }
-  static bool other_null(const blink::IndexedDBKey& key) {
-    return key.type() == blink::mojom::IDBKeyType::Null;
+  static bool other_none(const blink::IndexedDBKey& key) {
+    return key.type() == blink::mojom::IDBKeyType::None;
   }
-};
-
-template <>
-struct BLINK_COMMON_EXPORT
-    StructTraits<blink::mojom::IDBKeyDataView, blink::IndexedDBKey> {
-  static const blink::IndexedDBKey& data(const blink::IndexedDBKey& key);
-  static bool Read(blink::mojom::IDBKeyDataView data, blink::IndexedDBKey* out);
 };
 
 template <>

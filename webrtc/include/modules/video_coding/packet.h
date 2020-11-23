@@ -16,6 +16,7 @@
 
 #include "absl/types/optional.h"
 #include "api/rtp_headers.h"
+#include "api/rtp_packet_info.h"
 #include "api/video/video_frame_type.h"
 #include "modules/rtp_rtcp/source/rtp_generic_frame_descriptor.h"
 #include "modules/rtp_rtcp/source/rtp_video_header.h"
@@ -39,8 +40,8 @@ class VCMPacket {
             size_t size,
             const RTPHeader& rtp_header,
             const RTPVideoHeader& video_header,
-            VideoFrameType frame_type,
-            int64_t ntp_time_ms);
+            int64_t ntp_time_ms,
+            int64_t receive_time_ms);
 
   ~VCMPacket();
 
@@ -65,15 +66,13 @@ class VCMPacket {
   bool markerBit;
   int timesNacked;
 
-  VideoFrameType frameType;
-
   VCMNaluCompleteness completeNALU;  // Default is kNaluIncomplete.
   bool insertStartCode;  // True if a start code should be inserted before this
                          // packet.
   RTPVideoHeader video_header;
   absl::optional<RtpGenericFrameDescriptor> generic_descriptor;
 
-  int64_t receive_time_ms;
+  RtpPacketInfo packet_info;
 };
 
 }  // namespace webrtc

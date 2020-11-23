@@ -33,12 +33,13 @@
 
 #include <unicode/uscript.h>
 
-#include "third_party/blink/public/common/css/preferred_color_scheme.h"
-#include "third_party/blink/public/platform/pointer_properties.h"
+#include "third_party/blink/public/common/css/navigation_controls.h"
+#include "third_party/blink/public/common/web_preferences/web_preferences.h"
+#include "third_party/blink/public/mojom/v8_cache_options.mojom-forward.h"
+#include "third_party/blink/public/mojom/webpreferences/web_preferences.mojom-forward.h"
 #include "third_party/blink/public/platform/web_common.h"
 #include "third_party/blink/public/platform/web_effective_connection_type.h"
 #include "third_party/blink/public/platform/web_size.h"
-#include "third_party/blink/public/platform/web_viewport_style.h"
 
 namespace blink {
 
@@ -50,18 +51,6 @@ class WebString;
 // WebCore/page/Settings.h.
 class WebSettings {
  public:
-  enum class ImageAnimationPolicy { kAllowed, kAnimateOnce, kNoAnimation };
-
-  enum class EditingBehavior { kMac, kWin, kUnix, kAndroid };
-
-  enum class V8CacheOptions {
-    kDefault,
-    kNone,
-    kCode,
-    kCodeWithoutHeatCheck,
-    kFullCodeWithoutHeatCheck
-  };
-
   // Selection strategy defines how the selection granularity changes when the
   // selection extent is moved.
   enum class SelectionStrategyType {
@@ -94,14 +83,6 @@ class WebSettings {
     kForceAllTrue  // Force all values to be true even when specified.
   };
 
-  // Defines the autoplay policy to be used. Should match the enum class in
-  // web_preferences.h
-  enum class AutoplayPolicy {
-    kNoUserGestureRequired = 0,
-    kUserGestureRequired,
-    kDocumentUserActivationRequired,
-  };
-
   // Sets value of a setting by its string identifier from Settings.in and
   // string representation of value. An enum's string representation is the
   // string representation of the integer value of the enum.
@@ -132,8 +113,9 @@ class WebSettings {
   virtual void SetAlwaysShowContextMenuOnTouch(bool) = 0;
   virtual void SetAntialiased2dCanvasEnabled(bool) = 0;
   virtual void SetAntialiasedClips2dCanvasEnabled(bool) = 0;
-  virtual void SetAutoplayPolicy(AutoplayPolicy) = 0;
+  virtual void SetAutoplayPolicy(mojom::AutoplayPolicy) = 0;
   virtual void SetAutoZoomFocusedNodeToLegibleScale(bool) = 0;
+  virtual void SetCaretBrowsingEnabled(bool) = 0;
   virtual void SetClobberUserAgentInitialScaleQuirk(bool) = 0;
   virtual void SetCookieEnabled(bool) = 0;
   virtual void SetNavigateOnDragDrop(bool) = 0;
@@ -151,10 +133,9 @@ class WebSettings {
   virtual void SetDontSendKeyEventsToJavascript(bool) = 0;
   virtual void SetDoubleTapToZoomEnabled(bool) = 0;
   virtual void SetDownloadableBinaryFontsEnabled(bool) = 0;
-  virtual void SetEditingBehavior(EditingBehavior) = 0;
+  virtual void SetEditingBehavior(mojom::EditingBehavior) = 0;
   virtual void SetEnableScrollAnimator(bool) = 0;
   virtual void SetPrefersReducedMotion(bool) = 0;
-  virtual void SetEnableTouchAdjustment(bool) = 0;
   virtual void SetSmoothScrollForFindEnabled(bool) = 0;
   virtual void SetWebGL1Enabled(bool) = 0;
   virtual void SetWebGL2Enabled(bool) = 0;
@@ -168,10 +149,9 @@ class WebSettings {
   virtual void SetFullscreenSupported(bool) = 0;
   virtual void SetHideDownloadUI(bool) = 0;
   virtual void SetHighlightAds(bool) = 0;
-  virtual void SetHistoryEntryRequiresUserGesture(bool) = 0;
   virtual void SetHyperlinkAuditingEnabled(bool) = 0;
   virtual void SetIgnoreMainFrameOverflowHiddenQuirk(bool) = 0;
-  virtual void SetImageAnimationPolicy(ImageAnimationPolicy) = 0;
+  virtual void SetImageAnimationPolicy(mojom::ImageAnimationPolicy) = 0;
   virtual void SetImagesEnabled(bool) = 0;
   virtual void SetInlineTextBoxAccessibilityEnabled(bool) = 0;
   virtual void SetJavaScriptCanAccessClipboard(bool) = 0;
@@ -189,10 +169,8 @@ class WebSettings {
   virtual void SetPresentationRequiresUserGesture(bool) = 0;
   virtual void SetEmbeddedMediaExperienceEnabled(bool) = 0;
   virtual void SetImmersiveModeEnabled(bool) = 0;
-  virtual void SetMinimumAccelerated2dCanvasSize(int) = 0;
   virtual void SetMinimumFontSize(int) = 0;
   virtual void SetMinimumLogicalFontSize(int) = 0;
-  virtual void SetMockScrollbarsEnabled(bool) = 0;
   virtual void SetHideScrollbars(bool) = 0;
   virtual void SetOfflineWebApplicationCacheEnabled(bool) = 0;
   virtual void SetPassiveEventListenerDefault(PassiveEventListenerDefault) = 0;
@@ -203,9 +181,9 @@ class WebSettings {
   virtual void SetPluginsEnabled(bool) = 0;
   virtual void SetPresentationReceiver(bool) = 0;
   virtual void SetAvailablePointerTypes(int) = 0;
-  virtual void SetPrimaryPointerType(PointerType) = 0;
+  virtual void SetPrimaryPointerType(ui::PointerType) = 0;
   virtual void SetAvailableHoverTypes(int) = 0;
-  virtual void SetPrimaryHoverType(HoverType) = 0;
+  virtual void SetPrimaryHoverType(ui::HoverType) = 0;
   virtual void SetPreferHiddenVolumeControls(bool) = 0;
   virtual void SetShouldProtectAgainstIpcFlooding(bool) = 0;
   virtual void SetRenderVSyncNotificationEnabled(bool) = 0;
@@ -220,7 +198,6 @@ class WebSettings {
                                   UScriptCode = USCRIPT_COMMON) = 0;
   virtual void SetShouldPrintBackgrounds(bool) = 0;
   virtual void SetShouldClearDocumentBackground(bool) = 0;
-  virtual void SetShouldRespectImageOrientation(bool) = 0;
   virtual void SetShowContextMenuOnMouseUp(bool) = 0;
   virtual void SetShrinksViewportContentToFit(bool) = 0;
   virtual void SetSmartInsertDeleteEnabled(bool) = 0;
@@ -245,6 +222,7 @@ class WebSettings {
   virtual void SetTextAreasAreResizable(bool) = 0;
   virtual void SetTextAutosizingEnabled(bool) = 0;
   virtual void SetAccessibilityFontScaleFactor(float) = 0;
+  virtual void SetAccessibilityAlwaysShowFocus(bool) = 0;
   virtual void SetTextTrackKindUserPreference(TextTrackKindUserPreference) = 0;
   virtual void SetTextTrackBackgroundColor(const WebString&) = 0;
   virtual void SetTextTrackFontFamily(const WebString&) = 0;
@@ -254,25 +232,26 @@ class WebSettings {
   virtual void SetTextTrackTextColor(const WebString&) = 0;
   virtual void SetTextTrackTextShadow(const WebString&) = 0;
   virtual void SetTextTrackTextSize(const WebString&) = 0;
+  virtual void SetTextTrackWindowColor(const WebString&) = 0;
+  virtual void SetTextTrackWindowPadding(const WebString&) = 0;
+  virtual void SetTextTrackWindowRadius(const WebString&) = 0;
   virtual void SetThreadedScrollingEnabled(bool) = 0;
   virtual void SetTouchDragDropEnabled(bool) = 0;
+  virtual void SetTouchDragEndContextMenu(bool) = 0;
   virtual void SetBarrelButtonForDragEnabled(bool) = 0;
   virtual void SetUseLegacyBackgroundSizeShorthandBehavior(bool) = 0;
-  virtual void SetViewportStyle(WebViewportStyle) = 0;
-  virtual void SetUseSolidColorScrollbars(bool) = 0;
+  virtual void SetViewportStyle(mojom::ViewportStyle) = 0;
   virtual void SetUseWideViewport(bool) = 0;
-  virtual void SetV8CacheOptions(V8CacheOptions) = 0;
+  virtual void SetV8CacheOptions(mojom::V8CacheOptions) = 0;
   virtual void SetValidationMessageTimerMagnification(int) = 0;
   virtual void SetViewportEnabled(bool) = 0;
   virtual void SetViewportMetaEnabled(bool) = 0;
-  virtual void SetViewportMetaLayoutSizeQuirk(bool) = 0;
   virtual void SetViewportMetaMergeContentQuirk(bool) = 0;
   virtual void SetViewportMetaNonUserScalableQuirk(bool) = 0;
   virtual void SetViewportMetaZeroValuesQuirk(bool) = 0;
   virtual void SetWebGLErrorsToConsoleEnabled(bool) = 0;
   virtual void SetWebSecurityEnabled(bool) = 0;
   virtual void SetWideViewportQuirkEnabled(bool) = 0;
-  virtual void SetXSSAuditorEnabled(bool) = 0;
   virtual void SetMediaControlsEnabled(bool) = 0;
   virtual void SetDoNotUpdateSelectionOnMutatingSelectionRange(bool) = 0;
   virtual void SetLowPriorityIframesThreshold(WebEffectiveConnectionType) = 0;
@@ -289,8 +268,19 @@ class WebSettings {
   virtual void SetLazyImageLoadingDistanceThresholdPx2G(int) = 0;
   virtual void SetLazyImageLoadingDistanceThresholdPx3G(int) = 0;
   virtual void SetLazyImageLoadingDistanceThresholdPx4G(int) = 0;
+  virtual void SetLazyImageFirstKFullyLoadUnknown(int) = 0;
+  virtual void SetLazyImageFirstKFullyLoadSlow2G(int) = 0;
+  virtual void SetLazyImageFirstKFullyLoad2G(int) = 0;
+  virtual void SetLazyImageFirstKFullyLoad3G(int) = 0;
+  virtual void SetLazyImageFirstKFullyLoad4G(int) = 0;
   virtual void SetForceDarkModeEnabled(bool) = 0;
-  virtual void SetPreferredColorScheme(PreferredColorScheme) = 0;
+  virtual void SetPreferredColorScheme(blink::mojom::PreferredColorScheme) = 0;
+  virtual void SetPreferredContrast(mojom::PreferredContrast) = 0;
+  virtual void SetNavigationControls(NavigationControls) = 0;
+  virtual void SetAriaModalPrunesAXTree(bool) = 0;
+  virtual void SetUseAXMenuList(bool) = 0;
+  virtual void SetSelectionClipboardBufferAvailable(bool) = 0;
+  virtual void SetAccessibilityIncludeSvgGElement(bool) = 0;
 
  protected:
   ~WebSettings() = default;

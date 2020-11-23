@@ -28,27 +28,23 @@
 
 #include <iosfwd>
 
+#include "base/compiler_specific.h"
 #include "base/numerics/clamped_math.h"
 #include "build/build_config.h"
 #include "third_party/blink/renderer/platform/geometry/int_point.h"
 #include "third_party/blink/renderer/platform/geometry/int_rect_outsets.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
+#include "third_party/skia/include/core/SkRect.h"
+#include "ui/gfx/geometry/rect.h"
 
-#if defined(OS_MACOSX)
+#if defined(OS_MAC)
 typedef struct CGRect CGRect;
 
 #ifdef __OBJC__
 #import <Foundation/Foundation.h>
 #endif
 #endif
-
-struct SkRect;
-struct SkIRect;
-
-namespace gfx {
-class Rect;
-}
 
 namespace blink {
 
@@ -70,7 +66,10 @@ class PLATFORM_EXPORT IntRect {
   constexpr explicit IntRect(const FloatRect&) = delete;
   constexpr explicit IntRect(const LayoutRect&) = delete;
 
-  explicit IntRect(const gfx::Rect& rect);
+  constexpr explicit IntRect(const gfx::Rect& r)
+      : IntRect(r.x(), r.y(), r.width(), r.height()) {}
+  explicit IntRect(const SkIRect& r)
+      : IntRect(r.x(), r.y(), r.width(), r.height()) {}
 
   constexpr IntPoint Location() const { return location_; }
   constexpr IntSize Size() const { return size_; }
@@ -135,7 +134,7 @@ class PLATFORM_EXPORT IntRect {
                     location_.Y() + size_.Height());
   }  // typically bottomRight
 
-  bool Intersects(const IntRect&) const;
+  WARN_UNUSED_RESULT bool Intersects(const IntRect&) const;
   bool Contains(const IntRect&) const;
 
   // This checks to see if the rect contains x,y in the traditional sense.
@@ -180,14 +179,17 @@ class PLATFORM_EXPORT IntRect {
     return IntRect(location_.TransposedPoint(), size_.TransposedSize());
   }
 
-#if defined(OS_MACOSX)
+#if defined(OS_MAC)
   explicit operator CGRect() const;
 #endif
 
-  operator SkRect() const;
-  operator SkIRect() const;
-
-  operator gfx::Rect() const;
+  operator SkRect() const { return SkRect::MakeLTRB(X(), Y(), MaxX(), MaxY()); }
+  operator SkIRect() const {
+    return SkIRect::MakeLTRB(X(), Y(), MaxX(), MaxY());
+  }
+  constexpr operator gfx::Rect() const {
+    return gfx::Rect(X(), Y(), Width(), Height());
+  }
 
   String ToString() const;
 
@@ -238,6 +240,14 @@ PLATFORM_EXPORT std::ostream& operator<<(std::ostream&, const IntRect&);
 PLATFORM_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, const IntRect&);
 
 }  // namespace blink
+
+namespace WTF {
+template <>
+struct CrossThreadCopier<blink::IntRect>
+    : public CrossThreadCopierPassThrough<blink::IntRect> {
+  STATIC_ONLY(CrossThreadCopier);
+};
+}
 
 WTF_ALLOW_MOVE_INIT_AND_COMPARE_WITH_MEM_FUNCTIONS(blink::IntRect)
 

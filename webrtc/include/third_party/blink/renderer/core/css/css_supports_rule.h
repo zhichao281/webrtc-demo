@@ -40,24 +40,19 @@ class CSSSupportsRule final : public CSSConditionRule {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static CSSSupportsRule* Create(StyleRuleSupports* rule,
-                                 CSSStyleSheet* sheet) {
-    return MakeGarbageCollected<CSSSupportsRule>(rule, sheet);
-  }
-
   CSSSupportsRule(StyleRuleSupports*, CSSStyleSheet*);
   ~CSSSupportsRule() override = default;
 
   String cssText() const override;
 
  private:
-  CSSRule::Type type() const override { return kSupportsRule; }
+  CSSRule::Type GetType() const override { return kSupportsRule; }
 };
 
 template <>
 struct DowncastTraits<CSSSupportsRule> {
   static bool AllowFrom(const CSSRule& rule) {
-    return rule.type() == CSSRule::kSupportsRule;
+    return rule.GetType() == CSSRule::kSupportsRule;
   }
 };
 

@@ -36,17 +36,18 @@
 #include "third_party/blink/renderer/core/html/lazy_load_image_observer.h"
 #include "third_party/blink/renderer/platform/geometry/int_size.h"
 #include "third_party/blink/renderer/platform/graphics/graphics_types.h"
+#include "third_party/blink/renderer/platform/graphics/image_orientation.h"
 #include "third_party/blink/renderer/platform/heap/heap_allocator.h"
 #include "third_party/blink/renderer/platform/loader/fetch/fetch_parameters.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_response.h"
 
 namespace blink {
 
+class ExceptionState;
 class HTMLFormElement;
 class ImageCandidate;
-class ExceptionState;
+class LayoutSize;
 class ShadowRoot;
-class USVStringOrTrustedURL;
 
 class CORE_EXPORT HTMLImageElement final
     : public HTMLElement,
@@ -54,25 +55,33 @@ class CORE_EXPORT HTMLImageElement final
       public ActiveScriptWrappable<HTMLImageElement>,
       public FormAssociated {
   DEFINE_WRAPPERTYPEINFO();
-  USING_GARBAGE_COLLECTED_MIXIN(HTMLImageElement);
 
  public:
   class ViewportChangeListener;
 
-  // Returns attributes that should be checked against Trusted Types
-  const AttrNameToTrustedType& GetCheckedAttributeTypes() const override;
-
-  static HTMLImageElement* Create(Document&);
-  static HTMLImageElement* Create(Document&, const CreateElementFlags);
   static HTMLImageElement* CreateForJSConstructor(Document&);
   static HTMLImageElement* CreateForJSConstructor(Document&, unsigned width);
   static HTMLImageElement* CreateForJSConstructor(Document&,
                                                   unsigned width,
                                                   unsigned height);
 
+  // Returns dimension type of the attribute value or inline dimensions usable
+  // for LazyLoad, whether the dimension is absolute or not and if the absolute
+  // value is small enough to be skipped for lazyloading.
+  enum class LazyLoadDimensionType {
+    kNotAbsolute,
+    kAbsoluteNotSmall,
+    kAbsoluteSmall,
+  };
+  static LazyLoadDimensionType GetAttributeLazyLoadDimensionType(
+      const String& attribute_value);
+  static LazyLoadDimensionType GetInlineStyleDimensionsType(
+      const CSSPropertyValueSet* property_set);
+
+  HTMLImageElement(Document&, const CreateElementFlags);
   explicit HTMLImageElement(Document&, bool created_by_parser = false);
   ~HTMLImageElement() override;
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
 
   unsigned width();
   unsigned height();
@@ -92,9 +101,6 @@ class CORE_EXPORT HTMLImageElement final
   ImageResourceContent* CachedImage() const {
     return GetImageLoader().GetContent();
   }
-  ImageResource* CachedImageResourceForImageDocument() const {
-    return GetImageLoader().ImageResourceForImageDocument();
-  }
   void LoadDeferredImage() {
     GetImageLoader().LoadDeferredImage(referrer_policy_);
   }
@@ -102,17 +108,11 @@ class CORE_EXPORT HTMLImageElement final
     GetImageLoader().SetImageForTest(content);
   }
 
-  void SetLoadingImageDocument() { GetImageLoader().SetLoadingImageDocument(); }
+  void StartLoadingImageDocument(ImageResourceContent* image_content);
 
   void setHeight(unsigned);
-
-  KURL Src() const;
-  void SetSrc(const String&);
-  void SetSrc(const USVStringOrTrustedURL&, ExceptionState&);
-
   void setWidth(unsigned);
 
-  IntSize GetOverriddenIntrinsicSize() const;
   bool IsDefaultIntrinsicSize() const {
     return is_default_overridden_intrinsic_size_;
   }
@@ -140,7 +140,9 @@ class CORE_EXPORT HTMLImageElement final
   bool IsCollapsed() const;
 
   // CanvasImageSource interface implementation.
-  FloatSize DefaultDestinationSize(const FloatSize&) const override;
+  FloatSize DefaultDestinationSize(
+      const FloatSize&,
+      const RespectImageOrientationEnum) const override;
 
   // public so that HTMLPictureElement can call this as well.
   void SelectSourceURL(ImageLoader::UpdateFromElementBehavior);
@@ -166,10 +168,6 @@ class CORE_EXPORT HTMLImageElement final
     return *visible_load_time_metrics_;
   }
 
-  static bool IsDimensionSmallAndAbsoluteForLazyLoad(
-      const String& attribute_value);
-  static bool IsInlineStyleDimensionsSmall(const CSSPropertyValueSet*);
-
   // Updates if any optimized image policy is violated. When any policy is
   // violated, the image should be rendered as a placeholder image.
   void SetImagePolicyViolated() {
@@ -178,6 +176,13 @@ class CORE_EXPORT HTMLImageElement final
   bool IsImagePolicyViolated() {
     return is_legacy_format_or_unoptimized_image_;
   }
+
+  // Keeps track of whether the image comes from an ad.
+  void SetIsAdRelated() { is_ad_related_ = true; }
+  bool IsAdRelated() const override { return is_ad_related_; }
+
+  static bool SupportedImageType(const String& type,
+                                 const HashSet<String>* disabled_image_types);
 
  protected:
   // Controls how an image element appears in the layout. See:
@@ -246,22 +251,21 @@ class CORE_EXPORT HTMLImageElement final
   float image_device_pixel_ratio_;
   Member<HTMLSourceElement> source_;
   LayoutDisposition layout_disposition_;
-  unsigned form_was_set_by_parser_ : 1;
-  unsigned element_created_by_parser_ : 1;
-  unsigned is_fallback_image_ : 1;
-  bool sizes_set_width_;
-  bool is_default_overridden_intrinsic_size_;
+  bool form_was_set_by_parser_ : 1;
+  bool element_created_by_parser_ : 1;
+  bool is_fallback_image_ : 1;
+  bool is_default_overridden_intrinsic_size_ : 1;
   // This flag indicates if the image violates one or more optimized image
   // policies. When any policy is violated, the image should be rendered as a
   // placeholder image.
-  bool is_legacy_format_or_unoptimized_image_;
+  bool is_legacy_format_or_unoptimized_image_ : 1;
 
   network::mojom::ReferrerPolicy referrer_policy_;
 
-  IntSize overridden_intrinsic_size_;
-
   std::unique_ptr<LazyLoadImageObserver::VisibleLoadTimeMetrics>
       visible_load_time_metrics_;
+
+  bool is_ad_related_ = false;
 };
 
 }  // namespace blink

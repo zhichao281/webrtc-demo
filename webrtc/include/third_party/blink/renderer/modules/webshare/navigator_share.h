@@ -9,29 +9,29 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
-#include "third_party/blink/renderer/core/execution_context/context_lifecycle_observer.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/core/frame/navigator.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
 
 namespace blink {
 
+class ExceptionState;
 class Navigator;
 class ShareData;
 
 class MODULES_EXPORT NavigatorShare final
-    : public GarbageCollectedFinalized<NavigatorShare>,
+    : public GarbageCollected<NavigatorShare>,
       public Supplement<Navigator> {
-  USING_GARBAGE_COLLECTED_MIXIN(NavigatorShare);
-
  public:
   static const char kSupplementName[];
 
-  NavigatorShare();
-  ~NavigatorShare();
+  NavigatorShare() = default;
+  ~NavigatorShare() = default;
 
   // Gets, or creates, NavigatorShare supplement on Navigator.
   // See platform/Supplementable.h
@@ -40,19 +40,24 @@ class MODULES_EXPORT NavigatorShare final
   // Navigator partial interface
   bool canShare(ScriptState*, const ShareData*);
   static bool canShare(ScriptState*, Navigator&, const ShareData*);
-  ScriptPromise share(ScriptState*, const ShareData*);
-  static ScriptPromise share(ScriptState*, Navigator&, const ShareData*);
+  ScriptPromise share(ScriptState*, const ShareData*, ExceptionState&);
+  static ScriptPromise share(ScriptState*,
+                             Navigator&,
+                             const ShareData*,
+                             ExceptionState&);
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   class ShareClientImpl;
 
   void OnConnectionError();
 
-  blink::mojom::blink::ShareServicePtr service_;
+  // |NavigatorShare| is not ExecutionContext-associated.
+  HeapMojoRemote<blink::mojom::blink::ShareService> service_remote_{nullptr};
 
-  HeapHashSet<Member<ShareClientImpl>> clients_;
+  // Represents a user's current intent to share some data.
+  Member<ShareClientImpl> client_ = nullptr;
 };
 
 }  // namespace blink

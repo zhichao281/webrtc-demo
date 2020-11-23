@@ -7,7 +7,7 @@
 
 #include "third_party/blink/renderer/platform/geometry/int_rect.h"
 #include "third_party/blink/renderer/platform/geometry/layout_rect.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 #include <limits>
@@ -32,14 +32,13 @@ class PLATFORM_EXPORT CullRect {
   bool IsInfinite() const { return rect_ == LayoutRect::InfiniteIntRect(); }
 
   bool Intersects(const IntRect&) const;
-  bool Intersects(const LayoutRect&) const;
-  bool Intersects(const LayoutRect&, const LayoutPoint& offset) const;
   bool IntersectsTransformed(const AffineTransform&, const FloatRect&) const;
   bool IntersectsHorizontalRange(LayoutUnit lo, LayoutUnit hi) const;
   bool IntersectsVerticalRange(LayoutUnit lo, LayoutUnit hi) const;
 
   void MoveBy(const IntPoint& offset);
   void Move(const IntSize& offset);
+  void Move(const FloatSize& offset);
 
   // Applies one transform to the cull rect. Before this function is called,
   // the cull rect is in the space of the parent the transform node.

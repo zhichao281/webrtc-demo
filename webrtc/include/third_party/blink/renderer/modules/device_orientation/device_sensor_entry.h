@@ -5,10 +5,13 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_DEVICE_ORIENTATION_DEVICE_SENSOR_ENTRY_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_DEVICE_ORIENTATION_DEVICE_SENSOR_ENTRY_H_
 
-#include "mojo/public/cpp/bindings/binding.h"
-#include "services/device/public/mojom/sensor.mojom-blink.h"
+#include "services/device/public/mojom/sensor.mojom-blink-forward.h"
 #include "services/device/public/mojom/sensor_provider.mojom-blink.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
 
 namespace device {
 union SensorReading;
@@ -19,10 +22,8 @@ namespace blink {
 
 class DeviceSensorEventPump;
 
-class DeviceSensorEntry : public GarbageCollectedFinalized<DeviceSensorEntry>,
+class DeviceSensorEntry : public GarbageCollected<DeviceSensorEntry>,
                           public device::mojom::blink::SensorClient {
-  USING_PRE_FINALIZER(DeviceSensorEntry, Dispose);
-
  public:
   // The sensor state is an automaton with allowed transitions as follows:
   // NOT_INITIALIZED -> INITIALIZING
@@ -42,8 +43,8 @@ class DeviceSensorEntry : public GarbageCollectedFinalized<DeviceSensorEntry>,
   };
 
   DeviceSensorEntry(DeviceSensorEventPump* pump,
+                    ExecutionContext* context,
                     device::mojom::blink::SensorType sensor_type);
-  void Dispose();
   ~DeviceSensorEntry() override;
 
   void Start(device::mojom::blink::SensorProvider* sensor_provider);
@@ -54,7 +55,7 @@ class DeviceSensorEntry : public GarbageCollectedFinalized<DeviceSensorEntry>,
 
   State state() const { return state_; }
 
-  void Trace(Visitor* visitor);
+  void Trace(Visitor* visitor) const;
 
  private:
   // device::mojom::SensorClient:
@@ -74,13 +75,16 @@ class DeviceSensorEntry : public GarbageCollectedFinalized<DeviceSensorEntry>,
 
   State state_ = State::NOT_INITIALIZED;
 
-  device::mojom::blink::SensorPtr sensor_;
-  mojo::Binding<device::mojom::blink::SensorClient> client_binding_{this};
+  HeapMojoRemote<device::mojom::blink::Sensor,
+                 HeapMojoWrapperMode::kWithoutContextObserver>
+      sensor_remote_;
+  HeapMojoReceiver<device::mojom::blink::SensorClient,
+                   DeviceSensorEntry,
+                   HeapMojoWrapperMode::kWithoutContextObserver>
+      client_receiver_;
 
   device::mojom::blink::SensorType type_;
 
-  mojo::ScopedSharedBufferHandle shared_buffer_handle_;
-  mojo::ScopedSharedBufferMapping shared_buffer_;
   std::unique_ptr<device::SensorReadingSharedBufferReader>
       shared_buffer_reader_;
 };

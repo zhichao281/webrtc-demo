@@ -5,8 +5,9 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_FRAME_REMOTE_FRAME_OWNER_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_FRAME_REMOTE_FRAME_OWNER_H_
 
-#include "third_party/blink/public/common/frame/frame_owner_element_type.h"
 #include "third_party/blink/public/common/frame/frame_policy.h"
+#include "third_party/blink/public/mojom/frame/frame_owner_element_type.mojom-blink.h"
+#include "third_party/blink/public/mojom/scroll/scrollbar_mode.mojom-blink.h"
 #include "third_party/blink/public/web/web_frame_owner_properties.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/frame/frame_owner.h"
@@ -21,14 +22,13 @@ namespace blink {
 //    its owner element in another process.
 // 2. Trigger a load event on its owner element once it finishes a load.
 class CORE_EXPORT RemoteFrameOwner final
-    : public GarbageCollectedFinalized<RemoteFrameOwner>,
+    : public GarbageCollected<RemoteFrameOwner>,
       public FrameOwner {
-  USING_GARBAGE_COLLECTED_MIXIN(RemoteFrameOwner);
-
  public:
-  RemoteFrameOwner(const FramePolicy&,
-                   const WebFrameOwnerProperties&,
-                   FrameOwnerElementType frame_owner_element_type);
+  RemoteFrameOwner(
+      const FramePolicy&,
+      const WebFrameOwnerProperties&,
+      mojom::blink::FrameOwnerElementType frame_owner_element_type);
 
   // FrameOwner overrides:
   Frame* ContentFrame() const override { return frame_.Get(); }
@@ -38,7 +38,8 @@ class CORE_EXPORT RemoteFrameOwner final
   void AddResourceTiming(const ResourceTimingInfo&) override;
   void DispatchLoad() override;
   bool CanRenderFallbackContent() const override {
-    return frame_owner_element_type_ == FrameOwnerElementType::kObject;
+    return frame_owner_element_type_ ==
+           mojom::blink::FrameOwnerElementType::kObject;
   }
   void RenderFallbackContent(Frame*) override;
   void IntrinsicSizingInfoChanged() override;
@@ -47,12 +48,15 @@ class CORE_EXPORT RemoteFrameOwner final
   AtomicString BrowsingContextContainerName() const override {
     return browsing_context_container_name_;
   }
-  ScrollbarMode ScrollingMode() const override { return scrolling_; }
+  mojom::blink::ScrollbarMode ScrollbarMode() const override {
+    return scrollbar_;
+  }
   int MarginWidth() const override { return margin_width_; }
   int MarginHeight() const override { return margin_height_; }
   bool AllowFullscreen() const override { return allow_fullscreen_; }
   bool AllowPaymentRequest() const override { return allow_payment_request_; }
   bool IsDisplayNone() const override { return is_display_none_; }
+  mojom::ColorScheme GetColorScheme() const override { return color_scheme_; }
   AtomicString RequiredCsp() const override { return required_csp_; }
   bool ShouldLazyLoadChildren() const final;
 
@@ -62,7 +66,7 @@ class CORE_EXPORT RemoteFrameOwner final
   void SetBrowsingContextContainerName(const WebString& name) {
     browsing_context_container_name_ = name;
   }
-  void SetScrollingMode(WebFrameOwnerProperties::ScrollingMode);
+  void SetScrollbarMode(mojom::blink::ScrollbarMode);
   void SetMarginWidth(int margin_width) { margin_width_ = margin_width; }
   void SetMarginHeight(int margin_height) { margin_height_ = margin_height; }
   void SetAllowFullscreen(bool allow_fullscreen) {
@@ -74,11 +78,14 @@ class CORE_EXPORT RemoteFrameOwner final
   void SetIsDisplayNone(bool is_display_none) {
     is_display_none_ = is_display_none;
   }
+  void SetColorScheme(mojom::ColorScheme color_scheme) {
+    color_scheme_ = color_scheme;
+  }
   void SetRequiredCsp(const WebString& required_csp) {
     required_csp_ = required_csp;
   }
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   // Intentionally private to prevent redundant checks when the type is
@@ -89,15 +96,16 @@ class CORE_EXPORT RemoteFrameOwner final
   Member<Frame> frame_;
   FramePolicy frame_policy_;
   AtomicString browsing_context_container_name_;
-  ScrollbarMode scrolling_;
+  mojom::blink::ScrollbarMode scrollbar_;
   int margin_width_;
   int margin_height_;
   bool allow_fullscreen_;
   bool allow_payment_request_;
   bool is_display_none_;
+  mojom::ColorScheme color_scheme_;
   bool needs_occlusion_tracking_;
   WebString required_csp_;
-  const FrameOwnerElementType frame_owner_element_type_;
+  const mojom::blink::FrameOwnerElementType frame_owner_element_type_;
 };
 
 template <>

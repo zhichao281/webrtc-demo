@@ -30,7 +30,8 @@
 #include "third_party/blink/renderer/platform/geometry/float_rect.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_flags.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
+#include "third_party/skia/include/effects/SkBlurImageFilter.h"
 
 namespace blink {
 
@@ -40,7 +41,6 @@ class FilterEffect;
 class FilterOperations;
 class FloatRect;
 class ReferenceFilterOperation;
-class SVGFilterElement;
 class SVGFilterGraphNodeMap;
 
 class CORE_EXPORT FilterEffectBuilder final {
@@ -50,9 +50,11 @@ class CORE_EXPORT FilterEffectBuilder final {
   FilterEffectBuilder(const FloatRect& reference_box,
                       float zoom,
                       const PaintFlags* fill_flags = nullptr,
-                      const PaintFlags* stroke_flags = nullptr);
+                      const PaintFlags* stroke_flags = nullptr,
+                      SkBlurImageFilter::TileMode blur_tile_mode =
+                          SkBlurImageFilter::kClampToBlack_TileMode);
 
-  Filter* BuildReferenceFilter(SVGFilterElement&,
+  Filter* BuildReferenceFilter(const ReferenceFilterOperation&,
                                FilterEffect* previous_effect,
                                SVGFilterGraphNodeMap* = nullptr) const;
 
@@ -62,13 +64,11 @@ class CORE_EXPORT FilterEffectBuilder final {
       const FilterOperations&) const;
 
  private:
-  Filter* BuildReferenceFilter(const ReferenceFilterOperation&,
-                               FilterEffect* previous_effect) const;
-
   FloatRect reference_box_;
   float zoom_;
   const PaintFlags* fill_flags_;
   const PaintFlags* stroke_flags_;
+  const SkBlurImageFilter::TileMode blur_tile_mode_;
 };
 
 }  // namespace blink

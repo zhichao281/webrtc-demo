@@ -42,6 +42,7 @@
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkColor.h"
+#include "third_party/skia/include/core/SkData.h"
 #include "third_party/skia/include/core/SkPoint.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
 #include "third_party/skia/include/core/SkScalar.h"
@@ -94,14 +95,14 @@ inline bool WebCoreFloatNearlyEqual(float a, float b) {
                              WebCoreFloatToSkScalar(b));
 }
 
-inline SkPath::FillType WebCoreWindRuleToSkFillType(WindRule rule) {
-  return static_cast<SkPath::FillType>(rule);
+inline SkPathFillType WebCoreWindRuleToSkFillType(WindRule rule) {
+  return static_cast<SkPathFillType>(rule);
 }
 
-inline WindRule SkFillTypeToWindRule(SkPath::FillType fill_type) {
+inline WindRule SkFillTypeToWindRule(SkPathFillType fill_type) {
   switch (fill_type) {
-    case SkPath::kWinding_FillType:
-    case SkPath::kEvenOdd_FillType:
+    case SkPathFillType::kWinding:
+    case SkPathFillType::kEvenOdd:
       return static_cast<WindRule>(fill_type);
     default:
       NOTREACHED();
@@ -116,6 +117,8 @@ inline SkPoint FloatPointToSkPoint(const FloatPoint& point) {
 }
 
 SkMatrix PLATFORM_EXPORT AffineTransformToSkMatrix(const AffineTransform&);
+SkMatrix PLATFORM_EXPORT
+TransformationMatrixToSkMatrix(const TransformationMatrix&);
 
 bool NearlyIntegral(float value);
 
@@ -143,15 +146,20 @@ template <typename PrimitiveType>
 void DrawPlatformFocusRing(const PrimitiveType&,
                            cc::PaintCanvas*,
                            SkColor,
-                           float width);
+                           float width,
+                           float border_radius);
 
-// TODO(fmalita): remove in favor of direct SrcRectConstraint use.
-inline cc::PaintCanvas::SrcRectConstraint
-WebCoreClampingModeToSkiaRectConstraint(Image::ImageClampingMode clamp_mode) {
+inline SkCanvas::SrcRectConstraint WebCoreClampingModeToSkiaRectConstraint(
+    Image::ImageClampingMode clamp_mode) {
   return clamp_mode == Image::kClampImageToSourceRect
-             ? cc::PaintCanvas::kStrict_SrcRectConstraint
-             : cc::PaintCanvas::kFast_SrcRectConstraint;
+             ? SkCanvas::kStrict_SrcRectConstraint
+             : SkCanvas::kFast_SrcRectConstraint;
 }
+
+// Attempts to allocate an SkData on the PartitionAlloc buffer partition.
+// If this fails (e.g. due to low memory), returns a null sk_sp<SkData> instead.
+// Otherwise, the returned buffer is guaranteed to be zero-filled.
+PLATFORM_EXPORT sk_sp<SkData> TryAllocateSkData(size_t size);
 
 // Skia's smart pointer APIs are preferable over their legacy raw pointer
 // counterparts.

@@ -40,7 +40,7 @@
 #include "third_party/blink/renderer/platform/geometry/int_size.h"
 #include "third_party/blink/renderer/platform/geometry/length.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
@@ -53,7 +53,7 @@ class CORE_EXPORT PageScaleConstraintsSet
  public:
   explicit PageScaleConstraintsSet(Page* page);
 
-  void Trace(blink::Visitor*);
+  void Trace(Visitor*) const;
 
   void SetDefaultConstraints(const PageScaleConstraints&);
   const PageScaleConstraints& DefaultConstraints() const;

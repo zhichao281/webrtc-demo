@@ -36,10 +36,10 @@
 #include "third_party/blink/renderer/modules/webdatabase/sql_transaction_backend.h"
 #include "third_party/blink/renderer/modules/webdatabase/sqlite/sqlite_database.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
+#include "third_party/blink/renderer/platform/scheduler/public/frame_or_worker_scheduler.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/wtf/deque.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
-#include "third_party/blink/renderer/platform/wtf/time.h"
 
 namespace blink {
 
@@ -60,7 +60,7 @@ class Database final : public ScriptWrappable {
            const String& display_name,
            uint32_t estimated_size);
   ~Database() override;
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
   bool OpenAndVerifyVersion(bool set_version_in_new_database,
                             DatabaseError&,
@@ -137,8 +137,8 @@ class Database final : public ScriptWrappable {
   bool PerformOpenAndVerify(bool set_version_in_new_database,
                             DatabaseError&,
                             String& error_message);
-  void RunCreationCallback(
-      V8PersistentCallbackFunction<V8DatabaseCallback>* creation_callback);
+  void RunCreationCallback(V8DatabaseCallback* creation_callback,
+                           std::unique_ptr<probe::AsyncTaskId> task_id);
 
   void ScheduleTransaction();
 
@@ -196,6 +196,11 @@ class Database final : public ScriptWrappable {
   Mutex transaction_in_progress_mutex_;
   bool transaction_in_progress_;
   bool is_transaction_queue_enabled_;
+
+  // Disable BackForwardCache when using WebDatabase feature, because we do not
+  // handle the state inside the portal after putting the page in cache.
+  FrameOrWorkerScheduler::SchedulingAffectingFeatureHandle
+      feature_handle_for_scheduler_;
 
   friend class ChangeVersionWrapper;
   friend class DatabaseManager;

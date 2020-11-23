@@ -12,6 +12,7 @@
 #define MODULES_VIDEO_CODING_CODECS_VP8_LIBVPX_INTERFACE_H_
 
 #include <stdint.h>
+
 #include <memory>
 
 #include "vpx/vp8cx.h"
@@ -91,6 +92,8 @@ class LibvpxInterface {
   virtual const vpx_codec_cx_pkt_t* codec_get_cx_data(
       vpx_codec_ctx_t* ctx,
       vpx_codec_iter_t* iter) const = 0;
+
+  virtual const char* codec_error_detail(vpx_codec_ctx_t* ctx) const = 0;
 
   // Returns interface wrapping the actual libvpx functions.
   static std::unique_ptr<LibvpxInterface> CreateEncoder();

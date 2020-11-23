@@ -70,9 +70,15 @@ class CORE_EXPORT LayoutMultiColumnSet final : public LayoutBlockFlow {
       const ComputedStyle& parent_style);
 
   const MultiColumnFragmentainerGroup& FirstFragmentainerGroup() const {
+    NOT_DESTROYED();
     return fragmentainer_groups_.First();
   }
   const MultiColumnFragmentainerGroup& LastFragmentainerGroup() const {
+    NOT_DESTROYED();
+    return fragmentainer_groups_.Last();
+  }
+  MultiColumnFragmentainerGroup& LastFragmentainerGroup() {
+    NOT_DESTROYED();
     return fragmentainer_groups_.Last();
   }
   unsigned FragmentainerGroupIndexAtFlowThreadOffset(LayoutUnit,
@@ -80,29 +86,39 @@ class CORE_EXPORT LayoutMultiColumnSet final : public LayoutBlockFlow {
   MultiColumnFragmentainerGroup& FragmentainerGroupAtFlowThreadOffset(
       LayoutUnit flow_thread_offset,
       PageBoundaryRule rule) {
+    NOT_DESTROYED();
     return fragmentainer_groups_[FragmentainerGroupIndexAtFlowThreadOffset(
         flow_thread_offset, rule)];
   }
   const MultiColumnFragmentainerGroup& FragmentainerGroupAtFlowThreadOffset(
       LayoutUnit flow_thread_offset,
       PageBoundaryRule rule) const {
+    NOT_DESTROYED();
     return fragmentainer_groups_[FragmentainerGroupIndexAtFlowThreadOffset(
         flow_thread_offset, rule)];
   }
   const MultiColumnFragmentainerGroup& FragmentainerGroupAtVisualPoint(
       const LayoutPoint&) const;
   const MultiColumnFragmentainerGroupList& FragmentainerGroups() const {
+    NOT_DESTROYED();
     return fragmentainer_groups_;
   }
 
   bool IsOfType(LayoutObjectType type) const override {
-    return type == kLayoutObjectLayoutMultiColumnSet ||
+    NOT_DESTROYED();
+    return type == kLayoutObjectMultiColumnSet ||
            LayoutBlockFlow::IsOfType(type);
   }
-  bool CanHaveChildren() const final { return false; }
+  bool CanHaveChildren() const final {
+    NOT_DESTROYED();
+    return false;
+  }
 
   // Return the width and height of a single column or page in the set.
-  LayoutUnit PageLogicalWidth() const { return FlowThread()->LogicalWidth(); }
+  LayoutUnit PageLogicalWidth() const {
+    NOT_DESTROYED();
+    return FlowThread()->LogicalWidth();
+  }
   LayoutUnit PageLogicalHeightForOffset(LayoutUnit) const;
   LayoutUnit PageRemainingLogicalHeightForOffset(LayoutUnit,
                                                  PageBoundaryRule) const;
@@ -113,9 +129,11 @@ class CORE_EXPORT LayoutMultiColumnSet final : public LayoutBlockFlow {
   bool NewFragmentainerGroupsAllowed() const;
 
   LayoutUnit TallestUnbreakableLogicalHeight() const {
+    NOT_DESTROYED();
     return tallest_unbreakable_logical_height_;
   }
   void PropagateTallestUnbreakableLogicalHeight(LayoutUnit value) {
+    NOT_DESTROYED();
     tallest_unbreakable_logical_height_ =
         std::max(value, tallest_unbreakable_logical_height_);
   }
@@ -124,13 +142,18 @@ class CORE_EXPORT LayoutMultiColumnSet final : public LayoutBlockFlow {
       LayoutUnit flow_thread_offset,
       LayoutUnit content_logical_height) const;
 
-  LayoutFlowThread* FlowThread() const { return flow_thread_; }
+  LayoutFlowThread* FlowThread() const {
+    NOT_DESTROYED();
+    return flow_thread_;
+  }
 
   LayoutBlockFlow* MultiColumnBlockFlow() const {
-    return ToLayoutBlockFlow(Parent());
+    NOT_DESTROYED();
+    return To<LayoutBlockFlow>(Parent());
   }
   LayoutMultiColumnFlowThread* MultiColumnFlowThread() const {
-    return ToLayoutMultiColumnFlowThread(FlowThread());
+    NOT_DESTROYED();
+    return To<LayoutMultiColumnFlowThread>(FlowThread());
   }
 
   LayoutMultiColumnSet* NextSiblingMultiColumnSet() const;
@@ -149,6 +172,7 @@ class CORE_EXPORT LayoutMultiColumnSet final : public LayoutBlockFlow {
   LayoutUnit LogicalTopInFlowThread() const;
   LayoutUnit LogicalBottomInFlowThread() const;
   LayoutUnit LogicalHeightInFlowThread() const {
+    NOT_DESTROYED();
     // Due to negative margins, logical bottom may actually end up above logical
     // top, but we never want to return negative logical heights.
     return (LogicalBottomInFlowThread() - LogicalTopInFlowThread())
@@ -159,6 +183,7 @@ class CORE_EXPORT LayoutMultiColumnSet final : public LayoutBlockFlow {
   // group can hold without overflowing.
   LayoutUnit FragmentainerGroupCapacity(
       const MultiColumnFragmentainerGroup& group) const {
+    NOT_DESTROYED();
     return group.ColumnLogicalHeight() * UsedColumnCount();
   }
 
@@ -167,6 +192,7 @@ class CORE_EXPORT LayoutMultiColumnSet final : public LayoutBlockFlow {
   // The used CSS value of column-count, i.e. how many columns there are room
   // for without overflowing.
   unsigned UsedColumnCount() const {
+    NOT_DESTROYED();
     return MultiColumnFlowThread()->ColumnCount();
   }
 
@@ -191,8 +217,14 @@ class CORE_EXPORT LayoutMultiColumnSet final : public LayoutBlockFlow {
   // Reset previously calculated column height. Will mark for layout if needed.
   void ResetColumnHeight();
 
-  void StoreOldPosition() { old_logical_top_ = LogicalTop(); }
-  bool IsInitialHeightCalculated() const { return initial_height_calculated_; }
+  void StoreOldPosition() {
+    NOT_DESTROYED();
+    old_logical_top_ = LogicalTop();
+  }
+  bool IsInitialHeightCalculated() const {
+    NOT_DESTROYED();
+    return initial_height_calculated_;
+  }
 
   // Layout of flow thread content that's to be rendered inside this column set
   // begins. This happens at the beginning of flow thread layout, and when
@@ -207,8 +239,7 @@ class CORE_EXPORT LayoutMultiColumnSet final : public LayoutBlockFlow {
   void StyleDidChange(StyleDifference, const ComputedStyle* old_style) override;
   void UpdateLayout() override;
 
-  void ComputeIntrinsicLogicalWidths(LayoutUnit& min_logical_width,
-                                     LayoutUnit& max_logical_width) const final;
+  MinMaxSizes ComputeIntrinsicLogicalWidths() const final;
 
   void AttachToFlowThread();
   void DetachFromFlowThread();
@@ -226,7 +257,10 @@ class CORE_EXPORT LayoutMultiColumnSet final : public LayoutBlockFlow {
   // if any.
   unsigned ActualColumnCount() const;
 
-  const char* GetName() const override { return "LayoutMultiColumnSet"; }
+  const char* GetName() const override {
+    NOT_DESTROYED();
+    return "LayoutMultiColumnSet";
+  }
 
   // Sets |columnRuleBounds| to the bounds of each column rule rect's painted
   // extent, adjusted by paint offset, before pixel snapping. Returns true if
@@ -234,26 +268,29 @@ class CORE_EXPORT LayoutMultiColumnSet final : public LayoutBlockFlow {
   bool ComputeColumnRuleBounds(const LayoutPoint& paint_offset,
                                Vector<LayoutRect>& column_rule_bounds) const;
 
-  void UpdateFromNG();
+  void FinishLayoutFromNG();
 
  protected:
   LayoutMultiColumnSet(LayoutFlowThread*);
 
  private:
-  LayoutRect LocalVisualRectIgnoringVisibility() const final;
+  PhysicalRect LocalVisualRectIgnoringVisibility() const final;
 
   void InsertedIntoTree() final;
   void WillBeRemovedFromTree() final;
 
-  bool IsSelfCollapsingBlock() const override { return false; }
+  bool IsSelfCollapsingBlock() const override {
+    NOT_DESTROYED();
+    return false;
+  }
 
   void ComputeLogicalHeight(LayoutUnit logical_height,
                             LayoutUnit logical_top,
                             LogicalExtentComputedValues&) const override;
-  PositionWithAffinity PositionForPoint(const LayoutPoint&) const override;
+  PositionWithAffinity PositionForPoint(const PhysicalOffset&) const override;
 
   void PaintObject(const PaintInfo&,
-                   const LayoutPoint& paint_offset) const override;
+                   const PhysicalOffset& paint_offset) const override;
 
   void ComputeVisualOverflow(bool recompute_floats) final;
 
@@ -280,7 +317,12 @@ class CORE_EXPORT LayoutMultiColumnSet final : public LayoutBlockFlow {
   unsigned last_actual_column_count_;
 };
 
-DEFINE_LAYOUT_OBJECT_TYPE_CASTS(LayoutMultiColumnSet, IsLayoutMultiColumnSet());
+template <>
+struct DowncastTraits<LayoutMultiColumnSet> {
+  static bool AllowFrom(const LayoutObject& object) {
+    return object.IsLayoutMultiColumnSet();
+  }
+};
 
 }  // namespace blink
 

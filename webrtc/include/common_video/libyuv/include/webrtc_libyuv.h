@@ -17,11 +17,13 @@
 
 #include <stdint.h>
 #include <stdio.h>
+
 #include <vector>
 
 #include "api/scoped_refptr.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_frame_buffer.h"
+#include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
 
@@ -55,16 +57,6 @@ const double kPerfectPSNR = 48.0f;
 // Return value:    :The required size in bytes to accommodate the specified
 //                   video frame.
 size_t CalcBufferSize(VideoType type, int width, int height);
-
-// TODO(mikhal): Add unit test for these two functions and determine location.
-// Print VideoFrame to file
-// Input:
-//    - frame       : Reference to video frame.
-//    - file        : pointer to file object. It is assumed that the file is
-//                    already open for writing.
-// Return value: 0 if OK, < 0 otherwise.
-int PrintVideoFrame(const VideoFrame& frame, FILE* file);
-int PrintVideoFrame(const I420BufferInterface& frame, FILE* file);
 
 // Extract buffer from VideoFrame or I420BufferInterface (consecutive
 // planes, no stride)
@@ -132,7 +124,7 @@ void NV12Scale(uint8_t* tmp_buffer,
 // Helper class for directly converting and scaling NV12 to I420. The Y-plane
 // will be scaled directly to the I420 destination, which makes this faster
 // than separate NV12->I420 + I420->I420 scaling.
-class NV12ToI420Scaler {
+class RTC_EXPORT NV12ToI420Scaler {
  public:
   NV12ToI420Scaler();
   ~NV12ToI420Scaler();

@@ -13,6 +13,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
 #include <memory>
 #include <string>
 #include <utility>
@@ -20,6 +21,7 @@
 
 #include "rtc_base/checks.h"
 #include "rtc_base/system/rtc_export.h"
+#include "rtc_base/system/rtc_export_template.h"
 
 namespace webrtc {
 
@@ -179,6 +181,24 @@ class RTC_EXPORT RTCStats {
     return local_var_members_vec;                                              \
   }
 
+// A version of WEBRTC_RTCSTATS_IMPL() where "..." is omitted, used to avoid a
+// compile error on windows. This is used if the stats dictionary does not
+// declare any members of its own (but perhaps its parent dictionary does).
+#define WEBRTC_RTCSTATS_IMPL_NO_MEMBERS(this_class, parent_class, type_str) \
+  const char this_class::kType[] = type_str;                                \
+                                                                            \
+  std::unique_ptr<webrtc::RTCStats> this_class::copy() const {              \
+    return std::unique_ptr<webrtc::RTCStats>(new this_class(*this));        \
+  }                                                                         \
+                                                                            \
+  const char* this_class::type() const { return this_class::kType; }        \
+                                                                            \
+  std::vector<const webrtc::RTCStatsMemberInterface*>                       \
+  this_class::MembersOfThisObjectAndAncestors(                              \
+      size_t local_var_additional_capacity) const {                         \
+    return parent_class::MembersOfThisObjectAndAncestors(0);                \
+  }
+
 // Non-standard stats members can be exposed to the JavaScript API in Chrome
 // e.g. through origin trials. The group ID can be used by the blink layer to
 // determine if a stats member should be exposed or not. Multiple non-standard
@@ -248,7 +268,7 @@ class RTCStatsMemberInterface {
 
   template <typename T>
   const T& cast_to() const {
-    RTC_DCHECK_EQ(type(), T::kType);
+    RTC_DCHECK_EQ(type(), T::StaticType());
     return static_cast<const T&>(*this);
   }
 
@@ -260,15 +280,12 @@ class RTCStatsMemberInterface {
   bool is_defined_;
 };
 
-// Template implementation of |RTCStatsMemberInterface|. Every possible |T| is
-// specialized in rtcstats.cc, using a different |T| results in a linker error
-// (undefined reference to |kType|). The supported types are the ones described
-// by |RTCStatsMemberInterface::Type|.
+// Template implementation of |RTCStatsMemberInterface|.
+// The supported types are the ones described by
+// |RTCStatsMemberInterface::Type|.
 template <typename T>
-class RTC_EXPORT RTCStatsMember : public RTCStatsMemberInterface {
+class RTCStatsMember : public RTCStatsMemberInterface {
  public:
-  static const Type kType;
-
   explicit RTCStatsMember(const char* name)
       : RTCStatsMemberInterface(name, /*is_defined=*/false), value_() {}
   RTCStatsMember(const char* name, const T& value)
@@ -283,7 +300,8 @@ class RTC_EXPORT RTCStatsMember : public RTCStatsMemberInterface {
       : RTCStatsMemberInterface(other.name_, other.is_defined_),
         value_(std::move(other.value_)) {}
 
-  Type type() const override { return kType; }
+  static Type StaticType();
+  Type type() const override { return StaticType(); }
   bool is_sequence() const override;
   bool is_string() const override;
   bool is_standardized() const override { return true; }
@@ -300,6 +318,14 @@ class RTC_EXPORT RTCStatsMember : public RTCStatsMemberInterface {
   }
   std::string ValueToString() const override;
   std::string ValueToJson() const override;
+
+  template <typename U>
+  inline T ValueOrDefault(U default_value) const {
+    if (is_defined()) {
+      return *(*this);
+    }
+    return default_value;
+  }
 
   // Assignment operators.
   T& operator=(const T& value) {
@@ -337,6 +363,35 @@ class RTC_EXPORT RTCStatsMember : public RTCStatsMemberInterface {
   T value_;
 };
 
+#define WEBRTC_DECLARE_RTCSTATSMEMBER(T)                                    \
+  template <>                                                               \
+  RTC_EXPORT RTCStatsMemberInterface::Type RTCStatsMember<T>::StaticType(); \
+  template <>                                                               \
+  RTC_EXPORT bool RTCStatsMember<T>::is_sequence() const;                   \
+  template <>                                                               \
+  RTC_EXPORT bool RTCStatsMember<T>::is_string() const;                     \
+  template <>                                                               \
+  RTC_EXPORT std::string RTCStatsMember<T>::ValueToString() const;          \
+  template <>                                                               \
+  RTC_EXPORT std::string RTCStatsMember<T>::ValueToJson() const;            \
+  extern template class RTC_EXPORT_TEMPLATE_DECLARE(RTC_EXPORT)             \
+      RTCStatsMember<T>
+
+WEBRTC_DECLARE_RTCSTATSMEMBER(bool);
+WEBRTC_DECLARE_RTCSTATSMEMBER(int32_t);
+WEBRTC_DECLARE_RTCSTATSMEMBER(uint32_t);
+WEBRTC_DECLARE_RTCSTATSMEMBER(int64_t);
+WEBRTC_DECLARE_RTCSTATSMEMBER(uint64_t);
+WEBRTC_DECLARE_RTCSTATSMEMBER(double);
+WEBRTC_DECLARE_RTCSTATSMEMBER(std::string);
+WEBRTC_DECLARE_RTCSTATSMEMBER(std::vector<bool>);
+WEBRTC_DECLARE_RTCSTATSMEMBER(std::vector<int32_t>);
+WEBRTC_DECLARE_RTCSTATSMEMBER(std::vector<uint32_t>);
+WEBRTC_DECLARE_RTCSTATSMEMBER(std::vector<int64_t>);
+WEBRTC_DECLARE_RTCSTATSMEMBER(std::vector<uint64_t>);
+WEBRTC_DECLARE_RTCSTATSMEMBER(std::vector<double>);
+WEBRTC_DECLARE_RTCSTATSMEMBER(std::vector<std::string>);
+
 // Using inheritance just so that it's obvious from the member's declaration
 // whether it's standardized or not.
 template <typename T>
@@ -354,8 +409,8 @@ class RTCNonStandardStatsMember : public RTCStatsMember<T> {
   explicit RTCNonStandardStatsMember(const RTCNonStandardStatsMember<T>& other)
       : RTCStatsMember<T>(other), group_ids_(other.group_ids_) {}
   explicit RTCNonStandardStatsMember(RTCNonStandardStatsMember<T>&& other)
-      : group_ids_(std::move(other.group_ids_)),
-        RTCStatsMember<T>(std::move(other)) {}
+      : RTCStatsMember<T>(std::move(other)),
+        group_ids_(std::move(other.group_ids_)) {}
 
   bool is_standardized() const override { return false; }
 
@@ -371,6 +426,36 @@ class RTCNonStandardStatsMember : public RTCStatsMember<T> {
  private:
   std::vector<NonStandardGroupId> group_ids_;
 };
+
+extern template class RTC_EXPORT_TEMPLATE_DECLARE(RTC_EXPORT)
+    RTCNonStandardStatsMember<bool>;
+extern template class RTC_EXPORT_TEMPLATE_DECLARE(RTC_EXPORT)
+    RTCNonStandardStatsMember<int32_t>;
+extern template class RTC_EXPORT_TEMPLATE_DECLARE(RTC_EXPORT)
+    RTCNonStandardStatsMember<uint32_t>;
+extern template class RTC_EXPORT_TEMPLATE_DECLARE(RTC_EXPORT)
+    RTCNonStandardStatsMember<int64_t>;
+extern template class RTC_EXPORT_TEMPLATE_DECLARE(RTC_EXPORT)
+    RTCNonStandardStatsMember<uint64_t>;
+extern template class RTC_EXPORT_TEMPLATE_DECLARE(RTC_EXPORT)
+    RTCNonStandardStatsMember<double>;
+extern template class RTC_EXPORT_TEMPLATE_DECLARE(RTC_EXPORT)
+    RTCNonStandardStatsMember<std::string>;
+extern template class RTC_EXPORT_TEMPLATE_DECLARE(RTC_EXPORT)
+    RTCNonStandardStatsMember<std::vector<bool>>;
+extern template class RTC_EXPORT_TEMPLATE_DECLARE(RTC_EXPORT)
+    RTCNonStandardStatsMember<std::vector<int32_t>>;
+extern template class RTC_EXPORT_TEMPLATE_DECLARE(RTC_EXPORT)
+    RTCNonStandardStatsMember<std::vector<uint32_t>>;
+extern template class RTC_EXPORT_TEMPLATE_DECLARE(RTC_EXPORT)
+    RTCNonStandardStatsMember<std::vector<int64_t>>;
+extern template class RTC_EXPORT_TEMPLATE_DECLARE(RTC_EXPORT)
+    RTCNonStandardStatsMember<std::vector<uint64_t>>;
+extern template class RTC_EXPORT_TEMPLATE_DECLARE(RTC_EXPORT)
+    RTCNonStandardStatsMember<std::vector<double>>;
+extern template class RTC_EXPORT_TEMPLATE_DECLARE(RTC_EXPORT)
+    RTCNonStandardStatsMember<std::vector<std::string>>;
+
 }  // namespace webrtc
 
 #endif  // API_STATS_RTC_STATS_H_

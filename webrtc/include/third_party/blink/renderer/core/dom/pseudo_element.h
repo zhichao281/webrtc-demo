@@ -29,6 +29,7 @@
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/element.h"
+#include "third_party/blink/renderer/platform/wtf/casting.h"
 
 namespace blink {
 
@@ -43,6 +44,7 @@ class CORE_EXPORT PseudoElement : public Element {
   scoped_refptr<ComputedStyle> CustomStyleForLayoutObject() override;
   void AttachLayoutTree(AttachContext&) override;
   bool LayoutObjectIsNeeded(const ComputedStyle&) const override;
+  bool CanGeneratePseudoElement(PseudoId) const override;
 
   bool CanStartSelection() const override { return false; }
   bool CanContainRangeEndPoint() const override { return false; }
@@ -50,7 +52,8 @@ class CORE_EXPORT PseudoElement : public Element {
   scoped_refptr<ComputedStyle> LayoutStyleForDisplayContents(
       const ComputedStyle&);
 
-  static String PseudoElementNameForEvents(PseudoId);
+  static const AtomicString& PseudoElementNameForEvents(PseudoId);
+  static bool IsWebExposed(PseudoId, const Node*);
 
   // Pseudo element are not allowed to be the inner node for hit testing. Find
   // the closest ancestor which is a real dom node.
@@ -67,18 +70,22 @@ class CORE_EXPORT PseudoElement : public Element {
     ~AttachLayoutTreeScope();
 
    private:
-    Member<PseudoElement> element_;
-    scoped_refptr<ComputedStyle> original_style_;
+    PseudoElement* element_;
+    scoped_refptr<const ComputedStyle> original_style_;
   };
 
   PseudoId pseudo_id_;
 };
 
-const QualifiedName& PseudoElementTagName();
+const QualifiedName& PseudoElementTagName(PseudoId);
 
-bool PseudoElementLayoutObjectIsNeeded(const ComputedStyle*);
+bool PseudoElementLayoutObjectIsNeeded(const ComputedStyle* pseudo_style,
+                                       const Element* originating_element);
 
-DEFINE_ELEMENT_TYPE_CASTS(PseudoElement, IsPseudoElement());
+template <>
+struct DowncastTraits<PseudoElement> {
+  static bool AllowFrom(const Node& node) { return node.IsPseudoElement(); }
+};
 
 }  // namespace blink
 

@@ -7,7 +7,9 @@
 
 #include "third_party/blink/public/mojom/clipboard/clipboard.mojom-blink.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/heap/heap.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
@@ -16,17 +18,22 @@ namespace blink {
 class DataObject;
 class Image;
 class KURL;
+class LocalFrame;
 
-// This singleton provides read/write access to the system clipboard,
-// mediating between core classes and mojom::ClipboardHost.
+// SystemClipboard:
+// - is a LocalFrame bounded object.
+// - provides sanitized, platform-neutral read/write access to the clipboard.
+// - mediates between core classes and mojom::ClipboardHost.
+//
 // All calls to write functions must be followed by a call to CommitWrite().
-class CORE_EXPORT SystemClipboard {
-  USING_FAST_MALLOC(SystemClipboard);
-
+class CORE_EXPORT SystemClipboard final
+    : public GarbageCollected<SystemClipboard> {
  public:
-  static SystemClipboard& GetInstance();
-
   enum SmartReplaceOption { kCanSmartReplace, kCannotSmartReplace };
+
+  explicit SystemClipboard(LocalFrame* frame);
+  SystemClipboard(const SystemClipboard&) = delete;
+  SystemClipboard& operator=(const SystemClipboard&) = delete;
 
   uint64_t SequenceNumber();
   bool IsSelectionMode() const;
@@ -48,12 +55,15 @@ class CORE_EXPORT SystemClipboard {
   String ReadHTML(KURL&, unsigned& fragment_start, unsigned& fragment_end);
   void WriteHTML(const String& markup,
                  const KURL& document_url,
-                 const String& plain_text,
                  SmartReplaceOption = kCannotSmartReplace);
+
+  void ReadSvg(mojom::blink::ClipboardHost::ReadSvgCallback callback);
+  void WriteSvg(const String& markup);
 
   String ReadRTF();
 
   SkBitmap ReadImage(mojom::ClipboardBuffer);
+  String ReadImageAsImageMarkup(mojom::blink::ClipboardBuffer);
 
   // Write the image and its associated tag (bookmark/HTML types).
   void WriteImageWithTag(Image*, const KURL&, const String& title);
@@ -63,18 +73,26 @@ class CORE_EXPORT SystemClipboard {
   String ReadCustomData(const String& type);
   void WriteDataObject(DataObject*);
 
-  // Clipboard write functions that must use CommitWrite for changes to reach
+  // Clipboard write functions must use CommitWrite for changes to reach
   // the OS clipboard.
   void CommitWrite();
 
+  void CopyToFindPboard(const String& text);
+
+  void Trace(Visitor*) const;
+
  private:
-  SystemClipboard();
   bool IsValidBufferType(mojom::ClipboardBuffer);
 
-  mojom::blink::ClipboardHostPtr clipboard_;
+  HeapMojoRemote<mojom::blink::ClipboardHost> clipboard_;
+  // In some Linux environments, |buffer_| may equal ClipboardBuffer::kStandard
+  // or kSelection.  In other platforms |buffer_| always equals
+  // ClipboardBuffer::kStandard.
   mojom::ClipboardBuffer buffer_ = mojom::ClipboardBuffer::kStandard;
 
-  DISALLOW_COPY_AND_ASSIGN(SystemClipboard);
+  // Whether the selection buffer is available on the underlying platform.
+  bool is_selection_buffer_available_ = false;
+
 };
 
 }  // namespace blink

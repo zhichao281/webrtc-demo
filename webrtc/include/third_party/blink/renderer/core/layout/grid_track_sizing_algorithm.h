@@ -6,14 +6,13 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_GRID_TRACK_SIZING_ALGORITHM_H_
 
 #include <memory>
-#include "base/macros.h"
 #include "base/optional.h"
 #include "third_party/blink/renderer/core/layout/grid_baseline_alignment.h"
 #include "third_party/blink/renderer/core/layout/layout_box.h"
 #include "third_party/blink/renderer/core/style/grid_positions_resolver.h"
 #include "third_party/blink/renderer/core/style/grid_track_size.h"
 #include "third_party/blink/renderer/platform/geometry/layout_unit.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
 
 namespace blink {
@@ -66,6 +65,12 @@ class GridTrack {
   }
   void SetGrowthLimitCap(base::Optional<LayoutUnit>);
 
+  const GridTrackSize& CachedTrackSize() const {
+    DCHECK(cached_track_size_.has_value());
+    return cached_track_size_.value();
+  }
+  void SetCachedTrackSize(const GridTrackSize&);
+
  private:
   bool IsGrowthLimitBiggerThanBaseSize() const;
   void EnsureGrowthLimitIsBiggerThanBaseSize();
@@ -76,6 +81,7 @@ class GridTrack {
   LayoutUnit size_during_distribution_;
   base::Optional<LayoutUnit> growth_limit_cap_;
   bool infinitely_growable_;
+  base::Optional<GridTrackSize> cached_track_size_;
 };
 
 class GridTrackSizingAlgorithm final {
@@ -87,7 +93,7 @@ class GridTrackSizingAlgorithm final {
         layout_grid_(layout_grid),
         sizing_state_(kColumnSizingFirstIteration) {}
 
-  // setup() must be run before calling run() as it configures the behaviour of
+  // Setup() must be run before calling Run() as it configures the behaviour of
   // the algorithm.
   void Setup(GridTrackSizingDirection,
              size_t num_tracks,
@@ -136,10 +142,10 @@ class GridTrackSizingAlgorithm final {
                                   GridTrackSizingDirection) const;
   bool IsRelativeSizedTrackAsAuto(const GridTrackSize&,
                                   GridTrackSizingDirection) const;
-  GridTrackSize GetGridTrackSize(GridTrackSizingDirection,
-                                 size_t translated_index) const;
-  GridTrackSize RawGridTrackSize(GridTrackSizingDirection,
-                                 size_t translated_index) const;
+  GridTrackSize CalculateGridTrackSize(GridTrackSizingDirection,
+                                       size_t translated_index) const;
+  const GridTrackSize& RawGridTrackSize(GridTrackSizingDirection,
+                                        size_t translated_index) const;
 
   // Helper methods for step 1. initializeTrackSizes().
   LayoutUnit InitialBaseSize(const GridTrackSize&) const;
@@ -269,6 +275,10 @@ class GridTrackSizingAlgorithmStrategy {
   USING_FAST_MALLOC(GridTrackSizingAlgorithmStrategy);
 
  public:
+  GridTrackSizingAlgorithmStrategy(const GridTrackSizingAlgorithmStrategy&) =
+      delete;
+  GridTrackSizingAlgorithmStrategy& operator=(
+      const GridTrackSizingAlgorithmStrategy&) = delete;
   virtual ~GridTrackSizingAlgorithmStrategy();
 
   virtual LayoutUnit MinContentForChild(LayoutBox&) const;
@@ -287,14 +297,15 @@ class GridTrackSizingAlgorithmStrategy {
       Vector<LayoutUnit>& increments,
       LayoutUnit& total_growth) const = 0;
   virtual LayoutUnit FreeSpaceForStretchAutoTracksStep() const = 0;
+  virtual bool IsComputingSizeContainment() const = 0;
 
  protected:
   GridTrackSizingAlgorithmStrategy(GridTrackSizingAlgorithm& algorithm)
       : algorithm_(algorithm) {}
 
-  virtual LayoutUnit MinLogicalWidthForChild(LayoutBox&,
-                                             const Length& child_min_size,
-                                             LayoutUnit available_size) const;
+  virtual LayoutUnit MinLogicalSizeForChild(LayoutBox&,
+                                            const Length& child_min_size,
+                                            LayoutUnit available_size) const;
   virtual void LayoutGridItemForMinSizeComputation(
       LayoutBox&,
       bool override_size_has_changed) const = 0;
@@ -317,12 +328,13 @@ class GridTrackSizingAlgorithmStrategy {
     return algorithm_.AvailableSpace();
   }
 
-  GridTrackSize GetGridTrackSize(GridTrackSizingDirection direction,
-                                 size_t translated_index) const {
-    return algorithm_.GetGridTrackSize(direction, translated_index);
-  }
-
   // Helper functions
+  static bool HasRelativeMarginOrPaddingForChild(const LayoutGrid&,
+                                                 const LayoutBox& child,
+                                                 GridTrackSizingDirection);
+  static bool HasRelativeOrIntrinsicSizeForChild(const LayoutGrid&,
+                                                 const LayoutBox& child,
+                                                 GridTrackSizingDirection);
   static bool ShouldClearOverrideContainingBlockContentSizeForChild(
       const LayoutGrid&,
       const LayoutBox& child,
@@ -333,9 +345,6 @@ class GridTrackSizingAlgorithmStrategy {
       LayoutUnit size);
 
   GridTrackSizingAlgorithm& algorithm_;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(GridTrackSizingAlgorithmStrategy);
 };
 }
 

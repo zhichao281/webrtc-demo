@@ -37,6 +37,7 @@
 #include "third_party/blink/renderer/core/svg/properties/svg_property_info.h"
 #include "third_party/blink/renderer/core/svg/properties/svg_property_tear_off.h"
 #include "third_party/blink/renderer/core/svg/svg_parsing_error.h"
+#include "third_party/blink/renderer/platform/heap/heap.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
 
 namespace blink {
@@ -48,13 +49,12 @@ class SVGAnimatedPropertyBase : public GarbageCollectedMixin {
  public:
   virtual ~SVGAnimatedPropertyBase();
 
-  virtual SVGPropertyBase* CurrentValueBase() = 0;
   virtual const SVGPropertyBase& BaseValueBase() const = 0;
   virtual bool IsAnimating() const = 0;
 
   virtual SVGPropertyBase* CreateAnimatedValue() = 0;
   virtual void SetAnimatedValue(SVGPropertyBase*) = 0;
-  virtual void AnimationEnded();
+  virtual void AnimationEnded() = 0;
 
   virtual SVGParsingError AttributeChanged(const String&) = 0;
   virtual bool NeedsSynchronizeAttribute() const;
@@ -78,7 +78,7 @@ class SVGAnimatedPropertyBase : public GarbageCollectedMixin {
 
   bool IsSpecified() const;
 
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
 
   void BaseValueChanged();
   void EnsureAnimValUpdated();
@@ -100,12 +100,9 @@ class SVGAnimatedPropertyBase : public GarbageCollectedMixin {
  private:
   static_assert(kNumberOfAnimatedPropertyTypes <= (1u << 5),
                 "enough bits for AnimatedPropertyType (type_)");
-  static constexpr int kCssPropertyBits = 9;
-  static_assert((1u << kCssPropertyBits) - 1 >= kIntLastCSSProperty,
-                "enough bits for CSS property ids");
 
   const unsigned type_ : 5;
-  const unsigned css_property_id_ : kCssPropertyBits;
+  const unsigned css_property_id_ : kCSSPropertyIDBitLength;
   const unsigned initial_value_storage_ : kInitialValueStorageBits;
 
   unsigned base_value_needs_synchronization_ : 1;
@@ -118,20 +115,15 @@ template <typename Property>
 class SVGAnimatedPropertyCommon : public SVGAnimatedPropertyBase {
  public:
   Property* BaseValue() { return base_value_.Get(); }
-
-  Property* CurrentValue() {
-    return current_value_ ? current_value_.Get() : base_value_.Get();
-  }
+  Property* CurrentValue() { return current_value_.Get(); }
 
   const Property* CurrentValue() const {
     return const_cast<SVGAnimatedPropertyCommon*>(this)->CurrentValue();
   }
 
-  SVGPropertyBase* CurrentValueBase() override { return CurrentValue(); }
-
   const SVGPropertyBase& BaseValueBase() const override { return *base_value_; }
 
-  bool IsAnimating() const override { return current_value_; }
+  bool IsAnimating() const override { return current_value_ != base_value_; }
 
   SVGParsingError AttributeChanged(const String& value) override {
     static_assert(Property::kInitialValueBits <= kInitialValueStorageBits,
@@ -159,12 +151,10 @@ class SVGAnimatedPropertyCommon : public SVGAnimatedPropertyBase {
   }
 
   void AnimationEnded() override {
-    current_value_.Clear();
-
-    SVGAnimatedPropertyBase::AnimationEnded();
+    current_value_ = base_value_;
   }
 
-  void Trace(blink::Visitor* visitor) override {
+  void Trace(Visitor* visitor) const override {
     visitor->Trace(base_value_);
     visitor->Trace(current_value_);
     SVGAnimatedPropertyBase::Trace(visitor);
@@ -182,7 +172,8 @@ class SVGAnimatedPropertyCommon : public SVGAnimatedPropertyBase {
                                 attribute_name,
                                 css_property_id,
                                 initial_value_bits),
-        base_value_(initial_value) {}
+        base_value_(initial_value),
+        current_value_(initial_value) {}
 
  private:
   Member<Property> base_value_;
@@ -200,7 +191,7 @@ class SVGAnimatedProperty : public SVGAnimatedPropertyCommon<Property> {
   // SVGAnimated* DOM Spec implementations:
 
   // baseVal()/setBaseVal()/animVal() are only to be used from SVG DOM
-  // implementation.  Use currentValue() from C++ code.
+  // implementation.  Use CurrentValue() from C++ code.
   PrimitiveType baseVal() { return this->BaseValue()->Value(); }
 
   void setBaseVal(PrimitiveType value, ExceptionState&) {
@@ -234,14 +225,16 @@ template <typename Property, typename TearOffType>
 class SVGAnimatedProperty<Property, TearOffType, void>
     : public SVGAnimatedPropertyCommon<Property> {
  public:
-  static SVGAnimatedProperty<Property>* Create(
-      SVGElement* context_element,
-      const QualifiedName& attribute_name,
-      Property* initial_value,
-      CSSPropertyID css_property_id = CSSPropertyID::kInvalid) {
-    return new SVGAnimatedProperty<Property>(context_element, attribute_name,
-                                             initial_value, css_property_id);
-  }
+  SVGAnimatedProperty(SVGElement* context_element,
+                      const QualifiedName& attribute_name,
+                      Property* initial_value,
+                      CSSPropertyID css_property_id = CSSPropertyID::kInvalid,
+                      unsigned initial_value_bits = 0)
+      : SVGAnimatedPropertyCommon<Property>(context_element,
+                                            attribute_name,
+                                            initial_value,
+                                            css_property_id,
+                                            initial_value_bits) {}
 
   void SetAnimatedValue(SVGPropertyBase* value) override {
     SVGAnimatedPropertyCommon<Property>::SetAnimatedValue(value);
@@ -259,37 +252,25 @@ class SVGAnimatedProperty<Property, TearOffType, void>
   // Use currentValue() from C++ code.
   virtual TearOffType* baseVal() {
     if (!base_val_tear_off_) {
-      base_val_tear_off_ =
-          TearOffType::Create(this->BaseValue(), this, kPropertyIsNotAnimVal);
+      base_val_tear_off_ = MakeGarbageCollected<TearOffType>(
+          this->BaseValue(), this, kPropertyIsNotAnimVal);
     }
     return base_val_tear_off_;
   }
 
   TearOffType* animVal() {
     if (!anim_val_tear_off_) {
-      anim_val_tear_off_ =
-          TearOffType::Create(this->CurrentValue(), this, kPropertyIsAnimVal);
+      anim_val_tear_off_ = MakeGarbageCollected<TearOffType>(
+          this->CurrentValue(), this, kPropertyIsAnimVal);
     }
     return anim_val_tear_off_;
   }
 
-  void Trace(blink::Visitor* visitor) override {
+  void Trace(Visitor* visitor) const override {
     visitor->Trace(base_val_tear_off_);
     visitor->Trace(anim_val_tear_off_);
     SVGAnimatedPropertyCommon<Property>::Trace(visitor);
   }
-
- protected:
-  SVGAnimatedProperty(SVGElement* context_element,
-                      const QualifiedName& attribute_name,
-                      Property* initial_value,
-                      CSSPropertyID css_property_id = CSSPropertyID::kInvalid,
-                      unsigned initial_value_bits = 0)
-      : SVGAnimatedPropertyCommon<Property>(context_element,
-                                            attribute_name,
-                                            initial_value,
-                                            css_property_id,
-                                            initial_value_bits) {}
 
  private:
   void UpdateAnimValTearOffIfNeeded() {
@@ -297,11 +278,12 @@ class SVGAnimatedProperty<Property, TearOffType, void>
       anim_val_tear_off_->SetTarget(this->CurrentValue());
   }
 
-  // When still (not animated):
-  //     Both m_animValTearOff and m_baseValTearOff target m_baseValue.
+  // When not animated:
+  //     Both |anim_val_tear_off_| and |base_val_tear_off_| target
+  //     |base_value_|.
   // When animated:
-  //     m_animValTearOff targets m_currentValue.
-  //     m_baseValTearOff targets m_baseValue.
+  //     |anim_val_tear_off_| targets |current_value_|.
+  //     |base_val_tear_off_| targets |base_value_|.
   Member<TearOffType> base_val_tear_off_;
   Member<TearOffType> anim_val_tear_off_;
 };
@@ -313,16 +295,6 @@ template <typename Property>
 class SVGAnimatedProperty<Property, void, void>
     : public SVGAnimatedPropertyCommon<Property> {
  public:
-  static SVGAnimatedProperty<Property>* Create(
-      SVGElement* context_element,
-      const QualifiedName& attribute_name,
-      Property* initial_value,
-      CSSPropertyID css_property_id = CSSPropertyID::kInvalid) {
-    return new SVGAnimatedProperty<Property>(context_element, attribute_name,
-                                             initial_value, css_property_id);
-  }
-
- protected:
   SVGAnimatedProperty(SVGElement* context_element,
                       const QualifiedName& attribute_name,
                       Property* initial_value,

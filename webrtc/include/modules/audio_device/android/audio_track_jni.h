@@ -11,9 +11,9 @@
 #ifndef MODULES_AUDIO_DEVICE_ANDROID_AUDIO_TRACK_JNI_H_
 #define MODULES_AUDIO_DEVICE_ANDROID_AUDIO_TRACK_JNI_H_
 
-#include <memory>
-
 #include <jni.h>
+
+#include <memory>
 
 #include "modules/audio_device/android/audio_common.h"
 #include "modules/audio_device/android/audio_manager.h"
@@ -62,6 +62,7 @@ class AudioTrackJni {
     jmethodID set_stream_volume_;
     jmethodID get_stream_max_volume_;
     jmethodID get_stream_volume_;
+    jmethodID get_buffer_size_in_frames_;
   };
 
   explicit AudioTrackJni(AudioManager* audio_manager);

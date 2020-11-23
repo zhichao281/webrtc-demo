@@ -7,17 +7,22 @@
 
 #include <memory>
 #include "base/location.h"
-#include "base/message_loop/message_loop.h"
 #include "base/single_thread_task_runner.h"
 #include "base/time/time.h"
+#include "third_party/blink/public/common/input/web_input_event.h"
+#include "third_party/blink/public/common/input/web_input_event_attribution.h"
+#include "third_party/blink/public/platform/scheduler/web_agent_group_scheduler.h"
 #include "third_party/blink/public/platform/scheduler/web_thread_scheduler.h"
-#include "third_party/blink/public/platform/web_input_event.h"
 #include "third_party/blink/renderer/platform/scheduler/public/page_scheduler.h"
-#include "third_party/blink/renderer/platform/scheduler/public/pending_user_input_type.h"
 #include "third_party/blink/renderer/platform/scheduler/public/thread.h"
+#include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace v8 {
 class Isolate;
+}
+
+namespace base {
+class TaskObserver;
 }
 
 namespace blink {
@@ -65,6 +70,12 @@ class PLATFORM_EXPORT ThreadScheduler {
   // Takes ownership of |IdleTask|. Can be called from any thread.
   virtual void PostIdleTask(const base::Location&, Thread::IdleTask) = 0;
 
+  // As above, except that the task is guaranteed to not run before |delay|.
+  // Takes ownership of |IdleTask|. Can be called from any thread.
+  virtual void PostDelayedIdleTask(const base::Location&,
+                                   base::TimeDelta delay,
+                                   Thread::IdleTask) = 0;
+
   // Like postIdleTask but guarantees that the posted task will not run
   // nested within an already-running task. Posting an idle task as
   // non-nestable may not affect when the task gets run, or it could
@@ -80,14 +91,16 @@ class PLATFORM_EXPORT ThreadScheduler {
   // Returns a task runner for kV8 tasks. Can be called from any thread.
   virtual scoped_refptr<base::SingleThreadTaskRunner> V8TaskRunner() = 0;
 
+  // Returns a task runner which does not generate system wakeups on its own.
+  // This means that if a delayed task is posted to it, it will run when
+  // the delay expires AND another task runs.
+  virtual scoped_refptr<base::SingleThreadTaskRunner> NonWakingTaskRunner() = 0;
+
   // Returns a task runner for compositor tasks. This is intended only to be
   // used by specific animation and rendering related tasks (e.g. animated GIFS)
   // and should not generally be used.
   virtual scoped_refptr<base::SingleThreadTaskRunner>
   CompositorTaskRunner() = 0;
-
-  // Returns a task runner for handling IPC messages.
-  virtual scoped_refptr<base::SingleThreadTaskRunner> IPCTaskRunner() = 0;
 
   // Returns a default task runner. This is basically same as the default task
   // runner, but is explicitly allowed to run JavaScript. We plan to forbid V8
@@ -98,10 +111,17 @@ class PLATFORM_EXPORT ThreadScheduler {
   virtual scoped_refptr<base::SingleThreadTaskRunner>
   DeprecatedDefaultTaskRunner() = 0;
 
-  // Creates a new PageScheduler for a given Page. Must be called from the
-  // associated WebThread.
-  virtual std::unique_ptr<PageScheduler> CreatePageScheduler(
-      PageScheduler::Delegate*) = 0;
+  // Creates a AgentGroupScheduler implementation. Must be called from the
+  // main thread.
+  virtual std::unique_ptr<scheduler::WebAgentGroupScheduler>
+  CreateAgentGroupScheduler() = 0;
+
+  // The current active AgentGroupScheduler is set when the task gets
+  // started (i.e., OnTaskStarted) and unset when the task gets
+  // finished (i.e., OnTaskCompleted). GetCurrentAgentGroupScheduler()
+  // returns nullptr in task observers.
+  virtual scheduler::WebAgentGroupScheduler*
+  GetCurrentAgentGroupScheduler() = 0;
 
   // Pauses the scheduler. See WebThreadScheduler::PauseRenderer for
   // details. May only be called from the main thread.
@@ -115,19 +135,27 @@ class PLATFORM_EXPORT ThreadScheduler {
   // Adds or removes a task observer from the scheduler. The observer will be
   // notified before and after every executed task. These functions can only be
   // called on the thread this scheduler was created on.
-  virtual void AddTaskObserver(
-      base::MessageLoop::TaskObserver* task_observer) = 0;
-  virtual void RemoveTaskObserver(
-      base::MessageLoop::TaskObserver* task_observer) = 0;
+  virtual void AddTaskObserver(base::TaskObserver* task_observer) = 0;
+  virtual void RemoveTaskObserver(base::TaskObserver* task_observer) = 0;
 
-  virtual scheduler::PendingUserInputInfo GetPendingUserInputInfo() const {
-    return scheduler::PendingUserInputInfo();
+  // Returns a list of all unique attributions that are marked for event
+  // dispatch. If |include_continuous| is true, include event types from
+  // "continuous" sources (see PendingUserInput::IsContinuousEventTypes).
+  virtual Vector<WebInputEventAttribution> GetPendingUserInputInfo(
+      bool include_continuous) const {
+    return {};
   }
+
+  // Indicates that a BeginMainFrame task has been scheduled to run on the main
+  // thread. Note that this is inherently racy, as it will be affected by code
+  // running on the compositor thread.
+  virtual bool IsBeginMainFrameScheduled() const { return false; }
 
   // Associates |isolate| to the scheduler.
   virtual void SetV8Isolate(v8::Isolate* isolate) = 0;
 
-  virtual void SetHasSafepoint() {}
+  virtual void OnSafepointEntered() {}
+  virtual void OnSafepointExited() {}
 
   // Test helpers.
 

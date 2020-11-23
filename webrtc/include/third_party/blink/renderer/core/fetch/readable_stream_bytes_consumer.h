@@ -10,6 +10,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_value.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/streams/readable_stream.h"
+#include "third_party/blink/renderer/core/streams/readable_stream_default_reader.h"
 #include "third_party/blink/renderer/core/typed_arrays/dom_typed_array.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/loader/fetch/bytes_consumer.h"
@@ -21,12 +22,10 @@ class ScriptState;
 
 // This class is a BytesConsumer pulling bytes from a ReadableStream.
 // The stream will be immediately locked by the consumer and will never be
-// released.
+// released. The stream must not be locked before this object is created.
 class CORE_EXPORT ReadableStreamBytesConsumer final : public BytesConsumer {
-  USING_PRE_FINALIZER(ReadableStreamBytesConsumer, Dispose);
-
  public:
-  ReadableStreamBytesConsumer(ScriptState*, ReadableStream*, ExceptionState&);
+  ReadableStreamBytesConsumer(ScriptState*, ReadableStream*);
   ~ReadableStreamBytesConsumer() override;
 
   Result BeginRead(const char** buffer, size_t* available) override;
@@ -39,19 +38,18 @@ class CORE_EXPORT ReadableStreamBytesConsumer final : public BytesConsumer {
   Error GetError() const override;
   String DebugName() const override { return "ReadableStreamBytesConsumer"; }
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   class OnFulfilled;
   class OnRejected;
 
-  void Dispose();
   void OnRead(DOMUint8Array*);
   void OnReadDone();
   void OnRejected();
   void Notify();
 
-  Member<ReadableStream::ReadHandle> read_handle_;
+  Member<ReadableStreamDefaultReader> reader_;
   Member<ScriptState> script_state_;
   Member<BytesConsumer::Client> client_;
   Member<DOMUint8Array> pending_buffer_;

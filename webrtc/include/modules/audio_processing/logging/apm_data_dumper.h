@@ -26,7 +26,6 @@
 #include "common_audio/wav_file.h"
 #include "rtc_base/checks.h"
 #endif
-#include "rtc_base/constructor_magic.h"
 
 // Check to verify that the define is properly set.
 #if !defined(WEBRTC_APM_DEBUG_DUMP) || \
@@ -51,6 +50,10 @@ class ApmDataDumper {
   // be used to distinguish data dumped from different
   // instances of the code.
   explicit ApmDataDumper(int instance_index);
+
+  ApmDataDumper() = delete;
+  ApmDataDumper(const ApmDataDumper&) = delete;
+  ApmDataDumper& operator=(const ApmDataDumper&) = delete;
 
   ~ApmDataDumper();
 
@@ -242,7 +245,8 @@ class ApmDataDumper {
                int num_channels) {
 #if WEBRTC_APM_DEBUG_DUMP == 1
     if (recording_activated_) {
-      WavWriter* file = GetWavFile(name, sample_rate_hz, num_channels);
+      WavWriter* file = GetWavFile(name, sample_rate_hz, num_channels,
+                                   WavFile::SampleFormat::kFloat);
       file->WriteSamples(v, v_length);
     }
 #endif
@@ -271,9 +275,11 @@ class ApmDataDumper {
   std::unordered_map<std::string, std::unique_ptr<WavWriter>> wav_files_;
 
   FILE* GetRawFile(const char* name);
-  WavWriter* GetWavFile(const char* name, int sample_rate_hz, int num_channels);
+  WavWriter* GetWavFile(const char* name,
+                        int sample_rate_hz,
+                        int num_channels,
+                        WavFile::SampleFormat format);
 #endif
-  RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(ApmDataDumper);
 };
 
 }  // namespace webrtc

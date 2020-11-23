@@ -28,7 +28,6 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/create_element_flags.h"
 #include "third_party/blink/renderer/core/html/html_frame_owner_element.h"
-#include "third_party/blink/renderer/platform/bindings/shared_persistent.h"
 #include "v8/include/v8.h"
 
 namespace blink {
@@ -53,7 +52,7 @@ class PluginParameters {
   const Vector<String>& Values() const;
   void AppendAttribute(const Attribute&);
   void AppendNameWithValue(const String& name, const String& value);
-  int FindStringInNames(const String&);
+  void MapDataParamToSrc();
 
  private:
   Vector<String> names_;
@@ -63,17 +62,15 @@ class PluginParameters {
 class CORE_EXPORT HTMLPlugInElement
     : public HTMLFrameOwnerElement,
       public ActiveScriptWrappable<HTMLPlugInElement> {
-  USING_GARBAGE_COLLECTED_MIXIN(HTMLPlugInElement);
-
  public:
   ~HTMLPlugInElement() override;
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
 
   bool IsPlugin() const final { return true; }
 
   bool HasPendingActivity() const final;
 
-  void SetFocused(bool, WebFocusType) override;
+  void SetFocused(bool, mojom::blink::FocusType) override;
   void ResetInstance();
   // TODO(dcheng): Consider removing this, since HTMLEmbedElementLegacyCall
   // and HTMLObjectElementLegacyCall usage is extremely low.
@@ -100,8 +97,10 @@ class CORE_EXPORT HTMLPlugInElement
 
   bool ShouldAccelerate() const;
 
-  ParsedFeaturePolicy ConstructContainerPolicy(
-      Vector<String>* /* messages */) const override;
+  ParsedFeaturePolicy ConstructContainerPolicy() const override;
+
+  bool IsImageType() const;
+  HTMLImageLoader* ImageLoader() const { return image_loader_.Get(); }
 
  protected:
   HTMLPlugInElement(const QualifiedName& tag_name,
@@ -127,14 +126,13 @@ class CORE_EXPORT HTMLPlugInElement
   // if necessary.
   virtual LayoutEmbeddedContent* LayoutEmbeddedContentForJSBindings() const;
 
-  bool IsImageType() const;
   LayoutEmbeddedObject* GetLayoutEmbeddedObject() const;
   bool AllowedToLoadFrameURL(const String& url);
   bool RequestObject(const PluginParameters& plugin_params);
 
   void DispatchErrorEvent();
   bool IsErrorplaceholder();
-  void LazyReattachIfNeeded();
+  void ReattachOnPluginChangeIfNeeded();
 
   void SetUrl(const String& url) {
     url_ = url;
@@ -145,6 +143,10 @@ class CORE_EXPORT HTMLPlugInElement
     service_type_ = service_type;
     UpdateServiceTypeIfEmpty();
   }
+
+  // Set when the current view cannot be re-used on reattach. This is the case
+  // e.g. when attributes (e.g. src) change.
+  void SetDisposeView() { dispose_view_ = true; }
 
   String service_type_;
   String url_;
@@ -161,7 +163,7 @@ class CORE_EXPORT HTMLPlugInElement
   bool CanStartSelection() const override;
   bool WillRespondToMouseClickEvents() final;
   void DefaultEventHandler(Event&) final;
-  void DetachLayoutTree(const AttachContext& = AttachContext()) final;
+  void DetachLayoutTree(bool performing_reattach) final;
   void FinishParsingChildren() final;
 
   // Element overrides:
@@ -194,19 +196,18 @@ class CORE_EXPORT HTMLPlugInElement
   bool AllowedToLoadPlugin(const KURL&, const String& mime_type);
   // Perform checks based on the URL and MIME-type of the object to load.
   bool AllowedToLoadObject(const KURL&, const String& mime_type);
+  void RemovePluginFromFrameView(WebPluginContainerImpl* plugin);
 
   enum class ObjectContentType {
     kNone,
     kImage,
     kFrame,
     kPlugin,
-    kMimeHandlerViewPlugin,
+    kExternalPlugin,
   };
   ObjectContentType GetObjectContentType() const;
 
   void SetPersistedPlugin(WebPluginContainerImpl*);
-
-  bool RequestObjectInternal(const PluginParameters& plugin_params);
 
   void UpdateServiceTypeIfEmpty();
 
@@ -226,14 +227,25 @@ class CORE_EXPORT HTMLPlugInElement
   // being displayed.
   Member<WebPluginContainerImpl> persisted_plugin_;
 
-  bool handled_externally_ = false;
+  // True when the element has changed in such a way (new URL, for instance)
+  // that we cannot re-use the old view when re-attaching.
+  bool dispose_view_ = false;
 };
 
-inline bool IsHTMLPlugInElement(const HTMLElement& element) {
-  return element.IsPluginElement();
+template <>
+inline bool IsElementOfType<const HTMLPlugInElement>(const Node& node) {
+  return IsA<HTMLPlugInElement>(node);
 }
-
-DEFINE_HTMLELEMENT_TYPE_CASTS_WITH_FUNCTION(HTMLPlugInElement);
+template <>
+struct DowncastTraits<HTMLPlugInElement> {
+  static bool AllowFrom(const Node& node) {
+    auto* html_element = DynamicTo<HTMLElement>(node);
+    return html_element && AllowFrom(*html_element);
+  }
+  static bool AllowFrom(const HTMLElement& html_element) {
+    return html_element.IsPluginElement();
+  }
+};
 
 }  // namespace blink
 

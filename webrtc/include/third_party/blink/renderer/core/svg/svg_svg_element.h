@@ -22,7 +22,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_SVG_SVG_SVG_ELEMENT_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_SVG_SVG_SVG_ELEMENT_H_
 
-#include "third_party/blink/renderer/core/svg/svg_animated_length.h"
 #include "third_party/blink/renderer/core/svg/svg_fit_to_view_box.h"
 #include "third_party/blink/renderer/core/svg/svg_graphics_element.h"
 #include "third_party/blink/renderer/core/svg/svg_point.h"
@@ -33,6 +32,7 @@ namespace blink {
 
 class SMILTimeContainer;
 class SVGAngleTearOff;
+class SVGAnimatedLength;
 class SVGLengthTearOff;
 class SVGMatrixTearOff;
 class SVGNumberTearOff;
@@ -44,17 +44,15 @@ class SVGSVGElement final : public SVGGraphicsElement,
                             public SVGFitToViewBox,
                             public SVGZoomAndPan {
   DEFINE_WRAPPERTYPEINFO();
-  USING_GARBAGE_COLLECTED_MIXIN(SVGSVGElement);
 
  public:
-  DECLARE_NODE_FACTORY(SVGSVGElement);
-
   explicit SVGSVGElement(Document&);
 
-  float IntrinsicWidth() const;
-  float IntrinsicHeight() const;
+  base::Optional<float> IntrinsicWidth() const;
+  base::Optional<float> IntrinsicHeight() const;
   FloatSize CurrentViewportSize() const;
   FloatRect CurrentViewBoxRect() const;
+  bool HasEmptyViewBox() const;
   const SVGPreserveAspectRatio* CurrentPreserveAspectRatio() const;
 
   float currentScale() const;
@@ -96,22 +94,18 @@ class SVGSVGElement final : public SVGGraphicsElement,
   static SVGTransformTearOff* createSVGTransform();
   static SVGTransformTearOff* createSVGTransformFromMatrix(SVGMatrixTearOff*);
 
-  AffineTransform ViewBoxToViewTransform(float view_width,
-                                         float view_height) const;
+  AffineTransform ViewBoxToViewTransform(const FloatSize& viewport_size) const;
 
   void SetupInitialView(const String& fragment_identifier,
                         Element* anchor_node);
   bool ZoomAndPanEnabled() const;
-
-  bool HasIntrinsicWidth() const;
-  bool HasIntrinsicHeight() const;
 
   SVGAnimatedLength* x() const { return x_.Get(); }
   SVGAnimatedLength* y() const { return y_.Get(); }
   SVGAnimatedLength* width() const { return width_.Get(); }
   SVGAnimatedLength* height() const { return height_.Get(); }
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   ~SVGSVGElement() override;
@@ -120,7 +114,6 @@ class SVGSVGElement final : public SVGGraphicsElement,
 
   void ParseAttribute(const AttributeModificationParams&) override;
   bool IsPresentationAttribute(const QualifiedName&) const override;
-  bool IsPresentationAttributeWithSVGDOM(const QualifiedName&) const override;
   void CollectStyleForPresentationAttribute(
       const QualifiedName&,
       const AtomicString&,
@@ -133,10 +126,13 @@ class SVGSVGElement final : public SVGGraphicsElement,
   InsertionNotificationRequest InsertedInto(ContainerNode&) override;
   void RemovedFrom(ContainerNode&) override;
 
-  void SvgAttributeChanged(const QualifiedName&) override;
+  void SvgAttributeChanged(const SvgAttributeChangedParams&) override;
+
+  void DidMoveToNewDocument(Document& old_document) override;
 
   bool SelfHasRelativeLengths() const override;
 
+  bool HasValidViewBox() const;
   bool ShouldSynthesizeViewBox() const;
   void UpdateUserTransform();
 

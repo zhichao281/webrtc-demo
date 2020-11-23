@@ -61,7 +61,6 @@ class PLATFORM_EXPORT TransformOperation
     kMatrix3D,
     kPerspective,
     kInterpolated,
-    kIdentity,
     kRotateAroundOrigin,
   };
 
@@ -73,6 +72,11 @@ class PLATFORM_EXPORT TransformOperation
 
   virtual void Apply(TransformationMatrix&,
                      const FloatSize& border_box_size) const = 0;
+
+  // Implements the accumulative behavior described in
+  // https://drafts.csswg.org/css-transforms-2/#combining-transform-lists
+  virtual scoped_refptr<TransformOperation> Accumulate(
+      const TransformOperation& other) = 0;
 
   virtual scoped_refptr<TransformOperation> Blend(
       const TransformOperation* from,
@@ -88,7 +92,11 @@ class PLATFORM_EXPORT TransformOperation
   bool IsSameType(const TransformOperation& other) const {
     return other.GetType() == GetType();
   }
-  virtual bool CanBlendWith(const TransformOperation& other) const = 0;
+  bool CanBlendWith(const TransformOperation& other) const {
+    return PrimitiveType() == other.PrimitiveType();
+  }
+
+  virtual bool PreservesAxisAlignment() const { return false; }
 
   bool Is3DOperation() const {
     OperationType op_type = GetType();
@@ -101,16 +109,22 @@ class PLATFORM_EXPORT TransformOperation
 
   virtual bool HasNonTrivial3DComponent() const { return Is3DOperation(); }
 
-  virtual bool DependsOnBoxSize() const { return false; }
+  enum BoxSizeDependency {
+    kDependsNone = 0,
+    kDependsWidth = 0x01,
+    kDependsHeight = 0x02,
+    kDependsBoth = kDependsWidth | kDependsHeight
+  };
+  virtual BoxSizeDependency BoxSizeDependencies() const { return kDependsNone; }
+
+  static inline BoxSizeDependency CombineDependencies(BoxSizeDependency a,
+                                                      BoxSizeDependency b) {
+    return static_cast<BoxSizeDependency>(a | b);
+  }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(TransformOperation);
 };
-
-#define DEFINE_TRANSFORM_TYPE_CASTS(thisType)                                \
-  DEFINE_TYPE_CASTS(thisType, TransformOperation, transform,                 \
-                    thisType::IsMatchingOperationType(transform->GetType()), \
-                    thisType::IsMatchingOperationType(transform.GetType()))
 
 }  // namespace blink
 

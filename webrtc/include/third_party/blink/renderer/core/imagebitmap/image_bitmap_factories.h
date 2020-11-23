@@ -37,16 +37,15 @@
 #include "third_party/blink/renderer/bindings/core/v8/image_bitmap_source.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
-#include "third_party/blink/renderer/core/execution_context/context_lifecycle_observer.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_image_bitmap_options.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/core/fileapi/file_reader_loader.h"
 #include "third_party/blink/renderer/core/fileapi/file_reader_loader_client.h"
-#include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/window_or_worker_global_scope.h"
-#include "third_party/blink/renderer/core/imagebitmap/image_bitmap_options.h"
-#include "third_party/blink/renderer/core/workers/worker_global_scope.h"
 #include "third_party/blink/renderer/platform/bindings/name_client.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/geometry/int_rect.h"
+#include "third_party/blink/renderer/platform/image-decoders/image_decoder.h"
 #include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
 
@@ -55,58 +54,45 @@ class SkImage;
 namespace blink {
 
 class Blob;
-class EventTarget;
+class ExecutionContext;
 class ImageBitmapSource;
-class ImageBitmapOptions;
 
-class ImageBitmapFactories final
-    : public GarbageCollectedFinalized<ImageBitmapFactories>,
-      public Supplement<LocalDOMWindow>,
-      public Supplement<WorkerGlobalScope>,
+class CORE_EXPORT ImageBitmapFactories final
+    : public GarbageCollected<ImageBitmapFactories>,
+      public Supplement<ExecutionContext>,
       public NameClient {
-  USING_GARBAGE_COLLECTED_MIXIN(ImageBitmapFactories);
-
  public:
   static const char kSupplementName[];
 
   static ScriptPromise CreateImageBitmap(ScriptState*,
-                                         EventTarget&,
                                          const ImageBitmapSourceUnion&,
-                                         const ImageBitmapOptions*);
+                                         const ImageBitmapOptions*,
+                                         ExceptionState&);
   static ScriptPromise CreateImageBitmap(ScriptState*,
-                                         EventTarget&,
                                          const ImageBitmapSourceUnion&,
                                          int sx,
                                          int sy,
                                          int sw,
                                          int sh,
-                                         const ImageBitmapOptions*);
+                                         const ImageBitmapOptions*,
+                                         ExceptionState&);
   static ScriptPromise CreateImageBitmap(ScriptState*,
-                                         EventTarget&,
                                          ImageBitmapSource*,
                                          base::Optional<IntRect> crop_rect,
-                                         const ImageBitmapOptions*);
-  static ScriptPromise CreateImageBitmapFromBlob(
-      ScriptState*,
-      EventTarget&,
-      ImageBitmapSource*,
-      base::Optional<IntRect> crop_rect,
-      const ImageBitmapOptions*);
+                                         const ImageBitmapOptions*,
+                                         ExceptionState&);
 
   virtual ~ImageBitmapFactories() = default;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
   const char* NameInHeapSnapshot() const override {
     return "ImageBitmapLoader";
   }
 
  private:
-  class ImageBitmapLoader final
-      : public GarbageCollectedFinalized<ImageBitmapLoader>,
-        public ContextLifecycleObserver,
-        public FileReaderLoaderClient {
-    USING_GARBAGE_COLLECTED_MIXIN(ImageBitmapLoader);
-
+  class ImageBitmapLoader final : public GarbageCollected<ImageBitmapLoader>,
+                                  public ExecutionContextLifecycleObserver,
+                                  public FileReaderLoaderClient {
    public:
     static ImageBitmapLoader* Create(ImageBitmapFactories& factory,
                                      base::Optional<IntRect> crop_rect,
@@ -124,11 +110,13 @@ class ImageBitmapFactories final
     void LoadBlobAsync(Blob*);
     ScriptPromise Promise() { return resolver_->Promise(); }
 
-    void Trace(blink::Visitor*) override;
+    void Trace(Visitor*) const override;
 
     ~ImageBitmapLoader() override;
 
    private:
+    SEQUENCE_CHECKER(sequence_checker_);
+
     enum ImageBitmapRejectionReason {
       kUndecodableImageBitmapRejectionReason,
       kAllocationFailureImageBitmapRejectionReason,
@@ -136,16 +124,12 @@ class ImageBitmapFactories final
 
     void RejectPromise(ImageBitmapRejectionReason);
 
-    void ScheduleAsyncImageBitmapDecoding(DOMArrayBuffer*);
-    void DecodeImageOnDecoderThread(
-        scoped_refptr<base::SingleThreadTaskRunner>,
-        DOMArrayBuffer*,
-        const String& premultiply_alpha_option,
-        const String& color_space_conversion_option);
-    void ResolvePromiseOnOriginalThread(sk_sp<SkImage>);
+    void ScheduleAsyncImageBitmapDecoding(ArrayBufferContents);
+    void ResolvePromiseOnOriginalThread(sk_sp<SkImage>,
+                                        const ImageOrientationEnum);
 
-    // ContextLifecycleObserver
-    void ContextDestroyed(ExecutionContext*) override;
+    // ExecutionContextLifecycleObserver
+    void ContextDestroyed() override;
 
     // FileReaderLoaderClient
     void DidStartLoading() override {}
@@ -160,10 +144,12 @@ class ImageBitmapFactories final
     Member<const ImageBitmapOptions> options_;
   };
 
-  static ImageBitmapFactories& From(EventTarget&);
-
-  template <class GlobalObject>
-  static ImageBitmapFactories& FromInternal(GlobalObject&);
+  static ImageBitmapFactories& From(ExecutionContext&);
+  static ScriptPromise CreateImageBitmapFromBlob(
+      ScriptState*,
+      ImageBitmapSource*,
+      base::Optional<IntRect> crop_rect,
+      const ImageBitmapOptions*);
 
   void AddLoader(ImageBitmapLoader*);
   void DidFinishLoading(ImageBitmapLoader*);

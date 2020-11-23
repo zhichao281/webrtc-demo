@@ -9,6 +9,7 @@
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/scheduler/public/frame_status.h"
+#include "third_party/blink/renderer/platform/weborigin/kurl.h"
 
 namespace blink {
 
@@ -24,18 +25,22 @@ class FetchClientSettingsObject;
 // GetCachePolicy(const ResourceRequest&, ResourceType). Do not put a function
 // with default implementation.
 //
+// Storing a non-null ResourceFetcherProperties in an object that can be valid
+// after the associated ResourceFetcher is detached is dangerous. Use
+// DetachedResourceFetcherProperties below.
+//
 // The distinction between FetchClientSettingsObject and
 // ResourceFetcherProperties is sometimes ambiguous. Put a property in
 // FetchClientSettingsObject when the property is clearly defined in the spec.
 // Otherwise, put it to this class.
 class PLATFORM_EXPORT ResourceFetcherProperties
-    : public GarbageCollectedFinalized<ResourceFetcherProperties> {
+    : public GarbageCollected<ResourceFetcherProperties> {
  public:
   using ControllerServiceWorkerMode = mojom::ControllerServiceWorkerMode;
 
   ResourceFetcherProperties() = default;
   virtual ~ResourceFetcherProperties() = default;
-  virtual void Trace(Visitor*) {}
+  virtual void Trace(Visitor*) const {}
 
   // Returns the client settings object bound to this global context.
   virtual const FetchClientSettingsObject& GetFetchClientSettingsObject()
@@ -64,15 +69,114 @@ class PLATFORM_EXPORT ResourceFetcherProperties
   // operations with "keepalive" specified).
   virtual bool IsDetached() const = 0;
 
+  // Returns whether the loading is deferred. When true, loading tasks keep
+  // running but the data is queued in the loading pipeline on the renderer.
+  // Upon resume the data is given to client modules such as scripts.
+  virtual bool IsLoadDeferred() const = 0;
+
   // Returns whether the main resource for this global context is loaded.
   virtual bool IsLoadComplete() const = 0;
 
   // Returns whether we should disallow a sub resource loading.
   virtual bool ShouldBlockLoadingSubResource() const = 0;
 
+  // Returns whether we should de-prioritize requests in sub frames.
+  // TODO(yhirano): Make this ShouldDepriotizeRequest once the related
+  // histograms get deprecated. See https://crbug.com/800035.
+  virtual bool IsSubframeDeprioritizationEnabled() const = 0;
+
   // Returns the scheduling status of the associated frame. Returns |kNone|
   // if there is no such a frame.
   virtual scheduler::FrameStatus GetFrameStatus() const = 0;
+
+  // The physical URL of Web Bundle from which this global context is loaded.
+  // Used as an additional identifier for MemoryCache.
+  virtual const KURL& WebBundlePhysicalUrl() const = 0;
+
+  virtual int GetOutstandingThrottledLimit() const = 0;
+};
+
+// A delegating ResourceFetcherProperties subclass which can be retained
+// even when the associated ResourceFetcher is detached.
+class PLATFORM_EXPORT DetachableResourceFetcherProperties final
+    : public ResourceFetcherProperties {
+ public:
+  explicit DetachableResourceFetcherProperties(
+      const ResourceFetcherProperties& properties)
+      : properties_(properties) {}
+  ~DetachableResourceFetcherProperties() override = default;
+
+  void Detach();
+
+  void Trace(Visitor* visitor) const override;
+
+  // ResourceFetcherProperties implementation
+  // Add a test in resource_fetcher_test.cc when you change behaviors.
+  const FetchClientSettingsObject& GetFetchClientSettingsObject()
+      const override {
+    return properties_ ? properties_->GetFetchClientSettingsObject()
+                       : *fetch_client_settings_object_;
+  }
+  bool IsMainFrame() const override {
+    return properties_ ? properties_->IsMainFrame() : is_main_frame_;
+  }
+  ControllerServiceWorkerMode GetControllerServiceWorkerMode() const override {
+    return properties_ ? properties_->GetControllerServiceWorkerMode()
+                       : ControllerServiceWorkerMode::kNoController;
+  }
+  int64_t ServiceWorkerId() const override {
+    // When detached, GetControllerServiceWorkerMode returns kNoController, so
+    // this function must not be called.
+    DCHECK(properties_);
+    return properties_->ServiceWorkerId();
+  }
+  bool IsPaused() const override {
+    return properties_ ? properties_->IsPaused() : paused_;
+  }
+  bool IsDetached() const override {
+    return properties_ ? properties_->IsDetached() : true;
+  }
+  bool IsLoadDeferred() const override {
+    return properties_ ? properties_->IsLoadDeferred() : false;
+  }
+  bool IsLoadComplete() const override {
+    return properties_ ? properties_->IsLoadComplete() : load_complete_;
+  }
+  bool ShouldBlockLoadingSubResource() const override {
+    // Returns true when detached in order to preserve the existing behavior.
+    return properties_ ? properties_->ShouldBlockLoadingSubResource() : true;
+  }
+  bool IsSubframeDeprioritizationEnabled() const override {
+    return properties_ ? properties_->IsSubframeDeprioritizationEnabled()
+                       : is_subframe_deprioritization_enabled_;
+  }
+
+  scheduler::FrameStatus GetFrameStatus() const override {
+    return properties_ ? properties_->GetFrameStatus()
+                       : scheduler::FrameStatus::kNone;
+  }
+  const KURL& WebBundlePhysicalUrl() const override {
+    return properties_ ? properties_->WebBundlePhysicalUrl()
+                       : web_bundle_physical_url_;
+  }
+
+  int GetOutstandingThrottledLimit() const override {
+    return properties_ ? properties_->GetOutstandingThrottledLimit()
+                       : outstanding_throttled_limit_;
+  }
+
+ private:
+  // |properties_| is null if and only if detached.
+  Member<const ResourceFetcherProperties> properties_;
+
+  // The following members are used when detached.
+  Member<const FetchClientSettingsObject> fetch_client_settings_object_;
+  bool is_main_frame_ = false;
+  bool paused_ = false;
+  bool load_complete_ = false;
+  bool is_subframe_deprioritization_enabled_ = false;
+  KURL web_bundle_physical_url_;
+  int outstanding_throttled_limit_ = 0;
 };
 
 }  // namespace blink

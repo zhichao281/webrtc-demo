@@ -42,19 +42,19 @@ class HTMLFormControlsCollection final : public HTMLCollection {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static HTMLFormControlsCollection* Create(ContainerNode&, CollectionType);
-
   explicit HTMLFormControlsCollection(ContainerNode&);
+  HTMLFormControlsCollection(ContainerNode&, CollectionType);
+
   ~HTMLFormControlsCollection() override;
 
   HTMLElement* item(unsigned offset) const {
-    return ToHTMLElement(HTMLCollection::item(offset));
+    return To<HTMLElement>(HTMLCollection::item(offset));
   }
 
   HTMLElement* namedItem(const AtomicString& name) const override;
   void namedGetter(const AtomicString& name, RadioNodeListOrElement&);
 
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   void UpdateIdNameCache() const override;
@@ -68,11 +68,6 @@ class HTMLFormControlsCollection final : public HTMLCollection {
   mutable Member<HTMLElement> cached_element_;
   mutable unsigned cached_element_offset_in_array_;
 };
-DEFINE_TYPE_CASTS(HTMLFormControlsCollection,
-                  LiveNodeListBase,
-                  collection,
-                  collection->GetType() == kFormControls,
-                  collection.GetType() == kFormControls);
 
 }  // namespace blink
 

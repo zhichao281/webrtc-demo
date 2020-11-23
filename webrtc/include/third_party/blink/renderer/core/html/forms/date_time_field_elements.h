@@ -29,16 +29,12 @@
 #include "base/macros.h"
 #include "third_party/blink/renderer/core/html/forms/date_time_numeric_field_element.h"
 #include "third_party/blink/renderer/core/html/forms/date_time_symbolic_field_element.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
 class DateTimeAMPMFieldElement final : public DateTimeSymbolicFieldElement {
  public:
-  static DateTimeAMPMFieldElement* Create(Document&,
-                                          FieldOwner&,
-                                          const Vector<String>&);
-
   DateTimeAMPMFieldElement(Document&, FieldOwner&, const Vector<String>&);
 
  private:
@@ -52,11 +48,6 @@ class DateTimeAMPMFieldElement final : public DateTimeSymbolicFieldElement {
 
 class DateTimeDayFieldElement final : public DateTimeNumericFieldElement {
  public:
-  static DateTimeDayFieldElement* Create(Document&,
-                                         FieldOwner&,
-                                         const String& placeholder,
-                                         const Range&);
-
   DateTimeDayFieldElement(Document&,
                           FieldOwner&,
                           const String& placeholder,
@@ -90,11 +81,6 @@ class DateTimeHourFieldElementBase : public DateTimeNumericFieldElement {
 
 class DateTimeHour11FieldElement final : public DateTimeHourFieldElementBase {
  public:
-  static DateTimeHour11FieldElement* Create(Document&,
-                                            FieldOwner&,
-                                            const Range&,
-                                            const Step&);
-
   DateTimeHour11FieldElement(Document&,
                              FieldOwner&,
                              const Range& hour23_range,
@@ -110,11 +96,6 @@ class DateTimeHour11FieldElement final : public DateTimeHourFieldElementBase {
 
 class DateTimeHour12FieldElement final : public DateTimeHourFieldElementBase {
  public:
-  static DateTimeHour12FieldElement* Create(Document&,
-                                            FieldOwner&,
-                                            const Range&,
-                                            const Step&);
-
   DateTimeHour12FieldElement(Document&,
                              FieldOwner&,
                              const Range& hour23_range,
@@ -124,17 +105,20 @@ class DateTimeHour12FieldElement final : public DateTimeHourFieldElementBase {
   // DateTimeFieldElement functions.
   void PopulateDateTimeFieldsState(DateTimeFieldsState&) override;
   void SetValueAsInteger(int, EventBehavior = kDispatchNoEvent) override;
+  void NotifyOwnerIfStepDownRollOver(bool has_value,
+                                     Step step,
+                                     int old_value,
+                                     int new_value) override;
+  void NotifyOwnerIfStepUpRollOver(bool has_value,
+                                   Step step,
+                                   int old_value,
+                                   int new_value) override;
 
   DISALLOW_COPY_AND_ASSIGN(DateTimeHour12FieldElement);
 };
 
 class DateTimeHour23FieldElement final : public DateTimeHourFieldElementBase {
  public:
-  static DateTimeHour23FieldElement* Create(Document&,
-                                            FieldOwner&,
-                                            const Range&,
-                                            const Step&);
-
   DateTimeHour23FieldElement(Document&,
                              FieldOwner&,
                              const Range& hour23_range,
@@ -150,11 +134,6 @@ class DateTimeHour23FieldElement final : public DateTimeHourFieldElementBase {
 
 class DateTimeHour24FieldElement final : public DateTimeHourFieldElementBase {
  public:
-  static DateTimeHour24FieldElement* Create(Document&,
-                                            FieldOwner&,
-                                            const Range&,
-                                            const Step&);
-
   DateTimeHour24FieldElement(Document&,
                              FieldOwner&,
                              const Range& hour23_range,
@@ -171,11 +150,6 @@ class DateTimeHour24FieldElement final : public DateTimeHourFieldElementBase {
 class DateTimeMillisecondFieldElement final
     : public DateTimeNumericFieldElement {
  public:
-  static DateTimeMillisecondFieldElement* Create(Document&,
-                                                 FieldOwner&,
-                                                 const Range&,
-                                                 const Step&);
-
   DateTimeMillisecondFieldElement(Document&,
                                   FieldOwner&,
                                   const Range&,
@@ -192,11 +166,6 @@ class DateTimeMillisecondFieldElement final
 
 class DateTimeMinuteFieldElement final : public DateTimeNumericFieldElement {
  public:
-  static DateTimeMinuteFieldElement* Create(Document&,
-                                            FieldOwner&,
-                                            const Range&,
-                                            const Step&);
-
   DateTimeMinuteFieldElement(Document&, FieldOwner&, const Range&, const Step&);
 
  private:
@@ -210,11 +179,6 @@ class DateTimeMinuteFieldElement final : public DateTimeNumericFieldElement {
 
 class DateTimeMonthFieldElement final : public DateTimeNumericFieldElement {
  public:
-  static DateTimeMonthFieldElement* Create(Document&,
-                                           FieldOwner&,
-                                           const String& placeholder,
-                                           const Range&);
-
   DateTimeMonthFieldElement(Document&,
                             FieldOwner&,
                             const String& placeholder,
@@ -231,11 +195,6 @@ class DateTimeMonthFieldElement final : public DateTimeNumericFieldElement {
 
 class DateTimeSecondFieldElement final : public DateTimeNumericFieldElement {
  public:
-  static DateTimeSecondFieldElement* Create(Document&,
-                                            FieldOwner&,
-                                            const Range&,
-                                            const Step&);
-
   DateTimeSecondFieldElement(Document&, FieldOwner&, const Range&, const Step&);
 
  private:
@@ -250,12 +209,6 @@ class DateTimeSecondFieldElement final : public DateTimeNumericFieldElement {
 class DateTimeSymbolicMonthFieldElement final
     : public DateTimeSymbolicFieldElement {
  public:
-  static DateTimeSymbolicMonthFieldElement* Create(Document&,
-                                                   FieldOwner&,
-                                                   const Vector<String>&,
-                                                   int minimum,
-                                                   int maximum);
-
   DateTimeSymbolicMonthFieldElement(Document&,
                                     FieldOwner&,
                                     const Vector<String>&,
@@ -273,8 +226,6 @@ class DateTimeSymbolicMonthFieldElement final
 
 class DateTimeWeekFieldElement final : public DateTimeNumericFieldElement {
  public:
-  static DateTimeWeekFieldElement* Create(Document&, FieldOwner&, const Range&);
-
   DateTimeWeekFieldElement(Document&, FieldOwner&, const Range&);
 
  private:
@@ -304,10 +255,6 @@ class DateTimeYearFieldElement final : public DateTimeNumericFieldElement {
           min_is_specified(false),
           max_is_specified(false) {}
   };
-
-  static DateTimeYearFieldElement* Create(Document&,
-                                          FieldOwner&,
-                                          const Parameters&);
 
   DateTimeYearFieldElement(Document&, FieldOwner&, const Parameters&);
 

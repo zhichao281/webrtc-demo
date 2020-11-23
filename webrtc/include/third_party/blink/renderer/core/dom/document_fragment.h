@@ -26,7 +26,9 @@
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/container_node.h"
+#include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/parser_content_policy.h"
+#include "third_party/blink/renderer/platform/wtf/casting.h"
 
 namespace blink {
 
@@ -48,6 +50,16 @@ class CORE_EXPORT DocumentFragment : public ContainerNode {
   bool CanContainRangeEndPoint() const final { return true; }
   virtual bool IsTemplateContent() const { return false; }
 
+  bool allowDeclarativeShadowDom() const {
+    return allow_declarative_shadow_dom_;
+  }
+  void setAllowDeclarativeShadowDom(bool value) {
+    allow_declarative_shadow_dom_ = value;
+  }
+
+  // This will catch anyone doing an unnecessary check.
+  bool IsDocumentFragment() const = delete;
+
  protected:
   String nodeName() const final;
 
@@ -56,11 +68,13 @@ class CORE_EXPORT DocumentFragment : public ContainerNode {
   Node* Clone(Document&, CloneChildrenFlag) const override;
   bool ChildTypeAllowed(NodeType) const override;
 
-  bool IsDocumentFragment() const =
-      delete;  // This will catch anyone doing an unnecessary check.
+  bool allow_declarative_shadow_dom_{false};
 };
 
-DEFINE_NODE_TYPE_CASTS(DocumentFragment, IsDocumentFragment());
+template <>
+struct DowncastTraits<DocumentFragment> {
+  static bool AllowFrom(const Node& node) { return node.IsDocumentFragment(); }
+};
 
 }  // namespace blink
 

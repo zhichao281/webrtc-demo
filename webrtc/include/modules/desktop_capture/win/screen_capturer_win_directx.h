@@ -11,7 +11,7 @@
 #ifndef MODULES_DESKTOP_CAPTURE_WIN_SCREEN_CAPTURER_WIN_DIRECTX_H_
 #define MODULES_DESKTOP_CAPTURE_WIN_SCREEN_CAPTURER_WIN_DIRECTX_H_
 
-#include <D3DCommon.h>
+#include <d3dcommon.h>
 
 #include <memory>
 #include <vector>
@@ -23,11 +23,12 @@
 #include "modules/desktop_capture/screen_capture_frame_queue.h"
 #include "modules/desktop_capture/win/dxgi_duplicator_controller.h"
 #include "modules/desktop_capture/win/dxgi_frame.h"
+#include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
 
 // ScreenCapturerWinDirectx captures 32bit RGBA using DirectX.
-class ScreenCapturerWinDirectx : public DesktopCapturer {
+class RTC_EXPORT ScreenCapturerWinDirectx : public DesktopCapturer {
  public:
   using D3dInfo = DxgiDuplicatorController::D3dInfo;
 

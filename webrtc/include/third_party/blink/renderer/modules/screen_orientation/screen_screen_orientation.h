@@ -13,21 +13,18 @@ namespace blink {
 
 class ScreenOrientation;
 class Screen;
-class ScriptState;
 
 class ScreenScreenOrientation final
     : public GarbageCollected<ScreenScreenOrientation>,
       public Supplement<Screen> {
-  USING_GARBAGE_COLLECTED_MIXIN(ScreenScreenOrientation);
-
  public:
   static const char kSupplementName[];
 
   static ScreenScreenOrientation& From(Screen&);
 
-  static ScreenOrientation* orientation(ScriptState*, Screen&);
+  static ScreenOrientation* orientation(Screen&);
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   Member<ScreenOrientation> orientation_;

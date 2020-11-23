@@ -35,7 +35,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/macros.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/thread_safe_ref_counted.h"
 #include "url/origin.h"
@@ -47,7 +47,6 @@ struct UrlOriginAdapter;
 namespace blink {
 
 class KURL;
-class URLSecurityOriginMap;
 struct SecurityOriginHash;
 
 // An identifier which defines the source of content (e.g. a document) and
@@ -68,6 +67,7 @@ class PLATFORM_EXPORT SecurityOrigin : public RefCounted<SecurityOrigin> {
     kDomainMatchNecessary,
     kDomainMatchUnnecessary,
     kDomainMismatch,
+    kDomainNotRelevantAgentClusterMismatch,
   };
 
   // SecurityOrigin::Create() resolves |url| to its SecurityOrigin. When |url|
@@ -88,13 +88,19 @@ class PLATFORM_EXPORT SecurityOrigin : public RefCounted<SecurityOrigin> {
   static scoped_refptr<SecurityOrigin> CreateUniqueOpaque();
 
   static scoped_refptr<SecurityOrigin> CreateFromString(const String&);
-  static scoped_refptr<SecurityOrigin> Create(const String& protocol,
-                                              const String& host,
-                                              uint16_t port);
+
+  // Constructs a non-opaque tuple origin, analogously to
+  // url::Origin::Origin(url::SchemeHostPort).
+  //
+  // REQUIRES: The tuple be valid: |protocol| must contain a standard scheme and
+  // |host| must be canonicalized and (except for "file" URLs) nonempty.
+  static scoped_refptr<SecurityOrigin> CreateFromValidTuple(
+      const String& protocol,
+      const String& host,
+      uint16_t port);
+
   static scoped_refptr<SecurityOrigin> CreateFromUrlOrigin(const url::Origin&);
   url::Origin ToUrlOrigin() const;
-
-  static void SetMap(URLSecurityOriginMap*);
 
   // Some URL schemes use nested URLs for their security context. For example,
   // filesystem URLs look like the following:
@@ -141,26 +147,29 @@ class PLATFORM_EXPORT SecurityOrigin : public RefCounted<SecurityOrigin> {
   static bool IsSecure(const KURL&);
 
   // Returns true if this SecurityOrigin can script objects in the given
-  // SecurityOrigin. For example, call this function before allowing
-  // script from one security origin to read or write objects from
-  // another SecurityOrigin.
+  // SecurityOrigin. This check is similar to `IsSameOriginDomainWith()`, but
+  // additionally takes "universal access" flag into account, as well as the
+  // origin's agent cluster (see https://tc39.es/ecma262/#sec-agent-clusters).
+  //
+  // Note: This kind of access check should be rare; `IsSameOriginWith()` is
+  // almost certainly the right choice for new security checks.
+  //
+  // TODO(1027191): We're currently calling this method in a number of places
+  // where either `IsSameOriginWith()` or `IsSameOriginDomainWith()` might
+  // be more appropriate. We should audit its existing usage, and it might
+  // make sense to move it out of SecurityOrigin entirely to align it more
+  // tightly with `BindingSecurity` where it's clearly necessary.
   bool CanAccess(const SecurityOrigin* other) const {
     AccessResultDomainDetail unused_detail;
     return CanAccess(other, unused_detail);
   }
-
-  // Returns true if this SecurityOrigin can script objects in |other|, just
-  // as above, but also returns the category into which the access check fell.
-  //
-  // TODO(crbug.com/787905): Remove this variant once we have enough data to
-  // make decisions about `document.domain`.
   bool CanAccess(const SecurityOrigin* other, AccessResultDomainDetail&) const;
 
   // Returns true if this SecurityOrigin can read content retrieved from
   // the given URL.
   // Note: This function may return false when |url| has data scheme, which
   // is not aligned with CORS. If you want a CORS-aligned check, just use
-  // CORS mode (e.g., network::mojom::FetchRequestMode::kSameOrigin), or
+  // CORS mode (e.g., network::mojom::RequestMode::kSameOrigin), or
   // use CanReadContent.
   // See
   // https://docs.google.com/document/d/1_BD15unoPJVwKyf5yOUDu5kie492TTaBxzhJ58j1rD4/edit.
@@ -210,6 +219,13 @@ class PLATFORM_EXPORT SecurityOrigin : public RefCounted<SecurityOrigin> {
   void GrantUniversalAccess();
   bool IsGrantedUniversalAccess() const { return universal_access_; }
 
+  // Whether this origin has ability to access another SecurityOrigin
+  // if everything but the agent clusters do not match.
+  void GrantCrossAgentClusterAccess();
+  bool IsGrantedCrossAgentClusterAccess() const {
+    return cross_agent_cluster_access_;
+  }
+
   bool CanAccessDatabase() const { return !IsOpaque(); }
   bool CanAccessLocalStorage() const { return !IsOpaque(); }
   bool CanAccessSharedWorkers() const { return !IsOpaque(); }
@@ -217,6 +233,7 @@ class PLATFORM_EXPORT SecurityOrigin : public RefCounted<SecurityOrigin> {
   bool CanAccessCookies() const { return !IsOpaque(); }
   bool CanAccessPasswordManager() const { return !IsOpaque(); }
   bool CanAccessFileSystem() const { return !IsOpaque(); }
+  bool CanAccessNativeFileSystem() const { return !IsOpaque(); }
   bool CanAccessCacheStorage() const { return !IsOpaque(); }
   bool CanAccessLocks() const { return !IsOpaque(); }
 
@@ -275,12 +292,37 @@ class PLATFORM_EXPORT SecurityOrigin : public RefCounted<SecurityOrigin> {
   // https://html.spec.whatwg.org/C/origin.html#same-origin-domain
   String ToTokenForFastCheck() const;
 
-  // This method checks for equality, ignoring the value of document.domain
-  // (and whether it was set) but considering the host. It is used for
-  // postMessage.
-  bool IsSameSchemeHostPort(const SecurityOrigin*) const;
+  // This method implements HTML's "same origin" check, which verifies equality
+  // of opaque origins, or exact (scheme,host,port) matches. Note that
+  // `document.domain` does not come into play for this comparison.
+  //
+  // This method does not take the "universal access" flag into account. It does
+  // take the "local access" flag into account, considering `file:` origins that
+  // set the flag to be same-origin with all other `file:` origins that set the
+  // flag.
+  //
+  // https://html.spec.whatwg.org/#same-origin
+  bool IsSameOriginWith(const SecurityOrigin*) const;
+  static bool AreSameOrigin(const KURL& a, const KURL& b);
 
-  static bool AreSameSchemeHostPort(const KURL& a, const KURL& b);
+  // This method implements HTML's "same origin-domain" check, which takes
+  // `document.domain` into account when comparing two origins.
+  //
+  // This method does not take the "universal access" flag into account. It does
+  // take the "local access" flag into account, considering `file:` origins that
+  // set the flag to be same origin-domain with all other `file:` origins that
+  // set the flag (assuming no `document.domain` mismatch).
+  //
+  // Note: Same origin-domain checks should be rare, and `IsSameOriginWith()`
+  // is almost certainly the right choice for new security checks.
+  //
+  // https://html.spec.whatwg.org/#same-origin-domain
+  bool IsSameOriginDomainWith(const SecurityOrigin* other) const {
+    AccessResultDomainDetail unused_detail;
+    return IsSameOriginDomainWith(other, unused_detail);
+  }
+  bool IsSameOriginDomainWith(const SecurityOrigin*,
+                              AccessResultDomainDetail&) const;
 
   static const KURL& UrlWithUniqueOpaqueOrigin();
 
@@ -305,15 +347,38 @@ class PLATFORM_EXPORT SecurityOrigin : public RefCounted<SecurityOrigin> {
   // its precursor).
   scoped_refptr<SecurityOrigin> DeriveNewOpaqueOrigin() const;
 
+  // If this is an opaque origin that was derived from a tuple origin, return
+  // the origin from which this was derived. Otherwise returns |this|. This
+  // method may be used for things like CSP 'self' computation which require
+  // the origin before sandbox flags are applied. It should NOT be used for
+  // any security checks (such as bindings).
+  const SecurityOrigin* GetOriginOrPrecursorOriginIfOpaque() const;
+
   // Only used for document.domain setting. The method should probably be moved
   // if we need it for something more general.
   static String CanonicalizeHost(const String& host, bool* success);
+
+  // Return a security origin that is assigned to the agent cluster. This will
+  // be a copy of this security origin if the current agent doesn't match the
+  // provided agent, otherwise it will be a reference to this.
+  scoped_refptr<SecurityOrigin> GetOriginForAgentCluster(
+      const base::UnguessableToken& cluster_id);
+
+  const base::UnguessableToken& AgentClusterId() const {
+    return agent_cluster_id_;
+  }
+
+  // Returns true if this security origin is serialized to "null".
+  bool SerializesAsNull() const;
 
  private:
   constexpr static const uint16_t kInvalidPort = 0;
 
   friend struct mojo::UrlOriginAdapter;
   friend struct blink::SecurityOriginHash;
+
+  // For calling GetNonceForSerialization().
+  friend class BlobURLOpaqueOriginNonceMap;
 
   // Creates a new opaque SecurityOrigin using the supplied |precursor| origin
   // and |nonce|.
@@ -328,22 +393,26 @@ class PLATFORM_EXPORT SecurityOrigin : public RefCounted<SecurityOrigin> {
   // Create a tuple SecurityOrigin, with parameters via KURL
   explicit SecurityOrigin(const KURL& url);
 
+  // Constructs a non-opaque tuple origin, analogously to
+  // url::Origin::Origin(url::SchemeHostPort).
+  SecurityOrigin(const String& protocol, const String& host, uint16_t port);
+
+  enum class ConstructIsolatedCopy { kConstructIsolatedCopyBit };
   // Clone a SecurityOrigin which is safe to use on other threads.
-  explicit SecurityOrigin(const SecurityOrigin* other);
+  SecurityOrigin(const SecurityOrigin* other, ConstructIsolatedCopy);
+
+  enum class ConstructSameThreadCopy { kConstructSameThreadCopyBit };
+  // Clone a SecurityOrigin which is *NOT* safe to use on other threads.
+  SecurityOrigin(const SecurityOrigin* other, ConstructSameThreadCopy);
 
   // FIXME: Rename this function to something more semantic.
   bool PassesFileCheck(const SecurityOrigin*) const;
   void BuildRawString(StringBuilder&) const;
 
-  bool SerializesAsNull() const;
-
-  // Get the nonce associated with this origin, if it is unique. This should be
-  // used only when trying to send an Origin across an IPC pipe.
+  // Get the nonce associated with this origin, if it is opaque. This should be
+  // used only when trying to send an Origin across an IPC pipe or comparing
+  // blob URL's opaque origins in the thread-safe way.
   base::Optional<base::UnguessableToken> GetNonceForSerialization() const;
-
-  // If this is an opaque origin that was derived from a tuple origin, return
-  // the origin from which this was derived. Otherwise returns |this|.
-  const SecurityOrigin* GetOriginOrPrecursorOriginIfOpaque() const;
 
   const String protocol_ = g_empty_string;
   const String host_ = g_empty_string;
@@ -356,6 +425,11 @@ class PLATFORM_EXPORT SecurityOrigin : public RefCounted<SecurityOrigin> {
   bool can_load_local_resources_ = false;
   bool block_local_access_from_local_origin_ = false;
   bool is_opaque_origin_potentially_trustworthy_ = false;
+  bool cross_agent_cluster_access_ = false;
+
+  // A security origin can have an empty |agent_cluster_id_|. It occurs in the
+  // cases where a security origin hasn't been assigned to a document yet.
+  base::UnguessableToken agent_cluster_id_;
 
   // For opaque origins, tracks the non-opaque origin from which the opaque
   // origin is derived.

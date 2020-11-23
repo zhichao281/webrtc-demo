@@ -34,28 +34,22 @@
 #include "third_party/blink/renderer/core/svg/properties/svg_animated_property.h"
 #include "third_party/blink/renderer/core/svg/svg_boolean.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
+#include "third_party/blink/renderer/platform/heap/heap.h"
 
 namespace blink {
 
 class SVGAnimatedBoolean final : public ScriptWrappable,
                                  public SVGAnimatedProperty<SVGBoolean> {
   DEFINE_WRAPPERTYPEINFO();
-  USING_GARBAGE_COLLECTED_MIXIN(SVGAnimatedBoolean);
 
  public:
-  static SVGAnimatedBoolean* Create(SVGElement* context_element,
-                                    const QualifiedName& attribute_name) {
-    return MakeGarbageCollected<SVGAnimatedBoolean>(context_element,
-                                                    attribute_name);
-  }
-
   SVGAnimatedBoolean(SVGElement* context_element,
                      const QualifiedName& attribute_name)
       : SVGAnimatedProperty<SVGBoolean>(context_element,
                                         attribute_name,
-                                        SVGBoolean::Create()) {}
+                                        MakeGarbageCollected<SVGBoolean>()) {}
 
-  void Trace(blink::Visitor* visitor) override {
+  void Trace(Visitor* visitor) const override {
     SVGAnimatedProperty<SVGBoolean>::Trace(visitor);
     ScriptWrappable::Trace(visitor);
   }

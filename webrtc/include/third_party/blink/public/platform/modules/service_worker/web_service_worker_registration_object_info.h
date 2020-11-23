@@ -6,8 +6,9 @@
 #define THIRD_PARTY_BLINK_PUBLIC_PLATFORM_MODULES_SERVICE_WORKER_WEB_SERVICE_WORKER_REGISTRATION_OBJECT_INFO_H_
 
 #include "base/macros.h"
-#include "mojo/public/cpp/bindings/scoped_interface_endpoint_handle.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_registration.mojom-shared.h"
+#include "third_party/blink/public/mojom/service_worker/service_worker_registration_options.mojom-shared.h"
+#include "third_party/blink/public/platform/cross_variant_mojo_util.h"
 #include "third_party/blink/public/platform/modules/service_worker/web_service_worker_object_info.h"
 #include "third_party/blink/public/platform/web_url.h"
 
@@ -20,24 +21,23 @@ namespace blink {
 // inside Blink.
 //  - content.mojom.ServiceWorker
 //  - content.mojom.ServiceWorkerContainer
-//
-// As we're on the border line between non-Blink and Blink variants, we need
-// to use mojo::ScopedInterfaceEndpointHandle to pass Mojo types.
 struct WebServiceWorkerRegistrationObjectInfo {
   WebServiceWorkerRegistrationObjectInfo(
       int64_t registration_id,
       WebURL scope,
       mojom::ServiceWorkerUpdateViaCache update_via_cache,
-      mojo::ScopedInterfaceEndpointHandle host_ptr_info,
-      mojo::ScopedInterfaceEndpointHandle request,
+      CrossVariantMojoAssociatedRemote<
+          mojom::ServiceWorkerRegistrationObjectHostInterfaceBase> host_remote,
+      CrossVariantMojoAssociatedReceiver<
+          mojom::ServiceWorkerRegistrationObjectInterfaceBase> receiver,
       WebServiceWorkerObjectInfo installing,
       WebServiceWorkerObjectInfo waiting,
       WebServiceWorkerObjectInfo active)
       : registration_id(registration_id),
         scope(std::move(scope)),
         update_via_cache(update_via_cache),
-        host_ptr_info(std::move(host_ptr_info)),
-        request(std::move(request)),
+        host_remote(std::move(host_remote)),
+        receiver(std::move(receiver)),
         installing(std::move(installing)),
         waiting(std::move(waiting)),
         active(std::move(active)) {}
@@ -49,10 +49,12 @@ struct WebServiceWorkerRegistrationObjectInfo {
   WebURL scope;
   mojom::ServiceWorkerUpdateViaCache update_via_cache;
 
-  // For blink::mojom::ServiceWorkerRegistrationObjectHostAssociatedPtrInfo.
-  mojo::ScopedInterfaceEndpointHandle host_ptr_info;
-  // For blink::mojom::ServiceWorkerRegistrationObjectAssociatedRequest.
-  mojo::ScopedInterfaceEndpointHandle request;
+  CrossVariantMojoAssociatedRemote<
+      mojom::ServiceWorkerRegistrationObjectHostInterfaceBase>
+      host_remote;
+  CrossVariantMojoAssociatedReceiver<
+      mojom::ServiceWorkerRegistrationObjectInterfaceBase>
+      receiver;
 
   WebServiceWorkerObjectInfo installing;
   WebServiceWorkerObjectInfo waiting;

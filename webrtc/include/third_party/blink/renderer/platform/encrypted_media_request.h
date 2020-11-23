@@ -18,8 +18,7 @@ class WebString;
 template <typename T>
 class WebVector;
 
-class EncryptedMediaRequest
-    : public GarbageCollectedFinalized<EncryptedMediaRequest> {
+class EncryptedMediaRequest : public GarbageCollected<EncryptedMediaRequest> {
  public:
   virtual ~EncryptedMediaRequest() = default;
 
@@ -33,7 +32,7 @@ class EncryptedMediaRequest
       std::unique_ptr<WebContentDecryptionModuleAccess>) = 0;
   virtual void RequestNotSupported(const WebString& error_message) = 0;
 
-  virtual void Trace(blink::Visitor* visitor) {}
+  virtual void Trace(Visitor* visitor) const {}
 };
 
 }  // namespace blink

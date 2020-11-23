@@ -29,29 +29,25 @@
 #include <memory>
 
 #include "base/macros.h"
+#include "base/memory/weak_ptr.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/scroll/scroll_types.h"
-#include "third_party/blink/renderer/platform/geometry/int_rect.h"
+#include "third_party/blink/renderer/platform/graphics/compositing/paint_artifact_compositor.h"
 #include "third_party/blink/renderer/platform/graphics/compositor_element_id.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace cc {
 class AnimationHost;
-class Layer;
-class ScrollbarLayerInterface;
+class ScrollbarLayerBase;
 }  // namespace cc
 
 namespace blink {
 class CompositorAnimationTimeline;
 class LocalFrame;
 class LocalFrameView;
-class GraphicsLayer;
 class Page;
-class PaintLayer;
-class Region;
+class PaintLayerScrollableArea;
 class ScrollableArea;
-class WebLayerTreeView;
 
 using MainThreadScrollingReasons = uint32_t;
 using ScrollbarId = uint64_t;
@@ -63,71 +59,34 @@ using ScrollbarId = uint64_t;
 // It's responsible for propagating scroll offsets, main-thread scrolling
 // reasons, touch action regions, and non-fast-scrollable regions into the
 // compositor, as well as creating and managing scrollbar layers.
-
 class CORE_EXPORT ScrollingCoordinator final
-    : public GarbageCollectedFinalized<ScrollingCoordinator> {
+    : public GarbageCollected<ScrollingCoordinator>,
+      public CompositorScrollCallbacks {
  public:
-  struct ScrollbarLayerGroup {
-    // The compositor layer for the scrollbar. It can be one of a few
-    // concrete types, so we store the base type.
-    scoped_refptr<cc::Layer> layer;
-    // An interface shared by all scrollbar layer types since we don't know
-    // the concrete |layer| type.
-    cc::ScrollbarLayerInterface* scrollbar_layer = nullptr;
-  };
-
   explicit ScrollingCoordinator(Page*);
-  ~ScrollingCoordinator();
-  void Trace(blink::Visitor*);
+  ~ScrollingCoordinator() override;
+  void Trace(Visitor*) const;
 
   // The LocalFrameView argument is optional, nullptr causes the the scrolling
   // animation host and timeline to be owned by the ScrollingCoordinator. When
   // not null, the host and timeline are attached to the specified
   // LocalFrameView. A LocalFrameView only needs to own them when it is the view
   // for an OOPIF.
-  void LayerTreeViewInitialized(WebLayerTreeView&,
-                                cc::AnimationHost&,
-                                LocalFrameView*);
-  void WillCloseLayerTreeView(WebLayerTreeView&, LocalFrameView*);
+  void AnimationHostInitialized(cc::AnimationHost&, LocalFrameView*);
+  void WillCloseAnimationHost(LocalFrameView*);
 
   void WillBeDestroyed();
 
-  // Return whether this scrolling coordinator handles scrolling for the given
-  // frame view.
-  bool CoordinatesScrollingForFrameView(LocalFrameView*) const;
-
-  // Called when any frame has done its layout or compositing has changed.
-  void NotifyGeometryChanged(LocalFrameView*);
-  // Called when any transform has changed.
-  void NotifyTransformChanged(LocalFrame*);
-
-  // Update non-fast scrollable regions, touch event target rects, main thread
-  // scrolling reasons, and whether the visual viewport is user scrollable.
-  // TODO(pdr): Refactor this out of ScrollingCoordinator.
-  void UpdateAfterPaint(LocalFrameView*);
-
-  // Should be called whenever the slow repaint objects counter changes between
-  // zero and one.
-  void FrameViewHasBackgroundAttachmentFixedObjectsDidChange(LocalFrameView*);
-
-  // Should be called whenever the set of fixed objects changes.
-  void FrameViewFixedObjectsDidChange(LocalFrameView*);
-
-  // Should be called whenever the root layer for the given frame view changes.
-  void FrameViewRootLayerDidChange(LocalFrameView*);
-
-  std::unique_ptr<ScrollbarLayerGroup> CreateSolidColorScrollbarLayer(
-      ScrollbarOrientation,
-      int thumb_thickness,
-      int track_start,
-      bool is_left_side_vertical_scrollbar,
-      cc::ElementId);
-
   void WillDestroyScrollableArea(ScrollableArea*);
 
-  // Udates scroll offset, if the appropriate composited layers exist,
-  // and if successful, returns true. Otherwise returns false.
-  bool UpdateCompositedScrollOffset(ScrollableArea* scrollable_area);
+  // Updates scroll offset in cc scroll tree immediately. We don't wait for
+  // a full document lifecycle update to propagate the scroll offset from blink
+  // paint properties to cc paint properties because cc needs the scroll offset
+  // to apply the impl-side scroll delta correctly at the beginning of the next
+  // frame. The scroll offset in the transform node will still be updated
+  // in normal document lifecycle update instead of here.
+  // Returns whether the update is successful.
+  bool UpdateCompositorScrollOffset(const LocalFrame&, const ScrollableArea&);
 
   // Updates composited layers after changes to scrollable area  properties
   // like content and container sizes, scrollbar existence, scrollability, etc.
@@ -137,30 +96,9 @@ class CORE_EXPORT ScrollingCoordinator final
   // blink uses a separate layer. To ensure the compositor scroll layer has the
   // updated scroll container bounds, this needs to be called when the scrolling
   // contents layer is resized.
-  void ScrollableAreaScrollLayerDidChange(ScrollableArea*);
-  void ScrollableAreaScrollbarLayerDidChange(ScrollableArea*,
+  void ScrollableAreaScrollLayerDidChange(PaintLayerScrollableArea*);
+  void ScrollableAreaScrollbarLayerDidChange(PaintLayerScrollableArea*,
                                              ScrollbarOrientation);
-  void UpdateLayerPositionConstraint(PaintLayer*);
-  // LocalFrame* must be a local root if non-null.
-  void TouchEventTargetRectsDidChange(LocalFrame*);
-
-  void UpdateScrollParentForGraphicsLayer(GraphicsLayer* child,
-                                          const PaintLayer* parent);
-  void UpdateClipParentForGraphicsLayer(GraphicsLayer* child,
-                                        const PaintLayer* parent);
-
-  // Computes the NonFastScrollableRegions for the given local root frame. It
-  // outputs a separate region for areas that scroll with the viewport and
-  // those that are fixed to it since these regions will need to go on separate
-  // layers.
-  void ComputeShouldHandleScrollGestureOnMainThreadRegion(
-      const LocalFrame*,
-      Region* scrolling_region,
-      Region* fixed_region) const;
-
-  void UpdateTouchEventTargetRectsIfNeeded(LocalFrame*);
-
-  void UpdateUserInputScrollable(ScrollableArea*);
 
   cc::AnimationHost* GetCompositorAnimationHost() { return animation_host_; }
   CompositorAnimationTimeline* GetCompositorAnimationTimeline() {
@@ -173,49 +111,44 @@ class CORE_EXPORT ScrollingCoordinator final
   ScrollableArea* ScrollableAreaWithElementIdInAllLocalFrames(
       const CompositorElementId&);
 
-  // Callback for compositor-side layer scrolls.
-  void DidScroll(const gfx::ScrollOffset&, const CompositorElementId&);
+  // ScrollCallbacks implementation
+  void DidScroll(CompositorElementId,
+                 const gfx::ScrollOffset&,
+                 const base::Optional<cc::TargetSnapAreaElementIds>&) override;
+  void DidChangeScrollbarsHidden(CompositorElementId, bool hidden) override;
+
+  base::WeakPtr<ScrollingCoordinator> GetWeakPtr() {
+    DCHECK(page_);
+    return weak_ptr_factory_.GetWeakPtr();
+  }
 
   // For testing purposes only. This ScrollingCoordinator is reused between
   // web tests, and must be reset for the results to be valid.
   void Reset(LocalFrame*);
 
  protected:
-  bool IsForRootLayer(ScrollableArea*) const;
   bool IsForMainFrame(ScrollableArea*) const;
 
   Member<Page> page_;
 
-  // Dirty flags used to idenfity what really needs to be computed after
-  // compositing is updated.
-  bool touch_event_target_rects_are_dirty_;
-  bool should_scroll_on_main_thread_dirty_;
-
  private:
-  void SetShouldUpdateScrollLayerPositionOnMainThread(
-      LocalFrame*,
-      MainThreadScrollingReasons);
-
-  void SetShouldHandleScrollGestureOnMainThreadRegion(const Region&,
-                                                      GraphicsLayer*);
-
-  void AddScrollbarLayerGroup(ScrollableArea*,
-                              ScrollbarOrientation,
-                              std::unique_ptr<ScrollbarLayerGroup>);
-  ScrollbarLayerGroup* GetScrollbarLayerGroup(ScrollableArea*,
-                                              ScrollbarOrientation);
-  void RemoveScrollbarLayerGroup(ScrollableArea*, ScrollbarOrientation);
-
-  bool FrameScrollerIsDirty(LocalFrameView*) const;
+  void SetScrollbarLayer(ScrollableArea*,
+                         ScrollbarOrientation,
+                         scoped_refptr<cc::ScrollbarLayerBase>);
+  cc::ScrollbarLayerBase* GetScrollbarLayer(ScrollableArea*,
+                                            ScrollbarOrientation);
+  void RemoveScrollbarLayer(ScrollableArea*, ScrollbarOrientation);
 
   cc::AnimationHost* animation_host_ = nullptr;
   std::unique_ptr<CompositorAnimationTimeline>
       programmatic_scroll_animator_timeline_;
 
-  using ScrollbarMap =
-      HeapHashMap<Member<ScrollableArea>, std::unique_ptr<ScrollbarLayerGroup>>;
+  using ScrollbarMap = HeapHashMap<Member<ScrollableArea>,
+                                   scoped_refptr<cc::ScrollbarLayerBase>>;
   ScrollbarMap horizontal_scrollbars_;
   ScrollbarMap vertical_scrollbars_;
+
+  base::WeakPtrFactory<ScrollingCoordinator> weak_ptr_factory_{this};
 
   DISALLOW_COPY_AND_ASSIGN(ScrollingCoordinator);
 };

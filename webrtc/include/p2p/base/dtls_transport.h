@@ -24,6 +24,7 @@
 #include "rtc_base/ssl_stream_adapter.h"
 #include "rtc_base/stream.h"
 #include "rtc_base/strings/string_builder.h"
+#include "rtc_base/synchronization/sequence_checker.h"
 #include "rtc_base/thread_checker.h"
 
 namespace rtc {
@@ -54,9 +55,10 @@ class StreamInterfaceChannel : public rtc::StreamInterface {
                           int* error) override;
 
  private:
-  IceTransportInternal* ice_transport_;  // owned by DtlsTransport
-  rtc::StreamState state_;
-  rtc::BufferQueue packets_;
+  webrtc::SequenceChecker sequence_checker_;
+  IceTransportInternal* const ice_transport_;  // owned by DtlsTransport
+  rtc::StreamState state_ RTC_GUARDED_BY(sequence_checker_);
+  rtc::BufferQueue packets_ RTC_GUARDED_BY(sequence_checker_);
 
   RTC_DISALLOW_COPY_AND_ASSIGN(StreamInterfaceChannel);
 };
@@ -91,14 +93,15 @@ class StreamInterfaceChannel : public rtc::StreamInterface {
 // as the constructor.
 class DtlsTransport : public DtlsTransportInternal {
  public:
-  // |ice_transport| is the ICE transport this DTLS transport is wrapping.
+  // |ice_transport| is the ICE transport this DTLS transport is wrapping.  It
+  // must outlive this DTLS transport.
   //
   // |crypto_options| are the options used for the DTLS handshake. This affects
   // whether GCM crypto suites are negotiated.
   //
   // |event_log| is an optional RtcEventLog for logging state changes. It should
   // outlive the DtlsTransport.
-  explicit DtlsTransport(std::unique_ptr<IceTransportInternal> ice_transport,
+  explicit DtlsTransport(IceTransportInternal* ice_transport,
                          const webrtc::CryptoOptions& crypto_options,
                          webrtc::RtcEventLog* event_log);
 
@@ -141,6 +144,8 @@ class DtlsTransport : public DtlsTransportInternal {
 
   bool SetSslMaxProtocolVersion(rtc::SSLProtocolVersion version) override;
 
+  // Find out which TLS version was negotiated
+  bool GetSslVersionBytes(int* version) const override;
   // Find out which DTLS-SRTP cipher was negotiated
   bool GetSrtpCryptoSuite(int* cipher) override;
 
@@ -222,8 +227,8 @@ class DtlsTransport : public DtlsTransportInternal {
   std::string transport_name_;
   int component_;
   DtlsTransportState dtls_state_ = DTLS_TRANSPORT_NEW;
-  // Underlying ice_transport, owned by this class.
-  std::unique_ptr<IceTransportInternal> ice_transport_;
+  // Underlying ice_transport, not owned by this class.
+  IceTransportInternal* ice_transport_;
   std::unique_ptr<rtc::SSLStreamAdapter> dtls_;  // The DTLS stream
   StreamInterfaceChannel*
       downward_;  // Wrapper for ice_transport_, owned by dtls_.

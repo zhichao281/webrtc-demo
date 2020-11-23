@@ -32,32 +32,39 @@ class LayoutSVGHiddenContainer : public LayoutSVGContainer {
  public:
   explicit LayoutSVGHiddenContainer(SVGElement*);
 
-  const char* GetName() const override { return "LayoutSVGHiddenContainer"; }
+  const char* GetName() const override {
+    NOT_DESTROYED();
+    return "LayoutSVGHiddenContainer";
+  }
 
  protected:
   void UpdateLayout() override;
 
   bool IsOfType(LayoutObjectType type) const override {
+    NOT_DESTROYED();
     return type == kLayoutObjectSVGHiddenContainer ||
            LayoutSVGContainer::IsOfType(type);
   }
 
  private:
   // LayoutSVGHiddenContainer paints nothing.
-  void Paint(const PaintInfo&) const final {}
-  bool PaintedOutputOfObjectHasNoEffectRegardlessOfSize() const final {
-    return true;
+  void Paint(const PaintInfo&) const final { NOT_DESTROYED(); }
+  PhysicalRect VisualRectInDocument(VisualRectFlags) const final {
+    NOT_DESTROYED();
+    return PhysicalRect();
   }
-  LayoutRect VisualRectInDocument() const final { return LayoutRect(); }
   FloatRect VisualRectInLocalSVGCoordinates() const final {
+    NOT_DESTROYED();
     return FloatRect();
   }
   void AbsoluteQuads(Vector<FloatQuad>&,
-                     MapCoordinatesFlags mode = 0) const final {}
+                     MapCoordinatesFlags mode = 0) const final {
+    NOT_DESTROYED();
+  }
 
   bool NodeAtPoint(HitTestResult&,
-                   const HitTestLocation& location_in_container,
-                   const LayoutPoint& accumulated_offset,
+                   const HitTestLocation&,
+                   const PhysicalOffset& accumulated_offset,
                    HitTestAction) final;
 };
 }  // namespace blink

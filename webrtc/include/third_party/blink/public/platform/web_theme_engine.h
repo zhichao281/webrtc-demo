@@ -31,11 +31,15 @@
 #ifndef THIRD_PARTY_BLINK_PUBLIC_PLATFORM_WEB_THEME_ENGINE_H_
 #define THIRD_PARTY_BLINK_PUBLIC_PLATFORM_WEB_THEME_ENGINE_H_
 
+#include "base/optional.h"
 #include "base/time/time.h"
-#include "third_party/blink/public/platform/web_rect.h"
+#include "build/build_config.h"
+#include "third_party/blink/public/common/css/forced_colors.h"
+#include "third_party/blink/public/mojom/frame/color_scheme.mojom-shared.h"
 #include "third_party/blink/public/platform/web_scrollbar_overlay_color_theme.h"
-#include "third_party/blink/public/platform/web_size.h"
 #include "third_party/skia/include/core/SkColor.h"
+#include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/size.h"
 
 namespace cc {
 class PaintCanvas;
@@ -80,6 +84,21 @@ class WebThemeEngine {
     kPartProgressBar
   };
 
+  enum class SystemThemeColor {
+    kNotSupported,
+    kButtonFace,
+    kButtonText,
+    kGrayText,
+    kHighlight,
+    kHighlightText,
+    kHotlight,
+    kMenuHighlight,
+    kScrollbar,
+    kWindow,
+    kWindowText,
+    kMaxValue = kWindowText,
+  };
+
   // Extra parameters for drawing the PartScrollbarHorizontalTrack and
   // PartScrollbarVerticalTrack.
   struct ScrollbarTrackExtraParams {
@@ -96,9 +115,9 @@ class WebThemeEngine {
   struct ButtonExtraParams {
     bool checked;
     bool indeterminate;  // Whether the button state is indeterminate.
-    bool is_default;     // Whether the button is default button.
     bool has_border;
     SkColor background_color;
+    float zoom;
   };
 
   // Extra parameters for PartTextField
@@ -106,6 +125,8 @@ class WebThemeEngine {
     bool is_text_area;
     bool is_listbox;
     SkColor background_color;
+    bool has_border;
+    bool auto_complete_active;
   };
 
   // Extra parameters for PartMenuList
@@ -124,6 +145,10 @@ class WebThemeEngine {
   struct SliderExtraParams {
     bool vertical;
     bool in_drag;
+    int thumb_x;
+    int thumb_y;
+    float zoom;
+    bool right_to_left;
   };
 
   // Extra parameters for PartInnerSpinButton
@@ -146,6 +171,29 @@ class WebThemeEngine {
     WebScrollbarOverlayColorTheme scrollbar_theme;
   };
 
+  struct ScrollbarButtonExtraParams {
+    float zoom;
+    bool right_to_left;
+  };
+
+#if defined(OS_MAC)
+  enum ScrollbarOrientation {
+    // Vertical scrollbar on the right side of content.
+    kVerticalOnRight,
+    // Vertical scrollbar on the left side of content.
+    kVerticalOnLeft,
+    // Horizontal scrollbar (on the bottom of content).
+    kHorizontal,
+  };
+
+  struct ScrollbarExtraParams {
+    bool is_hovering;
+    bool is_overlay;
+    mojom::ColorScheme scrollbar_theme;
+    ScrollbarOrientation orientation;
+  };
+#endif
+
   union ExtraParams {
     ScrollbarTrackExtraParams scrollbar_track;
     ButtonExtraParams button;
@@ -155,16 +203,22 @@ class WebThemeEngine {
     InnerSpinButtonExtraParams inner_spin;
     ProgressBarExtraParams progress_bar;
     ScrollbarThumbExtraParams scrollbar_thumb;
+    ScrollbarButtonExtraParams scrollbar_button;
+#if defined(OS_MAC)
+    ScrollbarExtraParams scrollbar_extra;
+#endif
   };
+
+  virtual ~WebThemeEngine() {}
 
   // Gets the size of the given theme part. For variable sized items
   // like vertical scrollbar thumbs, the width will be the required width of
   // the track while the height will be the minimum height.
-  virtual WebSize GetSize(Part) { return WebSize(); }
+  virtual gfx::Size GetSize(Part) { return gfx::Size(); }
 
   virtual bool SupportsNinePatch(Part) const { return false; }
-  virtual WebSize NinePatchCanvasSize(Part) const { return WebSize(); }
-  virtual WebRect NinePatchAperture(Part) const { return WebRect(); }
+  virtual gfx::Size NinePatchCanvasSize(Part) const { return gfx::Size(); }
+  virtual gfx::Rect NinePatchAperture(Part) const { return gfx::Rect(); }
 
   struct ScrollbarStyle {
     int thumb_thickness;
@@ -190,8 +244,17 @@ class WebThemeEngine {
   virtual void Paint(cc::PaintCanvas*,
                      Part,
                      State,
-                     const WebRect&,
-                     const ExtraParams*) {}
+                     const gfx::Rect&,
+                     const ExtraParams*,
+                     blink::mojom::ColorScheme) {}
+
+  virtual base::Optional<SkColor> GetSystemColor(
+      SystemThemeColor system_theme) const {
+    return base::nullopt;
+  }
+
+  virtual ForcedColors GetForcedColors() const { return ForcedColors::kNone; }
+  virtual void SetForcedColors(const blink::ForcedColors forced_colors) {}
 };
 
 }  // namespace blink

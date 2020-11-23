@@ -12,13 +12,13 @@
 #define PC_CHANNEL_MANAGER_H_
 
 #include <stdint.h>
+
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "api/audio_options.h"
 #include "api/crypto/crypto_options.h"
-#include "api/media_transport_interface.h"
 #include "call/call.h"
 #include "media/base/codec.h"
 #include "media/base/media_channel.h"
@@ -27,7 +27,7 @@
 #include "pc/channel.h"
 #include "pc/rtp_transport_internal.h"
 #include "pc/session_description.h"
-#include "rtc_base/platform_file.h"
+#include "rtc_base/system/file_wrapper.h"
 #include "rtc_base/thread.h"
 
 namespace cricket {
@@ -74,10 +74,15 @@ class ChannelManager final {
   // Can be called before starting the media engine.
   void GetSupportedAudioSendCodecs(std::vector<AudioCodec>* codecs) const;
   void GetSupportedAudioReceiveCodecs(std::vector<AudioCodec>* codecs) const;
-  void GetSupportedAudioRtpHeaderExtensions(RtpHeaderExtensions* ext) const;
-  void GetSupportedVideoCodecs(std::vector<VideoCodec>* codecs) const;
-  void GetSupportedVideoRtpHeaderExtensions(RtpHeaderExtensions* ext) const;
+  void GetSupportedVideoSendCodecs(std::vector<VideoCodec>* codecs) const;
+  void GetSupportedVideoReceiveCodecs(std::vector<VideoCodec>* codecs) const;
   void GetSupportedDataCodecs(std::vector<DataCodec>* codecs) const;
+  RtpHeaderExtensions GetDefaultEnabledAudioRtpHeaderExtensions() const;
+  std::vector<webrtc::RtpHeaderExtensionCapability>
+  GetSupportedAudioRtpHeaderExtensions() const;
+  RtpHeaderExtensions GetDefaultEnabledVideoRtpHeaderExtensions() const;
+  std::vector<webrtc::RtpHeaderExtensionCapability>
+  GetSupportedVideoRtpHeaderExtensions() const;
 
   // Indicates whether the media engine is started.
   bool initialized() const { return initialized_; }
@@ -91,17 +96,15 @@ class ChannelManager final {
   // call the appropriate Destroy*Channel method when done.
 
   // Creates a voice channel, to be associated with the specified session.
-  VoiceChannel* CreateVoiceChannel(
-      webrtc::Call* call,
-      const cricket::MediaConfig& media_config,
-      webrtc::RtpTransportInternal* rtp_transport,
-      webrtc::MediaTransportInterface* media_transport,
-      rtc::Thread* signaling_thread,
-      const std::string& content_name,
-      bool srtp_required,
-      const webrtc::CryptoOptions& crypto_options,
-      rtc::UniqueRandomIdGenerator* ssrc_generator,
-      const AudioOptions& options);
+  VoiceChannel* CreateVoiceChannel(webrtc::Call* call,
+                                   const cricket::MediaConfig& media_config,
+                                   webrtc::RtpTransportInternal* rtp_transport,
+                                   rtc::Thread* signaling_thread,
+                                   const std::string& content_name,
+                                   bool srtp_required,
+                                   const webrtc::CryptoOptions& crypto_options,
+                                   rtc::UniqueRandomIdGenerator* ssrc_generator,
+                                   const AudioOptions& options);
   // Destroys a voice channel created by CreateVoiceChannel.
   void DestroyVoiceChannel(VoiceChannel* voice_channel);
 
@@ -112,13 +115,13 @@ class ChannelManager final {
       webrtc::Call* call,
       const cricket::MediaConfig& media_config,
       webrtc::RtpTransportInternal* rtp_transport,
-      webrtc::MediaTransportInterface* media_transport,
       rtc::Thread* signaling_thread,
       const std::string& content_name,
       bool srtp_required,
       const webrtc::CryptoOptions& crypto_options,
       rtc::UniqueRandomIdGenerator* ssrc_generator,
-      const VideoOptions& options);
+      const VideoOptions& options,
+      webrtc::VideoBitrateAllocatorFactory* video_bitrate_allocator_factory);
   // Destroys a video channel created by CreateVideoChannel.
   void DestroyVideoChannel(VideoChannel* video_channel);
 
@@ -151,7 +154,7 @@ class ChannelManager final {
   // Starts AEC dump using existing file, with a specified maximum file size in
   // bytes. When the limit is reached, logging will stop and the file will be
   // closed. If max_size_bytes is set to <= 0, no limit will be used.
-  bool StartAecDump(rtc::PlatformFile file, int64_t max_size_bytes);
+  bool StartAecDump(webrtc::FileWrapper file, int64_t max_size_bytes);
 
   // Stops recording AEC dump.
   void StopAecDump();

@@ -29,6 +29,8 @@
 #include <memory>
 
 #include "base/macros.h"
+#include "mojo/public/mojom/base/text_direction.mojom-blink-forward.h"
+#include "third_party/blink/public/mojom/webpreferences/web_preferences.mojom-blink.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/editing/editing_style.h"
 #include "third_party/blink/renderer/core/editing/finder/find_options.h"
@@ -59,9 +61,8 @@ enum class InsertMode { kSimple, kSmart };
 enum class DragSourceType { kHTMLSource, kPlainTextSource };
 enum class EditorParagraphSeparator { kIsDiv, kIsP };
 enum class EditorCommandSource { kMenuOrKeyBinding, kDOM };
-enum class WritingDirection;
 
-class CORE_EXPORT Editor final : public GarbageCollectedFinalized<Editor> {
+class CORE_EXPORT Editor final : public GarbageCollected<Editor> {
  public:
   explicit Editor(LocalFrame&);
   ~Editor();
@@ -133,7 +134,7 @@ class CORE_EXPORT Editor final : public GarbageCollectedFinalized<Editor> {
   // Supposed to be used as |const UndoStack&|.
   UndoStack& GetUndoStack() const { return *undo_stack_; }
 
-  void SetBaseWritingDirection(WritingDirection);
+  void SetBaseWritingDirection(mojo_base::mojom::blink::TextDirection);
 
   // smartInsertDeleteEnabled and selectTrailingWhitespaceEnabled are
   // mutually exclusive, meaning that enabling one will disable the other.
@@ -164,7 +165,8 @@ class CORE_EXPORT Editor final : public GarbageCollectedFinalized<Editor> {
       Document&,
       const String& target,
       const EphemeralRangeInFlatTree& reference_range,
-      FindOptions);
+      FindOptions,
+      bool* wrapped_around = nullptr);
 
   const VisibleSelection& Mark() const;  // Mark, to be used as emacs uses it.
   bool MarkIsDirectional() const;
@@ -221,10 +223,10 @@ class CORE_EXPORT Editor final : public GarbageCollectedFinalized<Editor> {
   void SetTypingStyle(EditingStyle*);
   void ClearTypingStyle();
 
-  void Trace(Visitor*);
+  void Trace(Visitor*) const;
 
   void RevealSelectionAfterEditingOperation(
-      const ScrollAlignment& = ScrollAlignment::kAlignToEdgeIfNeeded);
+      const mojom::blink::ScrollAlignment& = ScrollAlignment::ToEdgeIfNeeded());
 
  private:
   Member<LocalFrame> frame_;

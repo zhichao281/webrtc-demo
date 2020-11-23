@@ -12,12 +12,14 @@
 #define SDK_ANDROID_SRC_JNI_VIDEO_DECODER_WRAPPER_H_
 
 #include <jni.h>
+
 #include <atomic>
 #include <deque>
 
 #include "api/video_codecs/video_decoder.h"
 #include "common_video/h264/h264_bitstream_parser.h"
 #include "rtc_base/race_checker.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_checker.h"
 #include "sdk/android/src/jni/jni_helpers.h"
 
@@ -35,7 +37,6 @@ class VideoDecoderWrapper : public VideoDecoder {
 
   int32_t Decode(const EncodedImage& input_image,
                  bool missing_frames,
-                 const CodecSpecificInfo* codec_specific_info,
                  int64_t render_time_ms) override;
 
   int32_t RegisterDecodeCompleteCallback(
@@ -55,7 +56,6 @@ class VideoDecoderWrapper : public VideoDecoder {
 
   // Wraps the frame to a AndroidVideoBuffer and passes it to the callback.
   void OnDecodedFrame(JNIEnv* env,
-                      const JavaRef<jobject>& j_caller,
                       const JavaRef<jobject>& j_frame,
                       const JavaRef<jobject>& j_decode_time_ms,
                       const JavaRef<jobject>& j_qp);
@@ -105,7 +105,7 @@ class VideoDecoderWrapper : public VideoDecoder {
 
   // Accessed both on the decoder thread and the callback thread.
   std::atomic<bool> qp_parsing_enabled_;
-  rtc::CriticalSection frame_extra_infos_lock_;
+  Mutex frame_extra_infos_lock_;
   std::deque<FrameExtraInfo> frame_extra_infos_
       RTC_GUARDED_BY(frame_extra_infos_lock_);
 };

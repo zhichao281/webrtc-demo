@@ -30,23 +30,20 @@
 #include "base/numerics/clamped_math.h"
 #include "build/build_config.h"
 #include "third_party/blink/renderer/platform/geometry/int_size.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
 #include "third_party/blink/renderer/platform/wtf/vector_traits.h"
 #include "ui/gfx/geometry/point.h"
+#include "ui/gfx/geometry/vector2d.h"
 
-#if defined(OS_MACOSX)
+#if defined(OS_MAC)
 typedef struct CGPoint CGPoint;
 
 #ifdef __OBJC__
 #import <Foundation/Foundation.h>
 #endif
 #endif
-
-namespace gfx {
-class Vector2d;
-}
 
 namespace blink {
 
@@ -56,9 +53,10 @@ class PLATFORM_EXPORT IntPoint {
  public:
   constexpr IntPoint() : x_(0), y_(0) {}
   constexpr IntPoint(int x, int y) : x_(x), y_(y) {}
-  explicit IntPoint(const IntSize& size)
+  constexpr explicit IntPoint(const IntSize& size)
       : x_(size.Width()), y_(size.Height()) {}
-  explicit IntPoint(const gfx::Point& point) : x_(point.x()), y_(point.y()) {}
+  constexpr explicit IntPoint(const gfx::Point& p) : x_(p.x()), y_(p.y()) {}
+  constexpr explicit IntPoint(const gfx::Vector2d& v) : x_(v.x()), y_(v.y()) {}
 
   static IntPoint Zero() { return IntPoint(); }
 
@@ -100,16 +98,18 @@ class PLATFORM_EXPORT IntPoint {
 
   IntPoint TransposedPoint() const { return IntPoint(y_, x_); }
 
-#if defined(OS_MACOSX)
+#if defined(OS_MAC)
   explicit IntPoint(
       const CGPoint&);  // don't do this implicitly since it's lossy
   operator CGPoint() const;
 #endif
 
-  operator gfx::Point() const;
+  constexpr operator gfx::Point() const { return gfx::Point(x_, y_); }
   // IntPoint is used as an offset, but outside blink, the Vector2d type is used
   // for offsets instead. Addition of Point+Vector2d gives an offseted Point.
-  explicit operator gfx::Vector2d() const;
+  constexpr explicit operator gfx::Vector2d() const {
+    return gfx::Vector2d(x_, y_);
+  }
 
   String ToString() const;
 

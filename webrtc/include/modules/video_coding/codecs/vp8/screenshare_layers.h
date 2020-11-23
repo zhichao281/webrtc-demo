@@ -36,23 +36,23 @@ class ScreenshareLayers final : public Vp8FrameBufferController {
   explicit ScreenshareLayers(int num_temporal_layers);
   ~ScreenshareLayers() override;
 
+  void SetQpLimits(size_t stream_index, int min_qp, int max_qp) override;
+
   size_t StreamCount() const override;
 
   bool SupportsEncoderFrameDropping(size_t stream_index) const override;
 
   // Returns the recommended VP8 encode flags needed. May refresh the decoder
   // and/or update the reference buffers.
-  Vp8FrameConfig UpdateLayerConfig(size_t stream_index,
-                                   uint32_t rtp_timestamp) override;
+  Vp8FrameConfig NextFrameConfig(size_t stream_index,
+                                 uint32_t rtp_timestamp) override;
 
   // New target bitrate, per temporal layer.
   void OnRatesUpdated(size_t stream_index,
                       const std::vector<uint32_t>& bitrates_bps,
                       int framerate_fps) override;
 
-  // Update the encoder configuration with target bitrates or other parameters.
-  // Returns true iff the configuration was actually modified.
-  bool UpdateConfiguration(size_t stream_index, Vp8EncoderConfig* cfg) override;
+  Vp8EncoderConfig UpdateConfiguration(size_t stream_index) override;
 
   void OnEncodeDone(size_t stream_index,
                     uint32_t rtp_timestamp,
@@ -61,12 +61,14 @@ class ScreenshareLayers final : public Vp8FrameBufferController {
                     int qp,
                     CodecSpecificInfo* info) override;
 
+  void OnFrameDropped(size_t stream_index, uint32_t rtp_timestamp) override;
+
   void OnPacketLossRateUpdate(float packet_loss_rate) override;
 
   void OnRttUpdate(int64_t rtt_ms) override;
 
   void OnLossNotification(
-      const VideoEncoder::LossNotification loss_notification) override;
+      const VideoEncoder::LossNotification& loss_notification) override;
 
  private:
   enum class TemporalLayerState : int { kDrop, kTl0, kTl1, kTl1Sync };
@@ -76,26 +78,28 @@ class ScreenshareLayers final : public Vp8FrameBufferController {
     DependencyInfo(absl::string_view indication_symbols,
                    Vp8FrameConfig frame_config)
         : decode_target_indications(
-              GenericFrameInfo::DecodeTargetInfo(indication_symbols)),
+              webrtc_impl::StringToDecodeTargetIndications(indication_symbols)),
           frame_config(frame_config) {}
 
-    absl::InlinedVector<GenericFrameInfo::DecodeTargetIndication, 10>
-        decode_target_indications;
+    absl::InlinedVector<DecodeTargetIndication, 10> decode_target_indications;
     Vp8FrameConfig frame_config;
   };
 
   bool TimeToSync(int64_t timestamp) const;
   uint32_t GetCodecTargetBitrateKbps() const;
 
-  int number_of_temporal_layers_;
+  const int number_of_temporal_layers_;
+
+  // TODO(eladalon/sprang): These should be made into const-int set in the ctor.
+  absl::optional<int> min_qp_;
+  absl::optional<int> max_qp_;
+
   int active_layer_;
   int64_t last_timestamp_;
   int64_t last_sync_timestamp_;
   int64_t last_emitted_tl0_timestamp_;
   int64_t last_frame_time_ms_;
   rtc::TimestampWrapAroundHandler time_wrap_handler_;
-  int min_qp_;
-  int max_qp_;
   uint32_t max_debt_bytes_;
 
   std::map<uint32_t, DependencyInfo> pending_frame_configs_;
@@ -135,7 +139,7 @@ class ScreenshareLayers final : public Vp8FrameBufferController {
   } layers_[kMaxNumTemporalLayers];
 
   void UpdateHistograms();
-  TemplateStructure GetTemplateStructure(int num_layers) const;
+  FrameDependencyStructure GetTemplateStructure(int num_layers) const;
 
   // Data for histogram statistics.
   struct Stats {
@@ -149,6 +153,8 @@ class ScreenshareLayers final : public Vp8FrameBufferController {
     int64_t tl0_target_bitrate_sum_ = 0;
     int64_t tl1_target_bitrate_sum_ = 0;
   } stats_;
+
+  Vp8EncoderConfig encoder_config_;
 
   // Optional utility used to verify reference validity.
   std::unique_ptr<TemporalLayersChecker> checker_;

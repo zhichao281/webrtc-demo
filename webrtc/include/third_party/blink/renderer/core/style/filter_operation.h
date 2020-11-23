@@ -26,7 +26,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_STYLE_FILTER_OPERATION_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_STYLE_FILTER_OPERATION_H_
 
-#include "base/macros.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/style/shadow_data.h"
 #include "third_party/blink/renderer/platform/geometry/float_rect.h"
@@ -45,9 +44,7 @@ class SVGResourceClient;
 
 // CSS Filters
 
-class CORE_EXPORT FilterOperation
-    : public GarbageCollectedFinalized<FilterOperation> {
-
+class CORE_EXPORT FilterOperation : public GarbageCollected<FilterOperation> {
  public:
   enum OperationType {
     REFERENCE,  // url(#somefilter)
@@ -89,11 +86,8 @@ class CORE_EXPORT FilterOperation
   }
 
   virtual ~FilterOperation() = default;
-  virtual void Trace(blink::Visitor* visitor) {}
+  virtual void Trace(Visitor* visitor) const {}
 
-  static FilterOperation* Blend(const FilterOperation* from,
-                                const FilterOperation* to,
-                                double progress);
   virtual bool operator==(const FilterOperation&) const = 0;
   bool operator!=(const FilterOperation& o) const { return !(*this == o); }
 
@@ -119,9 +113,8 @@ class CORE_EXPORT FilterOperation
   OperationType type_;
 
  private:
-  virtual FilterOperation* Blend(const FilterOperation* from,
-                                 double progress) const = 0;
-  DISALLOW_COPY_AND_ASSIGN(FilterOperation);
+  FilterOperation(const FilterOperation&) = delete;
+  FilterOperation& operator=(const FilterOperation&) = delete;
 };
 
 class CORE_EXPORT ReferenceFilterOperation : public FilterOperation {
@@ -142,15 +135,9 @@ class CORE_EXPORT ReferenceFilterOperation : public FilterOperation {
   void AddClient(SVGResourceClient&);
   void RemoveClient(SVGResourceClient&);
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
-  FilterOperation* Blend(const FilterOperation* from,
-                         double progress) const override {
-    NOTREACHED();
-    return nullptr;
-  }
-
   bool operator==(const FilterOperation&) const override;
 
   AtomicString url_;
@@ -175,8 +162,6 @@ class CORE_EXPORT BasicColorMatrixFilterOperation : public FilterOperation {
   double Amount() const { return amount_; }
 
  private:
-  FilterOperation* Blend(const FilterOperation* from,
-                         double progress) const override;
   bool operator==(const FilterOperation& o) const override {
     if (!IsSameType(o))
       return false;
@@ -216,8 +201,6 @@ class CORE_EXPORT BasicComponentTransferFilterOperation
   bool AffectsOpacity() const override { return type_ == OPACITY; }
 
  private:
-  FilterOperation* Blend(const FilterOperation* from,
-                         double progress) const override;
   bool operator==(const FilterOperation& o) const override {
     if (!IsSameType(o))
       return false;
@@ -256,8 +239,6 @@ class CORE_EXPORT BlurFilterOperation : public FilterOperation {
   FloatRect MapRect(const FloatRect&) const override;
 
  private:
-  FilterOperation* Blend(const FilterOperation* from,
-                         double progress) const override;
   bool operator==(const FilterOperation& o) const override {
     if (!IsSameType(o))
       return false;
@@ -278,11 +259,7 @@ struct DowncastTraits<BlurFilterOperation> {
 
 class CORE_EXPORT DropShadowFilterOperation : public FilterOperation {
  public:
-  static DropShadowFilterOperation* Create(const ShadowData& shadow) {
-    return MakeGarbageCollected<DropShadowFilterOperation>(shadow);
-  }
-
-  DropShadowFilterOperation(const ShadowData& shadow)
+  explicit DropShadowFilterOperation(const ShadowData& shadow)
       : FilterOperation(DROP_SHADOW), shadow_(shadow) {}
 
   const ShadowData& Shadow() const { return shadow_; }
@@ -292,8 +269,6 @@ class CORE_EXPORT DropShadowFilterOperation : public FilterOperation {
   FloatRect MapRect(const FloatRect&) const override;
 
  private:
-  FilterOperation* Blend(const FilterOperation* from,
-                         double progress) const override;
   bool operator==(const FilterOperation& o) const override {
     if (!IsSameType(o))
       return false;
@@ -324,8 +299,6 @@ class CORE_EXPORT BoxReflectFilterOperation : public FilterOperation {
   FloatRect MapRect(const FloatRect&) const override;
 
  private:
-  FilterOperation* Blend(const FilterOperation* from,
-                         double progress) const override;
   bool operator==(const FilterOperation&) const override;
 
   BoxReflection reflection_;

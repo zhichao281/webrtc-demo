@@ -29,7 +29,6 @@
 
 #include "third_party/blink/renderer/core/frame/navigator.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
-#include "third_party/blink/renderer/modules/navigatorcontentutils/navigator_content_utils_client.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
@@ -37,12 +36,29 @@
 namespace blink {
 
 class ExceptionState;
+class NavigatorContentUtilsClient;
 
+// Verify custom handler schemes for errors as described in
+// https://html.spec.whatwg.org/multipage/system-state.html#custom-handlers.
+// Callers should surface an error with |error_message| if it returns false.
+bool VerifyCustomHandlerScheme(const String& scheme, String& error_message);
+
+// Verify custom handler URLs for syntax errors as described in
+// https://html.spec.whatwg.org/multipage/system-state.html#custom-handlers.
+// Callers should surface an error with |error_message| if it returns false.
+// |full_url| is calculated URL that needs to resolve to a valid URL.
+// |base_url| is used for the error message and is generally the Document URL.
+// |user_url| is the URL provided by the user, which may be relative.
+bool VerifyCustomHandlerURLSyntax(const KURL& full_url,
+                                  const KURL& base_url,
+                                  const String& user_url,
+                                  String& error_message);
+
+// It is owned by Navigator, and an instance is created lazily by calling
+// NavigatorContentUtils::From() via [register/unregister]ProtocolHandler.
 class MODULES_EXPORT NavigatorContentUtils final
-    : public GarbageCollectedFinalized<NavigatorContentUtils>,
+    : public GarbageCollected<NavigatorContentUtils>,
       public Supplement<Navigator> {
-  USING_GARBAGE_COLLECTED_MIXIN(NavigatorContentUtils);
-
  public:
   static const char kSupplementName[];
 
@@ -51,27 +67,24 @@ class MODULES_EXPORT NavigatorContentUtils final
       : Supplement<Navigator>(navigator), client_(client) {}
   virtual ~NavigatorContentUtils();
 
-  static NavigatorContentUtils* From(Navigator&);
-
   static void registerProtocolHandler(Navigator&,
                                       const String& scheme,
                                       const String& url,
-                                      const String& title,
                                       ExceptionState&);
   static void unregisterProtocolHandler(Navigator&,
                                         const String& scheme,
                                         const String& url,
                                         ExceptionState&);
 
-  static void ProvideTo(Navigator&, NavigatorContentUtilsClient*);
-
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
   void SetClientForTest(NavigatorContentUtilsClient* client) {
     client_ = client;
   }
 
  private:
+  static NavigatorContentUtils& From(Navigator&, LocalFrame& frame);
+
   NavigatorContentUtilsClient* Client() { return client_.Get(); }
 
   Member<NavigatorContentUtilsClient> client_;

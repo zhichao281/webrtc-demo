@@ -25,6 +25,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_STYLE_STYLE_IMAGE_H_
 
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/platform/graphics/image_orientation.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 
@@ -34,7 +35,6 @@ class CSSValue;
 class FloatSize;
 class Image;
 class ImageResourceContent;
-class LayoutSize;
 class SVGImage;
 class Document;
 class ComputedStyle;
@@ -45,7 +45,7 @@ typedef void* WrappedImagePtr;
 // This class represents a CSS <image> value in ComputedStyle. The underlying
 // object can be an image, a gradient or anything else defined as an <image>
 // value.
-class CORE_EXPORT StyleImage : public GarbageCollectedFinalized<StyleImage> {
+class CORE_EXPORT StyleImage : public GarbageCollected<StyleImage> {
  public:
   virtual ~StyleImage() = default;
 
@@ -60,7 +60,8 @@ class CORE_EXPORT StyleImage : public GarbageCollectedFinalized<StyleImage> {
   // Returns a CSSValue suitable for using as part of a computed style
   // value. This often means that any URLs have been made absolute, and similar
   // actions described by a "Computed value" in the relevant specification.
-  virtual CSSValue* ComputedCSSValue() const = 0;
+  virtual CSSValue* ComputedCSSValue(const ComputedStyle&,
+                                     bool allow_visited_style) const = 0;
 
   // An Image can be provided for rendering by GetImage.
   virtual bool CanRender() const { return true; }
@@ -85,9 +86,13 @@ class CORE_EXPORT StyleImage : public GarbageCollectedFinalized<StyleImage> {
   // not zoomed. Note that the |default_object_size| has already been snapped
   // to LayoutUnit resolution because it represents the target painted size of
   // a container.
+  //
+  // The size will respect the image orientation if requested and if the image
+  // supports it.
   virtual FloatSize ImageSize(const Document&,
                               float multiplier,
-                              const LayoutSize& default_object_size) const = 0;
+                              const FloatSize& default_object_size,
+                              RespectImageOrientationEnum) const = 0;
 
   // The <image> has intrinsic dimensions.
   //
@@ -128,6 +133,13 @@ class CORE_EXPORT StyleImage : public GarbageCollectedFinalized<StyleImage> {
   // underlying ImageResourceContent, or otherwise nullptr.
   virtual ImageResourceContent* CachedImage() const { return nullptr; }
 
+  // Correct the image orientation preference for potentially cross-origin
+  // content.
+  virtual RespectImageOrientationEnum ForceOrientationIfNecessary(
+      RespectImageOrientationEnum default_orientation) const {
+    return default_orientation;
+  }
+
   ALWAYS_INLINE bool IsImageResource() const { return is_image_resource_; }
   ALWAYS_INLINE bool IsPendingImage() const { return is_pending_image_; }
   ALWAYS_INLINE bool IsGeneratedImage() const { return is_generated_image_; }
@@ -140,7 +152,7 @@ class CORE_EXPORT StyleImage : public GarbageCollectedFinalized<StyleImage> {
     return is_lazyload_possibly_deferred_;
   }
 
-  virtual void Trace(blink::Visitor* visitor) {}
+  virtual void Trace(Visitor* visitor) const {}
 
  protected:
   StyleImage()
@@ -162,7 +174,7 @@ class CORE_EXPORT StyleImage : public GarbageCollectedFinalized<StyleImage> {
   FloatSize ApplyZoom(const FloatSize&, float multiplier) const;
   FloatSize ImageSizeForSVGImage(SVGImage*,
                                  float multiplier,
-                                 const LayoutSize& default_object_size) const;
+                                 const FloatSize& default_object_size) const;
 };
 
 }  // namespace blink

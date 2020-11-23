@@ -19,27 +19,27 @@ class HeapObject;
 class PartOther {
     DISALLOW_NEW_EXCEPT_PLACEMENT_NEW();
 public:
-    void Trace(Visitor*);
+ void Trace(Visitor*) const;
 
-    HeapObject* obj() { return m_obj; }
+ HeapObject* obj() { return m_obj; }
 
 private:
     Member<HeapObject> m_obj;
 };
 
-class HeapObject : public GarbageCollectedFinalized<HeapObject> {
-public:
-    ~HeapObject();
-    void Trace(Visitor*);
-    bool foo() { return true; }
-    void bar(HeapObject*) { }
-private:
-    RefPtr<Other> m_ref;
-    Member<HeapObject> m_obj;
-    Vector<Member<HeapObject> > m_objs;
-    PartOther m_part;
-};
+class HeapObject : public GarbageCollected<HeapObject> {
+ public:
+  ~HeapObject();
+  void Trace(Visitor*) const;
+  bool foo() { return true; }
+  void bar(HeapObject*) {}
 
+ private:
+  scoped_refptr<Other> m_ref;
+  Member<HeapObject> m_obj;
+  Vector<Member<HeapObject>> m_objs;
+  PartOther m_part;
+};
 }
 
 #endif

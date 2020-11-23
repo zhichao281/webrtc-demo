@@ -35,7 +35,6 @@ enum {
 };
 
 typedef struct H265RawNALUnitHeader {
-    uint8_t forbidden_zero_bit;
     uint8_t nal_unit_type;
     uint8_t nuh_layer_id;
     uint8_t nuh_temporal_id_plus1;
@@ -183,11 +182,11 @@ typedef struct H265RawVUI {
     uint8_t log2_max_mv_length_vertical;
 } H265RawVUI;
 
-typedef struct H265RawPSExtensionData {
-    uint8_t *data;
-    size_t bit_length;
+typedef struct H265RawExtensionData {
+    uint8_t     *data;
     AVBufferRef *data_ref;
-} H265RawPSExtensionData;
+    size_t       bit_length;
+} H265RawExtensionData;
 
 typedef struct H265RawVPS {
     H265RawNALUnitHeader nal_unit_header;
@@ -222,7 +221,7 @@ typedef struct H265RawVPS {
     H265RawHRDParameters hrd_parameters[HEVC_MAX_LAYER_SETS];
 
     uint8_t vps_extension_flag;
-    H265RawPSExtensionData extension_data;
+    H265RawExtensionData extension_data;
 } H265RawVPS;
 
 typedef struct H265RawSTRefPicSet {
@@ -326,7 +325,7 @@ typedef struct H265RawSPS {
     uint8_t sps_scc_extension_flag;
     uint8_t sps_extension_4bits;
 
-    H265RawPSExtensionData extension_data;
+    H265RawExtensionData extension_data;
 
     // Range extension.
     uint8_t transform_skip_rotation_enabled_flag;
@@ -414,7 +413,7 @@ typedef struct H265RawPPS {
     uint8_t pps_scc_extension_flag;
     uint8_t pps_extension_4bits;
 
-    H265RawPSExtensionData extension_data;
+    H265RawExtensionData extension_data;
 
     // Range extension.
     uint8_t log2_max_transform_skip_block_size_minus2;
@@ -542,10 +541,10 @@ typedef struct  H265RawSliceHeader {
 typedef struct H265RawSlice {
     H265RawSliceHeader header;
 
-    uint8_t *data;
-    size_t   data_size;
-    int      data_bit_start;
+    uint8_t     *data;
     AVBufferRef *data_ref;
+    size_t       data_size;
+    int          data_bit_start;
 } H265RawSlice;
 
 
@@ -601,15 +600,15 @@ typedef struct H265RawSEIUserDataRegistered {
     uint8_t itu_t_t35_country_code;
     uint8_t itu_t_t35_country_code_extension_byte;
     uint8_t     *data;
-    size_t       data_length;
     AVBufferRef *data_ref;
+    size_t       data_length;
 } H265RawSEIUserDataRegistered;
 
 typedef struct H265RawSEIUserDataUnregistered {
     uint8_t uuid_iso_iec_11578[16];
     uint8_t     *data;
-    size_t       data_length;
     AVBufferRef *data_ref;
+    size_t       data_length;
 } H265RawSEIUserDataUnregistered;
 
 typedef struct H265RawSEIRecoveryPoint {
@@ -659,7 +658,7 @@ typedef struct H265RawSEITimeCode {
     uint8_t  minutes_flag[3];
     uint8_t  hours_flag[3];
     uint8_t  time_offset_length[3];
-    uint32_t time_offset_value[3];
+    int32_t  time_offset_value[3];
 } H265RawSEITimeCode;
 
 typedef struct H265RawSEIMasteringDisplayColourVolume {
@@ -680,6 +679,17 @@ typedef struct H265RawSEIAlternativeTransferCharacteristics {
     uint8_t preferred_transfer_characteristics;
 } H265RawSEIAlternativeTransferCharacteristics;
 
+typedef struct H265RawSEIAlphaChannelInfo {
+    uint8_t  alpha_channel_cancel_flag;
+    uint8_t  alpha_channel_use_idc;
+    uint8_t  alpha_channel_bit_depth_minus8;
+    uint16_t alpha_transparent_value;
+    uint16_t alpha_opaque_value;
+    uint8_t  alpha_channel_incr_flag;
+    uint8_t  alpha_channel_clip_flag;
+    uint8_t  alpha_channel_clip_type_flag;
+} H265RawSEIAlphaChannelInfo;
+
 typedef struct H265RawSEIPayload {
     uint32_t payload_type;
     uint32_t payload_size;
@@ -698,12 +708,14 @@ typedef struct H265RawSEIPayload {
         H265RawSEIContentLightLevelInfo content_light_level;
         H265RawSEIAlternativeTransferCharacteristics
             alternative_transfer_characteristics;
+        H265RawSEIAlphaChannelInfo alpha_channel_info;
         struct {
-            uint8_t *data;
-            size_t data_length;
+            uint8_t     *data;
             AVBufferRef *data_ref;
+            size_t       data_length;
         } other;
     } payload;
+    H265RawExtensionData extension_data;
 } H265RawSEIPayload;
 
 typedef struct H265RawSEI {

@@ -30,14 +30,12 @@
 #include "base/macros.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/editing/forward.h"
-#include "third_party/blink/renderer/platform/geometry/int_rect.h"
-#include "third_party/blink/renderer/platform/geometry/layout_rect.h"
+#include "third_party/blink/renderer/core/layout/geometry/physical_rect.h"
 #include "third_party/blink/renderer/platform/graphics/color.h"
 #include "third_party/blink/renderer/platform/graphics/paint/display_item.h"
 
 namespace blink {
 
-class Node;
 class GraphicsContext;
 class LayoutBlock;
 struct PaintInvalidatorContext;
@@ -47,20 +45,6 @@ class CORE_EXPORT CaretDisplayItemClient final : public DisplayItemClient {
   CaretDisplayItemClient();
   ~CaretDisplayItemClient() override;
 
-  // TODO(yosin,wangxianzhu): Make these two static functions private or
-  // combine them into updateForPaintInvalidation() when the callsites in
-  // FrameCaret are removed.
-
-  // Creating VisiblePosition causes synchronous layout so we should use the
-  // PositionWithAffinity version if possible.
-  // A position in HTMLTextFromControlElement is a typical example.
-  static LayoutRect ComputeCaretRect(
-      const PositionWithAffinity& caret_position);
-  static LayoutBlock* CaretLayoutBlock(const Node*);
-
-  // Called indirectly from LayoutBlock::clearPreviousVisualRects().
-  void ClearPreviousVisualRect(const LayoutBlock&);
-
   // Called indirectly from LayoutBlock::willBeDestroyed().
   void LayoutBlockWillBeDestroyed(const LayoutBlock&);
 
@@ -68,43 +52,56 @@ class CORE_EXPORT CaretDisplayItemClient final : public DisplayItemClient {
   // caret for paint invalidation and painting.
   void UpdateStyleAndLayoutIfNeeded(const PositionWithAffinity& caret_position);
 
+  bool IsVisibleIfActive() const { return is_visible_if_active_; }
+  void SetVisibleIfActive(bool visible);
+
   // Called during LayoutBlock paint invalidation.
   void InvalidatePaint(const LayoutBlock&, const PaintInvalidatorContext&);
 
   bool ShouldPaintCaret(const LayoutBlock& block) const {
     return &block == layout_block_;
   }
+
   void PaintCaret(GraphicsContext&,
-                  const LayoutPoint& paint_offset,
+                  const PhysicalOffset& paint_offset,
                   DisplayItem::Type) const;
 
-  // DisplayItemClient methods.
-  LayoutRect VisualRect() const final;
+  // DisplayItemClient.
   String DebugName() const final;
 
  private:
   friend class CaretDisplayItemClientTest;
+  friend class ParameterizedComputeCaretRectTest;
+
+  struct CaretRectAndPainterBlock {
+    STACK_ALLOCATED();
+
+   public:
+    PhysicalRect caret_rect;  // local to |painter_block|
+    LayoutBlock* painter_block = nullptr;
+  };
+  // Creating VisiblePosition causes synchronous layout so we should use the
+  // PositionWithAffinity version if possible.
+  // A position in HTMLTextFromControlElement is a typical example.
+  static CaretRectAndPainterBlock ComputeCaretRectAndPainterBlock(
+      const PositionWithAffinity& caret_position);
 
   void InvalidatePaintInCurrentLayoutBlock(const PaintInvalidatorContext&);
   void InvalidatePaintInPreviousLayoutBlock(const PaintInvalidatorContext&);
 
   // These are updated by updateStyleAndLayoutIfNeeded().
   Color color_;
-  LayoutRect local_rect_;
+  PhysicalRect local_rect_;
   LayoutBlock* layout_block_ = nullptr;
 
-  // Visual rect of the caret in layout_block_. This is updated by
-  // InvalidatePaintIfNeeded().
-  LayoutRect visual_rect_;
-
-  // These are set to the previous value of layout_bloc_k and visual_rect_
-  // during UpdateStyleAndLayoutIfNeeded() if they haven't been set since the
-  // last paint invalidation. They can only be used in InvalidatePaintIfNeeded()
-  // to invalidate the caret in the previous layout block.
+  // This is set to the previous value of layout_block_ during
+  // UpdateStyleAndLayoutIfNeeded() if it hasn't been set since the last paint
+  // invalidation. It is used during InvalidatePaint() to invalidate the caret
+  // in the previous layout block.
   const LayoutBlock* previous_layout_block_ = nullptr;
-  LayoutRect visual_rect_in_previous_layout_block_;
 
   bool needs_paint_invalidation_ = false;
+  bool is_visible_if_active_ = true;
 
   DISALLOW_COPY_AND_ASSIGN(CaretDisplayItemClient);
 };

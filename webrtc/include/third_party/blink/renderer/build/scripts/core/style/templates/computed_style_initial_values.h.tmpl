@@ -60,9 +60,6 @@ class ComputedStyleInitialValues{
   static float InitialWordSpacing() { return 0.0f; }
   static float InitialLetterSpacing() { return 0.0f; }
 
-  static uint16_t InitialOutlineWidth() {
-    return 3;
-  }
   static EVerticalAlign InitialVerticalAlign() {
     return EVerticalAlign::kBaseline;
   }
@@ -121,7 +118,7 @@ class ComputedStyleInitialValues{
 
  private:
   static const FilterOperations& InitialFilterInternal() {
-    DEFINE_STATIC_LOCAL(Persistent<FilterOperationsWrapper>, ops,
+    DEFINE_STATIC_LOCAL(const Persistent<FilterOperationsWrapper>, ops,
         (MakeGarbageCollected<FilterOperationsWrapper>()));
     return ops->Operations();
   }

@@ -28,12 +28,15 @@ extern "C" {
 
 #define RDCOST(RM, DM, R, D) \
   ROUND_POWER_OF_TWO(((int64_t)(R)) * (RM), VP9_PROB_COST_SHIFT) + ((D) << (DM))
+#define RDCOST_NEG_R(RM, DM, R, D) \
+  ((D) << (DM)) - ROUND_POWER_OF_TWO(((int64_t)(R)) * (RM), VP9_PROB_COST_SHIFT)
+#define RDCOST_NEG_D(RM, DM, R, D) \
+  ROUND_POWER_OF_TWO(((int64_t)(R)) * (RM), VP9_PROB_COST_SHIFT) - ((D) << (DM))
+
 #define QIDX_SKIP_THRESH 115
 
 #define MV_COST_WEIGHT 108
 #define MV_COST_WEIGHT_SUB 120
-
-#define INVALID_MV 0x80008000
 
 #define MAX_MODES 30
 #define MAX_REFS 6
@@ -111,11 +114,11 @@ typedef struct RD_OPT {
   int64_t prediction_type_threshes[MAX_REF_FRAMES][REFERENCE_MODES];
 
   int64_t filter_threshes[MAX_REF_FRAMES][SWITCHABLE_FILTER_CONTEXTS];
-#if CONFIG_CONSISTENT_RECODE
+#if CONFIG_CONSISTENT_RECODE || CONFIG_RATE_CTRL
   int64_t prediction_type_threshes_prev[MAX_REF_FRAMES][REFERENCE_MODES];
 
   int64_t filter_threshes_prev[MAX_REF_FRAMES][SWITCHABLE_FILTER_CONTEXTS];
-#endif
+#endif  // CONFIG_CONSISTENT_RECODE || CONFIG_RATE_CTRL
   int RDMULT;
   int RDDIV;
   double r0;
@@ -131,6 +134,10 @@ typedef struct RD_COST {
 void vp9_rd_cost_reset(RD_COST *rd_cost);
 // Initialize the rate distortion cost values to zero.
 void vp9_rd_cost_init(RD_COST *rd_cost);
+// It supports negative rate and dist, which is different from RDCOST().
+int64_t vp9_calculate_rd_cost(int mult, int div, int rate, int64_t dist);
+// Update the cost value based on its rate and distortion.
+void vp9_rd_cost_update(int mult, int div, RD_COST *rd_cost);
 
 struct TileInfo;
 struct TileDataEnc;
@@ -216,6 +223,8 @@ unsigned int vp9_high_get_sby_perpixel_variance(struct VP9_COMP *cpi,
                                                 const struct buf_2d *ref,
                                                 BLOCK_SIZE bs, int bd);
 #endif
+
+void vp9_build_inter_mode_cost(struct VP9_COMP *cpi);
 
 #ifdef __cplusplus
 }  // extern "C"

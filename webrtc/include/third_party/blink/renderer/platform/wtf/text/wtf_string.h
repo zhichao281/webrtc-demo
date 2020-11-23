@@ -27,8 +27,9 @@
 // on systems without case-sensitive file systems.
 
 #include <iosfwd>
+#include "base/containers/span.h"
 #include "build/build_config.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/integer_to_string_conversion.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_impl.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_view.h"
@@ -41,7 +42,6 @@
 
 namespace WTF {
 
-class CString;
 struct StringHash;
 
 enum UTF8ConversionMode {
@@ -103,6 +103,14 @@ class WTF_EXPORT String {
   String(StringImpl* impl) : impl_(impl) {}
   String(scoped_refptr<StringImpl> impl) : impl_(std::move(impl)) {}
 
+  // Copying a String is a relatively inexpensive, since the underlying data is
+  // immutable and refcounted.
+  String(const String&) = default;
+  String& operator=(const String&) = default;
+
+  String(String&&) noexcept = default;
+  String& operator=(String&&) = default;
+
   void swap(String& o) { impl_.swap(o.impl_); }
 
   template <typename CharType>
@@ -123,6 +131,21 @@ class WTF_EXPORT String {
     if (!impl_)
       return 0;
     return impl_->length();
+  }
+
+  // Prefer Span8() and Span16() to Characters8() and Characters16().
+  base::span<const LChar> Span8() const {
+    if (!impl_)
+      return {};
+    DCHECK(impl_->Is8Bit());
+    return impl_->Span8();
+  }
+
+  base::span<const UChar> Span16() const {
+    if (!impl_)
+      return {};
+    DCHECK(!impl_->Is8Bit());
+    return impl_->Span16();
   }
 
   const LChar* Characters8() const {
@@ -151,9 +174,9 @@ class WTF_EXPORT String {
 
   bool Is8Bit() const { return impl_->Is8Bit(); }
 
-  CString Ascii() const WARN_UNUSED_RESULT;
-  CString Latin1() const WARN_UNUSED_RESULT;
-  CString Utf8(UTF8ConversionMode = kLenientUTF8Conversion) const
+  std::string Ascii() const WARN_UNUSED_RESULT;
+  std::string Latin1() const WARN_UNUSED_RESULT;
+  std::string Utf8(UTF8ConversionMode = kLenientUTF8Conversion) const
       WARN_UNUSED_RESULT;
 
   UChar operator[](unsigned index) const {
@@ -191,6 +214,8 @@ class WTF_EXPORT String {
                   unsigned start = 0) const {
     return impl_ ? impl_->Find(match_function, start) : kNotFound;
   }
+  wtf_size_t Find(base::RepeatingCallback<bool(UChar)> match_callback,
+                  wtf_size_t index = 0) const;
 
   // Find substrings.
   wtf_size_t Find(
@@ -317,17 +342,8 @@ class WTF_EXPORT String {
   // for U+212A is 'k'.
   // This function is rarely used to implement web platform features. See
   // crbug.com/627682.
-  // This function is deprecated. We should use LowerASCII() or introduce
-  // LowerUnicode().
+  // This function is deprecated. We should use LowerASCII() or CaseMap.
   String DeprecatedLower() const WARN_UNUSED_RESULT;
-
-  // |locale_identifier| is case-insensitive, and accepts either of "aa_aa" or
-  // "aa-aa". Empty/null |locale_identifier| indicates locale-independent
-  // Unicode case conversion.
-  String LowerUnicode(const AtomicString& locale_identifier) const
-      WARN_UNUSED_RESULT;
-  String UpperUnicode(const AtomicString& locale_identifier) const
-      WARN_UNUSED_RESULT;
 
   // Returns a lowercase version of the string.
   // This function converts ASCII characters only.
@@ -416,6 +432,7 @@ class WTF_EXPORT String {
   int ToIntStrict(bool* ok = nullptr) const;
   unsigned ToUIntStrict(bool* ok = nullptr) const;
   unsigned HexToUIntStrict(bool* ok) const;
+  uint64_t HexToUInt64Strict(bool* ok) const;
   int64_t ToInt64Strict(bool* ok = nullptr) const;
   uint64_t ToUInt64Strict(bool* ok = nullptr) const;
 
@@ -503,7 +520,7 @@ class WTF_EXPORT String {
   static String FromUTF8(const char* s) WARN_UNUSED_RESULT {
     return FromUTF8(reinterpret_cast<const LChar*>(s));
   }
-  static String FromUTF8(const CString&) WARN_UNUSED_RESULT;
+  static String FromUTF8(base::StringPiece) WARN_UNUSED_RESULT;
 
   // Tries to convert the passed in string to UTF-8, but will fall back to
   // Latin-1 if the string is not valid UTF-8.
@@ -618,13 +635,15 @@ inline NSString* NsStringNilIfEmpty(const String& str) {
 }
 #endif
 
-WTF_EXPORT int CodePointCompare(const String&, const String&);
+// Compare strings using code units, matching Javascript string ordering.  See
+// https://infra.spec.whatwg.org/#code-unit-less-than.
+WTF_EXPORT int CodeUnitCompare(const String&, const String&);
 
-inline bool CodePointCompareLessThan(const String& a, const String& b) {
-  return CodePointCompare(a.Impl(), b.Impl()) < 0;
+inline bool CodeUnitCompareLessThan(const String& a, const String& b) {
+  return CodeUnitCompare(a.Impl(), b.Impl()) < 0;
 }
 
-WTF_EXPORT int CodePointCompareIgnoringASCIICase(const String&, const char*);
+WTF_EXPORT int CodeUnitCompareIgnoringASCIICase(const String&, const char*);
 
 template <bool isSpecialCharacter(UChar)>
 inline bool String::IsAllSpecialCharacters() const {
@@ -679,7 +698,6 @@ inline StringView::StringView(const String& string)
 
 WTF_ALLOW_MOVE_AND_INIT_WITH_MEM_FUNCTIONS(String)
 
-using WTF::CString;
 using WTF::kStrictUTF8Conversion;
 using WTF::kStrictUTF8ConversionReplacingUnpairedSurrogatesWithFFFD;
 using WTF::String;

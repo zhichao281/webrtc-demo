@@ -15,11 +15,12 @@
 #include <vector>
 
 #include "api/audio/audio_mixer.h"
+#include "api/neteq/neteq_factory.h"
 #include "api/rtp_headers.h"
 #include "audio/audio_state.h"
 #include "call/audio_receive_stream.h"
 #include "call/syncable.h"
-#include "rtc_base/constructor_magic.h"
+#include "modules/rtp_rtcp/source/source_tracker.h"
 #include "rtc_base/thread_checker.h"
 #include "system_wrappers/include/clock.h"
 
@@ -46,6 +47,7 @@ class AudioReceiveStream final : public webrtc::AudioReceiveStream,
                      RtpStreamReceiverControllerInterface* receiver_controller,
                      PacketRouter* packet_router,
                      ProcessThread* module_process_thread,
+                     NetEqFactory* neteq_factory,
                      const webrtc::AudioReceiveStream::Config& config,
                      const rtc::scoped_refptr<webrtc::AudioState>& audio_state,
                      webrtc::RtcEventLog* event_log);
@@ -58,24 +60,24 @@ class AudioReceiveStream final : public webrtc::AudioReceiveStream,
       const rtc::scoped_refptr<webrtc::AudioState>& audio_state,
       webrtc::RtcEventLog* event_log,
       std::unique_ptr<voe::ChannelReceiveInterface> channel_receive);
+
+  AudioReceiveStream() = delete;
+  AudioReceiveStream(const AudioReceiveStream&) = delete;
+  AudioReceiveStream& operator=(const AudioReceiveStream&) = delete;
+
   ~AudioReceiveStream() override;
 
   // webrtc::AudioReceiveStream implementation.
   void Reconfigure(const webrtc::AudioReceiveStream::Config& config) override;
   void Start() override;
   void Stop() override;
-  webrtc::AudioReceiveStream::Stats GetStats() const override;
+  webrtc::AudioReceiveStream::Stats GetStats(
+      bool get_and_clear_legacy_stats) const override;
   void SetSink(AudioSinkInterface* sink) override;
   void SetGain(float gain) override;
   bool SetBaseMinimumPlayoutDelayMs(int delay_ms) override;
   int GetBaseMinimumPlayoutDelayMs() const override;
   std::vector<webrtc::RtpSource> GetSources() const override;
-
-  // TODO(nisse): We don't formally implement RtpPacketSinkInterface, and this
-  // method shouldn't be needed. But it's currently used by the
-  // AudioReceiveStreamTest.ReceiveRtpPacket unittest. Figure out if that test
-  // shuld be refactored or deleted, and then delete this method.
-  void OnRtpPacket(const RtpPacketReceived& packet);
 
   // AudioMixer::Source
   AudioFrameInfo GetAudioFrameWithInfo(int sample_rate_hz,
@@ -84,13 +86,15 @@ class AudioReceiveStream final : public webrtc::AudioReceiveStream,
   int PreferredSampleRate() const override;
 
   // Syncable
-  int id() const override;
+  uint32_t id() const override;
   absl::optional<Syncable::Info> GetInfo() const override;
-  uint32_t GetPlayoutTimestamp() const override;
-  void SetMinimumPlayoutDelay(int delay_ms) override;
+  bool GetPlayoutRtpTimestamp(uint32_t* rtp_timestamp,
+                              int64_t* time_ms) const override;
+  void SetEstimatedPlayoutNtpTimestampMs(int64_t ntp_timestamp_ms,
+                                         int64_t time_ms) override;
+  bool SetMinimumPlayoutDelay(int delay_ms) override;
 
   void AssociateSendStream(AudioSendStream* send_stream);
-  void SignalNetworkState(NetworkState state);
   void DeliverRtcp(const uint8_t* packet, size_t length);
   const webrtc::AudioReceiveStream::Config& config() const;
   const AudioSendStream* GetAssociatedSendStreamForTesting() const;
@@ -107,13 +111,12 @@ class AudioReceiveStream final : public webrtc::AudioReceiveStream,
   webrtc::AudioReceiveStream::Config config_;
   rtc::scoped_refptr<webrtc::AudioState> audio_state_;
   const std::unique_ptr<voe::ChannelReceiveInterface> channel_receive_;
+  SourceTracker source_tracker_;
   AudioSendStream* associated_send_stream_ = nullptr;
 
   bool playing_ RTC_GUARDED_BY(worker_thread_checker_) = false;
 
   std::unique_ptr<RtpStreamReceiverInterface> rtp_stream_receiver_;
-
-  RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(AudioReceiveStream);
 };
 }  // namespace internal
 }  // namespace webrtc

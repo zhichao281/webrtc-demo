@@ -28,6 +28,7 @@
 #include "third_party/blink/renderer/platform/geometry/length.h"
 #include "third_party/blink/renderer/platform/geometry/length_functions.h"
 #include "third_party/blink/renderer/platform/transforms/transform_operation.h"
+#include "third_party/blink/renderer/platform/wtf/casting.h"
 
 namespace blink {
 
@@ -51,9 +52,10 @@ class PLATFORM_EXPORT TranslateTransformOperation final
     return *this == static_cast<const TransformOperation&>(other);
   }
 
-  bool CanBlendWith(const TransformOperation& other) const override;
-  bool DependsOnBoxSize() const override {
-    return x_.IsPercentOrCalc() || y_.IsPercentOrCalc();
+  BoxSizeDependency BoxSizeDependencies() const override {
+    return CombineDependencies(
+        (x_.IsPercentOrCalc() ? kDependsWidth : kDependsNone),
+        (y_.IsPercentOrCalc() ? kDependsHeight : kDependsNone));
   }
 
   double X(const FloatSize& border_box_size) const {
@@ -91,6 +93,8 @@ class PLATFORM_EXPORT TranslateTransformOperation final
     return x_ == t->x_ && y_ == t->y_ && z_ == t->z_;
   }
 
+  scoped_refptr<TransformOperation> Accumulate(
+      const TransformOperation& other) override;
   scoped_refptr<TransformOperation> Blend(
       const TransformOperation* from,
       double progress,
@@ -98,6 +102,8 @@ class PLATFORM_EXPORT TranslateTransformOperation final
   scoped_refptr<TransformOperation> Zoom(double factor) final {
     return ZoomTranslate(factor);
   }
+
+  bool PreservesAxisAlignment() const final { return true; }
 
   TranslateTransformOperation(const Length& tx,
                               const Length& ty,
@@ -115,7 +121,13 @@ class PLATFORM_EXPORT TranslateTransformOperation final
   OperationType type_;
 };
 
-DEFINE_TRANSFORM_TYPE_CASTS(TranslateTransformOperation);
+template <>
+struct DowncastTraits<TranslateTransformOperation> {
+  static bool AllowFrom(const TransformOperation& transform) {
+    return TranslateTransformOperation::IsMatchingOperationType(
+        transform.GetType());
+  }
+};
 
 }  // namespace blink
 

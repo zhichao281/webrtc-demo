@@ -31,6 +31,7 @@
 #include "libavutil/hwcontext_vaapi.h"
 
 #include "avcodec.h"
+#include "hwconfig.h"
 
 struct VAAPIEncodeType;
 struct VAAPIEncodePicture;
@@ -42,7 +43,13 @@ enum {
     MAX_PICTURE_REFERENCES = 2,
     MAX_REORDER_DELAY      = 16,
     MAX_PARAM_BUFFER_SIZE  = 1024,
+    // A.4.1: table A.6 allows at most 22 tile rows for any level.
+    MAX_TILE_ROWS          = 22,
+    // A.4.1: table A.6 allows at most 20 tile columns for any level.
+    MAX_TILE_COLS          = 20,
 };
+
+extern const AVCodecHWConfigInternal *ff_vaapi_encode_hw_configs[];
 
 enum {
     PICTURE_TYPE_IDR = 0,
@@ -57,7 +64,6 @@ typedef struct VAAPIEncodeSlice {
     int             row_size;
     int             block_start;
     int             block_size;
-    void           *priv_data;
     void           *codec_slice_params;
 } VAAPIEncodeSlice;
 
@@ -68,6 +74,13 @@ typedef struct VAAPIEncodePicture {
     int64_t         encode_order;
     int64_t         pts;
     int             force_idr;
+
+#if VA_CHECK_VERSION(1, 0, 0)
+    // ROI regions.
+    VAEncROI       *roi;
+#else
+    void           *roi;
+#endif
 
     int             type;
     int             b_depth;
@@ -244,28 +257,17 @@ typedef struct VAAPIEncodeContext {
 
     // Global parameters which will be applied at the start of the
     // sequence (includes rate control parameters below).
-    VAEncMiscParameterBuffer *global_params[MAX_GLOBAL_PARAMS];
+    int             global_params_type[MAX_GLOBAL_PARAMS];
+    const void     *global_params     [MAX_GLOBAL_PARAMS];
     size_t          global_params_size[MAX_GLOBAL_PARAMS];
     int          nb_global_params;
 
     // Rate control parameters.
-    struct {
-        VAEncMiscParameterBuffer misc;
-        VAEncMiscParameterRateControl rc;
-    } rc_params;
-    struct {
-        VAEncMiscParameterBuffer misc;
-        VAEncMiscParameterHRD hrd;
-    } hrd_params;
-    struct {
-        VAEncMiscParameterBuffer misc;
-        VAEncMiscParameterFrameRate fr;
-    } fr_params;
+    VAEncMiscParameterRateControl rc_params;
+    VAEncMiscParameterHRD        hrd_params;
+    VAEncMiscParameterFrameRate   fr_params;
 #if VA_CHECK_VERSION(0, 36, 0)
-    struct {
-        VAEncMiscParameterBuffer misc;
-        VAEncMiscParameterBufferQualityLevel quality;
-    } quality_params;
+    VAEncMiscParameterBufferQualityLevel quality_params;
 #endif
 
     // Per-sequence parameter structure (VAEncSequenceParameterBuffer*).
@@ -303,6 +305,18 @@ typedef struct VAAPIEncodeContext {
     int nb_slices;
     int slice_size;
 
+    // Tile encoding.
+    int tile_cols;
+    int tile_rows;
+    // Tile width of the i-th column.
+    int col_width[MAX_TILE_COLS];
+    // Tile height of i-th row.
+    int row_height[MAX_TILE_ROWS];
+    // Location of the i-th tile column boundary.
+    int col_bd[MAX_TILE_COLS + 1];
+    // Location of the i-th tile row boundary.
+    int row_bd[MAX_TILE_ROWS + 1];
+
     // Frame type decision.
     int gop_size;
     int closed_gop;
@@ -314,6 +328,23 @@ typedef struct VAAPIEncodeContext {
     int idr_counter;
     int gop_counter;
     int end_of_stream;
+
+    // Whether the driver supports ROI at all.
+    int             roi_allowed;
+    // Maximum number of regions supported by the driver.
+    int             roi_max_regions;
+    // Quantisation range for offset calculations.  Set by codec-specific
+    // code, as it may change based on parameters.
+    int             roi_quant_range;
+
+    // The encoder does not support cropping information, so warn about
+    // it the first time we encounter any nonzero crop fields.
+    int             crop_warned;
+    // If the driver does not support ROI then warn the first time we
+    // encounter a frame with ROI side data.
+    int             roi_warned;
+
+    AVFrame         *frame;
 } VAAPIEncodeContext;
 
 enum {
@@ -405,10 +436,6 @@ typedef struct VAAPIEncodeType {
 } VAAPIEncodeType;
 
 
-int ff_vaapi_encode2(AVCodecContext *avctx, AVPacket *pkt,
-                     const AVFrame *input_image, int *got_packet);
-
-int ff_vaapi_encode_send_frame(AVCodecContext *avctx, const AVFrame *frame);
 int ff_vaapi_encode_receive_packet(AVCodecContext *avctx, AVPacket *pkt);
 
 int ff_vaapi_encode_init(AVCodecContext *avctx);

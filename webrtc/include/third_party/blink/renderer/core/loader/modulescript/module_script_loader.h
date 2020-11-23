@@ -31,10 +31,8 @@ enum class ModuleGraphLevel;
 //
 // ModuleScriptLoader(s) should only be used via Modulator and its ModuleMap.
 class CORE_EXPORT ModuleScriptLoader final
-    : public GarbageCollectedFinalized<ModuleScriptLoader>,
+    : public GarbageCollected<ModuleScriptLoader>,
       public ModuleScriptFetcher::Client {
-  USING_GARBAGE_COLLECTED_MIXIN(ModuleScriptLoader);
-
   enum class State {
     kInitial,
     // FetchParameters is being processed, and ModuleScriptLoader hasn't
@@ -67,7 +65,9 @@ class CORE_EXPORT ModuleScriptLoader final
   bool IsInitialState() const { return state_ == State::kInitial; }
   bool HasFinished() const { return state_ == State::kFinished; }
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
+
+  friend class WorkletModuleResponsesMapTest;
 
  private:
   void FetchInternal(const ModuleScriptFetchRequest&,
@@ -76,6 +76,14 @@ class CORE_EXPORT ModuleScriptLoader final
                      ModuleScriptCustomFetchType);
 
   void AdvanceState(State new_state);
+
+  using PassKey = util::PassKey<ModuleScriptLoader>;
+  // PassKey should be private and cannot be accessed from outside, but allow
+  // accessing only from friend classes for testing.
+  static util::PassKey<ModuleScriptLoader> CreatePassKeyForTests() {
+    return PassKey();
+  }
+
 #if DCHECK_IS_ON()
   static const char* StateToString(State);
 #endif

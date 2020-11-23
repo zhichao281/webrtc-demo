@@ -56,6 +56,7 @@ class HTMLElement;
 class HTMLSpanElement;
 struct LocalCaretRect;
 class Node;
+class SystemClipboard;
 
 // This file contains a set of helper functions used by the editing commands
 
@@ -122,6 +123,8 @@ HTMLSpanElement* TabSpanElement(const Node*);
 Element* TableElementJustAfter(const VisiblePosition&);
 CORE_EXPORT Element* TableElementJustBefore(const VisiblePosition&);
 CORE_EXPORT Element* TableElementJustBefore(const VisiblePositionInFlatTree&);
+Element* EnclosingTableCell(const Position&);
+Element* EnclosingTableCell(const PositionInFlatTree&);
 
 template <typename Strategy>
 ContainerNode* ParentCrossingShadowBoundaries(const Node&);
@@ -136,7 +139,7 @@ inline ContainerNode* ParentCrossingShadowBoundaries<EditingInFlatTreeStrategy>(
   return FlatTreeTraversal::Parent(node);
 }
 
-void WriteImageNodeToClipboard(const Node&, const String&);
+void WriteImageNodeToClipboard(SystemClipboard&, const Node&, const String&);
 
 // boolean functions on Node
 
@@ -163,6 +166,8 @@ bool IsDisplayInsideTable(const Node*);
 bool IsTableCell(const Node*);
 bool IsHTMLListElement(const Node*);
 bool IsListItem(const Node*);
+bool IsListItemTag(const Node*);
+bool IsListElementTag(const Node*);
 bool IsPresentationalHTMLElement(const Node*);
 bool IsRenderedAsNonInlineTableImageOrHR(const Node*);
 bool IsNonTableCellHTMLBlockElement(const Node*);
@@ -256,8 +261,19 @@ bool IsRichlyEditablePosition(const Position&);
 
 PositionWithAffinity PositionRespectingEditingBoundary(
     const Position&,
-    const LayoutPoint& local_point,
+    const PhysicalOffset& local_point,
     Node* target_node);
+
+// Move specified position to start/end of non-editable region.
+// If it can be found, we prefer a visually equivalent position that is
+// editable.
+// See also LayoutObject::CreatePositionWithAffinity()
+// Example:
+//  <editable><non-editable>|abc</non-editable></editable>
+//  =>
+//  <editable>|<non-editable>abc</non-editable></editable>
+PositionWithAffinity AdjustForEditingBoundary(const PositionWithAffinity&);
+
 Position ComputePositionForNodeRemoval(const Position&, const Node&);
 
 // TODO(editing-dev): These two functions should be eliminated.

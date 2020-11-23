@@ -26,7 +26,6 @@ class VCMJitterEstimator {
 
   // Resets the estimate to the initial state.
   void Reset();
-  void ResetNackCount();
 
   // Updates the jitter estimate with the new data.
   //
@@ -47,7 +46,8 @@ class VCMJitterEstimator {
   //          - rttMultiplier  : RTT param multiplier (when applicable).
   //
   // Return value              : Jitter estimate in milliseconds.
-  virtual int GetJitterEstimate(double rttMultiplier);
+  virtual int GetJitterEstimate(double rttMultiplier,
+                                absl::optional<double> rttMultAddCapMs);
 
   // Updates the nack counter.
   void FrameNacked();
@@ -57,8 +57,6 @@ class VCMJitterEstimator {
   // Input:
   //          - rttMs          : RTT in ms.
   void UpdateRtt(int64_t rttMs);
-
-  void UpdateMaxFrameSize(uint32_t frameSizeBytes);
 
   // A constant describing the delay from the jitter buffer to the delay on the
   // receiving side which is not accounted for by the jitter buffer nor the
@@ -152,6 +150,7 @@ class VCMJitterEstimator {
 
   rtc::RollingAccumulator<uint64_t> fps_counter_;
   const double time_deviation_upper_bound_;
+  const bool enable_reduced_delay_;
   Clock* clock_;
 };
 

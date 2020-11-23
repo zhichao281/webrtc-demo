@@ -40,22 +40,15 @@ namespace blink {
 class SVGAnimatedRect : public ScriptWrappable,
                         public SVGAnimatedProperty<SVGRect> {
   DEFINE_WRAPPERTYPEINFO();
-  USING_GARBAGE_COLLECTED_MIXIN(SVGAnimatedRect);
 
  public:
-  static SVGAnimatedRect* Create(SVGElement* context_element,
-                                 const QualifiedName& attribute_name) {
-    return MakeGarbageCollected<SVGAnimatedRect>(context_element,
-                                                 attribute_name);
-  }
-
   SVGAnimatedRect(SVGElement* context_element,
                   const QualifiedName& attribute_name)
       : SVGAnimatedProperty<SVGRect>(context_element,
                                      attribute_name,
                                      SVGRect::CreateInvalid()) {}
 
-  void Trace(blink::Visitor* visitor) override {
+  void Trace(Visitor* visitor) const override {
     SVGAnimatedProperty<SVGRect>::Trace(visitor);
     ScriptWrappable::Trace(visitor);
   }

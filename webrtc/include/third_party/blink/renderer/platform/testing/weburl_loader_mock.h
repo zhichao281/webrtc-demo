@@ -15,6 +15,7 @@
 namespace blink {
 
 class WebData;
+class WebURLRequestExtraData;
 class WebURLLoaderClient;
 class WebURLLoaderMockFactoryImpl;
 class WebURLLoaderTestDelegate;
@@ -29,9 +30,7 @@ const uint32_t kRedirectResponseOverheadBytes = 300;
 // forwards it to the default loader.
 class WebURLLoaderMock : public WebURLLoader {
  public:
-  // This object becomes the owner of |default_loader|.
-  WebURLLoaderMock(WebURLLoaderMockFactoryImpl* factory,
-                   std::unique_ptr<WebURLLoader> default_loader);
+  explicit WebURLLoaderMock(WebURLLoaderMockFactoryImpl* factory);
   ~WebURLLoaderMock() override;
 
   // Simulates the asynchronous request being served.
@@ -41,25 +40,39 @@ class WebURLLoaderMock : public WebURLLoader {
                                 const base::Optional<WebURLError>& error);
 
   // Simulates the redirect being served.
-  WebURL ServeRedirect(const WebURLRequest& request,
+  WebURL ServeRedirect(const WebString& method,
                        const WebURLResponse& redirect_response);
 
   // WebURLLoader methods:
-  void LoadSynchronously(const WebURLRequest&,
-                         WebURLLoaderClient* client,
-                         WebURLResponse&,
-                         base::Optional<WebURLError>&,
-                         WebData&,
-                         int64_t& encoded_data_length,
-                         int64_t& encoded_body_length,
-                         blink::WebBlobInfo& downloaded_blob) override;
-  void LoadAsynchronously(const WebURLRequest& request,
-                          WebURLLoaderClient* client) override;
-  void Cancel() override;
+  void LoadSynchronously(
+      std::unique_ptr<network::ResourceRequest> request,
+      scoped_refptr<WebURLRequestExtraData> url_request_extra_data,
+      int requestor_id,
+      bool pass_response_pipe_to_client,
+      bool no_mime_sniffing,
+      base::TimeDelta timeout_interval,
+      WebURLLoaderClient* client,
+      WebURLResponse&,
+      base::Optional<WebURLError>&,
+      WebData&,
+      int64_t& encoded_data_length,
+      int64_t& encoded_body_length,
+      blink::WebBlobInfo& downloaded_blob,
+      std::unique_ptr<blink::ResourceLoadInfoNotifierWrapper>
+          resource_load_info_notifier_wrapper) override;
+  void LoadAsynchronously(
+      std::unique_ptr<network::ResourceRequest> request,
+      scoped_refptr<WebURLRequestExtraData> url_request_extra_data,
+      int requestor_id,
+      bool no_mime_sniffing,
+      std::unique_ptr<blink::ResourceLoadInfoNotifierWrapper>
+          resource_load_info_notifier_wrapper,
+      WebURLLoaderClient* client) override;
   void SetDefersLoading(bool defer) override;
   void DidChangePriority(WebURLRequest::Priority new_priority,
                          int intra_priority_value) override;
-  scoped_refptr<base::SingleThreadTaskRunner> GetTaskRunner() override;
+  scoped_refptr<base::SingleThreadTaskRunner> GetTaskRunnerForBodyLoader()
+      override;
 
   bool is_deferred() { return is_deferred_; }
   bool is_cancelled() { return !client_; }
@@ -67,13 +80,13 @@ class WebURLLoaderMock : public WebURLLoader {
   base::WeakPtr<WebURLLoaderMock> GetWeakPtr();
 
  private:
+  void Cancel();
+
   WebURLLoaderMockFactoryImpl* factory_ = nullptr;
   WebURLLoaderClient* client_ = nullptr;
-  std::unique_ptr<WebURLLoader> default_loader_;
-  bool using_default_loader_ = false;
   bool is_deferred_ = false;
 
-  base::WeakPtrFactory<WebURLLoaderMock> weak_factory_;
+  base::WeakPtrFactory<WebURLLoaderMock> weak_factory_{this};
 
   DISALLOW_COPY_AND_ASSIGN(WebURLLoaderMock);
 };

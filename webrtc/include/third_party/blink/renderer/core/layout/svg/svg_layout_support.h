@@ -28,14 +28,13 @@
 #include "third_party/blink/renderer/core/style/svg_computed_style_defs.h"
 #include "third_party/blink/renderer/platform/graphics/dash_array.h"
 #include "third_party/blink/renderer/platform/transforms/affine_transform.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
 class AffineTransform;
 class FloatPoint;
 class FloatRect;
-class LayoutRect;
 class LayoutGeometryMap;
 class LayoutBoxModelObject;
 class LayoutObject;
@@ -48,29 +47,22 @@ class CORE_EXPORT SVGLayoutSupport {
   STATIC_ONLY(SVGLayoutSupport);
 
  public:
-  // Shares child layouting code between
-  // LayoutSVGRoot/LayoutSVG(Hidden)Container
-  static void LayoutChildren(LayoutObject*,
-                             bool force_layout,
-                             bool screen_scaling_factor_changed,
-                             bool layout_size_changed);
-
-  // Layout resources used by this node.
-  static void LayoutResourcesIfNeeded(const LayoutObject&);
-
   // Helper function determining whether overflow is hidden.
   static bool IsOverflowHidden(const LayoutObject&);
   static bool IsOverflowHidden(const ComputedStyle&);
 
-  // Adjusts the visualRect in combination with filter, clipper and masker
-  // in local coordinates.
-  static void AdjustVisualRectWithResources(
-      const LayoutObject&,
-      const FloatRect& object_bounding_box,
-      FloatRect&);
+  // Adjusts the visual rect with clipper and masker in local coordinates.
+  static void AdjustWithClipPathAndMask(const LayoutObject& layout_object,
+                                        const FloatRect& object_bounding_box,
+                                        FloatRect& visual_rect);
 
-  // Determine if the LayoutObject references a filter resource object.
-  static bool HasFilterResource(const LayoutObject&);
+  // Add any contribution from 'stroke' to a text content bounding rect.
+  static FloatRect ExtendTextBBoxWithStroke(const LayoutObject&,
+                                            const FloatRect& text_bounds);
+
+  // Compute the visual rect for the a text content LayoutObject.
+  static FloatRect ComputeVisualRectForText(const LayoutObject&,
+                                            const FloatRect& text_bounds);
 
   // Determine whether the passed location intersects a clip path referenced by
   // the passed LayoutObject.
@@ -80,33 +72,18 @@ class CORE_EXPORT SVGLayoutSupport {
                                  const FloatRect& reference_box,
                                  const HitTestLocation&);
 
-  // Shared child hit-testing code between LayoutSVGRoot/LayoutSVGContainer.
-  static bool HitTestChildren(LayoutObject* last_child,
-                              HitTestResult&,
-                              const HitTestLocation&,
-                              const LayoutPoint& accumulated_offset,
-                              HitTestAction);
-
-  static void ComputeContainerBoundingBoxes(const LayoutObject* container,
-                                            FloatRect& object_bounding_box,
-                                            bool& object_bounding_box_valid,
-                                            FloatRect& stroke_bounding_box,
-                                            FloatRect& local_visual_rect);
-
   // Important functions used by nearly all SVG layoutObjects centralizing
   // coordinate transformations / visual rect calculations
   static FloatRect LocalVisualRect(const LayoutObject&);
-  static LayoutRect VisualRectInAncestorSpace(
+  static PhysicalRect VisualRectInAncestorSpace(
       const LayoutObject&,
-      const LayoutBoxModelObject& ancestor);
-  static LayoutRect TransformVisualRect(const LayoutObject&,
-                                        const AffineTransform&,
-                                        const FloatRect&);
+      const LayoutBoxModelObject& ancestor,
+      VisualRectFlags = kDefaultVisualRectFlags);
   static bool MapToVisualRectInAncestorSpace(
       const LayoutObject&,
       const LayoutBoxModelObject* ancestor,
       const FloatRect& local_visual_rect,
-      LayoutRect& result_rect,
+      PhysicalRect& result_rect,
       VisualRectFlags = kDefaultVisualRectFlags);
   static void MapLocalToAncestor(const LayoutObject*,
                                  const LayoutBoxModelObject* ancestor,
@@ -144,8 +121,6 @@ class CORE_EXPORT SVGLayoutSupport {
   // Determines whether a svg node should isolate or not based on ComputedStyle.
   static bool WillIsolateBlendingDescendantsForStyle(const ComputedStyle&);
   static bool WillIsolateBlendingDescendantsForObject(const LayoutObject*);
-  template <typename LayoutObjectType>
-  static bool ComputeHasNonIsolatedBlendingDescendants(const LayoutObjectType*);
   static bool IsIsolationRequired(const LayoutObject*);
 
   static AffineTransform DeprecatedCalculateTransformToLayer(
@@ -155,11 +130,7 @@ class CORE_EXPORT SVGLayoutSupport {
   static LayoutObject* FindClosestLayoutSVGText(const LayoutObject*,
                                                 const FloatPoint&);
 
- private:
-  static void UpdateObjectBoundingBox(FloatRect& object_bounding_box,
-                                      bool& object_bounding_box_valid,
-                                      LayoutObject* other,
-                                      FloatRect other_bounding_box);
+  static void NotifySVGRootOfChangedCompositingReasons(const LayoutObject*);
 };
 
 class SubtreeContentTransformScope {
@@ -177,55 +148,6 @@ class SubtreeContentTransformScope {
   static AffineTransform::Transform current_content_transformation_;
   AffineTransform saved_content_transformation_;
 };
-
-// The following enumeration is used to optimize cases where the scale is known
-// to be invariant (see: LayoutSVGContainer::layout and LayoutSVGroot). The
-// value 'Full' can be used in the general case when the scale change is
-// unknown, or known to change.
-enum class SVGTransformChange {
-  kNone,
-  kScaleInvariant,
-  kFull,
-};
-
-// Helper for computing ("classifying") a change to a transform using the
-// categoies defined above.
-class SVGTransformChangeDetector {
-  STACK_ALLOCATED();
-
- public:
-  explicit SVGTransformChangeDetector(const AffineTransform& previous)
-      : previous_transform_(previous) {}
-
-  SVGTransformChange ComputeChange(const AffineTransform& current) {
-    if (previous_transform_ == current)
-      return SVGTransformChange::kNone;
-    if (ScaleReference(previous_transform_) == ScaleReference(current))
-      return SVGTransformChange::kScaleInvariant;
-    return SVGTransformChange::kFull;
-  }
-
- private:
-  static std::pair<double, double> ScaleReference(
-      const AffineTransform& transform) {
-    return std::make_pair(transform.XScaleSquared(), transform.YScaleSquared());
-  }
-  AffineTransform previous_transform_;
-};
-
-template <typename LayoutObjectType>
-bool SVGLayoutSupport::ComputeHasNonIsolatedBlendingDescendants(
-    const LayoutObjectType* object) {
-  for (LayoutObject* child = object->FirstChild(); child;
-       child = child->NextSibling()) {
-    if (child->IsBlendingAllowed() && child->StyleRef().HasBlendMode())
-      return true;
-    if (child->HasNonIsolatedBlendingDescendants() &&
-        !WillIsolateBlendingDescendantsForObject(child))
-      return true;
-  }
-  return false;
-}
 
 }  // namespace blink
 

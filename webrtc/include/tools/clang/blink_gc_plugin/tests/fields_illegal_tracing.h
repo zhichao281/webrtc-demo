@@ -19,9 +19,7 @@ public:
     operator T*() const { return 0; }
     T* operator->() { return 0; }
 
-    void Trace(Visitor* visitor)
-    {
-    }
+    void Trace(Visitor* visitor) const {}
 };
 
 }
@@ -32,9 +30,10 @@ class PartObject;
 class PartObject {
     DISALLOW_NEW();
 public:
-    void Trace(Visitor*);
+ void Trace(Visitor*) const;
+
 private:
-    RefPtr<HeapObject> m_obj2;
+    scoped_refptr<HeapObject> m_obj2;
     bar::unique_ptr<HeapObject> m_obj3;
     std::unique_ptr<HeapObject> m_obj4;
     Vector<int>::iterator m_iterator1;
@@ -42,20 +41,20 @@ private:
     HeapHashSet<PartObject>::const_iterator m_iterator3;
 };
 
-class HeapObject : public GarbageCollectedFinalized<HeapObject> {
-public:
-    void Trace(Visitor*);
-private:
-    PartObject m_part;
-    RefPtr<HeapObject> m_obj2;
-    bar::unique_ptr<HeapObject> m_obj3;
-    std::unique_ptr<HeapObject> m_obj4;
-    HeapHashMap<int, Member<HeapObject>>::reverse_iterator m_iterator3;
-    HeapDeque<Member<HeapObject>>::const_reverse_iterator m_iterator4;
-    HeapListHashSet<Member<HeapObject>>::const_iterator m_iterator5;
-    HeapLinkedHashSet<Member<HeapObject>>::const_iterator m_iterator6;
-};
+class HeapObject : public GarbageCollected<HeapObject> {
+ public:
+  void Trace(Visitor*) const;
 
+ private:
+  PartObject m_part;
+  scoped_refptr<HeapObject> m_obj2;
+  bar::unique_ptr<HeapObject> m_obj3;
+  std::unique_ptr<HeapObject> m_obj4;
+  HeapHashMap<int, Member<HeapObject>>::reverse_iterator m_iterator3;
+  HeapDeque<Member<HeapObject>>::const_reverse_iterator m_iterator4;
+  HeapListHashSet<Member<HeapObject>>::const_iterator m_iterator5;
+  HeapLinkedHashSet<Member<HeapObject>>::const_iterator m_iterator6;
+};
 }
 
 #endif

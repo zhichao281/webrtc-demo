@@ -33,6 +33,7 @@
 
 #include "third_party/blink/renderer/platform/transforms/transform_operation.h"
 #include "third_party/blink/renderer/platform/transforms/transform_operations.h"
+#include "third_party/blink/renderer/platform/wtf/casting.h"
 
 namespace blink {
 
@@ -49,16 +50,18 @@ class PLATFORM_EXPORT InterpolatedTransformOperation final
         new InterpolatedTransformOperation(from, to, starting_index, progress));
   }
 
-  bool CanBlendWith(const TransformOperation& other) const override {
-    return IsSameType(other);
-  }
-
  private:
   OperationType GetType() const override { return kInterpolated; }
 
   bool operator==(const TransformOperation&) const override;
   void Apply(TransformationMatrix&,
              const FloatSize& border_box_size) const override;
+
+  scoped_refptr<TransformOperation> Accumulate(
+      const TransformOperation&) override {
+    NOTREACHED();
+    return this;
+  }
 
   scoped_refptr<TransformOperation> Blend(
       const TransformOperation* from,
@@ -69,8 +72,13 @@ class PLATFORM_EXPORT InterpolatedTransformOperation final
                   progress_);
   }
 
-  bool DependsOnBoxSize() const override {
-    return from_.DependsOnBoxSize() || to_.DependsOnBoxSize();
+  bool PreservesAxisAlignment() const final {
+    return from_.PreservesAxisAlignment() && to_.PreservesAxisAlignment();
+  }
+
+  BoxSizeDependency BoxSizeDependencies() const override {
+    return CombineDependencies(from_.BoxSizeDependencies(starting_index_),
+                               to_.BoxSizeDependencies(starting_index_));
   }
 
   InterpolatedTransformOperation(const TransformOperations& from,
@@ -80,7 +88,11 @@ class PLATFORM_EXPORT InterpolatedTransformOperation final
       : from_(from),
         to_(to),
         starting_index_(starting_index),
-        progress_(progress) {}
+        progress_(progress) {
+    // This should only be generated during interpolation when it is impossible
+    // to create a Matrix3DTransformOperation due to layout-dependence.
+    DCHECK(BoxSizeDependencies());
+  }
 
   const TransformOperations from_;
   const TransformOperations to_;
@@ -89,6 +101,13 @@ class PLATFORM_EXPORT InterpolatedTransformOperation final
   // start of the list and matrix interpolation for the remainder.
   int starting_index_;
   double progress_;
+};
+
+template <>
+struct DowncastTraits<InterpolatedTransformOperation> {
+  static bool AllowFrom(const TransformOperation& transform) {
+    return transform.GetType() == TransformOperation::kInterpolated;
+  }
 };
 
 }  // namespace blink

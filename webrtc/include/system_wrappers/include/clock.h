@@ -12,9 +12,12 @@
 #define SYSTEM_WRAPPERS_INCLUDE_CLOCK_H_
 
 #include <stdint.h>
+
+#include <atomic>
 #include <memory>
 
-#include "rtc_base/synchronization/rw_lock_wrapper.h"
+#include "api/units/timestamp.h"
+#include "rtc_base/system/rtc_export.h"
 #include "system_wrappers/include/ntp_time.h"
 
 namespace webrtc {
@@ -26,17 +29,15 @@ const uint32_t kNtpJan1970 = 2208988800UL;
 const double kMagicNtpFractionalUnit = 4.294967296E+9;
 
 // A clock interface that allows reading of absolute and relative timestamps.
-class Clock {
+class RTC_EXPORT Clock {
  public:
   virtual ~Clock() {}
-
-  // Return a timestamp in milliseconds relative to some arbitrary source; the
-  // source is fixed for this clock.
-  virtual int64_t TimeInMilliseconds() = 0;
-
-  // Return a timestamp in microseconds relative to some arbitrary source; the
-  // source is fixed for this clock.
-  virtual int64_t TimeInMicroseconds() = 0;
+  // Return a timestamp relative to an unspecified epoch.
+  virtual Timestamp CurrentTime() {
+    return Timestamp::Micros(TimeInMicroseconds());
+  }
+  virtual int64_t TimeInMilliseconds() { return CurrentTime().ms(); }
+  virtual int64_t TimeInMicroseconds() { return CurrentTime().us(); }
 
   // Retrieve an NTP absolute timestamp.
   virtual NtpTime CurrentNtpTime() = 0;
@@ -56,16 +57,13 @@ class Clock {
 class SimulatedClock : public Clock {
  public:
   explicit SimulatedClock(int64_t initial_time_us);
+  explicit SimulatedClock(Timestamp initial_time);
 
   ~SimulatedClock() override;
 
-  // Return a timestamp in milliseconds relative to some arbitrary source; the
-  // source is fixed for this clock.
-  int64_t TimeInMilliseconds() override;
-
-  // Return a timestamp in microseconds relative to some arbitrary source; the
-  // source is fixed for this clock.
-  int64_t TimeInMicroseconds() override;
+  // Return a timestamp relative to some arbitrary source; the source is fixed
+  // for this clock.
+  Timestamp CurrentTime() override;
 
   // Retrieve an NTP absolute timestamp.
   NtpTime CurrentNtpTime() override;
@@ -77,10 +75,15 @@ class SimulatedClock : public Clock {
   // microseconds.
   void AdvanceTimeMilliseconds(int64_t milliseconds);
   void AdvanceTimeMicroseconds(int64_t microseconds);
+  void AdvanceTime(TimeDelta delta);
 
  private:
-  int64_t time_us_;
-  std::unique_ptr<RWLockWrapper> lock_;
+  // The time is read and incremented with relaxed order. Each thread will see
+  // monotonically increasing time, and when threads post tasks or messages to
+  // one another, the synchronization done as part of the message passing should
+  // ensure that any causual chain of events on multiple threads also
+  // corresponds to monotonically increasing time.
+  std::atomic<int64_t> time_us_;
 };
 
 }  // namespace webrtc

@@ -30,6 +30,10 @@
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/platform/web_text_input_mode.h"
 #include "third_party/blink/public/platform/web_text_input_type.h"
+#include "third_party/blink/public/platform/web_vector.h"
+#include "ui/base/ime/ime_text_span.h"
+#include "ui/base/ime/mojom/virtual_keyboard_types.mojom-shared.h"
+#include "ui/base/ime/text_input_action.h"
 
 namespace blink {
 
@@ -57,6 +61,17 @@ struct WebTextInputInfo {
   // The inputmode attribute value of the currently focused input field.
   WebTextInputMode input_mode;
 
+  // The enterkeyhint attribute value of the currently focused input field.
+  ui::TextInputAction action;
+
+  // The virtualkeyboardpolicy attribute value of the currently focused editable
+  // element.
+  ui::mojom::VirtualKeyboardPolicy virtual_keyboard_policy =
+      ui::mojom::VirtualKeyboardPolicy::AUTO;
+
+  // The array of ime_text_spans at the current caret position.
+  WebVector<ui::ImeTextSpan> ime_text_spans;
+
   BLINK_PLATFORM_EXPORT bool Equals(const WebTextInputInfo&) const;
 
   WebTextInputInfo()
@@ -66,7 +81,8 @@ struct WebTextInputInfo {
         selection_end(0),
         composition_start(-1),
         composition_end(-1),
-        input_mode(kWebTextInputModeDefault) {}
+        input_mode(kWebTextInputModeDefault),
+        action(ui::TextInputAction::kDefault) {}
 };
 
 inline bool operator==(const WebTextInputInfo& a, const WebTextInputInfo& b) {

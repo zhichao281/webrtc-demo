@@ -25,12 +25,14 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_HTML_FORMS_HTML_FORM_CONTROL_ELEMENT_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_HTML_FORMS_HTML_FORM_CONTROL_ELEMENT_H_
 
+#include "third_party/blink/public/common/metrics/form_element_pii_type.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/web/web_autofill_state.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/html/forms/form_associated.h"
 #include "third_party/blink/renderer/core/html/forms/listed_element.h"
 #include "third_party/blink/renderer/core/html/html_element.h"
+#include "third_party/blink/renderer/platform/wtf/casting.h"
 
 namespace blink {
 
@@ -42,14 +44,12 @@ class HTMLFormElement;
 class CORE_EXPORT HTMLFormControlElement : public HTMLElement,
                                            public ListedElement,
                                            public FormAssociated {
-  USING_GARBAGE_COLLECTED_MIXIN(HTMLFormControlElement);
-
  public:
   ~HTMLFormControlElement() override;
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
 
-  void formAction(USVStringOrTrustedURL&) const;
-  void setFormAction(const USVStringOrTrustedURL&, ExceptionState&);
+  String formAction() const;
+  void setFormAction(const AtomicString&);
   String formEnctype() const;
   void setFormEnctype(const AtomicString&);
   String formMethod() const;
@@ -57,8 +57,6 @@ class CORE_EXPORT HTMLFormControlElement : public HTMLElement,
   bool FormNoValidate() const;
 
   void Reset();
-
-  void DispatchChangeEvent();
 
   HTMLFormElement* formOwner() const final;
 
@@ -90,12 +88,18 @@ class CORE_EXPORT HTMLFormControlElement : public HTMLElement,
   virtual bool IsActivatedSubmit() const { return false; }
   virtual void SetActivatedSubmit(bool) {}
 
+  // Getter and setter for the PII type of the element derived from the autofill
+  // field semantic prediction.
+  virtual FormElementPiiType GetFormElementPiiType() const {
+    return FormElementPiiType::kUnknown;
+  }
+  virtual void SetFormElementPiiType(FormElementPiiType form_element_pii_type) {
+  }
+
   bool willValidate() const override;
 
   bool IsReadOnly() const;
   bool IsDisabledOrReadOnly() const;
-
-  bool IsAutofocusable() const;
 
   bool MayTriggerVirtualKeyboard() const override;
 
@@ -129,6 +133,8 @@ class CORE_EXPORT HTMLFormControlElement : public HTMLElement,
     return unique_renderer_form_control_id_;
   }
 
+  int32_t GetAxId() const;
+
  protected:
   HTMLFormControlElement(const QualifiedName& tag_name, Document&);
 
@@ -136,7 +142,6 @@ class CORE_EXPORT HTMLFormControlElement : public HTMLElement,
   void ParseAttribute(const AttributeModificationParams&) override;
   virtual void RequiredAttributeChanged();
   void DisabledAttributeChanged() override;
-  void AttachLayoutTree(AttachContext&) override;
   InsertionNotificationRequest InsertedInto(ContainerNode&) override;
   void RemovedFrom(ContainerNode&) override;
   void WillChangeForm() override;
@@ -145,21 +150,13 @@ class CORE_EXPORT HTMLFormControlElement : public HTMLElement,
 
   bool SupportsFocus() const override;
   bool IsKeyboardFocusable() const override;
-  bool ShouldHaveFocusAppearance() const final;
-  void DispatchBlurEvent(Element* new_focused_element,
-                         WebFocusType,
-                         InputDeviceCapabilities* source_capabilities) override;
-
-  void DidRecalcStyle(const StyleRecalcChange) override;
+  bool ShouldHaveFocusAppearance() const override;
 
   virtual void ResetImpl() {}
-  virtual bool SupportsAutofocus() const;
 
  private:
   bool IsFormControlElement() const final { return true; }
   bool AlwaysCreateUserAgentShadowRoot() const override { return true; }
-
-  int tabIndex() const override;
 
   bool IsValidElement() override;
   bool MatchesValidityPseudoClasses() const override;
@@ -172,16 +169,23 @@ class CORE_EXPORT HTMLFormControlElement : public HTMLElement,
   bool blocks_form_submission_ : 1;
 };
 
-inline bool IsHTMLFormControlElement(const Element& element) {
-  return element.IsFormControlElement();
+template <>
+inline bool IsElementOfType<const HTMLFormControlElement>(const Node& node) {
+  return IsA<HTMLFormControlElement>(node);
 }
-
-DEFINE_HTMLELEMENT_TYPE_CASTS_WITH_FUNCTION(HTMLFormControlElement);
-DEFINE_TYPE_CASTS(HTMLFormControlElement,
-                  ListedElement,
-                  control,
-                  control->IsFormControlElement(),
-                  control.IsFormControlElement());
+template <>
+struct DowncastTraits<HTMLFormControlElement> {
+  static bool AllowFrom(const Node& node) {
+    auto* html_element = DynamicTo<HTMLElement>(node);
+    return html_element && AllowFrom(*html_element);
+  }
+  static bool AllowFrom(const ListedElement& control) {
+    return control.IsFormControlElement();
+  }
+  static bool AllowFrom(const HTMLElement& html_element) {
+    return html_element.IsFormControlElement();
+  }
+};
 
 }  // namespace blink
 

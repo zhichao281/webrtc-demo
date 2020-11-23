@@ -14,6 +14,7 @@
 #include <memory>
 #include <vector>
 
+#include "api/fec_controller_override.h"
 #include "api/video_codecs/video_codec.h"
 #include "api/video_codecs/vp8_frame_buffer_controller.h"
 #include "api/video_codecs/vp8_frame_config.h"
@@ -31,9 +32,12 @@ enum class Vp8TemporalLayersType { kFixedPattern, kBitrateDynamic };
 // realize a temporal layer structure.
 class Vp8TemporalLayers final : public Vp8FrameBufferController {
  public:
-  explicit Vp8TemporalLayers(
-      std::vector<std::unique_ptr<Vp8FrameBufferController>>&& controllers);
+  Vp8TemporalLayers(
+      std::vector<std::unique_ptr<Vp8FrameBufferController>>&& controllers,
+      FecControllerOverride* fec_controller_override);
   ~Vp8TemporalLayers() override = default;
+
+  void SetQpLimits(size_t stream_index, int min_qp, int max_qp) override;
 
   size_t StreamCount() const override;
 
@@ -43,10 +47,10 @@ class Vp8TemporalLayers final : public Vp8FrameBufferController {
                       const std::vector<uint32_t>& bitrates_bps,
                       int framerate_fps) override;
 
-  bool UpdateConfiguration(size_t stream_index, Vp8EncoderConfig* cfg) override;
+  Vp8EncoderConfig UpdateConfiguration(size_t stream_index) override;
 
-  Vp8FrameConfig UpdateLayerConfig(size_t stream_index,
-                                   uint32_t rtp_timestamp) override;
+  Vp8FrameConfig NextFrameConfig(size_t stream_index,
+                                 uint32_t rtp_timestamp) override;
 
   void OnEncodeDone(size_t stream_index,
                     uint32_t rtp_timestamp,
@@ -55,12 +59,14 @@ class Vp8TemporalLayers final : public Vp8FrameBufferController {
                     int qp,
                     CodecSpecificInfo* info) override;
 
+  void OnFrameDropped(size_t stream_index, uint32_t rtp_timestamp) override;
+
   void OnPacketLossRateUpdate(float packet_loss_rate) override;
 
   void OnRttUpdate(int64_t rtt_ms) override;
 
   void OnLossNotification(
-      const VideoEncoder::LossNotification loss_notification) override;
+      const VideoEncoder::LossNotification& loss_notification) override;
 
  private:
   std::vector<std::unique_ptr<Vp8FrameBufferController>> controllers_;

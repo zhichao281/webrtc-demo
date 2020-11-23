@@ -30,6 +30,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_WEBAUDIO_AUDIO_LISTENER_H_
 
 #include "third_party/blink/renderer/modules/webaudio/audio_param.h"
+#include "third_party/blink/renderer/modules/webaudio/inspector_helper_mixin.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/geometry/float_point_3d.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
@@ -42,7 +43,7 @@ class PannerHandler;
 // AudioListener maintains the state of the listener in the audio scene as
 // defined in the OpenAL specification.
 
-class AudioListener : public ScriptWrappable {
+class AudioListener : public ScriptWrappable, public InspectorHelperMixin {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
@@ -66,6 +67,10 @@ class AudioListener : public ScriptWrappable {
 
   // True if any of AudioParams have automations.
   bool HasSampleAccurateValues() const;
+
+  // True if any of the AudioParams are set for a-rate automations
+  // (the default).
+  bool IsAudioRate() const;
 
   // Update the internal state of the listener, including updating the dirty
   // state of all PannerNodes if necessary.
@@ -126,7 +131,12 @@ class AudioListener : public ScriptWrappable {
   bool IsHRTFDatabaseLoaded();
   void WaitForHRTFDatabaseLoaderThreadCompletion();
 
-  void Trace(blink::Visitor*) override;
+  // InspectorHelperMixin: Note that this object belongs to a BaseAudioContext,
+  // so these methods get called by the parent context.
+  void ReportDidCreate() final;
+  void ReportWillBeDestroyed() final;
+
+  void Trace(Visitor*) const override;
 
  private:
   void setPosition(const FloatPoint3D&, ExceptionState&);

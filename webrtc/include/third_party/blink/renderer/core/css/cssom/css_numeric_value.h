@@ -5,12 +5,10 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_CSS_CSSOM_CSS_NUMERIC_VALUE_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_CSSOM_CSS_NUMERIC_VALUE_H_
 
-#include "base/macros.h"
 #include "third_party/blink/renderer/bindings/core/v8/double_or_css_numeric_value.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/css_primitive_value.h"
 #include "third_party/blink/renderer/core/css/cssom/css_numeric_sum_value.h"
-#include "third_party/blink/renderer/core/css/cssom/css_numeric_type.h"
 #include "third_party/blink/renderer/core/css/cssom/css_numeric_value_type.h"
 #include "third_party/blink/renderer/core/css/cssom/css_style_value.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
@@ -18,12 +16,13 @@
 
 namespace blink {
 
+class CSSMathExpressionNode;
+class CSSMathSum;
+class CSSNumericType;
+class CSSNumericValue;
 class CSSUnitValue;
 class ExceptionState;
-class CSSCalcExpressionNode;
 
-class CSSNumericValue;
-class CSSMathSum;
 using CSSNumberish = DoubleOrCSSNumericValue;
 using CSSNumericValueVector = HeapVector<Member<CSSNumericValue>>;
 
@@ -31,6 +30,9 @@ class CORE_EXPORT CSSNumericValue : public CSSStyleValue {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
+  CSSNumericValue(const CSSNumericValue&) = delete;
+  CSSNumericValue& operator=(const CSSNumericValue&) = delete;
+
   static CSSNumericValue* parse(const String& css_text, ExceptionState&);
   // Blink-internal ways of creating CSSNumericValues.
   static CSSNumericValue* FromCSSValue(const CSSPrimitiveValue&);
@@ -67,7 +69,7 @@ class CORE_EXPORT CSSNumericValue : public CSSStyleValue {
   virtual bool Equals(const CSSNumericValue&) const = 0;
   const CSSNumericValueType& Type() const { return type_; }
 
-  virtual CSSCalcExpressionNode* ToCalcExpressionNode() const = 0;
+  virtual CSSMathExpressionNode* ToCalcExpressionNode() const = 0;
 
   enum class Nested : bool { kYes, kNo };
   enum class ParenLess : bool { kYes, kNo };
@@ -81,7 +83,6 @@ class CORE_EXPORT CSSNumericValue : public CSSStyleValue {
 
  private:
   CSSNumericValueType type_;
-  DISALLOW_COPY_AND_ASSIGN(CSSNumericValue);
 };
 
 CSSNumericValueVector CSSNumberishesToNumericValues(

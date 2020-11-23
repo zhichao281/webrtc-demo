@@ -90,7 +90,7 @@ extern "C" {
 #elif defined(__x86) || defined(__i386) || defined(__i386__) || defined(_M_IX86)
 #define OPENSSL_32_BIT
 #define OPENSSL_X86
-#elif defined(__aarch64__)
+#elif defined(__aarch64__) || defined(_M_ARM64)
 #define OPENSSL_64_BIT
 #define OPENSSL_AARCH64
 #elif defined(__arm) || defined(__arm__) || defined(_M_ARM)
@@ -124,6 +124,11 @@ extern "C" {
 
 #if defined(__APPLE__)
 #define OPENSSL_APPLE
+// Note |TARGET_OS_MAC| is set for all Apple OS variants. |TARGET_OS_OSX|
+// targets macOS specifically.
+#if defined(TARGET_OS_OSX) && TARGET_OS_OSX
+#define OPENSSL_MACOS
+#endif
 #if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
 #define OPENSSL_IOS
 #endif
@@ -133,7 +138,10 @@ extern "C" {
 #define OPENSSL_WINDOWS
 #endif
 
-#if defined(__linux__)
+// Trusty isn't Linux but currently defines __linux__. As a workaround, we
+// exclude it here.
+// TODO(b/169780122): Remove this workaround once Trusty no longer defines it.
+#if defined(__linux__) && !defined(TRUSTY)
 #define OPENSSL_LINUX
 #endif
 
@@ -168,7 +176,7 @@ extern "C" {
 #endif
 
 #define OPENSSL_IS_BORINGSSL
-#define OPENSSL_VERSION_NUMBER 0x1010007f
+#define OPENSSL_VERSION_NUMBER 0x1010107f
 #define SSLEAY_VERSION_NUMBER OPENSSL_VERSION_NUMBER
 
 // BORINGSSL_API_VERSION is a positive integer that increments as BoringSSL
@@ -179,7 +187,7 @@ extern "C" {
 // A consumer may use this symbol in the preprocessor to temporarily build
 // against multiple revisions of BoringSSL at the same time. It is not
 // recommended to do so for longer than is necessary.
-#define BORINGSSL_API_VERSION 9
+#define BORINGSSL_API_VERSION 12
 
 #if defined(BORINGSSL_SHARED_LIBRARY)
 
@@ -291,6 +299,24 @@ extern "C" {
 #endif
 #endif  // OPENSSL_ASM_INCOMPATIBLE
 
+#if defined(__cplusplus)
+// enums can be predeclared, but only in C++ and only if given an explicit type.
+// C doesn't support setting an explicit type for enums thus a #define is used
+// to do this only for C++. However, the ABI type between C and C++ need to have
+// equal sizes, which is confirmed in a unittest.
+#define BORINGSSL_ENUM_INT : int
+enum ssl_early_data_reason_t BORINGSSL_ENUM_INT;
+enum ssl_encryption_level_t BORINGSSL_ENUM_INT;
+enum ssl_private_key_result_t BORINGSSL_ENUM_INT;
+enum ssl_renegotiate_mode_t BORINGSSL_ENUM_INT;
+enum ssl_select_cert_result_t BORINGSSL_ENUM_INT;
+enum ssl_select_cert_result_t BORINGSSL_ENUM_INT;
+enum ssl_ticket_aead_result_t BORINGSSL_ENUM_INT;
+enum ssl_verify_result_t BORINGSSL_ENUM_INT;
+#else
+#define BORINGSSL_ENUM_INT
+#endif
+
 // CRYPTO_THREADID is a dummy value.
 typedef int CRYPTO_THREADID;
 
@@ -399,6 +425,10 @@ typedef struct ssl_session_st SSL_SESSION;
 typedef struct ssl_st SSL;
 typedef struct ssl_ticket_aead_method_st SSL_TICKET_AEAD_METHOD;
 typedef struct st_ERR_FNS ERR_FNS;
+typedef struct trust_token_st TRUST_TOKEN;
+typedef struct trust_token_client_st TRUST_TOKEN_CLIENT;
+typedef struct trust_token_issuer_st TRUST_TOKEN_ISSUER;
+typedef struct trust_token_method_st TRUST_TOKEN_METHOD;
 typedef struct v3_ext_ctx X509V3_CTX;
 typedef struct x509_attributes_st X509_ATTRIBUTE;
 typedef struct x509_cert_aux_st X509_CERT_AUX;

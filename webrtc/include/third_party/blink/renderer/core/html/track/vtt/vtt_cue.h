@@ -31,8 +31,9 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_HTML_TRACK_VTT_VTT_CUE_H_
 
 #include "third_party/blink/renderer/core/html/track/text_track_cue.h"
+#include "third_party/blink/renderer/platform/geometry/float_point.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
@@ -61,10 +62,6 @@ struct VTTDisplayParameters {
 
 class VTTCueBox final : public HTMLDivElement {
  public:
-  static VTTCueBox* Create(Document& document) {
-    return MakeGarbageCollected<VTTCueBox>(document);
-  }
-
   explicit VTTCueBox(Document&);
 
   void ApplyCSSProperties(const VTTDisplayParameters&);
@@ -78,7 +75,27 @@ class VTTCueBox final : public HTMLDivElement {
   float snap_to_lines_position_;
 };
 
-class VTTCue final : public TextTrackCue {
+class VTTCueBackgroundBox final : public HTMLDivElement {
+ public:
+  explicit VTTCueBackgroundBox(Document&);
+  bool IsVTTCueBackgroundBox() const override { return true; }
+  void SetTrack(TextTrack*);
+  void Trace(Visitor*) const override;
+
+  const TextTrack* GetTrack() const { return track_; }
+
+ private:
+  Member<TextTrack> track_;
+};
+
+template <>
+struct DowncastTraits<VTTCueBackgroundBox> {
+  static bool AllowFrom(const Element& element) {
+    return element.IsVTTCueBackgroundBox();
+  }
+};
+
+class CORE_EXPORT VTTCue final : public TextTrackCue {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
@@ -127,6 +144,8 @@ class VTTCue final : public TextTrackCue {
 
   void UpdatePastAndFutureNodes(double movie_time) override;
 
+  base::Optional<double> GetNextIntraCueTime(double movie_time) const override;
+
   void RemoveDisplayTree(RemovalNotification) override;
 
   double CalculateComputedLinePosition() const;
@@ -155,7 +174,7 @@ class VTTCue final : public TextTrackCue {
   String ToString() const override;
 #endif
 
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   Document& GetDocument() const;
@@ -195,15 +214,12 @@ class VTTCue final : public TextTrackCue {
 
   Member<VTTRegion> region_;
   Member<DocumentFragment> vtt_node_tree_;
-  Member<HTMLDivElement> cue_background_box_;
+  Member<VTTCueBackgroundBox> cue_background_box_;
   Member<VTTCueBox> display_tree_;
 
   bool snap_to_lines_ : 1;
   bool display_tree_should_change_ : 1;
 };
-
-// VTTCue is currently the only TextTrackCue subclass.
-DEFINE_TYPE_CASTS(VTTCue, TextTrackCue, cue, true, true);
 
 }  // namespace blink
 

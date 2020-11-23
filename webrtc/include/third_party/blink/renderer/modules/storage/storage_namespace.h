@@ -28,14 +28,16 @@
 
 #include <memory>
 
+#include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "third_party/blink/public/mojom/dom_storage/dom_storage.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/dom_storage/session_storage_namespace.mojom-blink.h"
-#include "third_party/blink/public/mojom/dom_storage/storage_partition_service.mojom-blink.h"
-#include "third_party/blink/public/platform/web_storage_area.h"
+#include "third_party/blink/public/mojom/dom_storage/storage_area.mojom-blink-forward.h"
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
-#include "third_party/blink/renderer/modules/storage/cached_storage_area.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/heap/heap_allocator.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
 #include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin_hash.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
@@ -43,10 +45,10 @@
 
 namespace blink {
 
+class CachedStorageArea;
 class InspectorDOMStorageAgent;
 class StorageController;
 class SecurityOrigin;
-class WebStorageNamespace;
 class WebViewClient;
 
 // Contains DOMStorage storage areas for origins & handles inspector agents. A
@@ -65,11 +67,8 @@ class WebViewClient;
 // The StorageNamespace for SessioStorage supplement the Page. |GetCachedArea|
 // is used to get the storage area for an origin.
 class MODULES_EXPORT StorageNamespace final
-    : public GarbageCollectedFinalized<StorageNamespace>,
-      public Supplement<Page>,
-      public CachedStorageArea::InspectorEventListener {
-  USING_GARBAGE_COLLECTED_MIXIN(StorageNamespace);
-
+    : public GarbageCollected<StorageNamespace>,
+      public Supplement<Page> {
  public:
   static const char kSupplementName[];
 
@@ -78,19 +77,10 @@ class MODULES_EXPORT StorageNamespace final
     return Supplement<Page>::From<StorageNamespace>(page);
   }
 
-  // Constructor for an onion-souped LocalStorage namespace.
+  // Creates a namespace for LocalStorage.
   StorageNamespace(StorageController*);
-  // Constructor for an onion-souped SessionStorage namespace.
+  // Creates a namespace for SessionStorage.
   StorageNamespace(StorageController*, const String& namespace_id);
-  // Pre-onion-soup constructor. WebStorageNamespace must not be null.
-  StorageNamespace(std::unique_ptr<WebStorageNamespace>);
-
-  ~StorageNamespace() override;
-
-  // TODO(dmurph): Remove this once Onion Soupified.
-  const String& namespace_id() { return namespace_id_; }
-  // TODO(dmurph): Remove this once Onion Soupified.
-  std::unique_ptr<WebStorageArea> GetWebStorageArea(const SecurityOrigin*);
 
   scoped_refptr<CachedStorageArea> GetCachedArea(const SecurityOrigin* origin);
 
@@ -108,32 +98,43 @@ class MODULES_EXPORT StorageNamespace final
   void AddInspectorStorageAgent(InspectorDOMStorageAgent* agent);
   void RemoveInspectorStorageAgent(InspectorDOMStorageAgent* agent);
 
-  void Trace(Visitor* visitor) override;
+  void Trace(Visitor* visitor) const override;
 
   // Iterates all of the inspector agents and calls
   // |DidDispatchDOMStorageEvent|.
   void DidDispatchStorageEvent(const SecurityOrigin* origin,
                                const String& key,
                                const String& old_value,
-                               const String& new_value) override;
+                               const String& new_value);
+
+  // Called by areas in |cached_areas_| to bind/rebind their StorageArea
+  // interface.
+  void BindStorageArea(
+      const scoped_refptr<const SecurityOrigin>& origin,
+      mojo::PendingReceiver<mojom::blink::StorageArea> receiver);
+
+  // If this StorageNamespace was previously connected to the backend, this
+  // forcibly disconnects it so that it reconnects lazily when next needed.
+  // Also forces all owned CachedStorageAreas to be reconnected.
+  void ResetStorageAreaAndNamespaceConnections();
 
  private:
   void EnsureConnected();
 
   HeapHashSet<WeakMember<InspectorDOMStorageAgent>> inspector_agents_;
 
-  // Onion-souped storage wiring, not turned on yet.
   // Lives globally.
   StorageController* controller_;
   String namespace_id_;
-  mojom::blink::SessionStorageNamespacePtr namespace_;
+  // |StorageNamespace| is a per-Page object and doesn't have any
+  // |ExecutionContext|.
+  HeapMojoRemote<mojom::blink::SessionStorageNamespace,
+                 HeapMojoWrapperMode::kWithoutContextObserver>
+      namespace_{nullptr};
   HashMap<scoped_refptr<const SecurityOrigin>,
           scoped_refptr<CachedStorageArea>,
           SecurityOriginHash>
       cached_areas_;
-
-  // Pre-onion-soup storage wiring, currently active.
-  std::unique_ptr<WebStorageNamespace> web_storage_namespace_;
 };
 
 }  // namespace blink

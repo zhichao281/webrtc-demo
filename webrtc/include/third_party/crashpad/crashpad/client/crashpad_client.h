@@ -16,6 +16,7 @@
 #define CRASHPAD_CLIENT_CRASHPAD_CLIENT_H_
 
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -24,14 +25,16 @@
 #include "base/files/file_path.h"
 #include "base/macros.h"
 #include "build/build_config.h"
+#include "build/chromeos_buildflags.h"
+#include "util/file/file_io.h"
 #include "util/misc/capture_context.h"
 
-#if defined(OS_MACOSX)
+#if defined(OS_APPLE)
 #include "base/mac/scoped_mach_port.h"
 #elif defined(OS_WIN)
 #include <windows.h>
 #include "util/win/scoped_handle.h"
-#elif defined(OS_LINUX) || defined(OS_ANDROID)
+#elif defined(OS_LINUX) || defined(OS_CHROMEOS) || defined(OS_ANDROID)
 #include <signal.h>
 #include <ucontext.h>
 #endif
@@ -78,6 +81,10 @@ class CrashpadClient {
   //! On Fuchsia, this method binds to the exception port of the current default
   //! job, and starts a Crashpad handler to monitor that port.
   //!
+  //! On Linux, this method starts a Crashpad handler, connected to this process
+  //! via an `AF_UNIX` socket pair and installs signal handlers to request crash
+  //! dumps on the client's socket end.
+  //!
   //! \param[in] handler The path to a Crashpad handler executable.
   //! \param[in] database The path to a Crashpad database. The handler will be
   //!     started with this path as its `--database` argument.
@@ -101,6 +108,8 @@ class CrashpadClient {
   //!     a background thread. Optionally, WaitForHandlerStart() can be used at
   //!     a suitable time to retreive the result of background startup. This
   //!     option is only used on Windows.
+  //! \param[in] attachments Vector that stores file paths that should be
+  //!     captured with each report at the time of the crash.
   //!
   //! \return `true` on success, `false` on failure with a message logged.
   bool StartHandler(const base::FilePath& handler,
@@ -110,7 +119,55 @@ class CrashpadClient {
                     const std::map<std::string, std::string>& annotations,
                     const std::vector<std::string>& arguments,
                     bool restartable,
-                    bool asynchronous_start);
+                    bool asynchronous_start,
+                    const std::vector<base::FilePath>& attachments = {});
+
+#if defined(OS_ANDROID) || defined(OS_LINUX) || defined(OS_CHROMEOS) || DOXYGEN
+  //! \brief Retrieve the socket and process ID for the handler.
+  //!
+  //! `StartHandler()` must have successfully been called before calling this
+  //!     method.
+  //!
+  //! \param[out] sock The socket connected to the handler, if not `nullptr`.
+  //! \param[out] pid The handler's process ID, if not `nullptr`.
+  //! \return `true` on success. Otherwise `false` with a message logged.
+  static bool GetHandlerSocket(int* sock, pid_t* pid);
+
+  //! \brief Sets the socket to a presumably-running Crashpad handler process
+  //!      which was started with StartHandler().
+  //!
+  //! This method installs a signal handler to request crash dumps on \a sock.
+  //!
+  //! \param[in] sock A socket connected to a Crashpad handler.
+  //! \param[in] pid The process ID of the handler, used to set the handler as
+  //!     this process' ptracer. 0 indicates it is not necessary to set the
+  //!     handler as this process' ptracer. -1 indicates that the handler's
+  //!     process ID should be determined by communicating over the socket.
+  bool SetHandlerSocket(ScopedFileHandle sock, pid_t pid);
+
+  //! \brief Uses `sigaltstack()` to allocate a signal stack for the calling
+  //!     thread.
+  //!
+  //! This method allocates an alternate stack to handle signals delivered to
+  //! the calling thread and should be called early in the lifetime of each
+  //! thread. Installing an alternate stack allows signals to be delivered in
+  //! the event that the call stack's stack pointer points to invalid memory,
+  //! as in the case of stack overflow.
+  //!
+  //! This method is called automatically by SetHandlerSocket() and
+  //! the various StartHandler() methods. It is harmless to call multiple times.
+  //! A new signal stack will be allocated only if there is no existing stack or
+  //! the existing stack is too small. The stack will be automatically freed
+  //! when the thread exits.
+  //!
+  //! An application might choose to diligently call this method from the start
+  //! routine for each thread, call it from a `pthread_create()` wrapper which
+  //! the application provides, or link the provided "client:pthread_create"
+  //! target.
+  //!
+  //! \return `true` on success. Otherwise `false` with a message logged.
+  static bool InitializeSignalStackForThread();
+#endif  // OS_ANDROID || OS_LINUX || OS_CHROMEOS || DOXYGEN
 
 #if defined(OS_ANDROID) || DOXYGEN
   //! \brief Installs a signal handler to execute `/system/bin/app_process` and
@@ -141,7 +198,7 @@ class CrashpadClient {
   //!     specified in this parameter.
   //!
   //! \return `true` on success, `false` on failure with a message logged.
-  static bool StartJavaHandlerAtCrash(
+  bool StartJavaHandlerAtCrash(
       const std::string& class_name,
       const std::vector<std::string>* env,
       const base::FilePath& database,
@@ -222,7 +279,7 @@ class CrashpadClient {
   //!     specified in this parameter.
   //!
   //! \return `true` on success, `false` on failure with a message logged.
-  static bool StartHandlerWithLinkerAtCrash(
+  bool StartHandlerWithLinkerAtCrash(
       const std::string& handler_trampoline,
       const std::string& handler_library,
       bool is_64_bit,
@@ -281,7 +338,7 @@ class CrashpadClient {
       int socket);
 #endif  // OS_ANDROID || DOXYGEN
 
-#if defined(OS_LINUX) || defined(OS_ANDROID) || DOXYGEN
+#if defined(OS_LINUX) || defined(OS_ANDROID) || defined(OS_CHROMEOS) || DOXYGEN
   //! \brief Installs a signal handler to launch a handler process in reponse to
   //!     a crash.
   //!
@@ -304,13 +361,14 @@ class CrashpadClient {
   //!     specified in this parameter.
   //!
   //! \return `true` on success, `false` on failure with a message logged.
-  static bool StartHandlerAtCrash(
+  bool StartHandlerAtCrash(
       const base::FilePath& handler,
       const base::FilePath& database,
       const base::FilePath& metrics_dir,
       const std::string& url,
       const std::map<std::string, std::string>& annotations,
-      const std::vector<std::string>& arguments);
+      const std::vector<std::string>& arguments,
+      const std::vector<base::FilePath>& attachments = {});
 
   //! \brief Starts a handler process with an initial client.
   //!
@@ -384,9 +442,39 @@ class CrashpadClient {
   //! \param[in] handler The custom crash signal handler to install.
   static void SetFirstChanceExceptionHandler(FirstChanceHandler handler);
 
-#endif  // OS_LINUX || OS_ANDROID || DOXYGEN
+  //! \brief Configures a set of signals that shouldn't have Crashpad signal
+  //!     handlers installed.
+  //!
+  //! This method should be called before calling StartHandler(),
+  //! SetHandlerSocket(), or other methods that install Crashpad signal
+  //! handlers.
+  //!
+  //! \param[in] unhandled_signals The set of unhandled signals
+  void SetUnhandledSignals(const std::set<int>& unhandled_signals);
+#endif  // OS_LINUX || OS_ANDROID || OS_CHROMEOS || DOXYGEN
 
-#if defined(OS_MACOSX) || DOXYGEN
+#if defined(OS_IOS) || DOXYGEN
+  //! \brief Configures the process to direct its crashes to the iOS in-process
+  //! Crashpad handler.
+  //!
+  //! This method is only defined on iOS.
+  //!
+  //! TODO(justincohen): This method will need to take database, metrics_dir,
+  //! url and annotations eventually.
+  void StartCrashpadInProcessHandler();
+
+  // TODO(justincohen): This method is purely for bringing up iOS interfaces.
+  //! \brief Requests that the handler capture a dump even though there hasn't
+  //!     been a crash.
+  //!
+  //! A handler must have already been installed before calling this method.
+  //!
+  //! \param[in] context A NativeCPUContext, generally captured by
+  //!     CaptureContext() or similar.
+  static void DumpWithoutCrash(NativeCPUContext* context);
+#endif
+
+#if defined(OS_APPLE) || DOXYGEN
   //! \brief Sets the process’ crash handler to a Mach service registered with
   //!     the bootstrap server.
   //!
@@ -536,7 +624,7 @@ class CrashpadClient {
   };
 #endif
 
-#if defined(OS_MACOSX) || DOXYGEN
+#if defined(OS_APPLE) || DOXYGEN
   //! \brief Configures the process to direct its crashes to the default handler
   //!     for the operating system.
   //!
@@ -559,13 +647,25 @@ class CrashpadClient {
   static void UseSystemDefaultHandler();
 #endif
 
+#if BUILDFLAG(IS_ASH)
+  //! \brief Sets a timestamp on the signal handler to be passed on to
+  //!     crashpad_handler and then eventually Chrome OS's crash_reporter.
+  //!
+  //! \note This method is used by clients that use `StartHandler()` to start
+  //!     a handler and not by clients that use any other handler starting
+  //!     methods.
+  static void SetCrashLoopBefore(uint64_t crash_loop_before_time);
+#endif
+
  private:
-#if defined(OS_MACOSX)
+#if defined(OS_APPLE)
   base::mac::ScopedMachSendRight exception_port_;
 #elif defined(OS_WIN)
   std::wstring ipc_pipe_;
   ScopedKernelHANDLE handler_start_thread_;
-#endif  // OS_MACOSX
+#elif defined(OS_LINUX) || defined(OS_CHROMEOS) || defined(OS_ANDROID)
+  std::set<int> unhandled_signals_;
+#endif  // OS_APPLE
 
   DISALLOW_COPY_AND_ASSIGN(CrashpadClient);
 };

@@ -20,7 +20,7 @@ class V8RemotePlaybackAvailabilityCallback;
 // Wraps either a base::OnceClosure or RemotePlaybackAvailabilityCallback object
 // to be kept in the RemotePlayback's |availability_callbacks_| map.
 class AvailabilityCallbackWrapper final
-    : public GarbageCollectedFinalized<AvailabilityCallbackWrapper>,
+    : public GarbageCollected<AvailabilityCallbackWrapper>,
       public NameClient {
  public:
   explicit AvailabilityCallbackWrapper(V8RemotePlaybackAvailabilityCallback*);
@@ -29,7 +29,7 @@ class AvailabilityCallbackWrapper final
 
   void Run(RemotePlayback*, bool new_availability);
 
-  virtual void Trace(blink::Visitor*);
+  virtual void Trace(Visitor*) const;
   const char* NameInHeapSnapshot() const override {
     return "AvailabilityCallbackWrapper";
   }

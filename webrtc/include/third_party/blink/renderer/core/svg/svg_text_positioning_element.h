@@ -21,12 +21,13 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_SVG_SVG_TEXT_POSITIONING_ELEMENT_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_SVG_SVG_TEXT_POSITIONING_ELEMENT_H_
 
-#include "third_party/blink/renderer/core/svg/svg_animated_length_list.h"
-#include "third_party/blink/renderer/core/svg/svg_animated_number_list.h"
 #include "third_party/blink/renderer/core/svg/svg_text_content_element.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 
 namespace blink {
+
+class SVGAnimatedLengthList;
+class SVGAnimatedNumberList;
 
 class SVGTextPositioningElement : public SVGTextContentElement {
   DEFINE_WRAPPERTYPEINFO();
@@ -38,12 +39,12 @@ class SVGTextPositioningElement : public SVGTextContentElement {
   SVGAnimatedLengthList* dy() { return dy_.Get(); }
   SVGAnimatedNumberList* rotate() { return rotate_.Get(); }
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  protected:
   SVGTextPositioningElement(const QualifiedName&, Document&);
 
-  void SvgAttributeChanged(const QualifiedName&) final;
+  void SvgAttributeChanged(const SvgAttributeChangedParams&) final;
   bool IsTextPositioning() const final { return true; }
 
   Member<SVGAnimatedLengthList> x_;
@@ -57,7 +58,13 @@ inline bool IsSVGTextPositioningElement(const SVGElement& element) {
   return element.IsTextPositioning();
 }
 
-DEFINE_SVGELEMENT_TYPE_CASTS_WITH_FUNCTION(SVGTextPositioningElement);
+template <>
+struct DowncastTraits<SVGTextPositioningElement> {
+  static bool AllowFrom(const Node& node) {
+    auto* svg_element = DynamicTo<SVGElement>(node);
+    return svg_element && IsSVGTextPositioningElement(*svg_element);
+  }
+};
 
 }  // namespace blink
 

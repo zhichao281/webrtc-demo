@@ -13,12 +13,12 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
 #include <deque>
 #include <queue>
 #include <vector>
 
 #include "absl/types/optional.h"
-#include "rtc_base/critical_section.h"
 #include "rtc_base/random.h"
 #include "rtc_base/thread_annotations.h"
 
@@ -77,6 +77,18 @@ class NetworkBehaviorInterface {
   // DequeueDeliverablePackets to get next set of packets to deliver.
   virtual absl::optional<int64_t> NextDeliveryTimeUs() const = 0;
   virtual ~NetworkBehaviorInterface() = default;
+};
+
+// Class simulating a network link. This is a simple and naive solution just
+// faking capacity and adding an extra transport delay in addition to the
+// capacity introduced delay.
+class SimulatedNetworkInterface : public NetworkBehaviorInterface {
+ public:
+  // Sets a new configuration. This won't affect packets already in the pipe.
+  virtual void SetConfig(const BuiltInNetworkBehaviorConfig& config) = 0;
+  virtual void UpdateConfig(
+      std::function<void(BuiltInNetworkBehaviorConfig*)> config_modifier) = 0;
+  virtual void PauseTransmissionUntil(int64_t until_us) = 0;
 };
 
 }  // namespace webrtc

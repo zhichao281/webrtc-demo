@@ -6,13 +6,15 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_WORKERS_THREADED_MESSAGING_PROXY_BASE_H_
 
 #include "base/optional.h"
-#include "third_party/blink/public/mojom/devtools/console_message.mojom-shared.h"
+#include "third_party/blink/public/common/tokens/tokens.h"
+#include "third_party/blink/public/mojom/devtools/console_message.mojom-blink-forward.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/frame/web_feature_forward.h"
 #include "third_party/blink/renderer/core/workers/parent_execution_context_task_runners.h"
 #include "third_party/blink/renderer/core/workers/worker_backing_thread_startup_data.h"
 #include "third_party/blink/renderer/core/workers/worker_thread.h"
 #include "third_party/blink/renderer/platform/heap/self_keep_alive.h"
+#include "third_party/blink/renderer/platform/scheduler/public/frame_or_worker_scheduler.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 
 namespace base {
@@ -41,7 +43,7 @@ struct GlobalScopeCreationParams;
 // living on the worker thread (e.g., WorkerGlobalScope) but the parent object
 // can be destroyed before the completion of worker thread termination.
 class CORE_EXPORT ThreadedMessagingProxyBase
-    : public GarbageCollectedFinalized<ThreadedMessagingProxyBase> {
+    : public GarbageCollected<ThreadedMessagingProxyBase> {
  public:
   virtual ~ThreadedMessagingProxyBase();
 
@@ -53,7 +55,6 @@ class CORE_EXPORT ThreadedMessagingProxyBase
   void ParentObjectDestroyed();
 
   void CountFeature(WebFeature);
-  void CountDeprecation(WebFeature);
 
   void ReportConsoleMessage(mojom::ConsoleMessageSource,
                             mojom::ConsoleMessageLevel,
@@ -65,14 +66,15 @@ class CORE_EXPORT ThreadedMessagingProxyBase
   // Number of live messaging proxies, used by leak detection.
   static int ProxyCount();
 
-  virtual void Trace(blink::Visitor*);
+  virtual void Trace(Visitor*) const;
 
  protected:
   explicit ThreadedMessagingProxyBase(ExecutionContext*);
 
   void InitializeWorkerThread(
       std::unique_ptr<GlobalScopeCreationParams>,
-      const base::Optional<WorkerBackingThreadStartupData>&);
+      const base::Optional<WorkerBackingThreadStartupData>&,
+      const base::Optional<const blink::DedicatedWorkerToken>&);
 
   ExecutionContext* GetExecutionContext() const;
   ParentExecutionContextTaskRunners* GetParentExecutionContextTaskRunners()
@@ -102,6 +104,9 @@ class CORE_EXPORT ThreadedMessagingProxyBase
   // Used to terminate the synchronous resource loading (XMLHttpRequest) on the
   // worker thread from the main thread.
   base::WaitableEvent terminate_sync_load_event_;
+
+  FrameOrWorkerScheduler::SchedulingAffectingFeatureHandle
+      feature_handle_for_scheduler_;
 
   // Used to keep this alive until the worker thread gets terminated. This is
   // necessary because the co-owner (i.e., Worker or Worklet object) can be

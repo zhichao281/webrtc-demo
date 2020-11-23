@@ -9,6 +9,7 @@
 #include "base/callback.h"
 #include "base/macros.h"
 #include "base/memory/memory_pressure_listener.h"
+#include "base/time/time.h"
 
 namespace base {
 
@@ -35,8 +36,11 @@ class BASE_EXPORT MemoryPressureMonitor {
   // Record memory pressure UMA statistic. A tick is 5 seconds.
   static void RecordMemoryPressure(MemoryPressureLevel level, int ticks);
 
+  // Defines the time between UMA events, currently 5s.
+  static const base::TimeDelta kUMAMemoryPressureLevelPeriod;
+
   // Returns the currently observed memory pressure.
-  virtual MemoryPressureLevel GetCurrentPressureLevel() = 0;
+  virtual MemoryPressureLevel GetCurrentPressureLevel() const = 0;
 
   // Sets a notification callback. The default callback invokes
   // base::MemoryPressureListener::NotifyMemoryPressure.

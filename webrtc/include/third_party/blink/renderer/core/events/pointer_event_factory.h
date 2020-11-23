@@ -5,13 +5,11 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_EVENTS_POINTER_EVENT_FACTORY_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_EVENTS_POINTER_EVENT_FACTORY_H_
 
-#include <unordered_map>
-
-#include "third_party/blink/public/platform/web_pointer_event.h"
-#include "third_party/blink/public/platform/web_pointer_properties.h"
+#include "third_party/blink/public/common/input/web_pointer_event.h"
+#include "third_party/blink/public/common/input/web_pointer_properties.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/events/pointer_event.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 
 namespace blink {
@@ -32,16 +30,18 @@ class CORE_EXPORT PointerEventFactory {
   PointerEventFactory();
   ~PointerEventFactory();
 
+  // Returns nullptr if the |web_pointer_event| is invalid from event stream
+  // perspective (e.g. it is a pointercancel for a non-existent id).
   PointerEvent* Create(const WebPointerEvent& web_pointer_event,
                        const Vector<WebPointerEvent>& coalesced_events,
                        const Vector<WebPointerEvent>& predicted_events,
                        LocalDOMWindow* view);
 
   PointerEvent* CreatePointerCancelEvent(const PointerId pointer_id,
-                                         TimeTicks platfrom_time_stamp);
+                                         base::TimeTicks platfrom_time_stamp);
 
-  // For creating raw move events in chorded button case.
-  PointerEvent* CreatePointerRawMoveEvent(PointerEvent*);
+  // For creating raw update events in chorded button case.
+  PointerEvent* CreatePointerRawUpdateEvent(PointerEvent*);
 
   // For creating capture events (i.e got/lostpointercapture).
   PointerEvent* CreatePointerCaptureEvent(PointerEvent*, const AtomicString&);
@@ -80,6 +80,7 @@ class CORE_EXPORT PointerEventFactory {
   bool IsPrimary(const WebPointerProperties&) const;
 
   static const PointerId kMouseId;
+  static const PointerId kInvalidId;
 
   // Removes pointer_id from the map.
   void RemoveLastPosition(const PointerId pointer_id);
@@ -88,7 +89,12 @@ class CORE_EXPORT PointerEventFactory {
   // Otherwise it returns the PositionInScreen of the given events, so we will
   // get movement = 0 when there is no last position.
   FloatPoint GetLastPointerPosition(PointerId pointer_id,
-                                    const WebPointerProperties& event) const;
+                                    const WebPointerProperties& event,
+                                    WebInputEvent::Type event_type) const;
+
+  void SetLastPosition(PointerId pointer_id,
+                       const FloatPoint& position_in_screen,
+                       WebInputEvent::Type event_type);
 
  private:
   // We use int64_t to cover the whole range for PointerId with no
@@ -124,9 +130,14 @@ class CORE_EXPORT PointerEventFactory {
 
   PointerId AddIdAndActiveButtons(const IncomingId,
                                   bool is_active_buttons,
-                                  bool hovering);
+                                  bool hovering,
+                                  WebInputEvent::Type event_type);
   bool IsPrimary(const PointerId) const;
+
+  // Returns nullptr when the event is unexpected.  E.g. pointercancel for a
+  // non-existent id (see crbug.com/1007164).
   PointerEventInit* ConvertIdTypeButtonsEvent(const WebPointerEvent&);
+
   void SetEventSpecificFields(PointerEventInit*, const AtomicString& type);
 
   // Creates pointerevents like boundary and capture events from another
@@ -141,10 +152,6 @@ class CORE_EXPORT PointerEventFactory {
       const Vector<WebPointerEvent>& event_list,
       LocalDOMWindow* view);
 
-  void SetLastPosition(PointerId pointer_id, const WebPointerProperties& event);
-
-  static const PointerId kInvalidId;
-
   PointerId current_id_;
   HashMap<IncomingId,
           PointerId,
@@ -154,13 +161,13 @@ class CORE_EXPORT PointerEventFactory {
       pointer_incoming_id_mapping_;
   PointerIdKeyMap<PointerAttributes> pointer_id_mapping_;
   int primary_id_[static_cast<int>(
-                      WebPointerProperties::PointerType::kLastEntry) +
+                      WebPointerProperties::PointerType::kMaxValue) +
                   1];
-  int id_count_[static_cast<int>(
-                    WebPointerProperties::PointerType::kLastEntry) +
+  int id_count_[static_cast<int>(WebPointerProperties::PointerType::kMaxValue) +
                 1];
 
   PointerIdKeyMap<FloatPoint> pointer_id_last_position_mapping_;
+  PointerIdKeyMap<FloatPoint> pointerrawupdate_last_position_mapping_;
 };
 
 }  // namespace blink

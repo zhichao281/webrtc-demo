@@ -33,7 +33,7 @@
 
 #include "third_party/blink/renderer/platform/fonts/shaping/run_segmenter.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_result.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
@@ -105,7 +105,7 @@ class PLATFORM_EXPORT HarfBuzzShaper final {
                            const SimpleFontData*,
                            UScriptCode,
                            CanvasRotationInVertical,
-                           bool is_last_resort,
+                           bool is_last_font,
                            ShapeResult*) const;
 
   bool CollectFallbackHintChars(const Deque<ReshapeQueueItem>&,
@@ -116,7 +116,7 @@ class PLATFORM_EXPORT HarfBuzzShaper final {
                     const SimpleFontData* current_font,
                     UScriptCode current_run_script,
                     CanvasRotationInVertical,
-                    bool is_last_resort,
+                    bool is_last_font,
                     const BufferSlice&,
                     ShapeResult*) const;
 

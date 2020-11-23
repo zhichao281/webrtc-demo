@@ -11,6 +11,7 @@
 #define CALL_SIMULATED_NETWORK_H_
 
 #include <stdint.h>
+
 #include <deque>
 #include <queue>
 #include <vector>
@@ -19,9 +20,9 @@
 #include "api/test/simulated_network.h"
 #include "api/units/data_size.h"
 #include "api/units/timestamp.h"
-#include "rtc_base/critical_section.h"
 #include "rtc_base/race_checker.h"
 #include "rtc_base/random.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_annotations.h"
 #include "rtc_base/thread_checker.h"
 
@@ -53,15 +54,17 @@ class CoDelSimulation {
 // Class simulating a network link. This is a simple and naive solution just
 // faking capacity and adding an extra transport delay in addition to the
 // capacity introduced delay.
-class SimulatedNetwork : public NetworkBehaviorInterface {
+class SimulatedNetwork : public SimulatedNetworkInterface {
  public:
   using Config = BuiltInNetworkBehaviorConfig;
   explicit SimulatedNetwork(Config config, uint64_t random_seed = 1);
   ~SimulatedNetwork() override;
 
   // Sets a new configuration. This won't affect packets already in the pipe.
-  void SetConfig(const Config& config);
-  void PauseTransmissionUntil(int64_t until_us);
+  void SetConfig(const Config& config) override;
+  void UpdateConfig(std::function<void(BuiltInNetworkBehaviorConfig*)>
+                        config_modifier) override;
+  void PauseTransmissionUntil(int64_t until_us) override;
 
   // NetworkBehaviorInterface
   bool EnqueuePacket(PacketInFlightInfo packet) override;
@@ -93,7 +96,7 @@ class SimulatedNetwork : public NetworkBehaviorInterface {
       RTC_RUN_ON(&process_checker_);
   ConfigState GetConfigState() const;
 
-  rtc::CriticalSection config_lock_;
+  mutable Mutex config_lock_;
 
   // |process_checker_| guards the data structures involved in delay and loss
   // processes, such as the packet queues.

@@ -26,14 +26,13 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_HTML_PARSER_HTML_PARSER_SCHEDULER_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_HTML_PARSER_HTML_PARSER_SCHEDULER_H_
 
-#include <memory>
-
 #include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/single_thread_task_runner.h"
+#include "base/timer/elapsed_timer.h"
 #include "third_party/blink/renderer/core/html/parser/nesting_level_incrementer.h"
 #include "third_party/blink/renderer/platform/scheduler/public/post_cancellable_task.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
@@ -43,28 +42,20 @@ class SpeculationsPumpSession : public NestingLevelIncrementer {
   STACK_ALLOCATED();
 
  public:
-  SpeculationsPumpSession(unsigned& nesting_level);
+  explicit SpeculationsPumpSession(unsigned& nesting_level);
   ~SpeculationsPumpSession();
 
-  double ElapsedTime() const;
+  base::TimeDelta ElapsedTime() const { return start_time_.Elapsed(); }
   void AddedElementTokens(size_t count);
   size_t ProcessedElementTokens() const { return processed_element_tokens_; }
 
  private:
-  double start_time_;
+  base::ElapsedTimer start_time_;
   size_t processed_element_tokens_;
 };
 
-class HTMLParserScheduler final
-    : public GarbageCollectedFinalized<HTMLParserScheduler> {
+class HTMLParserScheduler final : public GarbageCollected<HTMLParserScheduler> {
  public:
-  static HTMLParserScheduler* Create(
-      HTMLDocumentParser* parser,
-      scoped_refptr<base::SingleThreadTaskRunner> loading_task_runner) {
-    return MakeGarbageCollected<HTMLParserScheduler>(
-        parser, std::move(loading_task_runner));
-  }
-
   HTMLParserScheduler(HTMLDocumentParser*,
                       scoped_refptr<base::SingleThreadTaskRunner>);
   ~HTMLParserScheduler();
@@ -73,21 +64,9 @@ class HTMLParserScheduler final
   void ScheduleForUnpause();
   bool YieldIfNeeded(const SpeculationsPumpSession&, bool starting_script);
 
-  /**
-   * Can only be called if this scheduler is paused. If this is called,
-   * then after the scheduler is resumed by calling resume(), this call
-   * ensures that HTMLDocumentParser::resumeAfterYield will be called. Used to
-   * signal this scheduler that the background html parser sent chunks to
-   * HTMLDocumentParser while it was paused.
-   */
-  void ForceUnpauseAfterYield();
-
-  void Pause();
-  void Unpause();
-
   void Detach();  // Clear active tasks if any.
 
-  void Trace(Visitor*);
+  void Trace(Visitor*) const;
 
  private:
   bool ShouldYield(const SpeculationsPumpSession&, bool starting_script) const;
@@ -97,7 +76,6 @@ class HTMLParserScheduler final
   scoped_refptr<base::SingleThreadTaskRunner> loading_task_runner_;
 
   TaskHandle cancellable_continue_parse_task_handle_;
-  bool is_paused_with_active_timer_;
 
   DISALLOW_COPY_AND_ASSIGN(HTMLParserScheduler);
 };

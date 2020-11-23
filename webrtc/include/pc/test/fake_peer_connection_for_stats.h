@@ -18,7 +18,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/memory/memory.h"
 #include "media/base/fake_media_engine.h"
 #include "pc/stream_collection.h"
 #include "pc/test/fake_data_channel_provider.h"
@@ -37,7 +36,8 @@ class FakeVoiceMediaChannelForStats : public cricket::FakeVoiceMediaChannel {
   }
 
   // VoiceMediaChannel overrides.
-  bool GetStats(cricket::VoiceMediaInfo* info) override {
+  bool GetStats(cricket::VoiceMediaInfo* info,
+                bool get_and_clear_legacy_stats) override {
     if (stats_) {
       *info = *stats_;
       return true;
@@ -138,9 +138,9 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase {
       const std::string& transport_name) {
     RTC_DCHECK(!voice_channel_);
     auto voice_media_channel =
-        absl::make_unique<FakeVoiceMediaChannelForStats>();
+        std::make_unique<FakeVoiceMediaChannelForStats>();
     auto* voice_media_channel_ptr = voice_media_channel.get();
-    voice_channel_ = absl::make_unique<cricket::VoiceChannel>(
+    voice_channel_ = std::make_unique<cricket::VoiceChannel>(
         worker_thread_, network_thread_, signaling_thread_,
         std::move(voice_media_channel), mid, kDefaultSrtpRequired,
         webrtc::CryptoOptions(), &ssrc_generator_);
@@ -156,9 +156,9 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase {
       const std::string& transport_name) {
     RTC_DCHECK(!video_channel_);
     auto video_media_channel =
-        absl::make_unique<FakeVideoMediaChannelForStats>();
+        std::make_unique<FakeVideoMediaChannelForStats>();
     auto video_media_channel_ptr = video_media_channel.get();
-    video_channel_ = absl::make_unique<cricket::VideoChannel>(
+    video_channel_ = std::make_unique<cricket::VideoChannel>(
         worker_thread_, network_thread_, signaling_thread_,
         std::move(video_media_channel), mid, kDefaultSrtpRequired,
         webrtc::CryptoOptions(), &ssrc_generator_);
@@ -175,11 +175,13 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase {
 
   void AddSctpDataChannel(const std::string& label,
                           const InternalDataChannelInit& init) {
-    AddSctpDataChannel(DataChannel::Create(&data_channel_provider_,
-                                           cricket::DCT_SCTP, label, init));
+    // TODO(bugs.webrtc.org/11547): Supply a separate network thread.
+    AddSctpDataChannel(SctpDataChannel::Create(&data_channel_provider_, label,
+                                               init, rtc::Thread::Current(),
+                                               rtc::Thread::Current()));
   }
 
-  void AddSctpDataChannel(rtc::scoped_refptr<DataChannel> data_channel) {
+  void AddSctpDataChannel(rtc::scoped_refptr<SctpDataChannel> data_channel) {
     sctp_data_channels_.push_back(data_channel);
   }
 
@@ -258,9 +260,12 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase {
     return transceivers_;
   }
 
-  std::vector<rtc::scoped_refptr<DataChannel>> sctp_data_channels()
-      const override {
-    return sctp_data_channels_;
+  std::vector<DataChannelStats> GetDataChannelStats() const override {
+    RTC_DCHECK_RUN_ON(signaling_thread());
+    std::vector<DataChannelStats> stats;
+    for (const auto& channel : sctp_data_channels_)
+      stats.push_back(channel->GetStats());
+    return stats;
   }
 
   cricket::CandidateStatsList GetPooledCandidateStats() const override {
@@ -360,7 +365,7 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase {
   std::unique_ptr<cricket::VoiceChannel> voice_channel_;
   std::unique_ptr<cricket::VideoChannel> video_channel_;
 
-  std::vector<rtc::scoped_refptr<DataChannel>> sctp_data_channels_;
+  std::vector<rtc::scoped_refptr<SctpDataChannel>> sctp_data_channels_;
 
   std::map<std::string, cricket::TransportStats> transport_stats_by_name_;
 

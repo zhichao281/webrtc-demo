@@ -224,27 +224,27 @@ void Conductor::OnRemoveTrack(
 }
 
 void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface* candidate) {
-  RTC_LOG(INFO) << __FUNCTION__ << " " << candidate->sdp_mline_index();
-  // For loopback test. To save some connecting delay.
-  if (loopback_) {
-    if (!peer_connection_->AddIceCandidate(candidate)) {
-      RTC_LOG(WARNING) << "Failed to apply the received candidate";
-    }
-    return;
-  }
+	RTC_LOG(INFO) << __FUNCTION__ << " " << candidate->sdp_mline_index();
+	// For loopback test. To save some connecting delay.
+	if (loopback_) {
+		if (!peer_connection_->AddIceCandidate(candidate)) {
+			RTC_LOG(WARNING) << "Failed to apply the received candidate";
+		}
+		return;
+	}
 
-  Json::StyledWriter writer;
-  Json::Value jmessage;
+	Json::StyledWriter writer;
+	Json::Value jmessage;
 
-  jmessage[kCandidateSdpMidName] = candidate->sdp_mid();
-  jmessage[kCandidateSdpMlineIndexName] = candidate->sdp_mline_index();
-  std::string sdp;
-  if (!candidate->ToString(&sdp)) {
-    RTC_LOG(LS_ERROR) << "Failed to serialize candidate";
-    return;
-  }
-  jmessage[kCandidateSdpName] = sdp;
-  SendMessage(writer.write(jmessage));
+	jmessage[kCandidateSdpMidName] = candidate->sdp_mid();
+	jmessage[kCandidateSdpMlineIndexName] = candidate->sdp_mline_index();
+	std::string sdp;
+	if (!candidate->ToString(&sdp)) {
+		RTC_LOG(LS_ERROR) << "Failed to serialize candidate";
+		return;
+	}
+	jmessage[kCandidateSdpName] = sdp;
+	SendMessage(writer.write(jmessage));
 }
 
 //
@@ -285,103 +285,107 @@ void Conductor::OnPeerDisconnected(int id) {
 }
 
 void Conductor::OnMessageFromPeer(int peer_id, const std::string& message) {
-  RTC_DCHECK(peer_id_ == peer_id || peer_id_ == -1);
-  RTC_DCHECK(!message.empty());
+	RTC_DCHECK(peer_id_ == peer_id || peer_id_ == -1);
+	RTC_DCHECK(!message.empty());
 
-  if (!peer_connection_.get()) {
-    RTC_DCHECK(peer_id_ == -1);
-    peer_id_ = peer_id;
+	if (!peer_connection_.get()) {
+		RTC_DCHECK(peer_id_ == -1);
+		peer_id_ = peer_id;
 
-    if (!InitializePeerConnection()) {
-      RTC_LOG(LS_ERROR) << "Failed to initialize our PeerConnection instance";
-      client_->SignOut();
-      return;
-    }
-  } else if (peer_id != peer_id_) {
-    RTC_DCHECK(peer_id_ != -1);
-    RTC_LOG(WARNING)
-        << "Received a message from unknown peer while already in a "
-           "conversation with a different peer.";
-    return;
-  }
+		if (!InitializePeerConnection()) {
+			RTC_LOG(LS_ERROR) << "Failed to initialize our PeerConnection instance";
+			client_->SignOut();
+			return;
+		}
+	}
+	else if (peer_id != peer_id_) {
+		RTC_DCHECK(peer_id_ != -1);
+		RTC_LOG(WARNING)
+			<< "Received a message from unknown peer while already in a "
+			"conversation with a different peer.";
+		return;
+	}
 
-  Json::Reader reader;
-  Json::Value jmessage;
-  if (!reader.parse(message, jmessage)) {
-    RTC_LOG(WARNING) << "Received unknown message. " << message;
-    return;
-  }
-  std::string type_str;
-  std::string json_object;
+	Json::Reader reader;
+	Json::Value jmessage;
+	if (!reader.parse(message, jmessage)) {
+		RTC_LOG(WARNING) << "Received unknown message. " << message;
+		return;
+	}
+	std::string type_str;
+	std::string json_object;
 
-  rtc::GetStringFromJsonObject(jmessage, kSessionDescriptionTypeName,
-                               &type_str);
-  if (!type_str.empty()) {
-    if (type_str == "offer-loopback") {
-      // This is a loopback call.
-      // Recreate the peerconnection with DTLS disabled.
-      if (!ReinitializePeerConnectionForLoopback()) {
-        RTC_LOG(LS_ERROR) << "Failed to initialize our PeerConnection instance";
-        DeletePeerConnection();
-        client_->SignOut();
-      }
-      return;
-    }
-    absl::optional<webrtc::SdpType> type_maybe =
-        webrtc::SdpTypeFromString(type_str);
-    if (!type_maybe) {
-      RTC_LOG(LS_ERROR) << "Unknown SDP type: " << type_str;
-      return;
-    }
-    webrtc::SdpType type = *type_maybe;
-    std::string sdp;
-    if (!rtc::GetStringFromJsonObject(jmessage, kSessionDescriptionSdpName,
-                                      &sdp)) {
-      RTC_LOG(WARNING) << "Can't parse received session description message.";
-      return;
-    }
-    webrtc::SdpParseError error;
-    std::unique_ptr<webrtc::SessionDescriptionInterface> session_description =
-        webrtc::CreateSessionDescription(type, sdp, &error);
-    if (!session_description) {
-      RTC_LOG(WARNING) << "Can't parse received session description message. "
-                       << "SdpParseError was: " << error.description;
-      return;
-    }
-    RTC_LOG(INFO) << " Received session description :" << message;
-    peer_connection_->SetRemoteDescription(
-        DummySetSessionDescriptionObserver::Create(),
-        session_description.release());
-    if (type == webrtc::SdpType::kOffer) {
-      peer_connection_->CreateAnswer(
-          this, webrtc::PeerConnectionInterface::RTCOfferAnswerOptions());
-    }
-  } else {
-    std::string sdp_mid;
-    int sdp_mlineindex = 0;
-    std::string sdp;
-    if (!rtc::GetStringFromJsonObject(jmessage, kCandidateSdpMidName,
-                                      &sdp_mid) ||
-        !rtc::GetIntFromJsonObject(jmessage, kCandidateSdpMlineIndexName,
-                                   &sdp_mlineindex) ||
-        !rtc::GetStringFromJsonObject(jmessage, kCandidateSdpName, &sdp)) {
-      RTC_LOG(WARNING) << "Can't parse received message.";
-      return;
-    }
-    webrtc::SdpParseError error;
-    std::unique_ptr<webrtc::IceCandidateInterface> candidate(
-        webrtc::CreateIceCandidate(sdp_mid, sdp_mlineindex, sdp, &error));
-    if (!candidate.get()) {
-      RTC_LOG(WARNING) << "Can't parse received candidate message. "
-                       << "SdpParseError was: " << error.description;
-      return;
-    }
-    if (!peer_connection_->AddIceCandidate(candidate.get())) {
-      RTC_LOG(WARNING) << "Failed to apply the received candidate";
-      return;
-    }
-    RTC_LOG(INFO) << " Received candidate :" << message;
-  }
+	rtc::GetStringFromJsonObject(jmessage, kSessionDescriptionTypeName,
+		&type_str);
+	if (!type_str.empty()) {
+		if (type_str == "offer-loopback") {
+			// This is a loopback call.
+			// Recreate the peerconnection with DTLS disabled.
+			if (!ReinitializePeerConnectionForLoopback()) {
+				RTC_LOG(LS_ERROR) << "Failed to initialize our PeerConnection instance";
+				DeletePeerConnection();
+				client_->SignOut();
+			}
+			return;
+		}
+		absl::optional<webrtc::SdpType> type_maybe =
+			webrtc::SdpTypeFromString(type_str);
+		if (!type_maybe) {
+			RTC_LOG(LS_ERROR) << "Unknown SDP type: " << type_str;
+			return;
+		}
+		webrtc::SdpType type = *type_maybe;
+		std::string sdp;
+		if (!rtc::GetStringFromJsonObject(jmessage, kSessionDescriptionSdpName,
+			&sdp)) {
+			RTC_LOG(WARNING) << "Can't parse received session description message.";
+			return;
+		}
+		webrtc::SdpParseError error;
+		std::unique_ptr<webrtc::SessionDescriptionInterface> session_description =
+			webrtc::CreateSessionDescription(type, sdp, &error);
+		if (!session_description) {
+			RTC_LOG(WARNING) << "Can't parse received session description message. "
+				"SdpParseError was: "
+				<< error.description;
+			return;
+		}
+		RTC_LOG(INFO) << " Received session description :" << message;
+		peer_connection_->SetRemoteDescription(
+			DummySetSessionDescriptionObserver::Create(),
+			session_description.release());
+		if (type == webrtc::SdpType::kOffer) {
+			peer_connection_->CreateAnswer(
+				this, webrtc::PeerConnectionInterface::RTCOfferAnswerOptions());
+		}
+	}
+	else {
+		std::string sdp_mid;
+		int sdp_mlineindex = 0;
+		std::string sdp;
+		if (!rtc::GetStringFromJsonObject(jmessage, kCandidateSdpMidName,
+			&sdp_mid) ||
+			!rtc::GetIntFromJsonObject(jmessage, kCandidateSdpMlineIndexName,
+				&sdp_mlineindex) ||
+			!rtc::GetStringFromJsonObject(jmessage, kCandidateSdpName, &sdp)) {
+			RTC_LOG(WARNING) << "Can't parse received message.";
+			return;
+		}
+		webrtc::SdpParseError error;
+		std::unique_ptr<webrtc::IceCandidateInterface> candidate(
+			webrtc::CreateIceCandidate(sdp_mid, sdp_mlineindex, sdp, &error));
+		if (!candidate.get()) {
+			RTC_LOG(WARNING) << "Can't parse received candidate message. "
+				"SdpParseError was: "
+				<< error.description;
+			return;
+		}
+		if (!peer_connection_->AddIceCandidate(candidate.get())) {
+			RTC_LOG(WARNING) << "Failed to apply the received candidate";
+			return;
+		}
+		RTC_LOG(INFO) << " Received candidate :" << message;
+	}
 }
 
 void Conductor::OnMessageSent(int err) {
@@ -519,22 +523,22 @@ void Conductor::UIThreadCallback(int msg_id, void* data) {
       break;
     }
 
-    case NEW_TRACK_ADDED: {
-      auto* track = reinterpret_cast<webrtc::MediaStreamTrackInterface*>(data);
-      if (track->kind() == webrtc::MediaStreamTrackInterface::kVideoKind) {
-        auto* video_track = static_cast<webrtc::VideoTrackInterface*>(track);
-        main_wnd_->StartRemoteRenderer(video_track);
-      }
-      track->Release();
-      break;
-    }
+	case NEW_TRACK_ADDED: {
+		auto* track = reinterpret_cast<webrtc::MediaStreamTrackInterface*>(data);
+		if (track->kind() == webrtc::MediaStreamTrackInterface::kVideoKind) {
+			auto* video_track = static_cast<webrtc::VideoTrackInterface*>(track);
+			main_wnd_->StartRemoteRenderer(video_track);
+		}
+		track->Release();
+		break;
+	}
 
-    case TRACK_REMOVED: {
-      // Remote peer stopped sending a track.
-      auto* track = reinterpret_cast<webrtc::MediaStreamTrackInterface*>(data);
-      track->Release();
-      break;
-    }
+	case TRACK_REMOVED: {
+		// Remote peer stopped sending a track.
+		auto* track = reinterpret_cast<webrtc::MediaStreamTrackInterface*>(data);
+		track->Release();
+		break;
+	}
 
     default:
       RTC_NOTREACHED();
@@ -569,7 +573,7 @@ void Conductor::OnSuccess(webrtc::SessionDescriptionInterface* desc) {
 }
 
 void Conductor::OnFailure(webrtc::RTCError error) {
-  RTC_LOG(LERROR) << ToString(error.type()) << ": " << error.message();
+  //RTC_LOG(LERROR) << ToString(error.type()) << ": " << error.message();
 }
 
 void Conductor::SendMessage(const std::string& json_object) {

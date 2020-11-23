@@ -35,9 +35,10 @@ class HTMLFrameSetElement final : public HTMLElement {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  DECLARE_NODE_FACTORY(HTMLFrameSetElement);
-
   explicit HTMLFrameSetElement(Document&);
+
+  // HTMLElement override
+  bool IsHTMLFrameSetElement() const override { return true; }
 
   bool HasFrameBorder() const { return frameborder_; }
   bool NoResize() const { return noresize_; }

@@ -54,7 +54,8 @@ class StyleFetchedImageSet final : public StyleImage,
   ~StyleFetchedImageSet() override;
 
   CSSValue* CssValue() const override;
-  CSSValue* ComputedCSSValue() const override;
+  CSSValue* ComputedCSSValue(const ComputedStyle&,
+                             bool allow_visited_style) const override;
 
   // FIXME: This is used by StyleImage for equals comparison, but this
   // implementation only looks at the image from the set that we have loaded.
@@ -66,7 +67,8 @@ class StyleFetchedImageSet final : public StyleImage,
   bool ErrorOccurred() const override;
   FloatSize ImageSize(const Document&,
                       float multiplier,
-                      const LayoutSize& default_object_size) const override;
+                      const FloatSize& default_object_size,
+                      RespectImageOrientationEnum) const override;
   bool HasIntrinsicSize() const override;
   void AddClient(ImageResourceObserver*) override;
   void RemoveClient(ImageResourceObserver*) override;
@@ -78,12 +80,16 @@ class StyleFetchedImageSet final : public StyleImage,
   bool KnownToBeOpaque(const Document&, const ComputedStyle&) const override;
   ImageResourceContent* CachedImage() const override;
 
-  void Trace(blink::Visitor*) override;
+  RespectImageOrientationEnum ForceOrientationIfNecessary(
+      RespectImageOrientationEnum default_orientation) const override;
+
+  void Trace(Visitor*) const override;
 
  private:
   bool IsEqual(const StyleImage& other) const override;
   void Dispose();
 
+  // ImageResourceObserver overrides
   String DebugName() const override { return "StyleFetchedImageSet"; }
 
   Member<ImageResourceContent> best_fit_image_;

@@ -6,7 +6,6 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_PARSER_CSS_SELECTOR_PARSER_H_
 
 #include <memory>
-#include "base/macros.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_selector.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_token_range.h"
@@ -35,6 +34,9 @@ class CORE_EXPORT CSSSelectorParser {
 
   static bool ConsumeANPlusB(CSSParserTokenRange&, std::pair<int, int>&);
 
+  static bool SupportsComplexSelector(CSSParserTokenRange,
+                                      const CSSParserContext*);
+
  private:
   CSSSelectorParser(const CSSParserContext*, StyleSheetContents*);
 
@@ -44,6 +46,13 @@ class CORE_EXPORT CSSSelectorParser {
   CSSSelectorList ConsumeComplexSelectorList(CSSParserTokenStream&,
                                              CSSParserObserver*);
   CSSSelectorList ConsumeCompoundSelectorList(CSSParserTokenRange&);
+  // Consumes a complex selector list if inside_compound_pseudo_ is false,
+  // otherwise consumes a compound selector list.
+  CSSSelectorList ConsumeNestedSelectorList(CSSParserTokenRange&);
+  CSSSelectorList ConsumeForgivingNestedSelectorList(CSSParserTokenRange&);
+  // https://drafts.csswg.org/selectors/#typedef-forgiving-selector-list
+  CSSSelectorList ConsumeForgivingComplexSelectorList(CSSParserTokenRange&);
+  CSSSelectorList ConsumeForgivingCompoundSelectorList(CSSParserTokenRange&);
 
   std::unique_ptr<CSSParserSelector> ConsumeComplexSelector(
       CSSParserTokenRange&);
@@ -80,12 +89,41 @@ class CORE_EXPORT CSSSelectorParser {
   SplitCompoundAtImplicitShadowCrossingCombinator(
       std::unique_ptr<CSSParserSelector> compound_selector);
   void RecordUsageAndDeprecations(const CSSSelectorList&);
+  static bool ContainsUnknownWebkitPseudoElements(
+      const CSSSelector& complex_selector);
 
-  Member<const CSSParserContext> context_;
-  Member<const StyleSheetContents> style_sheet_;
+  const CSSParserContext* context_;
+  const StyleSheetContents* style_sheet_;
 
   bool failed_parsing_ = false;
   bool disallow_pseudo_elements_ = false;
+  // We don't allow mixing ShadowDOMv0 features and nested complex selectors,
+  // such as :is(). When :is() or :where() is encountered, ShadowDOM V0 features
+  // are disallowed, and whenever /deep/, ::content or ::shadow is encountered
+  // we disallow :is()/:where().
+  bool disallow_shadow_dom_v0_ = false;
+  bool disallow_nested_complex_ = false;
+  // If we're inside a pseudo class that only accepts compound selectors,
+  // for example :host, inner :is()/:where() pseudo classes are also only
+  // allowed to contain compound selectors.
+  bool inside_compound_pseudo_ = false;
+  // When parsing a compound which includes a pseudo-element, the simple
+  // selectors permitted to follow that pseudo-element may be restricted.
+  // If this is the case, then restricting_pseudo_element_ will be set to the
+  // PseudoType of the pseudo-element causing the restriction.
+  CSSSelector::PseudoType restricting_pseudo_element_ =
+      CSSSelector::kPseudoUnknown;
+  // If we're _resisting_ the default namespace, it means that we are inside
+  // a nested selector (:is(), :where(), etc) where we should _consider_
+  // ignoring the default namespace (depending on circumstance). See the
+  // relevant spec text [1] regarding default namespaces for information about
+  // those circumstances.
+  //
+  // [1] https://drafts.csswg.org/selectors/#matches
+  bool resist_default_namespace_ = false;
+  // While this flag is true, the default namespace is ignored. In other words,
+  // the default namespace is '*' while this flag is true.
+  bool ignore_default_namespace_ = false;
 
   class DisallowPseudoElementsScope {
     STACK_ALLOCATED();
@@ -95,6 +133,9 @@ class CORE_EXPORT CSSSelectorParser {
         : parser_(parser), was_disallowed_(parser_->disallow_pseudo_elements_) {
       parser_->disallow_pseudo_elements_ = true;
     }
+    DisallowPseudoElementsScope(const DisallowPseudoElementsScope&) = delete;
+    DisallowPseudoElementsScope& operator=(const DisallowPseudoElementsScope&) =
+        delete;
 
     ~DisallowPseudoElementsScope() {
       parser_->disallow_pseudo_elements_ = was_disallowed_;
@@ -103,7 +144,6 @@ class CORE_EXPORT CSSSelectorParser {
    private:
     CSSSelectorParser* parser_;
     bool was_disallowed_;
-    DISALLOW_COPY_AND_ASSIGN(DisallowPseudoElementsScope);
   };
 };
 

@@ -5,8 +5,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_CREDENTIALMANAGER_PUBLIC_KEY_CREDENTIAL_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_CREDENTIALMANAGER_PUBLIC_KEY_CREDENTIAL_H_
 
+#include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_client_outputs.h"
 #include "third_party/blink/renderer/core/typed_arrays/dom_array_buffer.h"
-#include "third_party/blink/renderer/modules/credentialmanager/authentication_extensions_client_outputs.h"
 #include "third_party/blink/renderer/modules/credentialmanager/authenticator_response.h"
 #include "third_party/blink/renderer/modules/credentialmanager/credential.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
@@ -18,7 +18,7 @@ class AuthenticatorResponse;
 class ScriptPromise;
 class ScriptState;
 
-class MODULES_EXPORT PublicKeyCredential final : public Credential {
+class MODULES_EXPORT PublicKeyCredential : public Credential {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
@@ -26,7 +26,8 @@ class MODULES_EXPORT PublicKeyCredential final : public Credential {
       const String& id,
       DOMArrayBuffer* raw_id,
       AuthenticatorResponse*,
-      const AuthenticationExtensionsClientOutputs* extension_outputs);
+      const AuthenticationExtensionsClientOutputs* extension_outputs,
+      const String& type = "");
 
   DOMArrayBuffer* rawId() const { return raw_id_.Get(); }
   AuthenticatorResponse* response() const { return response_.Get(); }
@@ -35,7 +36,7 @@ class MODULES_EXPORT PublicKeyCredential final : public Credential {
   AuthenticationExtensionsClientOutputs* getClientExtensionResults() const;
 
   // Credential:
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
   bool IsPublicKeyCredential() const override;
 
  private:

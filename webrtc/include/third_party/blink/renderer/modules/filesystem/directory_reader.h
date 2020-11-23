@@ -53,7 +53,7 @@ class DirectoryReader : public DirectoryReaderBase {
     return static_cast<DOMFileSystem*>(file_system_.Get());
   }
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   void AddEntries(const EntryHeapVector& entries);
@@ -63,8 +63,8 @@ class DirectoryReader : public DirectoryReaderBase {
   bool is_reading_;
   EntryHeapVector entries_;
   base::File::Error error_ = base::File::FILE_OK;
-  Member<V8PersistentCallbackInterface<V8EntriesCallback>> entries_callback_;
-  Member<V8PersistentCallbackInterface<V8ErrorCallback>> error_callback_;
+  Member<V8EntriesCallback> entries_callback_;
+  Member<V8ErrorCallback> error_callback_;
 };
 
 }  // namespace blink

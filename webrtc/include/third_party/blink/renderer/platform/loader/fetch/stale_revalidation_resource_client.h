@@ -14,17 +14,15 @@ namespace blink {
 // to revalidate the resource. When the request has been completed the original
 // resource will be removed from the memory cache.
 class StaleRevalidationResourceClient
-    : public GarbageCollectedFinalized<StaleRevalidationResourceClient>,
+    : public GarbageCollected<StaleRevalidationResourceClient>,
       public RawResourceClient {
-  USING_GARBAGE_COLLECTED_MIXIN(StaleRevalidationResourceClient);
-
  public:
   explicit StaleRevalidationResourceClient(Resource* stale_resource);
   ~StaleRevalidationResourceClient() override;
 
   // RawResourceClient overloads.
   void NotifyFinished(Resource* resource) override;
-  void Trace(blink::Visitor* visitor) override;
+  void Trace(Visitor* visitor) const override;
   String DebugName() const override;
 
  private:

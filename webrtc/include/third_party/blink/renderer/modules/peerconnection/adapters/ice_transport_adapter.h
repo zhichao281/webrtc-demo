@@ -5,12 +5,12 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_PEERCONNECTION_ADAPTERS_ICE_TRANSPORT_ADAPTER_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_PEERCONNECTION_ADAPTERS_ICE_TRANSPORT_ADAPTER_H_
 
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/public/platform/web_vector.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "third_party/webrtc/p2p/base/p2p_transport_channel.h"
 
 namespace blink {
-
-class P2PQuicPacketTransport;
 
 // Defines the ICE candidate policy the browser uses to surface the permitted
 // candidates to the application.
@@ -64,14 +64,14 @@ class IceTransportAdapter {
   virtual void StartGathering(
       const cricket::IceParameters& local_parameters,
       const cricket::ServerAddresses& stun_servers,
-      const std::vector<cricket::RelayServerConfig>& turn_servers,
+      const WebVector<cricket::RelayServerConfig>& turn_servers,
       IceTransportPolicy policy) = 0;
 
   // Start ICE connectivity checks with the given initial remote candidates.
   virtual void Start(
       const cricket::IceParameters& remote_parameters,
       cricket::IceRole role,
-      const std::vector<cricket::Candidate>& initial_remote_candidates) = 0;
+      const Vector<cricket::Candidate>& initial_remote_candidates) = 0;
 
   // Handle a remote ICE restart. This changes the remote parameters and clears
   // all remote candidates.
@@ -81,10 +81,6 @@ class IceTransportAdapter {
   // Adds a remote candidate to potentially start connectivity checks with.
   // The caller must ensure Start() has already bene called.
   virtual void AddRemoteCandidate(const cricket::Candidate& candidate) = 0;
-
-  // Gets a P2PQuicPacketTransport that is backed by this ICE connection. The
-  // returned instance lives the same lifetime as the IceTransportAdapter.
-  virtual P2PQuicPacketTransport* packet_transport() const = 0;
 };
 
 }  // namespace blink

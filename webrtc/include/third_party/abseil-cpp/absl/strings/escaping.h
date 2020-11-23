@@ -33,6 +33,7 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 // CUnescape()
 //
@@ -132,16 +133,18 @@ bool WebSafeBase64Unescape(absl::string_view src, std::string* dest);
 
 // Base64Escape()
 //
-// Encodes a `src` string into a `dest` buffer using base64 encoding, with
-// padding characters. This function conforms with RFC 4648 section 4 (base64).
+// Encodes a `src` string into a base64-encoded string, with padding characters.
+// This function conforms with RFC 4648 section 4 (base64).
 void Base64Escape(absl::string_view src, std::string* dest);
+std::string Base64Escape(absl::string_view src);
 
 // WebSafeBase64Escape()
 //
-// Encodes a `src` string into a `dest` buffer using '-' instead of '+' and
-// '_' instead of '/', and without padding. This function conforms with RFC 4648
-// section 5 (base64url).
+// Encodes a `src` string into a base64-like string, using '-' instead of '+'
+// and '_' instead of '/', and without padding. This function conforms with RFC
+// 4648 section 5 (base64url).
 void WebSafeBase64Escape(absl::string_view src, std::string* dest);
+std::string WebSafeBase64Escape(absl::string_view src);
 
 // HexStringToBytes()
 //
@@ -155,6 +158,7 @@ std::string HexStringToBytes(absl::string_view from);
 // `2*from.size()`.
 std::string BytesToHexString(absl::string_view from);
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_ESCAPING_H_

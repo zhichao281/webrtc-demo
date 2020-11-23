@@ -21,6 +21,7 @@
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/assertions.h"
+#include "third_party/blink/renderer/platform/wtf/hash_functions.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
@@ -28,7 +29,17 @@
 
 namespace blink {
 
-static const size_t kInitialDisplayItemListCapacityBytes = 512;
+enum class PaintBenchmarkMode {
+  kNormal,
+  kForceRasterInvalidationAndConvert,
+  kForcePaintArtifactCompositorUpdate,
+  kForcePaint,
+  // The above modes don't additionally invalidate paintings, i.e. during
+  // repeated benchmarking, the PaintController is fully cached.
+  kPartialInvalidation,
+  kSubsequenceCachingDisabled,
+  kCachingDisabled,
+};
 
 // FrameFirstPaint stores first-paint, text or image painted for the
 // corresponding frame. They are never reset to false. First-paint is defined in
@@ -66,40 +77,47 @@ class PLATFORM_EXPORT PaintController {
   explicit PaintController(Usage = kMultiplePaints);
   ~PaintController();
 
-  // For pre-PaintAfterPaint only.
-  void InvalidateAll();
-  bool CacheIsAllInvalid() const;
+#if DCHECK_IS_ON()
+  Usage GetUsage() const { return usage_; }
+#endif
 
   // These methods are called during painting.
 
   // Provide a new set of paint chunk properties to apply to recorded display
-  // items.
-  void UpdateCurrentPaintChunkProperties(
-      const base::Optional<PaintChunk::Id>& id,
-      const PropertyTreeState& properties) {
-    if (id) {
-      PaintChunk::Id id_with_fragment(*id, current_fragment_);
-      UpdateCurrentPaintChunkPropertiesUsingIdWithFragment(id_with_fragment,
-                                                           properties);
-#if DCHECK_IS_ON()
-      CheckDuplicatePaintChunkId(id_with_fragment);
-#endif
-    } else {
-      new_paint_chunks_.UpdateCurrentPaintChunkProperties(base::nullopt,
-                                                          properties);
-    }
+  // items. If id is nullptr, the id of the first display item will be used as
+  // the id of the paint chunk if needed.
+  void UpdateCurrentPaintChunkProperties(const PaintChunk::Id*,
+                                         const PropertyTreeStateOrAlias&);
+  const PropertyTreeStateOrAlias& CurrentPaintChunkProperties() const {
+    return paint_chunker_.CurrentPaintChunkProperties();
   }
-
-  const PropertyTreeState& CurrentPaintChunkProperties() const {
-    return new_paint_chunks_.CurrentPaintChunkProperties();
+  // See PaintChunker for documentation of the following methods.
+  void SetWillForceNewChunk(bool force) {
+    paint_chunker_.SetWillForceNewChunk(force);
   }
+  bool WillForceNewChunk() const { return paint_chunker_.WillForceNewChunk(); }
 
-  PaintChunk& CurrentPaintChunk() { return new_paint_chunks_.LastChunk(); }
+  void EnsureChunk();
 
-  void ForceNewChunk(const DisplayItemClient& client, DisplayItem::Type type) {
-    new_paint_chunks_.ForceNewChunk();
-    new_paint_chunks_.UpdateCurrentPaintChunkProperties(
-        PaintChunk::Id(client, type), CurrentPaintChunkProperties());
+  void RecordHitTestData(const DisplayItemClient&,
+                         const IntRect&,
+                         TouchAction,
+                         bool);
+
+  void RecordScrollHitTestData(
+      const DisplayItemClient&,
+      DisplayItem::Type,
+      const TransformPaintPropertyNode* scroll_translation,
+      const IntRect&);
+  void SetPossibleBackgroundColor(const DisplayItemClient&,
+                                  Color,
+                                  uint64_t area);
+
+  wtf_size_t NumNewChunks() const {
+    return new_paint_artifact_->PaintChunks().size();
+  }
+  const IntRect& LastChunkBounds() const {
+    return new_paint_artifact_->PaintChunks().back().bounds;
   }
 
   template <typename DisplayItemClass, typename... Args>
@@ -113,13 +131,10 @@ class PLATFORM_EXPORT PaintController {
                   "DisplayItem subclass alignment is not a factor of "
                   "kDisplayItemAlignment.");
 
-    if (DisplayItemConstructionIsDisabled())
-      return;
-
-    EnsureNewDisplayItemListInitialCapacity();
     DisplayItemClass& display_item =
-        new_display_item_list_.AllocateAndConstruct<DisplayItemClass>(
-            std::forward<Args>(args)...);
+        new_paint_artifact_->GetDisplayItemList()
+            .AllocateAndConstruct<DisplayItemClass>(
+                std::forward<Args>(args)...);
     display_item.SetFragment(current_fragment_);
     ProcessNewItem(display_item);
   }
@@ -134,10 +149,11 @@ class PLATFORM_EXPORT PaintController {
   // true. Otherwise returns false.
   bool UseCachedSubsequenceIfPossible(const DisplayItemClient&);
 
-  size_t BeginSubsequence();
+  // Returns the index of the paint chunk that is forced for the subsequence.
+  wtf_size_t BeginSubsequence();
   // The |start| parameter should be the return value of the corresponding
   // BeginSubsequence().
-  void EndSubsequence(const DisplayItemClient&, size_t start);
+  void EndSubsequence(const DisplayItemClient&, wtf_size_t start_chunk_index);
 
   void BeginSkippingCache() {
     if (usage_ == kTransient)
@@ -166,29 +182,17 @@ class PLATFORM_EXPORT PaintController {
   // there FinishCycle() at the same time to ensure consistent caching status.
   void FinishCycle();
 
-  // |FinishCycle| clears the property tree changed state but only does this for
-  // non-transient controllers. The root paint controller is transient with
-  // BlinkGenPropertyTrees and this function provides a hook for clearing
-  // the property tree changed state after paint.
-  // TODO(pdr): Remove this when BlinkGenPropertyTrees ships.
-  void ClearPropertyTreeChangedStateTo(const PropertyTreeState&);
-
-  // Returns the approximate memory usage, excluding memory likely to be
-  // shared with the embedder after copying to WebPaintController.
-  // Should only be called after a full document life cycle update.
+  // Returns the approximate memory usage owned by this PaintController.
   size_t ApproximateUnsharedMemoryUsage() const;
 
   // Get the artifact generated after the last commit.
   const PaintArtifact& GetPaintArtifact() const {
-#if DCHECK_IS_ON()
-    DCHECK(new_display_item_list_.IsEmpty());
-    DCHECK(new_paint_chunks_.IsInInitialState());
-    DCHECK(current_paint_artifact_);
-#endif
+    CheckNoNewPaint();
     return *current_paint_artifact_;
   }
   scoped_refptr<const PaintArtifact> GetPaintArtifactShared() const {
-    return base::WrapRefCounted(&GetPaintArtifact());
+    CheckNoNewPaint();
+    return current_paint_artifact_;
   }
   const DisplayItemList& GetDisplayItemList() const {
     return GetPaintArtifact().GetDisplayItemList();
@@ -197,38 +201,47 @@ class PLATFORM_EXPORT PaintController {
     return GetPaintArtifact().PaintChunks();
   }
 
-  // For micro benchmarking of record time. If true, display item construction
-  // is disabled to isolate the costs of construction in performance metrics.
-  bool DisplayItemConstructionIsDisabled() const {
-    return construction_disabled_;
+  scoped_refptr<const PaintArtifact> GetNewPaintArtifactShared() const {
+    DCHECK(new_paint_artifact_);
+    return new_paint_artifact_;
   }
-  void SetDisplayItemConstructionIsDisabled(bool disable) {
-    construction_disabled_ = disable;
+  wtf_size_t NewPaintChunkCount() const {
+    DCHECK(new_paint_artifact_);
+    return new_paint_artifact_->PaintChunks().size();
   }
 
-  // For micro benchmarking of record time. If true, subsequence caching is
-  // disabled to test the cost of display item caching.
-  bool SubsequenceCachingIsDisabled() const {
-    return subsequence_caching_disabled_;
-  }
-  void SetSubsequenceCachingIsDisabled(bool disable) {
-    subsequence_caching_disabled_ = disable;
+  class ScopedBenchmarkMode {
+    STACK_ALLOCATED();
+
+   public:
+    ScopedBenchmarkMode(PaintController& paint_controller,
+                        PaintBenchmarkMode mode)
+        : paint_controller_(paint_controller) {
+      // Nesting is not allowed.
+      DCHECK_EQ(PaintBenchmarkMode::kNormal, paint_controller_.benchmark_mode_);
+      paint_controller.SetBenchmarkMode(mode);
+    }
+    ~ScopedBenchmarkMode() {
+      paint_controller_.SetBenchmarkMode(PaintBenchmarkMode::kNormal);
+    }
+
+   private:
+    PaintController& paint_controller_;
+  };
+
+  PaintBenchmarkMode GetBenchmarkMode() const { return benchmark_mode_; }
+  bool ShouldForcePaintForBenchmark() {
+    return benchmark_mode_ >= PaintBenchmarkMode::kForcePaint;
   }
 
   void SetFirstPainted();
   void SetTextPainted();
   void SetImagePainted();
 
-  // Returns DisplayItemList added using CreateAndAppend() since beginning or
-  // the last CommitNewDisplayItems(). Use with care.
-  DisplayItemList& NewDisplayItemList() { return new_display_item_list_; }
-
-  void AppendDebugDrawingAfterCommit(sk_sp<const PaintRecord>,
-                                     const PropertyTreeState&);
-
 #if DCHECK_IS_ON()
+  void ShowCompactDebugData() const;
   void ShowDebugData() const;
-  void ShowDebugDataWithRecords() const;
+  void ShowDebugDataWithPaintRecords() const;
 #endif
 
   void BeginFrame(const void* frame);
@@ -237,8 +250,8 @@ class PLATFORM_EXPORT PaintController {
   // The current fragment will be part of the ids of all display items and
   // paint chunks, to uniquely identify display items in different fragments
   // for the same client and type.
-  unsigned CurrentFragment() const { return current_fragment_; }
-  void SetCurrentFragment(unsigned fragment) { current_fragment_ = fragment; }
+  wtf_size_t CurrentFragment() const { return current_fragment_; }
+  void SetCurrentFragment(wtf_size_t fragment) { current_fragment_ = fragment; }
 
   // The client may skip a paint when nothing changed. In the case, the client
   // calls this method to update UMA counts as a fully cached paint.
@@ -250,6 +263,7 @@ class PLATFORM_EXPORT PaintController {
  private:
   friend class PaintControllerTestBase;
   friend class PaintControllerPaintTestBase;
+  friend class GraphicsLayer;  // Temporary for ClientCacheIsValid().
 
   // True if all display items associated with the client are validly cached.
   // However, the current algorithm allows the following situations even if
@@ -263,44 +277,68 @@ class PLATFORM_EXPORT PaintController {
   //    display item will be removed. This doesn't affect performance.
   bool ClientCacheIsValid(const DisplayItemClient&) const;
 
-  void InvalidateAllForTesting() { InvalidateAllInternal(); }
-  void InvalidateAllInternal();
+  void InvalidateAllForTesting();
 
-  void EnsureNewDisplayItemListInitialCapacity() {
-    if (new_display_item_list_.IsEmpty()) {
-      // TODO(wangxianzhu): Consider revisiting this heuristic.
-      new_display_item_list_ = DisplayItemList(
-          current_paint_artifact_->GetDisplayItemList().IsEmpty()
-              ? kInitialDisplayItemListCapacityBytes
-              : current_paint_artifact_->GetDisplayItemList()
-                    .UsedCapacityInBytes());
-    }
-  }
-
-  // Set new item state (cache skipping, etc) for a new item.
+  // Set new item state (cache skipping, etc) for the last new display item.
   void ProcessNewItem(DisplayItem&);
-  DisplayItem& MoveItemFromCurrentListToNewList(size_t);
 
-  // Maps clients to indices of display items or chunks of each client.
-  using IndicesByClientMap = HashMap<const DisplayItemClient*, Vector<size_t>>;
+  void CheckNewItem(DisplayItem&);
+  DisplayItem& MoveItemFromCurrentListToNewList(wtf_size_t);
+  void CheckNewChunk();
 
-  static size_t FindMatchingItemFromIndex(const DisplayItem::Id&,
-                                          const IndicesByClientMap&,
-                                          const DisplayItemList&);
-  static void AddToIndicesByClientMap(const DisplayItemClient&,
-                                      size_t index,
-                                      IndicesByClientMap&);
+  struct IdAsHashKey {
+    IdAsHashKey() = default;
+    explicit IdAsHashKey(const DisplayItem::Id& id)
+        : client(&id.client), type(id.type), fragment(id.fragment) {}
+    explicit IdAsHashKey(WTF::HashTableDeletedValueType) {
+      HashTraits<const DisplayItemClient*>::ConstructDeletedValue(client,
+                                                                  false);
+    }
+    bool IsHashTableDeletedValue() const {
+      return HashTraits<const DisplayItemClient*>::IsDeletedValue(client);
+    }
+    bool operator==(const IdAsHashKey& other) const {
+      return client == other.client && type == other.type &&
+             fragment == other.fragment;
+    }
 
-  size_t FindCachedItem(const DisplayItem::Id&);
-  size_t FindOutOfOrderCachedItemForward(const DisplayItem::Id&);
-  void CopyCachedSubsequence(size_t begin_index, size_t end_index);
+    const DisplayItemClient* client = nullptr;
+    DisplayItem::Type type = static_cast<DisplayItem::Type>(0);
+    wtf_size_t fragment = 0;
+  };
 
-  void UpdateCurrentPaintChunkPropertiesUsingIdWithFragment(
-      const PaintChunk::Id& id_with_fragment,
-      const PropertyTreeState& properties) {
-    new_paint_chunks_.UpdateCurrentPaintChunkProperties(id_with_fragment,
-                                                        properties);
-  }
+  struct IdHash {
+    STATIC_ONLY(IdHash);
+    static unsigned GetHash(const IdAsHashKey& id) {
+      unsigned hash = PtrHash<const DisplayItemClient>::GetHash(id.client);
+      WTF::AddIntToHash(hash, id.type);
+      WTF::AddIntToHash(hash, id.fragment);
+      return hash;
+    }
+    static bool Equal(const IdAsHashKey& a, const IdAsHashKey& b) {
+      return a == b;
+    }
+    static const bool safe_to_compare_to_empty_or_deleted = true;
+  };
+
+  // Maps a display item id to the index of the display item or the paint chunk.
+  using IdIndexMap = HashMap<IdAsHashKey,
+                             wtf_size_t,
+                             IdHash,
+                             SimpleClassHashTraits<IdAsHashKey>>;
+
+  static wtf_size_t FindItemFromIdIndexMap(const DisplayItem::Id&,
+                                           const IdIndexMap&,
+                                           const DisplayItemList&);
+  static void AddToIdIndexMap(const DisplayItem::Id&,
+                              wtf_size_t index,
+                              IdIndexMap&);
+
+  wtf_size_t FindCachedItem(const DisplayItem::Id&);
+  wtf_size_t FindOutOfOrderCachedItemForward(const DisplayItem::Id&);
+  void CopyCachedSubsequence(wtf_size_t start_chunk_index,
+                             wtf_size_t end_chunk_index);
+  void AppendChunkByMoving(PaintChunk&&);
 
   // Resets the indices (e.g. next_item_to_match_) of
   // current_paint_artifact_.GetDisplayItemList() to their initial values. This
@@ -315,9 +353,7 @@ class PLATFORM_EXPORT PaintController {
                                   const DisplayItem* old_item) const;
 
   void ShowSequenceUnderInvalidationError(const char* reason,
-                                          const DisplayItemClient&,
-                                          int start,
-                                          int end);
+                                          const DisplayItemClient&);
 
   void CheckUnderInvalidation();
   bool IsCheckingUnderInvalidation() const {
@@ -326,36 +362,47 @@ class PLATFORM_EXPORT PaintController {
   }
 
   struct SubsequenceMarkers {
-    SubsequenceMarkers() : start(0), end(0) {}
-    SubsequenceMarkers(size_t start_arg, size_t end_arg)
-        : start(start_arg), end(end_arg) {}
-    // The start and end (not included) index within current_paint_artifact_
-    // of this subsequence.
-    size_t start;
-    size_t end;
+    // The start and end (not included) index of paint chunks in this
+    // subsequence.
+    wtf_size_t start_chunk_index = 0;
+    wtf_size_t end_chunk_index = 0;
   };
 
   SubsequenceMarkers* GetSubsequenceMarkers(const DisplayItemClient&);
 
-#if DCHECK_IS_ON()
   void CheckDuplicatePaintChunkId(const PaintChunk::Id&);
+
+#if DCHECK_IS_ON()
   void ShowDebugDataInternal(DisplayItemList::JsonFlags) const;
 #endif
 
   void UpdateUMACounts();
 
+  void SetBenchmarkMode(PaintBenchmarkMode);
+  bool ShouldInvalidateDisplayItemForBenchmark();
+  bool ShouldInvalidateSubsequenceForBenchmark();
+
+  void CheckNoNewPaint() const {
+#if DCHECK_IS_ON()
+    DCHECK(!new_paint_artifact_ || new_paint_artifact_->IsEmpty());
+    DCHECK(paint_chunker_.IsInInitialState());
+    DCHECK(current_paint_artifact_);
+#endif
+  }
+
   Usage usage_;
 
   // The last paint artifact after CommitNewDisplayItems().
   // It includes paint chunks as well as display items.
+  // It's initially empty and is never null if usage is kMultiplePaints.
+  // Otherwise it's null before CommitNewDisplayItems().
   scoped_refptr<PaintArtifact> current_paint_artifact_;
 
   // Data being used to build the next paint artifact.
-  DisplayItemList new_display_item_list_;
-  PaintChunker new_paint_chunks_;
-
-  bool construction_disabled_ = false;
-  bool subsequence_caching_disabled_ = false;
+  // It's never null and if usage is kMultiplePaints. Otherwise it's null after
+  // CommitNewDisplayItems().
+  scoped_refptr<PaintArtifact> new_paint_artifact_;
+  PaintChunker paint_chunker_;
 
   bool cache_is_all_invalid_ = true;
   bool committed_ = false;
@@ -365,10 +412,10 @@ class PLATFORM_EXPORT PaintController {
 
   unsigned skipping_cache_count_ = 0;
 
-  size_t num_cached_new_items_ = 0;
-  size_t num_cached_new_subsequences_ = 0;
+  wtf_size_t num_cached_new_items_ = 0;
+  wtf_size_t num_cached_new_subsequences_ = 0;
 
-  // Stores indices to valid cacheable display items in
+  // Maps from ids to indices of valid cacheable display items in
   // current_paint_artifact_.GetDisplayItemList() that have not been matched by
   // requests of cached display items (using UseCachedItemIfPossible() and
   // UseCachedSubsequenceIfPossible()) during sequential matching. The indexed
@@ -377,24 +424,24 @@ class PLATFORM_EXPORT PaintController {
   // requested, we only traverse at most once over the current display list
   // looking for potential matches. Thus we can ensure that the algorithm runs
   // in linear time.
-  IndicesByClientMap out_of_order_item_indices_;
+  IdIndexMap out_of_order_item_id_index_map_;
 
   // The next item in the current list for sequential match.
-  size_t next_item_to_match_ = 0;
+  wtf_size_t next_item_to_match_ = 0;
 
   // The next item in the current list to be indexed for out-of-order cache
   // requests.
-  size_t next_item_to_index_ = 0;
+  wtf_size_t next_item_to_index_ = 0;
 
-  size_t num_indexed_items_ = 0;
 #if DCHECK_IS_ON()
-  size_t num_sequential_matches_ = 0;
-  size_t num_out_of_order_matches_ = 0;
+  wtf_size_t num_indexed_items_ = 0;
+  wtf_size_t num_sequential_matches_ = 0;
+  wtf_size_t num_out_of_order_matches_ = 0;
 
   // This is used to check duplicated ids during CreateAndAppend().
-  IndicesByClientMap new_display_item_indices_by_client_;
+  IdIndexMap new_display_item_id_index_map_;
   // This is used to check duplicated ids for new paint chunks.
-  IndicesByClientMap new_paint_chunk_indices_by_client_;
+  IdIndexMap new_paint_chunk_id_index_map_;
 #endif
 
   // These are set in UseCachedItemIfPossible() and
@@ -403,8 +450,8 @@ class PLATFORM_EXPORT PaintController {
   // end of the cached drawing or subsequence in the current list. The functions
   // return false to let the client do actual painting, and PaintController will
   // check if the actual painting results are the same as the cached.
-  size_t under_invalidation_checking_begin_ = 0;
-  size_t under_invalidation_checking_end_ = 0;
+  wtf_size_t under_invalidation_checking_begin_ = 0;
+  wtf_size_t under_invalidation_checking_end_ = 0;
 
   String under_invalidation_message_prefix_;
 
@@ -412,9 +459,13 @@ class PLATFORM_EXPORT PaintController {
       HashMap<const DisplayItemClient*, SubsequenceMarkers>;
   CachedSubsequenceMap current_cached_subsequences_;
   CachedSubsequenceMap new_cached_subsequences_;
-  size_t last_cached_subsequence_end_ = 0;
+  wtf_size_t last_cached_subsequence_end_ = 0;
 
-  unsigned current_fragment_ = 0;
+  wtf_size_t current_fragment_ = 0;
+
+  PaintBenchmarkMode benchmark_mode_ = PaintBenchmarkMode::kNormal;
+  int partial_invalidation_display_item_count_ = 0;
+  int partial_invalidation_subsequence_count_ = 0;
 
   // Accumulated counts for UMA metrics. Updated by UpdateUMACounts() and
   // UpdateUMACountsOnFullyCached(), and reported as UMA metrics and reset by
@@ -423,12 +474,14 @@ class PLATFORM_EXPORT PaintController {
   // document life cycle update.
   static size_t sum_num_items_;
   static size_t sum_num_cached_items_;
-  static size_t sum_num_indexed_items_;
   static size_t sum_num_subsequences_;
   static size_t sum_num_cached_subsequences_;
-  static size_t sum_num_paint_chunks_;
 
-  class DisplayItemListAsJSON;
+  // For testing, to disable ReportUMACounts(), to prevent the above sums from
+  // being cleared.
+  static bool disable_uma_reporting_;
+
+  class PaintArtifactAsJSON;
 
   DISALLOW_COPY_AND_ASSIGN(PaintController);
 };

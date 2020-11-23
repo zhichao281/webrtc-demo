@@ -28,7 +28,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_WEBORIGIN_SCHEME_REGISTRY_H_
 
 #include "third_party/blink/renderer/platform/platform_export.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_hash.h"
@@ -49,8 +49,6 @@ class PLATFORM_EXPORT SchemeRegistry {
   STATIC_ONLY(SchemeRegistry);
 
  public:
-  static void Initialize();
-
   static void RegisterURLSchemeAsLocal(const String&);
   static bool ShouldTreatURLSchemeAsLocal(const String&);
 
@@ -73,6 +71,7 @@ class PLATFORM_EXPORT SchemeRegistry {
 
   static void SetDomainRelaxationForbiddenForURLScheme(bool forbidden,
                                                        const String&);
+  static void ResetDomainRelaxation();
   static bool IsDomainRelaxationForbiddenForURLScheme(const String&);
 
   // Such schemes should delegate to SecurityOrigin::canRequest for any URL
@@ -92,8 +91,8 @@ class PLATFORM_EXPORT SchemeRegistry {
   // Serialize the registered schemes in a comma-separated list.
   static String ListOfCorsEnabledURLSchemes();
 
-  // "Legacy" schemes (e.g. 'ftp:', 'gopher:') which we might want to treat
-  // differently from "webby" schemes.
+  // "Legacy" schemes (e.g. 'ftp:') which we might want to treat differently
+  // from "webby" schemes.
   static bool ShouldTreatURLSchemeAsLegacy(const String& scheme);
 
   // Does the scheme represent a location relevant to web compatibility metrics?
@@ -116,6 +115,14 @@ class PLATFORM_EXPORT SchemeRegistry {
   static void RemoveURLSchemeAsFirstPartyWhenTopLevel(const String& scheme);
   static bool ShouldTreatURLSchemeAsFirstPartyWhenTopLevel(
       const String& scheme);
+
+  // Like RegisterURLSchemeAsFirstPartyWhenTopLevel, but requires the present
+  // document to be delivered over a secure scheme.
+  static void RegisterURLSchemeAsFirstPartyWhenTopLevelEmbeddingSecure(
+      const String& scheme);
+  static bool ShouldTreatURLSchemeAsFirstPartyWhenTopLevelEmbeddingSecure(
+      const String& top_level_scheme,
+      const String& child_scheme);
 
   // Schemes that can be used in a referrer.
   static void RegisterURLSchemeAsAllowedForReferrer(const String& scheme);

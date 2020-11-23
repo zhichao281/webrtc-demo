@@ -33,42 +33,72 @@
 
 #include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
-#include "third_party/blink/renderer/core/execution_context/context_lifecycle_observer.h"
+#include "base/util/type_safety/pass_key.h"
+#include "third_party/blink/public/mojom/prerender/prerender.mojom-blink.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 
 namespace blink {
 
+class ExecutionContext;
 class Document;
-class Prerender;
 class PrerenderClient;
 
-class PrerenderHandle final : public GarbageCollectedFinalized<PrerenderHandle>,
-                              public ContextLifecycleObserver {
-  USING_GARBAGE_COLLECTED_MIXIN(PrerenderHandle);
-
+// This is the Blink-side liaison of mojom::PrerenderProcessor to request the
+// browser process to start prerendering, and implements
+// mojom::PrerenderProcessorClient to observe events about prerendering. This is
+// instantiated per prerender request, for example, when a new <link
+// rel=prerender> element is added, when the element's href is changed etc.
+//
+// When you no longer need the prerendering page (e.g., when the
+// <link rel=prerender> element is removed), you can ask the browser process to
+// cancel the running prerender by Cancel(). If mojo connections are reset
+// without Cancel() call, the browser process considers this prerendering
+// request to be abandoned and may still use the prerendered page if a
+// navigation occurs to that URL shortly after.
+//
+// TODO(https://crbug.com/1126305): Rename this to PrerenderProcessorClient.
+class PrerenderHandle final : public GarbageCollected<PrerenderHandle>,
+                              public mojom::blink::PrerenderProcessorClient {
  public:
-  static PrerenderHandle* Create(Document&,
-                                 PrerenderClient*,
-                                 const KURL&,
-                                 unsigned prerender_rel_types);
+  static PrerenderHandle* Create(
+      Document&,
+      PrerenderClient*,
+      const KURL&,
+      mojom::blink::PrerenderRelType prerender_rel_type);
 
-  PrerenderHandle(Document&, Prerender*);
-  virtual ~PrerenderHandle();
+  using PassKey = util::PassKey<PrerenderHandle>;
+  PrerenderHandle(
+      PassKey,
+      ExecutionContext*,
+      PrerenderClient*,
+      const KURL&,
+      HeapMojoRemote<mojom::blink::PrerenderProcessor>,
+      mojo::PendingReceiver<mojom::blink::PrerenderProcessorClient>);
+  ~PrerenderHandle() override;
 
+  // Asks the browser process to cancel the running prerender.
   void Cancel();
+
   const KURL& Url() const;
 
-  // ContextLifecycleObserver:
-  void ContextDestroyed(ExecutionContext*) override;
+  // mojom::blink::PrerenderProcessorClient:
+  void OnPrerenderStart() override;
+  void OnPrerenderStopLoading() override;
+  void OnPrerenderDomContentLoaded() override;
+  void OnPrerenderStop() override;
 
-  void Trace(blink::Visitor*) override;
-  EAGERLY_FINALIZE();
+  virtual void Trace(Visitor*) const;
 
  private:
-  void Detach();
-
-  Member<Prerender> prerender_;
+  const KURL url_;
+  const WeakMember<PrerenderClient> client_;
+  HeapMojoRemote<mojom::blink::PrerenderProcessor> remote_processor_;
+  HeapMojoReceiver<mojom::blink::PrerenderProcessorClient, PrerenderHandle>
+      receiver_;
 
   DISALLOW_COPY_AND_ASSIGN(PrerenderHandle);
 };

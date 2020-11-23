@@ -17,6 +17,7 @@
  */
 #include "./vp8.h"
 #include "./vpx_encoder.h"
+#include "./vpx_ext_ratectrl.h"
 
 /*!\file
  * \brief Provides definitions for using VP8 or VP9 encoder algorithm within the
@@ -156,6 +157,9 @@ enum vp8e_enc_control_id {
 
   /*!\brief Codec control function to enable automatic use of arf frames.
    *
+   * \note Valid range for VP8: 0..1
+   * \note Valid range for VP9: 0..6
+   *
    * Supported in codecs: VP8, VP9
    */
   VP8E_SET_ENABLEAUTOALTREF,
@@ -228,10 +232,10 @@ enum vp8e_enc_control_id {
    */
   VP8E_SET_TUNING,
 
-  /*!\brief Codec control function to set constrained quality level.
+  /*!\brief Codec control function to set constrained / constant quality level.
    *
    * \attention For this value to be used vpx_codec_enc_cfg_t::rc_end_usage must
-   *            be set to #VPX_CQ
+   *            be set to #VPX_CQ or #VPX_Q
    * \note Valid range: 0..63
    *
    * Supported in codecs: VP8, VP9
@@ -673,6 +677,41 @@ enum vp8e_enc_control_id {
    * Supported in codecs: VP9
    */
   VP9E_SET_POSTENCODE_DROP,
+
+  /*!\brief Codec control function to set delta q for uv.
+   *
+   * Cap it at +/-15.
+   *
+   * Supported in codecs: VP9
+   */
+  VP9E_SET_DELTA_Q_UV,
+
+  /*!\brief Codec control function to disable increase Q on overshoot in CBR.
+   *
+   * 0: On (default), 1: Disable.
+   *
+   * Supported in codecs: VP9
+   */
+  VP9E_SET_DISABLE_OVERSHOOT_MAXQ_CBR,
+
+  /*!\brief Codec control function to disable loopfilter.
+   *
+   * 0: Loopfilter on all frames, 1: Disable on non reference frames.
+   * 2: Disable on all frames.
+   *
+   * Supported in codecs: VP9
+   */
+  VP9E_SET_DISABLE_LOOPFILTER,
+
+  /*!\brief Codec control function to enable external rate control library.
+   *
+   * args[0]: path of the rate control library
+   *
+   * args[1]: private config of the rate control library
+   *
+   * Supported in codecs: VP9
+   */
+  VP9E_SET_EXTERNAL_RATE_CONTROL,
 };
 
 /*!\brief vpx 1-D scaling mode
@@ -836,6 +875,8 @@ typedef enum {
   /**< Upper layers are constrained to drop if current layer drops. */
   LAYER_DROP,           /**< Any spatial layer can drop. */
   FULL_SUPERFRAME_DROP, /**< Only full superframe can drop. */
+  CONSTRAINED_FROM_ABOVE_DROP,
+  /**< Lower layers are constrained to drop if current layer drops. */
 } SVC_LAYER_DROP_MODE;
 
 /*!\brief vp9 svc frame dropping parameters.
@@ -933,8 +974,8 @@ VPX_CTRL_USE_TYPE(VP9E_GET_SVC_LAYER_ID, vpx_svc_layer_id_t *)
 
 VPX_CTRL_USE_TYPE(VP8E_SET_MAX_INTRA_BITRATE_PCT, unsigned int)
 #define VPX_CTRL_VP8E_SET_MAX_INTRA_BITRATE_PCT
-VPX_CTRL_USE_TYPE(VP8E_SET_MAX_INTER_BITRATE_PCT, unsigned int)
-#define VPX_CTRL_VP8E_SET_MAX_INTER_BITRATE_PCT
+VPX_CTRL_USE_TYPE(VP9E_SET_MAX_INTER_BITRATE_PCT, unsigned int)
+#define VPX_CTRL_VP9E_SET_MAX_INTER_BITRATE_PCT
 
 VPX_CTRL_USE_TYPE(VP8E_SET_GF_CBR_BOOST_PCT, unsigned int)
 #define VPX_CTRL_VP8E_SET_GF_CBR_BOOST_PCT
@@ -1017,6 +1058,18 @@ VPX_CTRL_USE_TYPE(VP9E_SET_SVC_SPATIAL_LAYER_SYNC,
 
 VPX_CTRL_USE_TYPE(VP9E_SET_POSTENCODE_DROP, unsigned int)
 #define VPX_CTRL_VP9E_SET_POSTENCODE_DROP
+
+VPX_CTRL_USE_TYPE(VP9E_SET_DELTA_Q_UV, int)
+#define VPX_CTRL_VP9E_SET_DELTA_Q_UV
+
+VPX_CTRL_USE_TYPE(VP9E_SET_DISABLE_OVERSHOOT_MAXQ_CBR, int)
+#define VPX_CTRL_VP9E_SET_DISABLE_OVERSHOOT_MAXQ_CBR
+
+VPX_CTRL_USE_TYPE(VP9E_SET_DISABLE_LOOPFILTER, int)
+#define VPX_CTRL_VP9E_SET_DISABLE_LOOPFILTER
+
+VPX_CTRL_USE_TYPE(VP9E_SET_EXTERNAL_RATE_CONTROL, vpx_rc_funcs_t *)
+#define VPX_CTRL_VP9E_SET_EXTERNAL_RATE_CONTROL
 
 /*!\endcond */
 /*! @} - end defgroup vp8_encoder */

@@ -34,8 +34,6 @@ class CORE_EXPORT CustomElementRegistry final : public ScriptWrappable {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static CustomElementRegistry* Create(const LocalDOMWindow*);
-
   CustomElementRegistry(const LocalDOMWindow*);
   ~CustomElementRegistry() override = default;
 
@@ -64,7 +62,7 @@ class CORE_EXPORT CustomElementRegistry final : public ScriptWrappable {
 
   void Entangle(V0CustomElementRegistrationContext*);
 
-  void Trace(Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   CustomElementDefinition* DefineInternal(ScriptState*,

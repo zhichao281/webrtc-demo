@@ -21,8 +21,8 @@ class Visitor;
 // need to be stored somewhere: promises on the stack should generally use
 // v8::Local<v8::Promise>, or ScriptPromise if they are to be returned to the
 // bindings code.
-class CORE_EXPORT StreamPromiseResolver
-    : public GarbageCollectedFinalized<StreamPromiseResolver> {
+class CORE_EXPORT StreamPromiseResolver final
+    : public GarbageCollected<StreamPromiseResolver> {
  public:
   // Implements "a promise rejected with" from the INFRA standard.
   // https://www.w3.org/2001/tag/doc/promises-guide/#a-promise-rejected-with
@@ -47,7 +47,6 @@ class CORE_EXPORT StreamPromiseResolver
 
   // Creates an initialised promise.
   explicit StreamPromiseResolver(ScriptState*);
-  ~StreamPromiseResolver();
 
   // Resolves the promise with |value|. Does nothing if the promise is already
   // settled.
@@ -76,7 +75,7 @@ class CORE_EXPORT StreamPromiseResolver
   // Returns true if the the promise is not pending.
   bool IsSettled() const { return is_settled_; }
 
-  void Trace(Visitor*);
+  void Trace(Visitor*) const;
 
  private:
   TraceWrapperV8Reference<v8::Promise::Resolver> resolver_;

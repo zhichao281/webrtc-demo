@@ -24,7 +24,9 @@
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_LIST_HASH_SET_H_
 
 #include <memory>
+#include <type_traits>
 #include "third_party/blink/renderer/platform/wtf/allocator/partition_allocator.h"
+#include "third_party/blink/renderer/platform/wtf/conditional_destructor.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
 
 namespace WTF {
@@ -69,6 +71,20 @@ struct ListHashSetNodeHashFunctions;
 template <typename HashArg>
 struct ListHashSetTranslator;
 
+template <typename Value, typename Allocator>
+struct ListHashSetTraits
+    : public HashTraits<ListHashSetNode<Value, Allocator>*> {
+  using Node = ListHashSetNode<Value, Allocator>;
+
+  static void ConstructDeletedValue(Node*& slot, bool) {
+    AsAtomicPtr(&slot)->store(reinterpret_cast<Node*>(-1),
+                              std::memory_order_relaxed);
+  }
+
+  static constexpr bool kCanTraceConcurrently =
+      HashTraits<Value>::kCanTraceConcurrently;
+};
+
 // Note that for a ListHashSet you cannot specify the HashTraits as a template
 // argument. It uses the default hash traits for the ValueArg type.
 template <typename ValueArg,
@@ -76,12 +92,15 @@ template <typename ValueArg,
           typename HashArg = typename DefaultHash<ValueArg>::Hash,
           typename AllocatorArg =
               ListHashSetAllocator<ValueArg, inlineCapacity>>
-class ListHashSet {
+class ListHashSet
+    : public ConditionalDestructor<
+          ListHashSet<ValueArg, inlineCapacity, HashArg, AllocatorArg>,
+          AllocatorArg::kIsGarbageCollected> {
   typedef AllocatorArg Allocator;
   USE_ALLOCATOR(ListHashSet, Allocator);
 
   typedef ListHashSetNode<ValueArg, Allocator> Node;
-  typedef HashTraits<Node*> NodeTraits;
+  typedef ListHashSetTraits<ValueArg, Allocator> NodeTraits;
   typedef ListHashSetNodeHashFunctions<HashArg> NodeHash;
   typedef ListHashSetTranslator<HashArg> BaseTranslator;
 
@@ -133,14 +152,9 @@ class ListHashSet {
    public:
     friend class ListHashSet<ValueArg, inlineCapacity, HashArg, AllocatorArg>;
     AddResult(Node* node, bool is_new_entry)
-        : stored_value(&node->value_),
-          is_new_entry(is_new_entry),
-          node_(node) {}
+        : stored_value(&node->value_), is_new_entry(is_new_entry) {}
     ValueType* stored_value;
     bool is_new_entry;
-
-   private:
-    Node* node_;
   };
 
   ListHashSet();
@@ -148,7 +162,7 @@ class ListHashSet {
   ListHashSet(ListHashSet&&);
   ListHashSet& operator=(const ListHashSet&);
   ListHashSet& operator=(ListHashSet&&);
-  ~ListHashSet();
+  void Finalize();
 
   void Swap(ListHashSet&);
 
@@ -197,12 +211,6 @@ class ListHashSet {
   template <typename IncomingValueType>
   AddResult insert(IncomingValueType&&);
 
-  // Same as insert() except that the return value is an iterator. Useful in
-  // cases where it's needed to have the same return value as find() and where
-  // it's not possible to use a pointer to the storedValue.
-  template <typename IncomingValueType>
-  iterator AddReturnIterator(IncomingValueType&&);
-
   // Add the value to the end of the collection. If the value was already in
   // the list, it is moved to the end.
   template <typename IncomingValueType>
@@ -231,8 +239,8 @@ class ListHashSet {
   ValueType Take(ValuePeekInType);
   ValueType TakeFirst();
 
-  template <typename VisitorDispatcher>
-  void Trace(VisitorDispatcher);
+  template <typename VisitorDispatcher, typename A = AllocatorArg>
+  std::enable_if_t<A::kIsGarbageCollected> Trace(VisitorDispatcher) const;
 
  protected:
   typename ImplType::ValueType** GetBufferSlot() {
@@ -377,8 +385,8 @@ struct ListHashSetAllocator : public PartitionAllocator {
 
   bool InPool(Node* node) { return node >= Pool() && node < PastPool(); }
 
-  static void TraceValue(typename PartitionAllocator::Visitor* visitor,
-                         Node* node) {}
+  template <typename VisitorDispatcher>
+  static void TraceValue(VisitorDispatcher, const Node*) {}
 
  private:
   Node* Pool() { return reinterpret_cast_ptr<Node*>(pool_); }
@@ -386,7 +394,7 @@ struct ListHashSetAllocator : public PartitionAllocator {
 
   Node* free_list_;
   bool is_done_with_initial_free_list_;
-#if defined(MEMORY_SANITIZER_INITIAL_SIZE)
+#if defined(MEMORY_TOOL_REPLACES_ALLOCATOR)
   // The allocation pool for nodes is one big chunk that ASAN has no insight
   // into, so it can cloak errors. Make it as small as possible to force nodes
   // to be allocated individually where ASAN can see them.
@@ -404,8 +412,13 @@ class ListHashSetNode : public ListHashSetNodeBase<ValueArg> {
   typedef ValueArg Value;
 
   template <typename U>
-  ListHashSetNode(U&& value)
-      : ListHashSetNodeBase<ValueArg>(std::forward<U>(value)) {}
+  explicit ListHashSetNode(U&& value)
+      : ListHashSetNodeBase<ValueArg>(std::forward<U>(value)) {
+    static_assert(!NodeAllocator::kIsGarbageCollected ||
+                      std::is_trivially_destructible<Value>::value,
+                  "Garbage collected types used in ListHashSet should be "
+                  "trivially destructible");
+  }
 
   void* operator new(size_t, NodeAllocator* allocator) {
     static_assert(
@@ -414,53 +427,17 @@ class ListHashSetNode : public ListHashSetNodeBase<ValueArg> {
     return allocator->AllocateNode();
   }
 
-  void SetWasAlreadyDestructed() {
-    if (NodeAllocator::kIsGarbageCollected &&
-        !std::is_trivially_destructible<ValueArg>::value)
-      this->prev_ = UnlinkedNodePointer();
-  }
-
-  bool WasAlreadyDestructed() const {
-    DCHECK(NodeAllocator::kIsGarbageCollected);
-    return this->prev_ == UnlinkedNodePointer();
-  }
-
-  static void Finalize(void* pointer) {
-    // No need to waste time calling finalize if it's not needed.
-    static_assert(
-        !std::is_trivially_destructible<ValueArg>::value,
-        "Finalization of trivially destructible classes should not happen.");
-    ListHashSetNode* self = reinterpret_cast_ptr<ListHashSetNode*>(pointer);
-
-    // Check whether this node was already destructed before being unlinked
-    // from the collection.
-    if (self->WasAlreadyDestructed())
-      return;
-
-    self->value_.~ValueArg();
-  }
-  void FinalizeGarbageCollectedObject() { Finalize(this); }
-
   void Destroy(NodeAllocator* allocator) {
+    if (NodeAllocator::kIsGarbageCollected)
+      return;
     this->~ListHashSetNode();
-    SetWasAlreadyDestructed();
     allocator->Deallocate(this);
   }
 
-  template <typename VisitorDispatcher>
-  void Trace(VisitorDispatcher visitor) {
-    // The conservative stack scan can find nodes that have been removed
-    // from the set and destructed. We don't need to trace these, and it
-    // would be wrong to do so, because the class will not expect the trace
-    // method to be called after the destructor.  It's an error to remove a
-    // node from the ListHashSet while an iterator is positioned at that
-    // node, so there should be no valid pointers from the stack to a
-    // destructed node.
-    if (WasAlreadyDestructed())
-      return;
+  template <typename VisitorDispatcher, typename A = NodeAllocator>
+  std::enable_if_t<A::kIsGarbageCollected> Trace(
+      VisitorDispatcher visitor) const {
     NodeAllocator::TraceValue(visitor, this);
-    visitor->Trace(Next());
-    visitor->Trace(Prev());
   }
 
   ListHashSetNode* Next() const {
@@ -473,12 +450,9 @@ class ListHashSetNode : public ListHashSetNodeBase<ValueArg> {
   // Don't add fields here, the ListHashSetNodeBase and this should have the
   // same size.
 
-  static ListHashSetNode* UnlinkedNodePointer() {
+  static constexpr ListHashSetNode* UnlinkedNodePointer() {
     return reinterpret_cast<ListHashSetNode*>(-1);
   }
-
-  template <typename HashArg>
-  friend struct ListHashSetNodeHashFunctions;
 };
 
 template <typename HashArg>
@@ -540,7 +514,7 @@ class ListHashSetIterator {
   operator const_iterator() const { return iterator_; }
 
   template <typename VisitorDispatcher>
-  void Trace(VisitorDispatcher visitor) {
+  void Trace(VisitorDispatcher visitor) const {
     iterator_.Trace(visitor);
   }
 
@@ -602,7 +576,7 @@ class ListHashSetConstIterator {
   }
 
   template <typename VisitorDispatcher>
-  void Trace(VisitorDispatcher visitor) {
+  void Trace(VisitorDispatcher visitor) const {
     visitor->Trace(*set_);
     visitor->Trace(position_);
   }
@@ -662,7 +636,7 @@ class ListHashSetReverseIterator {
   operator const_reverse_iterator() const { return iterator_; }
 
   template <typename VisitorDispatcher>
-  void Trace(VisitorDispatcher visitor) {
+  void Trace(VisitorDispatcher visitor) const {
     iterator_.trace(visitor);
   }
 
@@ -724,7 +698,7 @@ class ListHashSetConstReverseIterator {
   }
 
   template <typename VisitorDispatcher>
-  void Trace(VisitorDispatcher visitor) {
+  void Trace(VisitorDispatcher visitor) const {
     visitor->Trace(*set_);
     visitor->Trace(position_);
   }
@@ -752,7 +726,9 @@ struct ListHashSetTranslator {
   }
   template <typename T, typename U, typename V>
   static void Translate(T*& location, U&& key, const V& allocator) {
-    location = new (const_cast<V*>(&allocator)) T(std::forward<U>(key));
+    AsAtomicPtr(&location)->store(new (const_cast<V*>(&allocator))
+                                      T(std::forward<U>(key)),
+                                  std::memory_order_relaxed);
   }
 };
 
@@ -804,14 +780,10 @@ inline void ListHashSet<T, inlineCapacity, U, V>::Swap(ListHashSet& other) {
   allocator_provider_.Swap(other.allocator_provider_);
 }
 
-// For design of the destructor, please refer to
-// [here](https://docs.google.com/document/d/1AoGTvb3tNLx2tD1hNqAfLRLmyM59GM0O-7rCHTT_7_U/)
 template <typename T, size_t inlineCapacity, typename U, typename V>
-inline ListHashSet<T, inlineCapacity, U, V>::~ListHashSet() {
-  // If this is called during GC sweeping, it must not touch other heap objects
-  // such as the ListHashSetNodes that is touching in DeleteAllNodes().
-  if (Allocator::IsSweepForbidden())
-    return;
+inline void ListHashSet<T, inlineCapacity, U, V>::Finalize() {
+  static_assert(!Allocator::kIsGarbageCollected,
+                "GCed collections can't be finalized");
   DeleteAllNodes();
   allocator_provider_.ReleaseAllocator();
 }
@@ -935,14 +907,6 @@ ListHashSet<T, inlineCapacity, U, V>::insert(IncomingValueType&& value) {
   if (result.is_new_entry)
     AppendNode(*result.stored_value);
   return AddResult(*result.stored_value, result.is_new_entry);
-}
-
-template <typename T, size_t inlineCapacity, typename U, typename V>
-template <typename IncomingValueType>
-typename ListHashSet<T, inlineCapacity, U, V>::iterator
-ListHashSet<T, inlineCapacity, U, V>::AddReturnIterator(
-    IncomingValueType&& value) {
-  return MakeIterator(insert(std::forward<IncomingValueType>(value)).node_);
 }
 
 template <typename T, size_t inlineCapacity, typename U, typename V>
@@ -1125,9 +1089,10 @@ void ListHashSet<T, inlineCapacity, U, V>::DeleteAllNodes() {
 }
 
 template <typename T, size_t inlineCapacity, typename U, typename V>
-template <typename VisitorDispatcher>
-void ListHashSet<T, inlineCapacity, U, V>::Trace(VisitorDispatcher visitor) {
-  static_assert(HashTraits<T>::kWeakHandlingFlag == kNoWeakHandling,
+template <typename VisitorDispatcher, typename A>
+std::enable_if_t<A::kIsGarbageCollected>
+ListHashSet<T, inlineCapacity, U, V>::Trace(VisitorDispatcher visitor) const {
+  static_assert(!IsWeak<T>::value,
                 "HeapListHashSet does not support weakness, consider using "
                 "HeapLinkedHashSet instead.");
   // This marks all the nodes and their contents live that can be accessed

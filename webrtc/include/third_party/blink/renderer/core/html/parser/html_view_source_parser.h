@@ -31,20 +31,13 @@
 #include "third_party/blink/renderer/core/dom/decoded_data_document_parser.h"
 #include "third_party/blink/renderer/core/html/html_view_source_document.h"
 #include "third_party/blink/renderer/core/html/parser/html_input_stream.h"
-#include "third_party/blink/renderer/core/html/parser/html_source_tracker.h"
 #include "third_party/blink/renderer/core/html/parser/html_tokenizer.h"
-#include "third_party/blink/renderer/core/html/parser/xss_auditor.h"
 
 namespace blink {
 
 class CORE_EXPORT HTMLViewSourceParser final
     : public DecodedDataDocumentParser {
  public:
-  static HTMLViewSourceParser* Create(HTMLViewSourceDocument& document,
-                                      const String& mime_type) {
-    return MakeGarbageCollected<HTMLViewSourceParser>(document, mime_type);
-  }
-
   HTMLViewSourceParser(HTMLViewSourceDocument&, const String& mime_type);
   ~HTMLViewSourceParser() override = default;
 
@@ -62,11 +55,20 @@ class CORE_EXPORT HTMLViewSourceParser final
   void PumpTokenizer();
   void UpdateTokenizerState();
 
+  void StartTracker(SegmentedString&, HTMLTokenizer*, HTMLToken&);
+  void EndTracker(SegmentedString&, HTMLTokenizer*, HTMLToken&);
+  String SourceForToken(const HTMLToken&);
+  bool NeedToCheckTokenizerBuffer(HTMLTokenizer*);
+
   HTMLInputStream input_;
   HTMLToken token_;
-  HTMLSourceTracker source_tracker_;
   std::unique_ptr<HTMLTokenizer> tokenizer_;
-  XSSAuditor xss_auditor_;
+  bool tracker_is_started_;
+
+  SegmentedString previous_source_;
+  SegmentedString current_source_;
+
+  String cached_source_for_token_;
 };
 
 }  // namespace blink

@@ -12,6 +12,15 @@
 #ifndef MODULES_VIDEO_CODING_CODECS_H264_H264_DECODER_IMPL_H_
 #define MODULES_VIDEO_CODING_CODECS_H264_H264_DECODER_IMPL_H_
 
+// Everything declared in this header is only required when WebRTC is
+// build with H264 support, please do not move anything out of the
+// #ifdef unless needed and tested.
+#ifdef WEBRTC_USE_H264
+
+#if defined(WEBRTC_WIN) && !defined(__clang__)
+#error "See: bugs.webrtc.org/9213#c13."
+#endif
+
 #include <memory>
 
 #include "modules/video_coding/codecs/h264/include/h264.h"
@@ -35,7 +44,7 @@ extern "C" {
 }  // extern "C"
 
 #include "common_video/h264/h264_bitstream_parser.h"
-#include "common_video/include/i420_buffer_pool.h"
+#include "common_video/include/video_frame_buffer_pool.h"
 
 namespace webrtc {
 
@@ -83,7 +92,10 @@ class H264DecoderImpl : public H264Decoder {
   void ReportInit();
   void ReportError();
 
-  I420BufferPool pool_;
+  // Used by ffmpeg via |AVGetBuffer2()| to allocate I420 images.
+  VideoFrameBufferPool ffmpeg_buffer_pool_;
+  // Used to allocate NV12 images if NV12 output is preferred.
+  VideoFrameBufferPool output_buffer_pool_;
   std::unique_ptr<AVCodecContext, AVCodecContextDeleter> av_context_;
   std::unique_ptr<AVFrame, AVFrameDeleter> av_frame_;
 
@@ -93,8 +105,13 @@ class H264DecoderImpl : public H264Decoder {
   bool has_reported_error_;
 
   webrtc::H264BitstreamParser h264_bitstream_parser_;
+
+  // Decoder should produce this format if possible.
+  const VideoFrameBuffer::Type preferred_output_format_;
 };
 
 }  // namespace webrtc
+
+#endif  // WEBRTC_USE_H264
 
 #endif  // MODULES_VIDEO_CODING_CODECS_H264_H264_DECODER_IMPL_H_

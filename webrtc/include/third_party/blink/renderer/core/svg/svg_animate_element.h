@@ -40,27 +40,30 @@ class CORE_EXPORT SVGAnimateElement : public SVGAnimationElement {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static SVGAnimateElement* Create(Document&);
-
+  explicit SVGAnimateElement(Document&);
   SVGAnimateElement(const QualifiedName&, Document&);
   ~SVGAnimateElement() override;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
   bool IsSVGAnimationAttributeSettingJavaScriptURL(
       const Attribute&) const override;
 
-  AnimatedPropertyType GetAnimatedPropertyType();
-  bool AnimatedPropertyTypeSupportsAddition();
+  const QualifiedName& AttributeName() const { return attribute_name_; }
+  AnimatedPropertyType GetAnimatedPropertyTypeForTesting() const {
+    return type_;
+  }
+  bool AnimatedPropertyTypeSupportsAddition() const;
 
  protected:
-  bool HasValidTarget() override;
-
   void WillChangeAnimationTarget() final;
   void DidChangeAnimationTarget() final;
 
-  void ResetAnimatedType() final;
-  void ClearAnimatedType() final;
+  bool HasValidAnimation() const override;
+
+  SMILAnimationValue CreateAnimationValue(
+      bool needs_underlying_value) const final;
+  void ClearAnimationValue() final;
 
   bool CalculateToAtEndOfDurationValue(
       const String& to_at_end_of_duration_string) final;
@@ -68,13 +71,12 @@ class CORE_EXPORT SVGAnimateElement : public SVGAnimationElement {
                                 const String& to_string) final;
   bool CalculateFromAndByValues(const String& from_string,
                                 const String& by_string) final;
-  void CalculateAnimatedValue(float percentage,
-                              unsigned repeat_count,
-                              SVGSMILElement* result_element) final;
-  void ApplyResultsToTarget() final;
+  void CalculateAnimationValue(SMILAnimationValue&,
+                               float percentage,
+                               unsigned repeat_count) const final;
+  void ApplyResultsToTarget(const SMILAnimationValue&) final;
   float CalculateDistance(const String& from_string,
                           const String& to_string) final;
-  bool IsAdditive() final;
 
   void ParseAttribute(const AttributeModificationParams&) override;
 
@@ -91,11 +93,6 @@ class CORE_EXPORT SVGAnimateElement : public SVGAnimationElement {
                            stringsShouldNotSupportAddition);
 
  private:
-  void ResetAnimatedPropertyType();
-
-  bool ShouldApplyAnimation(const SVGElement& target_element,
-                            const QualifiedName& attribute_name);
-
   void SetAttributeType(const AtomicString&);
 
   InsertionNotificationRequest InsertedInto(ContainerNode&) final;
@@ -103,8 +100,12 @@ class CORE_EXPORT SVGAnimateElement : public SVGAnimationElement {
 
   virtual void ResolveTargetProperty();
   void ClearTargetProperty();
+  void UpdateTargetProperty();
 
-  virtual SVGPropertyBase* CreatePropertyForAnimation(const String&) const;
+  void WillChangeAnimatedType();
+  void DidChangeAnimatedType();
+
+  virtual SVGPropertyBase* ParseValue(const String&) const;
   SVGPropertyBase* CreatePropertyForAttributeAnimation(const String&) const;
   SVGPropertyBase* CreatePropertyForCSSAnimation(const String&) const;
 
@@ -114,10 +115,10 @@ class CORE_EXPORT SVGAnimateElement : public SVGAnimationElement {
   Member<SVGPropertyBase> from_property_;
   Member<SVGPropertyBase> to_property_;
   Member<SVGPropertyBase> to_at_end_of_duration_property_;
-  Member<SVGPropertyBase> animated_value_;
 
  protected:
   Member<SVGAnimatedPropertyBase> target_property_;
+  QualifiedName attribute_name_;
   AnimatedPropertyType type_;
   CSSPropertyID css_property_id_;
 
@@ -138,7 +139,13 @@ inline bool IsSVGAnimateElement(const SVGElement& element) {
          element.HasTagName(svg_names::kSetTag);
 }
 
-DEFINE_SVGELEMENT_TYPE_CASTS_WITH_FUNCTION(SVGAnimateElement);
+template <>
+struct DowncastTraits<SVGAnimateElement> {
+  static bool AllowFrom(const Node& node) {
+    auto* element = DynamicTo<SVGElement>(node);
+    return element && IsSVGAnimateElement(*element);
+  }
+};
 
 }  // namespace blink
 

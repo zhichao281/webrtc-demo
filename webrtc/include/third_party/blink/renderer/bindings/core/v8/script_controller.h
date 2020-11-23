@@ -39,7 +39,6 @@
 #include "third_party/blink/renderer/bindings/core/v8/window_proxy_manager.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
-#include "third_party/blink/renderer/platform/bindings/shared_persistent.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_loader_options.h"
 #include "third_party/blink/renderer/platform/loader/fetch/script_fetch_options.h"
@@ -50,16 +49,15 @@
 namespace blink {
 
 class DOMWrapperWorld;
-class Element;
 class ExecutionContext;
 class KURL;
-class LocalFrame;
+class LocalDOMWindow;
 class ScriptSourceCode;
 class SecurityOrigin;
 
 // This class exposes methods to run script in a frame (in the main world and
 // in isolated worlds). An instance can be obtained by using
-// LocalFrame::GetScriptController().
+// LocalDOMWindow::GetScriptController().
 class CORE_EXPORT ScriptController final
     : public GarbageCollected<ScriptController> {
  public:
@@ -68,10 +66,10 @@ class CORE_EXPORT ScriptController final
     kDoNotExecuteScriptWhenScriptsDisabled
   };
 
-  ScriptController(LocalFrame& frame,
+  ScriptController(LocalDOMWindow& window,
                    LocalWindowProxyManager& window_proxy_manager)
-      : frame_(&frame), window_proxy_manager_(&window_proxy_manager) {}
-  void Trace(blink::Visitor*);
+      : window_(&window), window_proxy_manager_(&window_proxy_manager) {}
+  void Trace(Visitor*) const;
 
   // This returns an initialized window proxy. (If the window proxy is not
   // yet initialized, it's implicitly initialized at the first access.)
@@ -79,28 +77,27 @@ class CORE_EXPORT ScriptController final
     return window_proxy_manager_->WindowProxy(world);
   }
 
-  // Evaluate JavaScript in the main world.
-  void ExecuteScriptInMainWorld(
-      const String& script,
-      ScriptSourceLocationType = ScriptSourceLocationType::kUnknown,
-      ExecuteScriptPolicy = kDoNotExecuteScriptWhenScriptsDisabled);
-  void ExecuteScriptInMainWorld(
-      const ScriptSourceCode&,
-      const KURL& base_url,
-      SanitizeScriptErrors,
-      const ScriptFetchOptions& = ScriptFetchOptions());
-  v8::Local<v8::Value> ExecuteScriptInMainWorldAndReturnValue(
-      const ScriptSourceCode&,
-      const KURL& base_url,
-      SanitizeScriptErrors,
-      const ScriptFetchOptions& = ScriptFetchOptions(),
-      ExecuteScriptPolicy = kDoNotExecuteScriptWhenScriptsDisabled);
   v8::Local<v8::Value> ExecuteScriptAndReturnValue(
       v8::Local<v8::Context>,
       const ScriptSourceCode&,
       const KURL& base_url,
       SanitizeScriptErrors,
       const ScriptFetchOptions& = ScriptFetchOptions());
+
+  v8::Local<v8::Value> EvaluateMethodInMainWorld(
+      v8::Local<v8::Function> function,
+      v8::Local<v8::Value> receiver,
+      int argc,
+      v8::Local<v8::Value> argv[],
+      ScriptController::ExecuteScriptPolicy = ScriptController::
+          ExecuteScriptPolicy::kDoNotExecuteScriptWhenScriptsDisabled);
+
+  // Evaluate JavaScript in the main world.
+  v8::Local<v8::Value> EvaluateScriptInMainWorld(const ScriptSourceCode&,
+                                                 const KURL& base_url,
+                                                 SanitizeScriptErrors,
+                                                 const ScriptFetchOptions&,
+                                                 ExecuteScriptPolicy);
 
   // Executes JavaScript in an isolated world. The script gets its own global
   // scope, its own prototypes for intrinsic JavaScript objects (String, Array,
@@ -109,33 +106,35 @@ class CORE_EXPORT ScriptController final
   // If an isolated world with the specified ID already exists, it is reused.
   // Otherwise, a new world is created.
   v8::Local<v8::Value> ExecuteScriptInIsolatedWorld(
-      int world_id,
+      int32_t world_id,
       const ScriptSourceCode&,
       const KURL& base_url,
       SanitizeScriptErrors sanitize_script_errors);
 
-  // Returns true if argument is a JavaScript URL.
-  bool ExecuteScriptIfJavaScriptURL(
-      const KURL&,
-      Element*,
-      ContentSecurityPolicyDisposition check_main_world_csp =
-          kCheckContentSecurityPolicy);
+  // Executes a javascript url in the main world. |world_for_csp| denotes the
+  // javascript world in which this navigation initiated and which should be
+  // used for CSP checks.
+  void ExecuteJavaScriptURL(const KURL&,
+                            network::mojom::CSPDisposition,
+                            const DOMWrapperWorld* world_for_csp);
 
   // Creates a new isolated world for DevTools with the given human readable
   // |world_name| and returns it id or nullptr on failure.
   scoped_refptr<DOMWrapperWorld> CreateNewInspectorIsolatedWorld(
       const String& world_name);
 
+  // Disables eval for the main world.
   void DisableEval(const String& error_message);
+
+  // Disables eval for the given isolated |world_id|. This initializes the
+  // window proxy for the isolated world, if it's not yet initialized.
+  void DisableEvalForIsolatedWorld(int32_t world_id,
+                                   const String& error_message);
 
   TextPosition EventHandlerPosition() const;
 
-  void ClearWindowProxy();
   void UpdateDocument();
-
   void UpdateSecurityOrigin(const SecurityOrigin*);
-
-  void ClearForClose();
 
   // Registers a v8 extension to be available on webpages. Will only
   // affect v8 contexts initialized after this call.
@@ -143,19 +142,19 @@ class CORE_EXPORT ScriptController final
   static v8::ExtensionConfiguration ExtensionsFor(const ExecutionContext*);
 
  private:
-  LocalFrame* GetFrame() const { return frame_; }
+  bool CanExecuteScript(ExecuteScriptPolicy policy);
   v8::Isolate* GetIsolate() const {
     return window_proxy_manager_->GetIsolate();
   }
   void EnableEval();
 
-  v8::Local<v8::Value> EvaluateScriptInMainWorld(const ScriptSourceCode&,
-                                                 const KURL& base_url,
-                                                 SanitizeScriptErrors,
-                                                 const ScriptFetchOptions&,
-                                                 ExecuteScriptPolicy);
+  // Sets whether eval is enabled for the context corresponding to the given
+  // |world|. |error_message| is used only when |allow_eval| is false.
+  void SetEvalForWorld(DOMWrapperWorld& world,
+                       bool allow_eval,
+                       const String& error_message);
 
-  const Member<LocalFrame> frame_;
+  const Member<LocalDOMWindow> window_;
   const Member<LocalWindowProxyManager> window_proxy_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(ScriptController);

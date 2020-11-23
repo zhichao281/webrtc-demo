@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NGSpaceUtils_h
-#define NGSpaceUtils_h
+#ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_NG_SPACE_UTILS_H_
+#define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_NG_SPACE_UTILS_H_
 
 #include "base/memory/scoped_refptr.h"
 #include "base/optional.h"
@@ -21,12 +21,14 @@ CORE_EXPORT bool AdjustToClearance(LayoutUnit clearance_offset,
                                    NGBfcOffset* offset);
 
 // Create a child constraint space with no sizing data, except for fallback
-// inline sizing for orthongonal flow roots. This will not and can not be used
-// for final layout, but is needed in an intermediate measure pass that
-// calculates the min/max size contribution from a child that establishes an
-// orthogonal flow root.
+// inline sizing for orthogonal flow roots and a percentage resolution block
+// size based on |input| (for calculating aspect-ratio based sizes). This will
+// not and can not be used for final layout, but is needed in an intermediate
+// measure pass that calculates the min/max size contribution from a child that
+// establishes an orthogonal flow root.
 NGConstraintSpace CreateIndefiniteConstraintSpaceForChild(
     const ComputedStyle& container_style,
+    const MinMaxSizesInput& input,
     NGLayoutInputNode child);
 
 // Calculate and set the available inline fallback size for orthogonal flow
@@ -44,4 +46,4 @@ void SetOrthogonalFallbackInlineSizeIfNeeded(const ComputedStyle& parent_style,
 
 }  // namespace blink
 
-#endif  // NGSpaceUtils_h
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_NG_SPACE_UTILS_H_

@@ -15,16 +15,6 @@ namespace blink {
 
 class CSSVariableReferenceValue : public CSSValue {
  public:
-  static CSSVariableReferenceValue* Create(
-      scoped_refptr<CSSVariableData> data) {
-    return MakeGarbageCollected<CSSVariableReferenceValue>(std::move(data));
-  }
-  static CSSVariableReferenceValue* Create(scoped_refptr<CSSVariableData> data,
-                                           const CSSParserContext& context) {
-    return MakeGarbageCollected<CSSVariableReferenceValue>(std::move(data),
-                                                           context);
-  }
-
   CSSVariableReferenceValue(scoped_refptr<CSSVariableData> data)
       : CSSValue(kVariableReferenceClass),
         data_(std::move(data)),
@@ -38,7 +28,8 @@ class CSSVariableReferenceValue : public CSSValue {
 
   CSSVariableData* VariableDataValue() const { return data_.get(); }
   const CSSParserContext* ParserContext() const {
-    DCHECK(parser_context_);
+    // TODO(crbug.com/985028): CSSVariableReferenceValue should always have
+    // a CSSParserContext.
     return parser_context_.Get();
   }
 
@@ -47,7 +38,7 @@ class CSSVariableReferenceValue : public CSSValue {
   }
   String CustomCSSText() const;
 
-  void TraceAfterDispatch(blink::Visitor*);
+  void TraceAfterDispatch(blink::Visitor*) const;
 
  private:
   scoped_refptr<CSSVariableData> data_;

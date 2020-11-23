@@ -22,7 +22,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_TEXT_STRING_HASHER_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_TEXT_STRING_HASHER_H_
 
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/unicode.h"
 
 namespace WTF {
@@ -196,8 +196,9 @@ class StringHasher {
   }
 
  private:
+  // The StringHasher works on UChar so all converters should normalize input
+  // data into being a UChar.
   static UChar DefaultConverter(UChar character) { return character; }
-
   static UChar DefaultConverter(LChar character) { return character; }
 
   unsigned AvalancheBits() const {

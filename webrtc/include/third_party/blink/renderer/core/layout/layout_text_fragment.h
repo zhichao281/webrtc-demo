@@ -59,13 +59,25 @@ class CORE_EXPORT LayoutTextFragment : public LayoutText {
   base::Optional<unsigned> CaretOffsetForPosition(
       const Position&) const override;
 
-  unsigned Start() const { return start_; }
-  unsigned FragmentLength() const { return fragment_length_; }
+  unsigned Start() const {
+    NOT_DESTROYED();
+    return start_;
+  }
+  unsigned FragmentLength() const {
+    NOT_DESTROYED();
+    return fragment_length_;
+  }
 
-  unsigned TextStartOffset() const override { return Start(); }
+  unsigned TextStartOffset() const override {
+    NOT_DESTROYED();
+    return Start();
+  }
 
   void SetContentString(StringImpl*);
-  StringImpl* ContentString() const { return content_string_.get(); }
+  StringImpl* ContentString() const {
+    NOT_DESTROYED();
+    return content_string_.get();
+  }
   // The complete text is all of the text in the associated DOM text node.
   scoped_refptr<StringImpl> CompleteText() const;
   // The fragment text is the text which will be used by this
@@ -74,28 +86,32 @@ class CORE_EXPORT LayoutTextFragment : public LayoutText {
 
   scoped_refptr<StringImpl> OriginalText() const override;
 
-  void SetText(scoped_refptr<StringImpl>,
-               bool force = false,
-               bool avoid_layout_and_only_paint = false) override;
   void SetTextFragment(scoped_refptr<StringImpl>,
                        unsigned start,
                        unsigned length);
 
   void TransformText() override;
 
-  const char* GetName() const override { return "LayoutTextFragment"; }
+  const char* GetName() const override {
+    NOT_DESTROYED();
+    return "LayoutTextFragment";
+  }
 
   void SetFirstLetterPseudoElement(FirstLetterPseudoElement* element) {
+    NOT_DESTROYED();
     first_letter_pseudo_element_ = element;
   }
   FirstLetterPseudoElement* GetFirstLetterPseudoElement() const {
+    NOT_DESTROYED();
     return first_letter_pseudo_element_;
   }
 
   void SetIsRemainingTextLayoutObject(bool is_remaining_text) {
+    NOT_DESTROYED();
     is_remaining_text_layout_object_ = is_remaining_text;
   }
   bool IsRemainingTextLayoutObject() const {
+    NOT_DESTROYED();
     return is_remaining_text_layout_object_;
   }
 
@@ -110,8 +126,10 @@ class CORE_EXPORT LayoutTextFragment : public LayoutText {
  private:
   LayoutBlock* BlockForAccompanyingFirstLetter() const;
   UChar PreviousCharacter() const override;
+  void TextDidChange() override;
 
-  void UpdateHitTestResult(HitTestResult&, const LayoutPoint&) const override;
+  void UpdateHitTestResult(HitTestResult&,
+                           const PhysicalOffset&) const override;
 
   unsigned start_;
   unsigned fragment_length_;
@@ -122,11 +140,15 @@ class CORE_EXPORT LayoutTextFragment : public LayoutText {
   UntracedMember<FirstLetterPseudoElement> first_letter_pseudo_element_;
 };
 
-DEFINE_TYPE_CASTS(LayoutTextFragment,
-                  LayoutObject,
-                  object,
-                  (object->IsText() && ToLayoutText(object)->IsTextFragment()),
-                  (object.IsText() && ToLayoutText(object).IsTextFragment()));
+template <>
+struct DowncastTraits<LayoutTextFragment> {
+  static bool AllowFrom(const LayoutObject& object) {
+    return object.IsText() && To<LayoutText>(object).IsTextFragment();
+  }
+  static bool AllowFrom(const LayoutText& text) {
+    return text.IsTextFragment();
+  }
+};
 
 }  // namespace blink
 

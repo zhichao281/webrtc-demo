@@ -7,19 +7,19 @@
 
 #include <memory>
 
-#include "base/macros.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/single_thread_task_runner.h"
+#include "base/task/common/checked_lock.h"
 #include "base/task/sequence_manager/lazy_now.h"
 #include "base/task/sequence_manager/tasks.h"
 #include "base/task/task_observer.h"
-#include "base/task/task_scheduler/scheduler_lock.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
 
 namespace base {
+
+class TaskObserver;
 
 namespace trace_event {
 class BlameContext;
@@ -58,8 +58,7 @@ class BASE_EXPORT TaskQueue : public RefCountedThreadSafe<TaskQueue> {
     //
     // TODO(altimin): Make it Optional<TimeTicks> to tell
     // observer about cancellations.
-    virtual void OnQueueNextWakeUpChanged(TaskQueue* queue,
-                                          TimeTicks next_wake_up) = 0;
+    virtual void OnQueueNextWakeUpChanged(TimeTicks next_wake_up) = 0;
   };
 
   // Shuts down the queue. All tasks currently queued will be discarded.
@@ -83,17 +82,19 @@ class BASE_EXPORT TaskQueue : public RefCountedThreadSafe<TaskQueue> {
     // and can starve the best effort queue.
     kHighestPriority = 1,
 
-    kHighPriority = 2,
+    kVeryHighPriority = 2,
+
+    kHighPriority = 3,
 
     // Queues with normal priority are the default.
-    kNormalPriority = 3,
-    kLowPriority = 4,
+    kNormalPriority = 4,
+    kLowPriority = 5,
 
     // Queues with best effort priority will only be run if all other queues are
     // empty. They can be starved by the other queues.
-    kBestEffortPriority = 5,
+    kBestEffortPriority = 6,
     // Must be the last entry.
-    kQueuePriorityCount = 6,
+    kQueuePriorityCount = 7,
     kFirstQueuePriority = kControlPriority,
   };
 
@@ -136,6 +137,8 @@ class BASE_EXPORT TaskQueue : public RefCountedThreadSafe<TaskQueue> {
   // TODO(altimin): Make this private after TaskQueue/TaskQueueImpl refactoring.
   TaskQueue(std::unique_ptr<internal::TaskQueueImpl> impl,
             const TaskQueue::Spec& spec);
+  TaskQueue(const TaskQueue&) = delete;
+  TaskQueue& operator=(const TaskQueue&) = delete;
 
   // Information about task execution.
   //
@@ -148,6 +151,9 @@ class BASE_EXPORT TaskQueue : public RefCountedThreadSafe<TaskQueue> {
   // end_* and *_duration should be called after RecordTaskEnd.
   class BASE_EXPORT TaskTiming {
    public:
+    enum class State { NotStarted, Running, Finished };
+    enum class TimeRecordingPolicy { DoRecord, DoNotRecord };
+
     TaskTiming(bool has_wall_time, bool has_thread_time);
 
     bool has_wall_time() const { return has_wall_time_; }
@@ -178,11 +184,15 @@ class BASE_EXPORT TaskQueue : public RefCountedThreadSafe<TaskQueue> {
       return end_thread_time_ - start_thread_time_;
     }
 
+    State state() const { return state_; }
+
     void RecordTaskStart(LazyNow* now);
     void RecordTaskEnd(LazyNow* now);
 
     // Protected for tests.
    protected:
+    State state_ = State::NotStarted;
+
     bool has_wall_time_;
     bool has_thread_time_;
 
@@ -206,7 +216,9 @@ class BASE_EXPORT TaskQueue : public RefCountedThreadSafe<TaskQueue> {
     // are no voters.
     // NOTE this must be called on the thread the associated TaskQueue was
     // created on.
-    void SetQueueEnabled(bool enabled);
+    void SetVoteToEnable(bool enabled);
+
+    bool IsVotingToEnable() const { return enabled_; }
 
    private:
     friend class TaskQueue;
@@ -311,6 +323,12 @@ class BASE_EXPORT TaskQueue : public RefCountedThreadSafe<TaskQueue> {
 
   void SetObserver(Observer* observer);
 
+  // Controls whether or not the queue will emit traces events when tasks are
+  // posted to it while disabled. This only applies for the current or next
+  // period during which the queue is disabled. When the queue is re-enabled
+  // this will revert back to the default value of false.
+  void SetShouldReportPostedTasksWhenDisabled(bool should_report);
+
   // Create a task runner for this TaskQueue which will annotate all
   // posted tasks with the given task type.
   // May be called on any thread.
@@ -320,9 +338,38 @@ class BASE_EXPORT TaskQueue : public RefCountedThreadSafe<TaskQueue> {
   scoped_refptr<SingleThreadTaskRunner> CreateTaskRunner(TaskType task_type);
 
   // Default task runner which doesn't annotate tasks with a task type.
-  scoped_refptr<SingleThreadTaskRunner> task_runner() const {
+  const scoped_refptr<SingleThreadTaskRunner>& task_runner() const {
     return default_task_runner_;
   }
+
+  // Checks whether or not this TaskQueue has a TaskQueueImpl.
+  // TODO(kdillon): Remove this method when TaskQueueImpl inherits from
+  // TaskQueue and TaskQueue no longer owns an Impl.
+  bool HasImpl() { return !!impl_; }
+
+  using OnTaskStartedHandler =
+      RepeatingCallback<void(const Task&, const TaskQueue::TaskTiming&)>;
+  using OnTaskCompletedHandler =
+      RepeatingCallback<void(const Task&, TaskQueue::TaskTiming*, LazyNow*)>;
+  using OnTaskPostedHandler = RepeatingCallback<void(const Task&)>;
+
+  // Sets a handler to subscribe for notifications about started and completed
+  // tasks.
+  void SetOnTaskStartedHandler(OnTaskStartedHandler handler);
+
+  // |task_timing| may be passed in Running state and may not have the end time,
+  // so that the handler can run an additional task that is counted as a part of
+  // the main task.
+  // The handler can call TaskTiming::RecordTaskEnd, which is optional, to
+  // finalize the task, and use the resulting timing.
+  void SetOnTaskCompletedHandler(OnTaskCompletedHandler handler);
+
+  // Set a callback for adding custom functionality for processing posted task.
+  // Callback will be dispatched while holding a scheduler lock. As a result,
+  // callback should not call scheduler APIs directly, as this can lead to
+  // deadlocks. For example, PostTask should not be called directly and
+  // ScopedDeferTaskPosting::PostOrDefer should be used instead.
+  void SetOnTaskPostedHandler(OnTaskPostedHandler handler);
 
  protected:
   virtual ~TaskQueue();
@@ -352,7 +399,7 @@ class BASE_EXPORT TaskQueue : public RefCountedThreadSafe<TaskQueue> {
   // |impl_lock_| must be acquired when writing to |impl_| or when accessing
   // it from non-main thread. Reading from the main thread does not require
   // a lock.
-  mutable base::internal::SchedulerLock impl_lock_{
+  mutable base::internal::CheckedLock impl_lock_{
       base::internal::UniversalPredecessor{}};
   std::unique_ptr<internal::TaskQueueImpl> impl_;
 
@@ -364,8 +411,6 @@ class BASE_EXPORT TaskQueue : public RefCountedThreadSafe<TaskQueue> {
   int enabled_voter_count_ = 0;
   int voter_count_ = 0;
   const char* name_;
-
-  DISALLOW_COPY_AND_ASSIGN(TaskQueue);
 };
 
 }  // namespace sequence_manager

@@ -31,7 +31,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_DOM_CHILD_LIST_MUTATION_SCOPE_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_DOM_CHILD_LIST_MUTATION_SCOPE_H_
 
-#include "base/macros.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/mutation_observer.h"
 #include "third_party/blink/renderer/core/dom/node.h"
@@ -56,8 +55,8 @@ class ChildListMutationAccumulator final
 
   ChildListMutationAccumulator(Node*, MutationObserverInterestGroup*);
 
-  void ChildAdded(Node*);
-  void WillRemoveChild(Node*);
+  void ChildAdded(Node&);
+  void WillRemoveChild(Node&);
 
   bool HasObservers() const { return observers_; }
 
@@ -66,13 +65,13 @@ class ChildListMutationAccumulator final
   void EnterMutationScope() { mutation_scopes_++; }
   void LeaveMutationScope();
 
-  void Trace(Visitor*);
+  void Trace(Visitor*) const;
 
  private:
   void EnqueueMutationRecord();
   bool IsEmpty();
-  bool IsAddedNodeInOrder(Node*);
-  bool IsRemovedNodeInOrder(Node*);
+  bool IsAddedNodeInOrder(Node&);
+  bool IsRemovedNodeInOrder(Node&);
 
   Member<Node> target_;
 
@@ -99,6 +98,8 @@ class ChildListMutationScope final {
       accumulator_->EnterMutationScope();
     }
   }
+  ChildListMutationScope(const ChildListMutationScope&) = delete;
+  ChildListMutationScope& operator=(const ChildListMutationScope&) = delete;
 
   ~ChildListMutationScope() {
     if (accumulator_) {
@@ -110,17 +111,16 @@ class ChildListMutationScope final {
 
   void ChildAdded(Node& child) {
     if (accumulator_ && accumulator_->HasObservers())
-      accumulator_->ChildAdded(&child);
+      accumulator_->ChildAdded(child);
   }
 
   void WillRemoveChild(Node& child) {
     if (accumulator_ && accumulator_->HasObservers())
-      accumulator_->WillRemoveChild(&child);
+      accumulator_->WillRemoveChild(child);
   }
 
  private:
-  Member<ChildListMutationAccumulator> accumulator_;
-  DISALLOW_COPY_AND_ASSIGN(ChildListMutationScope);
+  ChildListMutationAccumulator* accumulator_ = nullptr;
 };
 
 }  // namespace blink

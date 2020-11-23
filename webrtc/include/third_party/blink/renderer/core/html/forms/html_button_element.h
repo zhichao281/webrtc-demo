@@ -32,11 +32,7 @@ class HTMLButtonElement final : public HTMLFormControlElement {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static HTMLButtonElement* Create(Document&);
-
   explicit HTMLButtonElement(Document&);
-
-  const AttrNameToTrustedType& GetCheckedAttributeTypes() const override;
 
   void setType(const AtomicString&);
 
@@ -64,9 +60,7 @@ class HTMLButtonElement final : public HTMLFormControlElement {
 
   bool IsEnumeratable() const override { return true; }
   bool IsLabelable() const override { return true; }
-  bool TypeShouldForceLegacyLayout() const final { return true; }
   bool IsInteractiveContent() const override;
-  bool SupportsAutofocus() const override;
   bool MatchesDefaultPseudoClass() const override;
 
   bool CanBeSuccessfulSubmitButton() const override;
@@ -80,6 +74,8 @@ class HTMLButtonElement final : public HTMLFormControlElement {
 
   bool IsOptionalFormControl() const override { return true; }
   bool RecalcWillValidate() const override;
+
+  int DefaultTabIndex() const override;
 
   Type type_;
   bool is_activated_submit_;

@@ -9,8 +9,9 @@
 
 #include "gin/public/context_holder.h"
 #include "gin/public/gin_embedders.h"
+#include "third_party/blink/public/common/tokens/tokens.h"
 #include "third_party/blink/renderer/platform/bindings/scoped_persistent.h"
-#include "third_party/blink/renderer/platform/bindings/v8_cross_origin_setter_info.h"
+#include "third_party/blink/renderer/platform/bindings/v8_cross_origin_callback_info.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/heap/heap.h"
 #include "third_party/blink/renderer/platform/heap/self_keep_alive.h"
@@ -20,11 +21,12 @@
 namespace blink {
 
 class DOMWrapperWorld;
+class ExecutionContext;
 class ScriptValue;
 class V8PerContextData;
 
 // ScriptState is an abstraction class that holds all information about script
-// exectuion (e.g., v8::Isolate, v8::Context, DOMWrapperWorld, ExecutionContext
+// execution (e.g., v8::Isolate, v8::Context, DOMWrapperWorld, ExecutionContext
 // etc). If you need any info about the script execution, you're expected to
 // pass around ScriptState in the code base. ScriptState is in a 1:1
 // relationship with v8::Context.
@@ -53,7 +55,7 @@ class V8PerContextData;
 //     ToV8(...);
 //   }
 //
-//   virtual void Trace(Visitor* visitor) {
+//   virtual void Trace(Visitor* visitor) const {
 //     visitor->Trace(script_state_);  // ScriptState also needs to be traced.
 //   }
 //
@@ -73,10 +75,9 @@ class V8PerContextData;
 // ScriptState is created when v8::Context is created.
 // ScriptState is destroyed when v8::Context is garbage-collected and
 // all V8 proxy objects that have references to the ScriptState are destructed.
-class PLATFORM_EXPORT ScriptState final
-    : public GarbageCollectedFinalized<ScriptState> {
+class PLATFORM_EXPORT ScriptState final : public GarbageCollected<ScriptState> {
  public:
-  class Scope {
+  class Scope final {
     STACK_ALLOCATED();
 
    public:
@@ -96,10 +97,40 @@ class PLATFORM_EXPORT ScriptState final
     v8::Local<v8::Context> context_;
   };
 
-  ScriptState(v8::Local<v8::Context>, scoped_refptr<DOMWrapperWorld>);
+  // Use EscapableScope if you have to return a v8::Local to an outer scope.
+  // See v8::EscapableHandleScope.
+  class EscapableScope final {
+    STACK_ALLOCATED();
+
+   public:
+    // You need to make sure that scriptState->context() is not empty before
+    // creating a Scope.
+    explicit EscapableScope(ScriptState* script_state)
+        : handle_scope_(script_state->GetIsolate()),
+          context_(script_state->GetContext()) {
+      DCHECK(script_state->ContextIsValid());
+      context_->Enter();
+    }
+
+    ~EscapableScope() { context_->Exit(); }
+
+    v8::Local<v8::Value> Escape(v8::Local<v8::Value> value) {
+      return handle_scope_.Escape(value);
+    }
+
+   private:
+    v8::EscapableHandleScope handle_scope_;
+    v8::Local<v8::Context> context_;
+  };
+
+  // If this ScriptState is associated with an ExecutionContext then it must be
+  // provided here, otherwise providing nullptr is fine.
+  ScriptState(v8::Local<v8::Context>,
+              scoped_refptr<DOMWrapperWorld>,
+              ExecutionContext* execution_context);
   ~ScriptState();
 
-  void Trace(blink::Visitor*) {}
+  void Trace(Visitor*) const {}
 
   static ScriptState* Current(v8::Isolate* isolate) {  // DEPRECATED
     return From(isolate->GetCurrentContext());
@@ -120,7 +151,7 @@ class PLATFORM_EXPORT ScriptState final
     return From(info.Holder()->CreationContext());
   }
 
-  static ScriptState* ForRelevantRealm(const V8CrossOriginSetterInfo& info) {
+  static ScriptState* ForRelevantRealm(const V8CrossOriginCallbackInfo& info) {
     return From(info.Holder()->CreationContext());
   }
 
@@ -148,6 +179,7 @@ class PLATFORM_EXPORT ScriptState final
 
   v8::Isolate* GetIsolate() const { return isolate_; }
   DOMWrapperWorld& World() const { return *world_; }
+  const V8ContextToken& GetToken() const { return token_; }
 
   // This can return an empty handle if the v8::Context is gone.
   v8::Local<v8::Context> GetContext() const {
@@ -194,9 +226,13 @@ class PLATFORM_EXPORT ScriptState final
   // exactly.
   SelfKeepAlive<ScriptState> reference_from_v8_context_;
 
-  static constexpr int kV8ContextPerContextDataIndex = static_cast<int>(
-      gin::kPerContextDataStartIndex +  // NOLINT(readability/enum_casing)
-      gin::kEmbedderBlink);             // NOLINT(readability/enum_casing)
+  // Serves as a unique ID for this context, which can be used to name the
+  // context in browser/renderer communications.
+  V8ContextToken token_;
+
+  static constexpr int kV8ContextPerContextDataIndex =
+      static_cast<int>(gin::kPerContextDataStartIndex) +
+      static_cast<int>(gin::kEmbedderBlink);
 
   DISALLOW_COPY_AND_ASSIGN(ScriptState);
 };
@@ -204,8 +240,8 @@ class PLATFORM_EXPORT ScriptState final
 // ScriptStateProtectingContext keeps the context associated with the
 // ScriptState alive.  You need to call Clear() once you no longer need the
 // context. Otherwise, the context will leak.
-class ScriptStateProtectingContext
-    : public GarbageCollectedFinalized<ScriptStateProtectingContext> {
+class ScriptStateProtectingContext final
+    : public GarbageCollected<ScriptStateProtectingContext> {
  public:
   explicit ScriptStateProtectingContext(ScriptState* script_state)
       : script_state_(script_state) {
@@ -216,7 +252,7 @@ class ScriptStateProtectingContext
     }
   }
 
-  void Trace(blink::Visitor* visitor) { visitor->Trace(script_state_); }
+  void Trace(Visitor* visitor) const { visitor->Trace(script_state_); }
 
   ScriptState* Get() const { return script_state_; }
   void Reset() {

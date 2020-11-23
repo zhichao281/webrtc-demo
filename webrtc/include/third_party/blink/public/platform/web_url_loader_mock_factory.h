@@ -22,15 +22,12 @@ struct WebURLError;
 
 class WebURLLoaderMockFactory {
  public:
-  static std::unique_ptr<WebURLLoaderMockFactory> Create();
+  static WebURLLoaderMockFactory* GetSingletonInstance();
 
   virtual ~WebURLLoaderMockFactory() = default;
 
   // Create a WebURLLoader that takes care of mocked requests.
-  // Non-mocked request are forwarded to given loader which should not
-  // be nullptr.
-  virtual std::unique_ptr<WebURLLoader> CreateURLLoader(
-      std::unique_ptr<WebURLLoader>) = 0;
+  virtual std::unique_ptr<WebURLLoader> CreateURLLoader() = 0;
 
   // Registers a response and the file to be served when the specified URL
   // is loaded. If no file is specified then the response content will be empty.

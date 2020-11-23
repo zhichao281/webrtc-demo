@@ -40,8 +40,9 @@ class ImageResourceObserver;
 
 // StylePendingImage is a placeholder StyleImage that is entered into the
 // ComputedStyle during style resolution, in order to avoid loading images that
-// are not referenced by the final style.  They should never exist in a
-// ComputedStyle after it has been returned from the style selector.
+// are not referenced by the final style.  They should only exist in a
+// ComputedStyle for non-rendered elements created with EnsureComputedStyle or
+// display:contents.
 class StylePendingImage final : public StyleImage {
  public:
   explicit StylePendingImage(const CSSValue& value)
@@ -53,10 +54,8 @@ class StylePendingImage final : public StyleImage {
 
   CSSValue* CssValue() const override { return value_; }
 
-  CSSValue* ComputedCSSValue() const override {
-    NOTREACHED();
-    return nullptr;
-  }
+  CSSValue* ComputedCSSValue(const ComputedStyle& style,
+                             bool allow_visited_style) const override;
 
   CSSImageValue* CssImageValue() const {
     return DynamicTo<CSSImageValue>(value_.Get());
@@ -72,8 +71,9 @@ class StylePendingImage final : public StyleImage {
   }
 
   FloatSize ImageSize(const Document&,
-                      float /*multiplier*/,
-                      const LayoutSize& /*defaultObjectSize*/) const override {
+                      float,
+                      const FloatSize&,
+                      RespectImageOrientationEnum) const override {
     return FloatSize();
   }
   bool HasIntrinsicSize() const override { return true; }
@@ -90,7 +90,7 @@ class StylePendingImage final : public StyleImage {
     return false;
   }
 
-  void Trace(blink::Visitor* visitor) override {
+  void Trace(Visitor* visitor) const override {
     visitor->Trace(value_);
     StyleImage::Trace(visitor);
   }
@@ -98,8 +98,6 @@ class StylePendingImage final : public StyleImage {
  private:
   bool IsEqual(const StyleImage& other) const override;
 
-  // TODO(sashab): Replace this with <const CSSValue> once Member<>
-  // supports const types.
   Member<CSSValue> value_;
 };
 

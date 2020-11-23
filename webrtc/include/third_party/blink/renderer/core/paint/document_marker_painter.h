@@ -6,18 +6,20 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_PAINT_DOCUMENT_MARKER_PAINTER_H_
 
 #include "third_party/blink/renderer/core/editing/markers/document_marker.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
 class ComputedStyle;
+class Document;
 class FloatRect;
 class GraphicsContext;
-class LayoutPoint;
-class LayoutRect;
 class LayoutUnit;
 class StyleableMarker;
-class TextMatchMarker;
+class TextMarkerBase;
+struct PaintInfo;
+struct PhysicalOffset;
+struct PhysicalRect;
 struct TextPaintStyle;
 
 // Document marker painter for both LayoutNG and legacy layout.
@@ -28,19 +30,23 @@ class DocumentMarkerPainter {
 
  public:
   static void PaintStyleableMarkerUnderline(GraphicsContext& context,
-                                            const LayoutPoint& box_origin,
+                                            const PhysicalOffset& box_origin,
                                             const StyleableMarker& marker,
                                             const ComputedStyle& style,
                                             const FloatRect& marker_rect,
-                                            LayoutUnit logical_height);
-  static void PaintDocumentMarker(GraphicsContext& context,
-                                  const LayoutPoint& box_origin,
+                                            LayoutUnit logical_height,
+                                            bool in_dark_mode);
+  static void PaintDocumentMarker(const PaintInfo& paint_info,
+                                  const PhysicalOffset& box_origin,
                                   const ComputedStyle& style,
                                   DocumentMarker::MarkerType marker_type,
-                                  const LayoutRect& local_rect);
-  static TextPaintStyle ComputeTextPaintStyleFrom(
-      const ComputedStyle& style,
-      const TextMatchMarker& marker);
+                                  const PhysicalRect& local_rect);
+  static TextPaintStyle ComputeTextPaintStyleFrom(const Document& document,
+                                                  Node* node,
+                                                  const ComputedStyle& style,
+                                                  const TextMarkerBase& marker,
+                                                  const PaintInfo& paint_info);
+  static bool ShouldPaintMarkerUnderline(const StyleableMarker& marker);
 };
 
 }  // namespace blink

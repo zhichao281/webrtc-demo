@@ -57,6 +57,9 @@ extern "C" {
 
 #define VP8_TEMPORAL_ALT_REF !CONFIG_REALTIME_ONLY
 
+/* vp8 uses 10,000,000 ticks/second as time stamp */
+#define TICKS_PER_SEC 10000000
+
 typedef struct {
   int kf_indicated;
   unsigned int frames_since_key;
@@ -336,7 +339,7 @@ typedef struct VP8_COMP {
 
   CODING_CONTEXT coding_context;
 
-  /* Rate targetting variables */
+  /* Rate targeting variables */
   int64_t last_prediction_error;
   int64_t last_intra_error;
 
@@ -697,6 +700,8 @@ typedef struct VP8_COMP {
 
   // Use the static threshold from ROI settings.
   int use_roi_static_threshold;
+
+  int ext_refresh_frame_flags_pending;
 } VP8_COMP;
 
 void vp8_initialize_enc(void);

@@ -8,15 +8,15 @@
 #include "base/callback.h"
 #include "base/macros.h"
 #include "build/build_config.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
+#include "third_party/skia/include/core/SkRefCnt.h"
+#include "third_party/skia/include/core/SkTypeface.h"
 
 #if defined(OS_ANDROID) || defined(OS_WIN)
 #include "third_party/blink/public/common/font_unique_name_lookup/font_table_matcher.h"
 #endif
 
-#include <SkRefCnt.h>
-#include <SkTypeface.h>
 #include <memory>
 
 namespace blink {

@@ -13,10 +13,14 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+
 #include <array>
+#include <vector>
 
 #include "api/array_view.h"
+#include "api/function_view.h"
 #include "modules/audio_processing/agc2/rnn_vad/common.h"
+#include "rtc_base/system/arch.h"
 
 namespace webrtc {
 namespace rnn_vad {
@@ -25,71 +29,76 @@ namespace rnn_vad {
 // over-allocate space for fully-connected layers output vectors (implemented as
 // std::array). The value should equal the number of units of the largest
 // fully-connected layer.
-constexpr size_t kFullyConnectedLayersMaxUnits = 24;
+constexpr int kFullyConnectedLayersMaxUnits = 24;
 
 // Maximum number of units for a recurrent layer. This value is used to
 // over-allocate space for recurrent layers state vectors (implemented as
 // std::array). The value should equal the number of units of the largest
 // recurrent layer.
-constexpr size_t kRecurrentLayersMaxUnits = 24;
+constexpr int kRecurrentLayersMaxUnits = 24;
 
 // Fully-connected layer.
 class FullyConnectedLayer {
  public:
-  FullyConnectedLayer(const size_t input_size,
-                      const size_t output_size,
-                      const rtc::ArrayView<const int8_t> bias,
-                      const rtc::ArrayView<const int8_t> weights,
-                      float (*const activation_function)(float));
+  FullyConnectedLayer(int input_size,
+                      int output_size,
+                      rtc::ArrayView<const int8_t> bias,
+                      rtc::ArrayView<const int8_t> weights,
+                      rtc::FunctionView<float(float)> activation_function,
+                      Optimization optimization);
   FullyConnectedLayer(const FullyConnectedLayer&) = delete;
   FullyConnectedLayer& operator=(const FullyConnectedLayer&) = delete;
   ~FullyConnectedLayer();
-  size_t input_size() const { return input_size_; }
-  size_t output_size() const { return output_size_; }
+  int input_size() const { return input_size_; }
+  int output_size() const { return output_size_; }
+  Optimization optimization() const { return optimization_; }
   rtc::ArrayView<const float> GetOutput() const;
   // Computes the fully-connected layer output.
   void ComputeOutput(rtc::ArrayView<const float> input);
 
  private:
-  const size_t input_size_;
-  const size_t output_size_;
-  const rtc::ArrayView<const int8_t> bias_;
-  const rtc::ArrayView<const int8_t> weights_;
-  float (*const activation_function_)(float);
+  const int input_size_;
+  const int output_size_;
+  const std::vector<float> bias_;
+  const std::vector<float> weights_;
+  rtc::FunctionView<float(float)> activation_function_;
   // The output vector of a recurrent layer has length equal to |output_size_|.
   // However, for efficiency, over-allocation is used.
   std::array<float, kFullyConnectedLayersMaxUnits> output_;
+  const Optimization optimization_;
 };
 
-// Recurrent layer with gated recurrent units (GRUs).
+// Recurrent layer with gated recurrent units (GRUs) with sigmoid and ReLU as
+// activation functions for the update/reset and output gates respectively.
 class GatedRecurrentLayer {
  public:
-  GatedRecurrentLayer(const size_t input_size,
-                      const size_t output_size,
-                      const rtc::ArrayView<const int8_t> bias,
-                      const rtc::ArrayView<const int8_t> weights,
-                      const rtc::ArrayView<const int8_t> recurrent_weights,
-                      float (*const activation_function)(float));
+  GatedRecurrentLayer(int input_size,
+                      int output_size,
+                      rtc::ArrayView<const int8_t> bias,
+                      rtc::ArrayView<const int8_t> weights,
+                      rtc::ArrayView<const int8_t> recurrent_weights,
+                      Optimization optimization);
   GatedRecurrentLayer(const GatedRecurrentLayer&) = delete;
   GatedRecurrentLayer& operator=(const GatedRecurrentLayer&) = delete;
   ~GatedRecurrentLayer();
-  size_t input_size() const { return input_size_; }
-  size_t output_size() const { return output_size_; }
+  int input_size() const { return input_size_; }
+  int output_size() const { return output_size_; }
+  Optimization optimization() const { return optimization_; }
   rtc::ArrayView<const float> GetOutput() const;
   void Reset();
   // Computes the recurrent layer output and updates the status.
   void ComputeOutput(rtc::ArrayView<const float> input);
 
  private:
-  const size_t input_size_;
-  const size_t output_size_;
-  const rtc::ArrayView<const int8_t> bias_;
-  const rtc::ArrayView<const int8_t> weights_;
-  const rtc::ArrayView<const int8_t> recurrent_weights_;
-  float (*const activation_function_)(float);
+  const int input_size_;
+  const int output_size_;
+  const std::vector<float> bias_;
+  const std::vector<float> weights_;
+  const std::vector<float> recurrent_weights_;
   // The state vector of a recurrent layer has length equal to |output_size_|.
   // However, to avoid dynamic allocation, over-allocation is used.
   std::array<float, kRecurrentLayersMaxUnits> state_;
+  const Optimization optimization_;
 };
 
 // Recurrent network based VAD.

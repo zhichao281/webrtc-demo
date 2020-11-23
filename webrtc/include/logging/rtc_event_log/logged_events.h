@@ -18,6 +18,7 @@
 #include "api/units/data_rate.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
+#include "api/video/video_codec_type.h"
 #include "logging/rtc_event_log/events/rtc_event_dtls_transport_state.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair_config.h"
@@ -188,6 +189,19 @@ struct LoggedBweProbeFailureEvent {
   ProbeFailureReason failure_reason;
 };
 
+struct LoggedFrameDecoded {
+  int64_t log_time_us() const { return timestamp_us; }
+  int64_t log_time_ms() const { return timestamp_us / 1000; }
+
+  int64_t timestamp_us;
+  int64_t render_time_ms;
+  uint32_t ssrc;
+  int width;
+  int height;
+  VideoCodecType codec;
+  uint8_t qp;
+};
+
 struct LoggedIceCandidatePairConfig {
   int64_t log_time_us() const { return timestamp_us; }
   int64_t log_time_ms() const { return timestamp_us / 1000; }
@@ -224,8 +238,34 @@ struct LoggedIceCandidatePairEvent {
   uint32_t transaction_id;
 };
 
+struct LoggedRouteChangeEvent {
+  LoggedRouteChangeEvent() = default;
+  LoggedRouteChangeEvent(int64_t timestamp_ms,
+                         bool connected,
+                         uint32_t overhead)
+      : timestamp_ms(timestamp_ms), connected(connected), overhead(overhead) {}
+
+  int64_t log_time_us() const { return timestamp_ms * 1000; }
+  int64_t log_time_ms() const { return timestamp_ms; }
+
+  int64_t timestamp_ms;
+  bool connected;
+  uint32_t overhead;
+};
+
+struct LoggedRemoteEstimateEvent {
+  LoggedRemoteEstimateEvent() = default;
+
+  int64_t log_time_us() const { return timestamp_ms * 1000; }
+  int64_t log_time_ms() const { return timestamp_ms; }
+
+  int64_t timestamp_ms;
+  absl::optional<DataRate> link_capacity_lower;
+  absl::optional<DataRate> link_capacity_upper;
+};
+
 struct LoggedRtpPacket {
-  LoggedRtpPacket(uint64_t timestamp_us,
+  LoggedRtpPacket(int64_t timestamp_us,
                   RTPHeader header,
                   size_t header_length,
                   size_t total_length)
@@ -245,7 +285,7 @@ struct LoggedRtpPacket {
 };
 
 struct LoggedRtpPacketIncoming {
-  LoggedRtpPacketIncoming(uint64_t timestamp_us,
+  LoggedRtpPacketIncoming(int64_t timestamp_us,
                           RTPHeader header,
                           size_t header_length,
                           size_t total_length)
@@ -257,7 +297,7 @@ struct LoggedRtpPacketIncoming {
 };
 
 struct LoggedRtpPacketOutgoing {
-  LoggedRtpPacketOutgoing(uint64_t timestamp_us,
+  LoggedRtpPacketOutgoing(int64_t timestamp_us,
                           RTPHeader header,
                           size_t header_length,
                           size_t total_length)
@@ -269,10 +309,8 @@ struct LoggedRtpPacketOutgoing {
 };
 
 struct LoggedRtcpPacket {
-  LoggedRtcpPacket(uint64_t timestamp_us,
-                   const uint8_t* packet,
-                   size_t total_length);
-  LoggedRtcpPacket(uint64_t timestamp_us, const std::string& packet);
+  LoggedRtcpPacket(int64_t timestamp_us, const std::vector<uint8_t>& packet);
+  LoggedRtcpPacket(int64_t timestamp_us, const std::string& packet);
   LoggedRtcpPacket(const LoggedRtcpPacket&);
   ~LoggedRtcpPacket();
 
@@ -284,10 +322,9 @@ struct LoggedRtcpPacket {
 };
 
 struct LoggedRtcpPacketIncoming {
-  LoggedRtcpPacketIncoming(uint64_t timestamp_us,
-                           const uint8_t* packet,
-                           size_t total_length)
-      : rtcp(timestamp_us, packet, total_length) {}
+  LoggedRtcpPacketIncoming(int64_t timestamp_us,
+                           const std::vector<uint8_t>& packet)
+      : rtcp(timestamp_us, packet) {}
   LoggedRtcpPacketIncoming(uint64_t timestamp_us, const std::string& packet)
       : rtcp(timestamp_us, packet) {}
 
@@ -298,10 +335,9 @@ struct LoggedRtcpPacketIncoming {
 };
 
 struct LoggedRtcpPacketOutgoing {
-  LoggedRtcpPacketOutgoing(uint64_t timestamp_us,
-                           const uint8_t* packet,
-                           size_t total_length)
-      : rtcp(timestamp_us, packet, total_length) {}
+  LoggedRtcpPacketOutgoing(int64_t timestamp_us,
+                           const std::vector<uint8_t>& packet)
+      : rtcp(timestamp_us, packet) {}
   LoggedRtcpPacketOutgoing(uint64_t timestamp_us, const std::string& packet)
       : rtcp(timestamp_us, packet) {}
 
@@ -392,7 +428,9 @@ struct LoggedRtcpPacketPli {
 };
 
 struct LoggedRtcpPacketTransportFeedback {
-  LoggedRtcpPacketTransportFeedback() = default;
+  LoggedRtcpPacketTransportFeedback()
+      : transport_feedback(/*include_timestamps=*/true, /*include_lost*/ true) {
+  }
   LoggedRtcpPacketTransportFeedback(
       int64_t timestamp_us,
       const rtcp::TransportFeedback& transport_feedback)
@@ -490,7 +528,7 @@ struct LoggedVideoSendConfig {
   rtclog::StreamConfig config;
 };
 
-struct LoggedRouteChangeEvent {
+struct InferredRouteChangeEvent {
   int64_t log_time_ms() const { return log_time.ms(); }
   int64_t log_time_us() const { return log_time.us(); }
   uint32_t route_id;
@@ -513,6 +551,8 @@ struct LoggedPacketInfo {
   uint32_t ssrc;
   uint16_t stream_seq_no;
   uint16_t size;
+  uint16_t payload_size;
+  uint16_t padding_size;
   uint16_t overhead = 0;
   uint8_t payload_type;
   LoggedMediaType media_type = LoggedMediaType::kUnknown;
@@ -527,6 +567,9 @@ struct LoggedPacketInfo {
   // The time the packet was logged. This is the receive time for incoming
   // packets and send time for outgoing.
   Timestamp log_packet_time;
+  // Send time as reported by abs-send-time extension, For outgoing packets this
+  // corresponds to log_packet_time, but might be measured using another clock.
+  Timestamp reported_send_time;
   // The receive time that was reported in feedback. For incoming packets this
   // corresponds to log_packet_time, but might be measured using another clock.
   // PlusInfinity indicates that the packet was lost.

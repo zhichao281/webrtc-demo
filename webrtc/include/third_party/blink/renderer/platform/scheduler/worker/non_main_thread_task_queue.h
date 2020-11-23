@@ -26,18 +26,24 @@ class PLATFORM_EXPORT NonMainThreadTaskQueue
 
   void OnTaskCompleted(
       const base::sequence_manager::Task& task,
-      const base::sequence_manager::TaskQueue::TaskTiming& task_timing);
+      base::sequence_manager::TaskQueue::TaskTiming* task_timing,
+      base::sequence_manager::LazyNow* lazy_now);
 
   scoped_refptr<base::SingleThreadTaskRunner> CreateTaskRunner(
       TaskType task_type) {
     return TaskQueue::CreateTaskRunner(static_cast<int>(task_type));
   }
 
-  void SetPaused(bool paused);
+  // This method returns the default task runner with task type kTaskTypeNone
+  // and is mostly used for tests. For most use cases, you'll want a more
+  // specific task runner and should use the 'CreateTaskRunner' method and pass
+  // the desired task type.
+  const scoped_refptr<base::SingleThreadTaskRunner>&
+  GetTaskRunnerWithDefaultTaskType() const {
+    return task_runner();
+  }
 
  private:
-  std::unique_ptr<QueueEnabledVoter> task_queue_voter_;
-
   // Not owned.
   NonMainThreadSchedulerImpl* non_main_thread_scheduler_;
 };

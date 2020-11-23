@@ -25,7 +25,7 @@ class AudioDeviceModule : public rtc::RefCountInterface {
   enum AudioLayer {
     kPlatformDefaultAudio = 0,
     kWindowsCoreAudio,
-    kWindowsCoreAudio2,  // experimental
+    kWindowsCoreAudio2,
     kLinuxAlsaAudio,
     kLinuxPulseAudio,
     kAndroidJavaAudio,
@@ -42,9 +42,6 @@ class AudioDeviceModule : public rtc::RefCountInterface {
   };
 
  public:
-  // TODO(bugs.webrtc.org/10284): Remove when unused.
-  RTC_DEPRECATED
-  static rtc::scoped_refptr<AudioDeviceModule> Create(AudioLayer audio_layer);
   // Creates a default ADM for usage in production code.
   static rtc::scoped_refptr<AudioDeviceModule> Create(
       AudioLayer audio_layer,
@@ -148,6 +145,10 @@ class AudioDeviceModule : public rtc::RefCountInterface {
   virtual int32_t EnableBuiltInAEC(bool enable) = 0;
   virtual int32_t EnableBuiltInAGC(bool enable) = 0;
   virtual int32_t EnableBuiltInNS(bool enable) = 0;
+
+  // Play underrun count. Only supported on Android.
+  // TODO(alexnarest): Make it abstract after upstream projects support it.
+  virtual int32_t GetPlayoutUnderrunCount() const { return -1; }
 
 // Only supported on iOS.
 #if defined(WEBRTC_IOS)

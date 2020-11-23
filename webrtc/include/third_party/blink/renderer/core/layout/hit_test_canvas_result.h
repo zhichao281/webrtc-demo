@@ -10,14 +10,14 @@
 namespace blink {
 
 class CORE_EXPORT HitTestCanvasResult final
-    : public GarbageCollectedFinalized<HitTestCanvasResult> {
+    : public GarbageCollected<HitTestCanvasResult> {
  public:
   HitTestCanvasResult(String id, Member<Element> control);
 
   String GetId() const;
   Element* GetControl() const;
 
-  void Trace(blink::Visitor*);
+  void Trace(Visitor*) const;
 
  private:
   String id_;

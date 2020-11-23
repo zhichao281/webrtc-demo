@@ -12,7 +12,6 @@
 #include "third_party/blink/renderer/modules/filesystem/directory_entry.h"
 #include "third_party/blink/renderer/modules/filesystem/dom_file_system.h"
 #include "third_party/blink/renderer/modules/filesystem/entry.h"
-#include "third_party/blink/renderer/modules/filesystem/file_system_base_handle.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
@@ -30,12 +29,10 @@ class AsyncCallbackHelper {
       return base::OnceCallback<void(CallbackParam*)>();
 
     auto success_callback_wrapper = WTF::Bind(
-        [](V8PersistentCallbackInterface<V8Callback>* persistent_callback,
-           CallbackParam* param) {
+        [](V8Callback* persistent_callback, CallbackParam* param) {
           persistent_callback->InvokeAndReportException(nullptr, param);
         },
-        WrapPersistentIfNeeded(
-            ToV8PersistentCallbackInterface(success_callback)));
+        WrapPersistent(success_callback));
     return success_callback_wrapper;
   }
 
@@ -45,35 +42,14 @@ class AsyncCallbackHelper {
       return base::OnceCallback<void(base::File::Error)>();
 
     return WTF::Bind(
-        [](V8PersistentCallbackInterface<V8ErrorCallback>* persistent_callback,
-           base::File::Error error) {
+        [](V8ErrorCallback* persistent_callback, base::File::Error error) {
           persistent_callback->InvokeAndReportException(
               nullptr, file_error::CreateDOMException(error));
         },
-        WrapPersistentIfNeeded(
-            ToV8PersistentCallbackInterface(error_callback)));
+        WrapPersistent(error_callback));
   }
 
-  template <typename CallbackParam>
-  static base::OnceCallback<void(CallbackParam*)> SuccessPromise(
-      ScriptPromiseResolver* resolver) {
-    return WTF::Bind(
-        [](ScriptPromiseResolver* resolver, CallbackParam* param) {
-          resolver->Resolve(param->asFileSystemHandle());
-        },
-        WrapPersistentIfNeeded(resolver));
-  }
-
-  static base::OnceCallback<void(base::File::Error)> ErrorPromise(
-      ScriptPromiseResolver* resolver) {
-    return WTF::Bind(
-        [](ScriptPromiseResolver* resolver, base::File::Error error) {
-          resolver->Reject(file_error::CreateDOMException(error));
-        },
-        WrapPersistentIfNeeded(resolver));
-  }
-
-  // The two methods below are not templetized, to be used exclusively for
+  // The method below is not templatized, to be used exclusively for
   // VoidCallbacks.
   static base::OnceCallback<void()> VoidSuccessCallback(
       V8VoidCallback* success_callback) {
@@ -81,19 +57,11 @@ class AsyncCallbackHelper {
       return VoidCallbacks::SuccessCallback();
 
     auto success_callback_wrapper = WTF::Bind(
-        [](V8PersistentCallbackInterface<V8VoidCallback>* persistent_callback) {
+        [](V8VoidCallback* persistent_callback) {
           persistent_callback->InvokeAndReportException(nullptr);
         },
-        WrapPersistentIfNeeded(
-            ToV8PersistentCallbackInterface(success_callback)));
+        WrapPersistent(success_callback));
     return success_callback_wrapper;
-  }
-
-  static base::OnceCallback<void()> VoidSuccessPromise(
-      ScriptPromiseResolver* resolver) {
-    return WTF::Bind(
-        [](ScriptPromiseResolver* resolver) { resolver->Resolve(); },
-        WrapPersistentIfNeeded(resolver));
   }
 };
 

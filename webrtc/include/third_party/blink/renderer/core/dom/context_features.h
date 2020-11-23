@@ -38,10 +38,8 @@ class ContextFeaturesClient;
 class Document;
 class Page;
 
-class ContextFeatures final : public GarbageCollectedFinalized<ContextFeatures>,
+class ContextFeatures final : public GarbageCollected<ContextFeatures>,
                               public Supplement<Page> {
-  USING_GARBAGE_COLLECTED_MIXIN(ContextFeatures);
-
  public:
   static const char kSupplementName[];
 
@@ -52,7 +50,6 @@ class ContextFeatures final : public GarbageCollectedFinalized<ContextFeatures>,
   };
 
   static ContextFeatures& DefaultSwitch();
-  static ContextFeatures* Create(std::unique_ptr<ContextFeaturesClient>);
 
   static bool PagePopupEnabled(Document*);
   static bool MutationEventsEnabled(Document*);

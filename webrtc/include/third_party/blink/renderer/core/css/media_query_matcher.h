@@ -20,7 +20,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_CSS_MEDIA_QUERY_MATCHER_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_MEDIA_QUERY_MATCHER_H_
 
-#include "base/macros.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
@@ -40,12 +39,11 @@ class MediaQuerySet;
 // which they have been added.
 
 class CORE_EXPORT MediaQueryMatcher final
-    : public GarbageCollectedFinalized<MediaQueryMatcher> {
-
+    : public GarbageCollected<MediaQueryMatcher> {
  public:
-  static MediaQueryMatcher* Create(Document&);
-
   explicit MediaQueryMatcher(Document&);
+  MediaQueryMatcher(const MediaQueryMatcher&) = delete;
+  MediaQueryMatcher& operator=(const MediaQueryMatcher&) = delete;
   ~MediaQueryMatcher();
 
   void DocumentDetached();
@@ -62,7 +60,7 @@ class CORE_EXPORT MediaQueryMatcher final
   void ViewportChanged();
   bool Evaluate(const MediaQuerySet*);
 
-  void Trace(blink::Visitor*);
+  void Trace(Visitor*) const;
 
  private:
   MediaQueryEvaluator* CreateEvaluator() const;
@@ -75,7 +73,6 @@ class CORE_EXPORT MediaQueryMatcher final
 
   using ViewportListenerSet = HeapLinkedHashSet<Member<MediaQueryListListener>>;
   ViewportListenerSet viewport_listeners_;
-  DISALLOW_COPY_AND_ASSIGN(MediaQueryMatcher);
 };
 
 }  // namespace blink

@@ -179,6 +179,7 @@ extern "C" {
 #define TLS1_AD_BAD_CERTIFICATE_HASH_VALUE 114
 #define TLS1_AD_UNKNOWN_PSK_IDENTITY 115
 #define TLS1_AD_CERTIFICATE_REQUIRED 116
+#define TLS1_AD_NO_APPLICATION_PROTOCOL 120
 
 // ExtensionType values from RFC6066
 #define TLSEXT_TYPE_server_name 0
@@ -231,9 +232,12 @@ extern "C" {
 // ExtensionType value from RFC5746
 #define TLSEXT_TYPE_renegotiate 0xff01
 
-// ExtensionType value from draft-ietf-tls-subcerts. This is not an IANA defined
+// ExtensionType value from draft-ietf-tls-subcerts.
+#define TLSEXT_TYPE_delegated_credential 0x22
+
+// ExtensionType value from draft-vvv-tls-alps. This is not an IANA defined
 // extension number.
-#define TLSEXT_TYPE_delegated_credential 0xff02
+#define TLSEXT_TYPE_application_settings 17513
 
 // ExtensionType value from RFC6962
 #define TLSEXT_TYPE_certificate_timestamp 18
@@ -608,9 +612,9 @@ extern "C" {
   "ECDHE-PSK-CHACHA20-POLY1305"
 
 // TLS 1.3 ciphersuites from RFC 8446.
-#define TLS1_TXT_AES_128_GCM_SHA256 "AEAD-AES128-GCM-SHA256"
-#define TLS1_TXT_AES_256_GCM_SHA384 "AEAD-AES256-GCM-SHA384"
-#define TLS1_TXT_CHACHA20_POLY1305_SHA256 "AEAD-CHACHA20-POLY1305-SHA256"
+#define TLS1_TXT_AES_128_GCM_SHA256 "TLS_AES_128_GCM_SHA256"
+#define TLS1_TXT_AES_256_GCM_SHA384 "TLS_AES_256_GCM_SHA384"
+#define TLS1_TXT_CHACHA20_POLY1305_SHA256 "TLS_CHACHA20_POLY1305_SHA256"
 
 
 #define TLS_CT_RSA_SIGN 1

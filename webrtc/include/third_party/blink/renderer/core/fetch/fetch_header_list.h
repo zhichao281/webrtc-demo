@@ -5,7 +5,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_FETCH_FETCH_HEADER_LIST_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_FETCH_FETCH_HEADER_LIST_H_
 
-#include <map>
 #include <utility>
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
@@ -16,11 +15,11 @@ namespace blink {
 
 // http://fetch.spec.whatwg.org/#terminology-headers
 class CORE_EXPORT FetchHeaderList final
-    : public GarbageCollectedFinalized<FetchHeaderList> {
+    : public GarbageCollected<FetchHeaderList> {
  public:
   struct ByteCaseInsensitiveCompare {
     bool operator()(const String& lhs, const String& rhs) const {
-      return CodePointCompareLessThan(lhs.LowerASCII(), rhs.LowerASCII());
+      return CodeUnitCompareLessThan(lhs.LowerASCII(), rhs.LowerASCII());
     }
   };
 
@@ -38,6 +37,7 @@ class CORE_EXPORT FetchHeaderList final
   size_t size() const;
   void Remove(const String&);
   bool Get(const String&, String&) const;
+  String GetAsRawString(int status_code, String status_message) const;
   bool Has(const String&) const;
   void ClearList();
 
@@ -51,7 +51,7 @@ class CORE_EXPORT FetchHeaderList final
   static bool IsValidHeaderName(const String&);
   static bool IsValidHeaderValue(const String&);
 
-  void Trace(blink::Visitor* visitor) {}
+  void Trace(Visitor* visitor) const {}
 
  private:
   // While using STL data structures in Blink is not very common or

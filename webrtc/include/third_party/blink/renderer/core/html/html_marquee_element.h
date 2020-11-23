@@ -33,9 +33,7 @@ class HTMLMarqueeElement final : public HTMLElement {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  void Trace(Visitor*) override;
-
-  static HTMLMarqueeElement* Create(Document&);
+  void Trace(Visitor*) const override;
 
   explicit HTMLMarqueeElement(Document&);
 

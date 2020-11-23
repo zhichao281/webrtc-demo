@@ -44,8 +44,8 @@ class DocumentStyleSheetCollection;
 class MutableCSSPropertyValueSet;
 class StyleRuleViewport;
 
-class CORE_EXPORT ViewportStyleResolver
-    : public GarbageCollectedFinalized<ViewportStyleResolver> {
+class CORE_EXPORT ViewportStyleResolver final
+    : public GarbageCollected<ViewportStyleResolver> {
  public:
   explicit ViewportStyleResolver(Document&);
 
@@ -57,7 +57,7 @@ class CORE_EXPORT ViewportStyleResolver
 
   void CollectViewportRulesFromAuthorSheet(const CSSStyleSheet&);
 
-  void Trace(blink::Visitor*);
+  void Trace(Visitor*) const;
 
  private:
   void Reset();

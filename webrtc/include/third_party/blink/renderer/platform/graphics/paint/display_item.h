@@ -5,12 +5,12 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_PAINT_DISPLAY_ITEM_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_PAINT_DISPLAY_ITEM_H_
 
-#include "third_party/blink/renderer/platform/geometry/float_rect.h"
+#include "third_party/blink/renderer/platform/geometry/int_rect.h"
 #include "third_party/blink/renderer/platform/graphics/contiguous_container.h"
 #include "third_party/blink/renderer/platform/graphics/paint/display_item_client.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/assertions.h"
 
 #if DCHECK_IS_ON()
@@ -28,7 +28,7 @@ class PLATFORM_EXPORT DisplayItem {
  public:
   enum {
     // Must be kept in sync with core/paint/PaintPhase.h.
-    kPaintPhaseMax = 10,
+    kPaintPhaseMax = 12,
   };
 
   // A display item type uniquely identifies a display item of a client.
@@ -61,10 +61,11 @@ class PLATFORM_EXPORT DisplayItem {
     kClippingMask,
     kColumnRules,
     kDebugDrawing,
+    kDocumentRootBackdrop,
     kDocumentBackground,
     kDragImage,
     kDragCaret,
-    kEmptyContentForFilters,
+    kForcedColorsModeBackplate,
     kSVGImage,
     kLinkHighlight,
     kImageAreaFocusRing,
@@ -78,20 +79,14 @@ class PLATFORM_EXPORT DisplayItem {
     kReflectionMask,
     kResizer,
     kSVGClip,
-    kSVGFilter,
     kSVGMask,
-    kScrollbarBackButtonEnd,
-    kScrollbarBackButtonStart,
-    kScrollbarBackground,
-    kScrollbarBackTrack,
-    kScrollbarCorner,
-    kScrollbarForwardButtonEnd,
-    kScrollbarForwardButtonStart,
-    kScrollbarForwardTrack,
+    kScrollCorner,
+    // The following 3 types are used during cc::Scrollbar::PaintPart() only.
+    // During Paint stage of document lifecycle update, we record
+    // ScrollbarDisplayItem instead of DrawingItems of these types.
+    kScrollbarTrackAndButtons,
     kScrollbarThumb,
     kScrollbarTickmarks,
-    kScrollbarTrackBackground,
-    kScrollbarCompositedScrollbar,
     kSelectionTint,
     kTableCollapsedBorders,
     kVideoBitmap,
@@ -104,10 +99,12 @@ class PLATFORM_EXPORT DisplayItem {
     kForeignLayerDevToolsOverlay,
     kForeignLayerPlugin,
     kForeignLayerVideo,
-    kForeignLayerWrapper,
+    kForeignLayerRemoteFrame,
     kForeignLayerContentsWrapper,
     kForeignLayerLinkHighlight,
-    kForeignLayerLast = kForeignLayerLinkHighlight,
+    kForeignLayerViewportScroll,
+    kForeignLayerViewportScrollbar,
+    kForeignLayerLast = kForeignLayerViewportScrollbar,
 
     kClipPaintPhaseFirst,
     kClipPaintPhaseLast = kClipPaintPhaseFirst + kPaintPhaseMax,
@@ -121,20 +118,35 @@ class PLATFORM_EXPORT DisplayItem {
     kSVGEffectPaintPhaseFirst,
     kSVGEffectPaintPhaseLast = kSVGEffectPaintPhaseFirst + kPaintPhaseMax,
 
+    // The following hit test types are for paint chunks containing hit test
+    // data, when we don't have an previously set explicit chunk id when
+    // creating the paint chunk, or we need dedicated paint chunk for the hit
+    // test data.
+
     // Compositor hit testing requires that layers are created and sized to
-    // include content that does not paint. Hit test display items ensure
-    // a layer exists and is sized properly even if no content would otherwise
-    // be painted.
+    // include content that does not paint. Hit test data ensure a layer exists
+    // and is sized properly even if no content would otherwise be painted.
     kHitTest,
 
+    // Used both for specifying the paint-order scroll location, and for non-
+    // composited scroll hit testing (see: hit_test_data.h).
     kScrollHitTest,
+    // Used to prevent composited scrolling on the resize handle.
+    kResizerScrollHitTest,
+    // Used to prevent composited scrolling on plugins with wheel handlers.
+    kPluginScrollHitTest,
+    // Used to prevent composited scrolling on custom scrollbars.
+    kCustomScrollbarHitTest,
 
-    kLayerChunkBackground,
-    kLayerChunkNegativeZOrderChildren,
-    kLayerChunkDescendantBackgrounds,
-    kLayerChunkFloat,
+    // These are for paint chunks that are forced for layers.
+    kLayerChunk,
+    // This is used if a layer has any negative-z-index children. Otherwise the
+    // foreground is in the kLayerChunk chunk.
     kLayerChunkForeground,
-    kLayerChunkNormalFlowAndPositiveZOrderChildren,
+
+    // The following 2 types are For ScrollbarDisplayItem.
+    kScrollbarHorizontal,
+    kScrollbarVertical,
 
     kUninitializedType,
     kTypeLast = kUninitializedType
@@ -144,21 +156,25 @@ class PLATFORM_EXPORT DisplayItem {
   // later paint cycles when |client| may have been destroyed.
   DisplayItem(const DisplayItemClient& client,
               Type type,
-              size_t derived_size,
+              wtf_size_t derived_size,
+              const IntRect& visual_rect,
               bool draws_content = false)
       : client_(&client),
-        visual_rect_(client.VisualRect()),
-        outset_for_raster_effects_(client.VisualRectOutsetForRasterEffects()),
-        type_(type),
-        draws_content_(draws_content),
+        visual_rect_(visual_rect),
         fragment_(0),
+        type_(type),
+        derived_size_(derived_size),
+        raster_effect_outset_(
+            static_cast<unsigned>(client.VisualRectOutsetForRasterEffects())),
+        draws_content_(draws_content),
         is_cacheable_(client.IsCacheable()),
         is_tombstone_(false) {
     // |derived_size| must fit in |derived_size_|.
     // If it doesn't, enlarge |derived_size_| and fix this assert.
-    SECURITY_DCHECK(derived_size < (1 << 8));
+    SECURITY_DCHECK(derived_size == derived_size_);
     SECURITY_DCHECK(derived_size >= sizeof(*this));
-    derived_size_ = static_cast<unsigned>(derived_size);
+    DCHECK_EQ(client.VisualRectOutsetForRasterEffects(),
+              GetRasterEffectOutset());
   }
 
   virtual ~DisplayItem() = default;
@@ -166,16 +182,16 @@ class PLATFORM_EXPORT DisplayItem {
   // Ids are for matching new DisplayItems with existing DisplayItems.
   struct Id {
     DISALLOW_NEW();
-    Id(const DisplayItemClient& client, const Type type, unsigned fragment = 0)
+    Id(const DisplayItemClient& client, Type type, wtf_size_t fragment = 0)
         : client(client), type(type), fragment(fragment) {}
-    Id(const Id& id, unsigned fragment)
+    Id(const Id& id, wtf_size_t fragment)
         : client(id.client), type(id.type), fragment(fragment) {}
 
     String ToString() const;
 
     const DisplayItemClient& client;
     const Type type;
-    const unsigned fragment;
+    const wtf_size_t fragment;
   };
 
   Id GetId() const { return Id(*client_, GetType(), fragment_); }
@@ -185,17 +201,13 @@ class PLATFORM_EXPORT DisplayItem {
     return *client_;
   }
 
-  // This equals to Client().VisualRect() as long as the client is alive and is
-  // not invalidated. Otherwise it saves the previous visual rect of the client.
-  // See DisplayItemClient::VisualRect() about its coordinate space.
-  const FloatRect& VisualRect() const { return visual_rect_; }
-  float OutsetForRasterEffects() const { return outset_for_raster_effects_; }
+  // The bounding box of all pixels of this display item, in the transform space
+  // of the containing paint chunk.
+  const IntRect& VisualRect() const { return visual_rect_; }
 
-  // Visual rect can change without needing invalidation of the client, e.g.
-  // when ancestor clip changes. This is called from PaintController::
-  // UseCachedItemIfPossible() to update the visual rect of a cached display
-  // item.
-  void UpdateVisualRect() { visual_rect_ = FloatRect(client_->VisualRect()); }
+  RasterEffectOutset GetRasterEffectOutset() const {
+    return static_cast<RasterEffectOutset>(raster_effect_outset_);
+  }
 
   Type GetType() const { return static_cast<Type>(type_); }
 
@@ -203,15 +215,12 @@ class PLATFORM_EXPORT DisplayItem {
   // This is not sizeof(*this), because it needs to account for the size of
   // the derived class (i.e. runtime type). Derived classes are expected to
   // supply this to the DisplayItem constructor.
-  size_t DerivedSize() const { return derived_size_; }
+  wtf_size_t DerivedSize() const { return derived_size_; }
 
   // The fragment is part of the id, to uniquely identify display items in
   // different fragments for the same client and type.
-  unsigned Fragment() const { return fragment_; }
-  void SetFragment(unsigned fragment) {
-    DCHECK(fragment < (1 << 14));
-    fragment_ = fragment;
-  }
+  wtf_size_t Fragment() const { return fragment_; }
+  void SetFragment(wtf_size_t fragment) { fragment_ = fragment; }
 
 // See comments of enum Type for usage of the following macros.
 #define DEFINE_CATEGORY_METHODS(Category)                           \
@@ -241,8 +250,9 @@ class PLATFORM_EXPORT DisplayItem {
   DEFINE_PAINT_PHASE_CONVERSION_METHOD(SVGTransform)
   DEFINE_PAINT_PHASE_CONVERSION_METHOD(SVGEffect)
 
-  bool IsHitTest() const { return type_ == kHitTest; }
-  bool IsScrollHitTest() const { return type_ == kScrollHitTest; }
+  bool IsScrollbar() const {
+    return type_ == kScrollbarHorizontal || type_ == kScrollbarVertical;
+  }
 
   bool IsCacheable() const { return is_cacheable_; }
   void SetUncacheable() { is_cacheable_ = false; }
@@ -268,7 +278,7 @@ class PLATFORM_EXPORT DisplayItem {
 #endif
 
  private:
-  template <typename T, unsigned alignment>
+  template <typename T, wtf_size_t alignment>
   friend class ContiguousContainer;
   friend class DisplayItemList;
 
@@ -276,19 +286,19 @@ class PLATFORM_EXPORT DisplayItem {
   // AppendByMoving() where a tombstone DisplayItem is constructed at the source
   // location. Only set draws_content_ to false and is_tombstone_ to true,
   // leaving other fields as-is so that we can get their original values.
-  // |visual_rect_| and |outset_for_raster_effects_| are special, see
+  // |visual_rect_| and |raster_effect_outset_| are special, see
   // DisplayItemList::AppendByMoving().
   DisplayItem() : draws_content_(false), is_tombstone_(true) {}
 
   const DisplayItemClient* client_;
-  FloatRect visual_rect_;
-  float outset_for_raster_effects_;
-
-  static_assert(kTypeLast < (1 << 7), "DisplayItem::Type should fit in 7 bits");
-  unsigned type_ : 7;
-  unsigned draws_content_ : 1;
+  IntRect visual_rect_;
+  wtf_size_t fragment_;
+  static_assert(kTypeLast < (1 << 8),
+                "DisplayItem::Type should fit in uint8_t");
+  unsigned type_ : 8;
   unsigned derived_size_ : 8;  // size of the actual derived class
-  unsigned fragment_ : 14;
+  unsigned raster_effect_outset_ : 2;
+  unsigned draws_content_ : 1;
   unsigned is_cacheable_ : 1;
   unsigned is_tombstone_ : 1;
 };

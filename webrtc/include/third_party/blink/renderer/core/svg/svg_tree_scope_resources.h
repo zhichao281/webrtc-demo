@@ -18,19 +18,18 @@ class TreeScope;
 // This class keeps track of SVG resources and pending references to such for a
 // TreeScope. It's per-TreeScope because that matches the lookup scope of an
 // element's id (which is used to identify a resource.)
-class SVGTreeScopeResources
-    : public GarbageCollectedFinalized<SVGTreeScopeResources> {
+class SVGTreeScopeResources final
+    : public GarbageCollected<SVGTreeScopeResources> {
  public:
   explicit SVGTreeScopeResources(TreeScope*);
-  ~SVGTreeScopeResources();
 
   LocalSVGResource* ResourceForId(const AtomicString& id);
   LocalSVGResource* ExistingResourceForId(const AtomicString& id) const;
 
-  void Trace(Visitor*);
+  void Trace(Visitor*) const;
 
  private:
-  void ClearWeakMembers(Visitor*);
+  void ProcessCustomWeakness(const LivenessBroker&);
 
   HeapHashMap<AtomicString, WeakMember<LocalSVGResource>> resources_;
   Member<TreeScope> tree_scope_;

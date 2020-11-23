@@ -11,8 +11,6 @@
 #ifndef MODULES_VIDEO_CODING_VIDEO_CODING_IMPL_H_
 #define MODULES_VIDEO_CODING_VIDEO_CODING_IMPL_H_
 
-#include "modules/video_coding/include/video_coding.h"
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -21,10 +19,12 @@
 #include "modules/video_coding/decoder_database.h"
 #include "modules/video_coding/frame_buffer.h"
 #include "modules/video_coding/generic_decoder.h"
+#include "modules/video_coding/include/video_coding.h"
 #include "modules/video_coding/jitter_buffer.h"
 #include "modules/video_coding/receiver.h"
 #include "modules/video_coding/timing.h"
 #include "rtc_base/one_time_event.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/synchronization/sequence_checker.h"
 #include "rtc_base/thread_annotations.h"
 #include "rtc_base/thread_checker.h"
@@ -60,9 +60,9 @@ class VideoReceiver : public Module {
   VideoReceiver(Clock* clock, VCMTiming* timing);
   ~VideoReceiver() override;
 
-  int32_t RegisterReceiveCodec(const VideoCodec* receiveCodec,
-                               int32_t numberOfCores,
-                               bool requireKeyFrame);
+  int32_t RegisterReceiveCodec(uint8_t payload_type,
+                               const VideoCodec* receiveCodec,
+                               int32_t numberOfCores);
 
   void RegisterExternalDecoder(VideoDecoder* externalDecoder,
                                uint8_t payloadType);
@@ -72,30 +72,18 @@ class VideoReceiver : public Module {
 
   int32_t Decode(uint16_t maxWaitTimeMs);
 
-  int32_t Decode(const webrtc::VCMEncodedFrame* frame);
-
   int32_t IncomingPacket(const uint8_t* incomingPayload,
                          size_t payloadLength,
-                         const WebRtcRTPHeader& rtpInfo);
-  int32_t SetRenderDelay(uint32_t timeMS);
-  int32_t Delay() const;
+                         const RTPHeader& rtp_header,
+                         const RTPVideoHeader& video_header);
 
   void SetNackSettings(size_t max_nack_list_size,
                        int max_packet_age_to_nack,
                        int max_incomplete_time_ms);
 
-  int32_t SetReceiveChannelParameters(int64_t rtt);
   int64_t TimeUntilNextProcess() override;
   void Process() override;
   void ProcessThreadAttached(ProcessThread* process_thread) override;
-
-  void TriggerDecoderShutdown();
-
-  // Notification methods that are used to check our internal state and validate
-  // threading assumptions. These are called by VideoReceiveStream.
-  // See |IsDecoderThreadRunning()| for more details.
-  void DecoderThreadStarting();
-  void DecoderThreadStopped();
 
  protected:
   int32_t Decode(const webrtc::VCMEncodedFrame& frame);
@@ -113,7 +101,7 @@ class VideoReceiver : public Module {
   rtc::ThreadChecker decoder_thread_checker_;
   rtc::ThreadChecker module_thread_checker_;
   Clock* const clock_;
-  rtc::CriticalSection process_crit_;
+  Mutex process_mutex_;
   VCMTiming* _timing;
   VCMReceiver _receiver;
   VCMDecodedFrameCallback _decodedFrameCallback;
@@ -124,8 +112,8 @@ class VideoReceiver : public Module {
   VCMPacketRequestCallback* _packetRequestCallback;
 
   // Used on both the module and decoder thread.
-  bool _scheduleKeyRequest RTC_GUARDED_BY(process_crit_);
-  bool drop_frames_until_keyframe_ RTC_GUARDED_BY(process_crit_);
+  bool _scheduleKeyRequest RTC_GUARDED_BY(process_mutex_);
+  bool drop_frames_until_keyframe_ RTC_GUARDED_BY(process_mutex_);
 
   // Modified on the construction thread while not attached to the process
   // thread.  Once attached to the process thread, its value is only read
@@ -137,7 +125,6 @@ class VideoReceiver : public Module {
   // over to the decoder thread.
   VCMDecoderDataBase _codecDataBase;
 
-  VCMProcessTimer _receiveStatsTimer RTC_GUARDED_BY(module_thread_checker_);
   VCMProcessTimer _retransmissionTimer RTC_GUARDED_BY(module_thread_checker_);
   VCMProcessTimer _keyRequestTimer RTC_GUARDED_BY(module_thread_checker_);
   ThreadUnsafeOneTimeEvent first_frame_received_
@@ -147,9 +134,6 @@ class VideoReceiver : public Module {
   ProcessThread* process_thread_ = nullptr;
   bool is_attached_to_process_thread_
       RTC_GUARDED_BY(construction_thread_checker_) = false;
-#if RTC_DCHECK_IS_ON
-  bool decoder_thread_is_running_ = false;
-#endif
 };
 
 }  // namespace vcm

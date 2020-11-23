@@ -31,19 +31,18 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_SPEECH_TESTING_INTERNALS_SPEECH_SYNTHESIS_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_SPEECH_TESTING_INTERNALS_SPEECH_SYNTHESIS_H_
 
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
 class DOMWindow;
 class Internals;
-class ScriptState;
 
 class InternalsSpeechSynthesis {
   STATIC_ONLY(InternalsSpeechSynthesis);
 
  public:
-  static void enableMockSpeechSynthesizer(ScriptState*, Internals&, DOMWindow*);
+  static void enableMockSpeechSynthesizer(Internals&, DOMWindow*);
 };
 
 }  // namespace blink

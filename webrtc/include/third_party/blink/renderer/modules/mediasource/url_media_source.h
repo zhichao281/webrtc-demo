@@ -31,7 +31,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_MEDIASOURCE_URL_MEDIA_SOURCE_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_MEDIASOURCE_URL_MEDIA_SOURCE_H_
 
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "base/util/type_safety/pass_key.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 
 namespace blink {
@@ -43,6 +44,7 @@ class URLMediaSource {
   STATIC_ONLY(URLMediaSource);
 
  public:
+  using PassKey = util::PassKey<URLMediaSource>;
   static String createObjectURL(ScriptState*, MediaSource*);
 };
 

@@ -30,19 +30,20 @@
 #include <memory>
 
 #include "base/memory/scoped_refptr.h"
-#include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/platform/graphics/color_behavior.h"
 #include "third_party/blink/renderer/platform/graphics/image_orientation.h"
+#include "third_party/blink/renderer/platform/graphics/paint/paint_image.h"
 #include "third_party/blink/renderer/platform/image-decoders/image_animation.h"
 #include "third_party/blink/renderer/platform/image-decoders/image_frame.h"
 #include "third_party/blink/renderer/platform/image-decoders/segment_reader.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
-#include "third_party/blink/renderer/platform/shared_buffer.h"
 #include "third_party/blink/renderer/platform/wtf/assertions.h"
+#include "third_party/blink/renderer/platform/wtf/shared_buffer.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
-#include "third_party/blink/renderer/platform/wtf/time.h"
+
 #include "third_party/blink/renderer/platform/wtf/vector.h"
-#include "third_party/skia/third_party/skcms/skcms.h"
+#include "third_party/skia/include/core/SkImageInfo.h"
+#include "third_party/skia/include/third_party/skcms/skcms.h"
 
 class SkColorSpace;
 
@@ -65,14 +66,24 @@ class PLATFORM_EXPORT ImagePlanes final {
 
  public:
   ImagePlanes();
-  ImagePlanes(void* planes[3], const size_t row_bytes[3]);
 
-  void* Plane(int);
-  size_t RowBytes(int) const;
+  // |color_type| is kGray_8_SkColorType if GetYUVBitDepth() == 8 and either
+  // kA16_float_SkColorType or kA16_unorm_SkColorType if GetYUVBitDepth() > 8.
+  //
+  // TODO(crbug/910276): To support YUVA, ImagePlanes needs to support a
+  // variable number of planes.
+  ImagePlanes(void* planes[cc::kNumYUVPlanes],
+              const size_t row_bytes[cc::kNumYUVPlanes],
+              SkColorType color_type);
+
+  void* Plane(cc::YUVIndex);
+  size_t RowBytes(cc::YUVIndex) const;
+  SkColorType color_type() const { return color_type_; }
 
  private:
-  void* planes_[3];
-  size_t row_bytes_[3];
+  void* planes_[cc::kNumYUVPlanes];
+  size_t row_bytes_[cc::kNumYUVPlanes];
+  SkColorType color_type_;
 
   DISALLOW_COPY_AND_ASSIGN(ImagePlanes);
 };
@@ -117,8 +128,7 @@ class PLATFORM_EXPORT ImageDecoder {
   USING_FAST_MALLOC(ImageDecoder);
 
  public:
-  static const size_t kNoDecodedImageByteLimit =
-      Platform::kNoDecodedImageByteLimit;
+  static const size_t kNoDecodedImageByteLimit;
 
   enum AlphaOption { kAlphaPremultiplied, kAlphaNotPremultiplied };
   enum HighBitDepthDecodingOption {
@@ -126,6 +136,32 @@ class PLATFORM_EXPORT ImageDecoder {
     kDefaultBitDepth,
     // Decode high bit depth images to half float pixel format.
     kHighBitDepthToHalfFloat
+  };
+
+  // The first three values are as defined in webp/decode.h, the last value
+  // specifies WebP animation formats.
+  enum CompressionFormat {
+    kUndefinedFormat = 0,
+    kLossyFormat = 1,
+    kLosslessFormat = 2,
+    kWebPAnimationFormat = 3,
+    kMaxValue = kWebPAnimationFormat,
+  };
+
+  // For images which contain both animations and still images, indicates which
+  // is preferred. When unspecified the decoder will use hints from the data
+  // stream to make a decision.
+  //
+  // Note: |animation_option| is unused by formats like GIF or APNG since they
+  // do not have distinct still and animated tracks. I.e., there is either only
+  // an animation or only a still image. If a caller only wants a still image
+  // from a GIF or APNG animation, they can choose to only decode the first
+  // frame. With a format like AVIF where there are distinct still and animation
+  // tracks, callers need a mechanism to choose.
+  enum class AnimationOption {
+    kUnspecified,
+    kPreferAnimation,
+    kPreferStillImage,
   };
 
   virtual ~ImageDecoder() = default;
@@ -140,18 +176,32 @@ class PLATFORM_EXPORT ImageDecoder {
       AlphaOption,
       HighBitDepthDecodingOption,
       const ColorBehavior&,
-      const SkISize& desired_size = SkISize::MakeEmpty());
+      const SkISize& desired_size = SkISize::MakeEmpty(),
+      AnimationOption animation_option = AnimationOption::kUnspecified);
   static std::unique_ptr<ImageDecoder> Create(
       scoped_refptr<SharedBuffer> data,
       bool data_complete,
       AlphaOption alpha_option,
       HighBitDepthDecodingOption high_bit_depth_decoding_option,
       const ColorBehavior& color_behavior,
-      const SkISize& desired_size = SkISize::MakeEmpty()) {
+      const SkISize& desired_size = SkISize::MakeEmpty(),
+      AnimationOption animation_option = AnimationOption::kUnspecified) {
     return Create(SegmentReader::CreateFromSharedBuffer(std::move(data)),
                   data_complete, alpha_option, high_bit_depth_decoding_option,
-                  color_behavior, desired_size);
+                  color_behavior, desired_size, animation_option);
   }
+
+  // Similar to above, but does not allow mime sniffing. Creates explicitly
+  // based on the |mime_type| value.
+  static std::unique_ptr<ImageDecoder> CreateByMimeType(
+      String mime_type,
+      scoped_refptr<SegmentReader> data,
+      bool data_complete,
+      AlphaOption alpha_option,
+      HighBitDepthDecodingOption high_bit_depth_decoding_option,
+      const ColorBehavior& color_behavior,
+      const SkISize& desired_size = SkISize::MakeEmpty(),
+      AnimationOption animation_option = AnimationOption::kUnspecified);
 
   virtual String FilenameExtension() const = 0;
 
@@ -166,10 +216,15 @@ class PLATFORM_EXPORT ImageDecoder {
   // Returns true if the buffer holds enough data to instantiate a decoder.
   // This is useful for callers to determine whether a decoder instantiation
   // failure is due to insufficient or bad data.
-  static bool HasSufficientDataToSniffImageType(const SharedBuffer&);
+  static bool HasSufficientDataToSniffMimeType(const SharedBuffer&);
 
   // Looks at the image data to determine and return the image MIME type.
-  static String SniffImageType(scoped_refptr<SharedBuffer> image_data);
+  static String SniffMimeType(scoped_refptr<SharedBuffer> image_data);
+
+  // Returns the image data's compression format.
+  static CompressionFormat GetCompressionFormat(
+      scoped_refptr<SharedBuffer> image_data,
+      String mime_type);
 
   void SetData(scoped_refptr<SegmentReader> data, bool all_data_received) {
     if (failed_)
@@ -186,40 +241,59 @@ class PLATFORM_EXPORT ImageDecoder {
 
   virtual void OnSetData(SegmentReader* data) {}
 
-  bool IsSizeAvailable() {
-    if (failed_)
-      return false;
-    if (!size_available_)
-      DecodeSize();
-    return IsDecodedSizeAvailable();
-  }
+  bool IsSizeAvailable();
 
   bool IsDecodedSizeAvailable() const { return !failed_ && size_available_; }
 
   virtual IntSize Size() const { return size_; }
-  virtual std::vector<SkISize> GetSupportedDecodeSizes() const { return {}; }
+  virtual Vector<SkISize> GetSupportedDecodeSizes() const { return {}; }
 
   // Decoders which downsample images should override this method to
   // return the actual decoded size.
   virtual IntSize DecodedSize() const { return Size(); }
 
+  // The YUV subsampling of the image.
+  virtual cc::YUVSubsampling GetYUVSubsampling() const {
+    return cc::YUVSubsampling::kUnknown;
+  }
+
   // Image decoders that support YUV decoding must override this to
   // provide the size of each component.
-  virtual IntSize DecodedYUVSize(int component) const {
+  virtual IntSize DecodedYUVSize(cc::YUVIndex) const {
     NOTREACHED();
     return IntSize();
   }
 
   // Image decoders that support YUV decoding must override this to
   // return the width of each row of the memory allocation.
-  virtual size_t DecodedYUVWidthBytes(int component) const {
+  virtual size_t DecodedYUVWidthBytes(cc::YUVIndex) const {
     NOTREACHED();
     return 0;
   }
 
-  // This will only differ from size() for ICO (where each frame is a
+  // Image decoders that support YUV decoding must override this to
+  // return the SkYUVColorSpace that is used to convert from YUV
+  // to RGB.
+  virtual SkYUVColorSpace GetYUVColorSpace() const {
+    NOTREACHED();
+    return SkYUVColorSpace::kIdentity_SkYUVColorSpace;
+  }
+
+  // Image decoders that support high bit depth YUV decoding can override this.
+  //
+  // Note: If an implementation advertises a bit depth > 8 it must support both
+  // kA16_unorm_SkColorType and kA16_float_SkColorType ImagePlanes.
+  virtual uint8_t GetYUVBitDepth() const { return 8; }
+
+  // Returns the information required to decide whether or not hardware
+  // acceleration can be used to decode this image. Callers of this function
+  // must ensure the header was successfully parsed prior to calling this
+  // method, i.e., IsDecodedSizeAvailable() must return true.
+  virtual cc::ImageHeaderMetadata MakeMetadataForDecodeAcceleration() const;
+
+  // This will only differ from Size() for ICO (where each frame is a
   // different icon) or other formats where different frames are different
-  // sizes. This does NOT differ from size() for GIF or WebP, since
+  // sizes. This does NOT differ from Size() for GIF or WebP, since
   // decoding GIF or WebP composites any smaller frames against previous
   // frames to create full-size frames.
   virtual IntSize FrameSizeAtIndex(size_t) const { return Size(); }
@@ -261,7 +335,9 @@ class PLATFORM_EXPORT ImageDecoder {
 
   // Duration for displaying a frame. This method is only used by animated
   // images.
-  virtual TimeDelta FrameDurationAtIndex(size_t) const { return TimeDelta(); }
+  virtual base::TimeDelta FrameDurationAtIndex(size_t) const {
+    return base::TimeDelta();
+  }
 
   // Number of bytes in the decoded frame. Returns 0 if the decoder doesn't
   // have this frame cached (either because it hasn't been decoded, or because
@@ -269,6 +345,7 @@ class PLATFORM_EXPORT ImageDecoder {
   virtual size_t FrameBytesAtIndex(size_t) const;
 
   ImageOrientation Orientation() const { return orientation_; }
+  IntSize DensityCorrectedSize() const { return density_corrected_size_; }
 
   bool IgnoresColorSpace() const { return color_behavior_.IsIgnore(); }
   const ColorBehavior& GetColorBehavior() const { return color_behavior_; }
@@ -291,6 +368,8 @@ class PLATFORM_EXPORT ImageDecoder {
   AlphaOption GetAlphaOption() const {
     return premultiply_alpha_ ? kAlphaPremultiplied : kAlphaNotPremultiplied;
   }
+
+  size_t GetMaxDecodedBytes() const { return max_decoded_bytes_; }
 
   // Sets the "decode failure" flag.  For caller convenience (since so
   // many callers want to return false after calling this), returns false
@@ -316,7 +395,14 @@ class PLATFORM_EXPORT ImageDecoder {
   virtual bool HotSpot(IntPoint&) const { return false; }
 
   virtual void SetMemoryAllocator(SkBitmap::Allocator* allocator) {
-    // FIXME: this doesn't work for images with multiple frames.
+    // This currently doesn't work for images with multiple frames.
+    // Some animated image formats require extra guarantees:
+    // 1. The memory is cheaply readable, which isn't true for GPU memory, and
+    // 2. The memory's lifetime will persist long enough to allow reading past
+    //   frames, which isn't true for discardable memory.
+    // Not all animated image formats share these requirements. Blocking
+    // all animated formats is overly aggressive. If a need arises for an
+    // external memory allocator for animated images, this should be changed.
     if (frame_buffer_cache_.IsEmpty()) {
       // Ensure that InitializeNewFrame is called, after parsing if
       // necessary.
@@ -327,11 +413,16 @@ class PLATFORM_EXPORT ImageDecoder {
     frame_buffer_cache_[0].SetMemoryAllocator(allocator);
   }
 
-  virtual bool CanDecodeToYUV() { return false; }
+  bool CanDecodeToYUV() const { return allow_decode_to_yuv_; }
   // Should only be called if CanDecodeToYuv() returns true, in which case
   // the subclass of ImageDecoder must override this method.
   virtual void DecodeToYUV() { NOTREACHED(); }
-  virtual void SetImagePlanes(std::unique_ptr<ImagePlanes>) {}
+  void SetImagePlanes(std::unique_ptr<ImagePlanes> image_planes) {
+    image_planes_ = std::move(image_planes);
+  }
+
+  // Indicates if the data contains both an animation and still image.
+  virtual bool ImageHasBothStillAndAnimatedSubImages() const { return false; }
 
  protected:
   ImageDecoder(AlphaOption alpha_option,
@@ -342,6 +433,7 @@ class PLATFORM_EXPORT ImageDecoder {
         high_bit_depth_decoding_option_(high_bit_depth_decoding_option),
         color_behavior_(color_behavior),
         max_decoded_bytes_(max_decoded_bytes),
+        allow_decode_to_yuv_(false),
         purge_aggressively_(false) {}
 
   // Calculates the most recent frame whose image data may be needed in
@@ -360,7 +452,7 @@ class PLATFORM_EXPORT ImageDecoder {
   //
   // Image formats which do not use more than one frame do not need to
   // worry about this; see comments on
-  // ImageFrame::required_previous_frame+index_.
+  // ImageFrame::required_previous_frame_index_.
   size_t FindRequiredPreviousFrame(size_t frame_index,
                                    bool frame_rect_is_opaque);
 
@@ -384,8 +476,8 @@ class PLATFORM_EXPORT ImageDecoder {
   // call.
   bool InitFrameBuffer(size_t);
 
-  // Performs any additional setup of the requested frame after it has been
-  // initially created, e.g. setting a duration or disposal method.
+  // Performs any decoder-specific setup of the requested frame after it has
+  // been newly created, e.g. setting the frame's duration or disposal method.
   virtual void InitializeNewFrame(size_t) {}
 
   // Decodes the requested frame.
@@ -422,6 +514,7 @@ class PLATFORM_EXPORT ImageDecoder {
   const HighBitDepthDecodingOption high_bit_depth_decoding_option_;
   const ColorBehavior color_behavior_;
   ImageOrientation orientation_;
+  IntSize density_corrected_size_;
 
   // The maximum amount of memory a decoded image should require. Ideally,
   // image decoders should downsample large images to fit under this limit
@@ -458,6 +551,13 @@ class PLATFORM_EXPORT ImageDecoder {
            frame_status == ImageFrame::kFrameComplete;
   }
 
+  // Note that |allow_decode_to_yuv_| being true merely means that the
+  // ImageDecoder supports decoding to YUV. Other layers higher in the
+  // stack (the PaintImageGenerator, ImageFrameGenerator, or cache) may
+  // decline to go down the YUV path.
+  bool allow_decode_to_yuv_;
+  std::unique_ptr<ImagePlanes> image_planes_;
+
  private:
   // Some code paths compute the size of the image as "width * height * 4 or 8"
   // and return it as a (signed) int.  Avoid overflow.
@@ -484,7 +584,6 @@ class PLATFORM_EXPORT ImageDecoder {
   bool size_available_ = false;
   bool is_all_data_received_ = false;
   bool failed_ = false;
-  bool has_histogrammed_color_space_ = false;
 
   std::unique_ptr<ColorProfile> embedded_color_profile_;
   sk_sp<SkColorSpace> color_space_for_sk_images_;

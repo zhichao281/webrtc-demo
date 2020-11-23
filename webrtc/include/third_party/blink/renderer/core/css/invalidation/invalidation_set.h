@@ -33,11 +33,10 @@
 
 #include <memory>
 
-#include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/invalidation/invalidation_flags.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
@@ -49,7 +48,11 @@ namespace blink {
 class Element;
 class TracedValue;
 
-enum class InvalidationType { kInvalidateDescendants, kInvalidateSiblings };
+enum class InvalidationType {
+  kInvalidateDescendants,
+  kInvalidateSiblings,
+  kInvalidateNthSiblings
+};
 
 class InvalidationSet;
 
@@ -95,6 +98,12 @@ class CORE_EXPORT InvalidationSet
   USING_FAST_MALLOC_WITH_TYPE_NAME(blink::InvalidationSet);
 
  public:
+  InvalidationSet(const InvalidationSet&) = delete;
+  InvalidationSet& operator=(const InvalidationSet&) = delete;
+
+  bool operator==(const InvalidationSet&) const;
+  bool operator!=(const InvalidationSet& o) const { return !(*this == o); }
+
   InvalidationType GetType() const {
     return static_cast<InvalidationType>(type_);
   }
@@ -102,7 +111,10 @@ class CORE_EXPORT InvalidationSet
     return GetType() == InvalidationType::kInvalidateDescendants;
   }
   bool IsSiblingInvalidationSet() const {
-    return GetType() == InvalidationType::kInvalidateSiblings;
+    return GetType() != InvalidationType::kInvalidateDescendants;
+  }
+  bool IsNthSiblingInvalidationSet() const {
+    return GetType() == InvalidationType::kInvalidateNthSiblings;
   }
 
   static void CacheTracingFlag();
@@ -176,6 +188,35 @@ class CORE_EXPORT InvalidationSet
 
   void ToTracedValue(TracedValue*) const;
 
+  // Format the InvalidationSet for debugging purposes.
+  //
+  // Examples:
+  //
+  //         { .a } - Invalidates class |a|.
+  //         { #a } - Invalidates id |a|.
+  //      { .a #a } - Invalidates class |a| and id |a|.
+  //        { div } - Invalidates tag name |div|.
+  //     { :hover } - Invalidates pseudo-class :hover.
+  //  { .a [name] } - Invalidates class |a| and attribute |name|.
+  //          { $ } - Invalidates self.
+  //       { .a $ } - Invalidates class |a| and self.
+  //       { .b 4 } - Invalidates class |b|. Max direct siblings = 4.
+  //   { .a .b $4 } - Combination of the two previous examples.
+  //          { W } - Whole subtree invalid.
+  //
+  // Flags (omitted if false):
+  //
+  //  $ - Invalidates self.
+  //  W - Whole subtree invalid.
+  //  C - Invalidates custom pseudo.
+  //  T - Tree boundary crossing.
+  //  I - Insertion point crossing.
+  //  S - Invalidates slotted.
+  //  P - Invalidates parts.
+  //  ~ - Max direct siblings is kDirectAdjacentMax.
+  //  <integer> - Max direct siblings is specified number (omitted if 1).
+  String ToString() const;
+
 #ifndef NDEBUG
   void Show() const;
 #endif
@@ -244,6 +285,7 @@ class CORE_EXPORT InvalidationSet
     void Clear(Flags&);
     bool Contains(const Flags&, const AtomicString&) const;
     bool IsEmpty(const Flags&) const;
+    size_t Size(const Flags&) const;
     bool IsHashSet(const Flags& flags) const { return flags.bits_ & GetMask(); }
 
     StringImpl* GetStringImpl(const Flags& flags) const {
@@ -377,14 +419,13 @@ class CORE_EXPORT InvalidationSet
   InvalidationFlags invalidation_flags_;
   BackingFlags backing_flags_;
 
-  unsigned type_ : 1;
+  unsigned type_ : 2;
 
   // If true, the element or sibling itself is invalid.
   unsigned invalidates_self_ : 1;
 
   // If true, the instance is alive and can be used.
   unsigned is_alive_ : 1;
-  DISALLOW_COPY_AND_ASSIGN(InvalidationSet);
 };
 
 class CORE_EXPORT DescendantInvalidationSet final : public InvalidationSet {
@@ -398,12 +439,15 @@ class CORE_EXPORT DescendantInvalidationSet final : public InvalidationSet {
       : InvalidationSet(InvalidationType::kInvalidateDescendants) {}
 };
 
-class CORE_EXPORT SiblingInvalidationSet final : public InvalidationSet {
+class CORE_EXPORT SiblingInvalidationSet : public InvalidationSet {
  public:
   static scoped_refptr<SiblingInvalidationSet> Create(
       scoped_refptr<DescendantInvalidationSet> descendants) {
     return base::AdoptRef(new SiblingInvalidationSet(std::move(descendants)));
   }
+
+  static constexpr unsigned kDirectAdjacentMax =
+      std::numeric_limits<unsigned>::max();
 
   unsigned MaxDirectAdjacentSelectors() const {
     return max_direct_adjacent_selectors_;
@@ -423,6 +467,10 @@ class CORE_EXPORT SiblingInvalidationSet final : public InvalidationSet {
   }
   DescendantInvalidationSet& EnsureDescendants();
 
+ protected:
+  // Base constructor for NthSiblingInvalidationSet.
+  SiblingInvalidationSet();
+
  private:
   explicit SiblingInvalidationSet(
       scoped_refptr<DescendantInvalidationSet> descendants);
@@ -436,6 +484,39 @@ class CORE_EXPORT SiblingInvalidationSet final : public InvalidationSet {
   // Null if a given feature (class, attribute, id, pseudo-class) has only
   // a SiblingInvalidationSet and not also a DescendantInvalidationSet.
   scoped_refptr<DescendantInvalidationSet> descendant_invalidation_set_;
+};
+
+// For invalidation of :nth-* selectors on dom mutations we use a sibling
+// invalidation set which is scheduled on the parent node of the DOM mutation
+// affected by the :nth-* selectors.
+//
+// During invalidation, the set is pushed into the SiblingData used for
+// invalidating the direct children.
+//
+// Features are collected into this set as if the selectors were preceded by a
+// universal selector with an indirect adjacent combinator.
+//
+// Example: If you have the following selector:
+//
+// :nth-of-type(2n+1) .x {}
+//
+// we need to invalidate descendants of class 'x' of an arbitrary number of
+// siblings when one of the siblings are added or removed. We then collect
+// features to the NthSiblingInvalidationSet as if we had a selector:
+//
+// * ~ :nth-of-type(2n+1) .x {}
+//
+// Pushing that set into SiblingData before invalidating the siblings will then
+// invalidate descendants with class 'x'.
+
+class NthSiblingInvalidationSet final : public SiblingInvalidationSet {
+ public:
+  static scoped_refptr<NthSiblingInvalidationSet> Create() {
+    return base::AdoptRef(new NthSiblingInvalidationSet());
+  }
+
+ private:
+  NthSiblingInvalidationSet() = default;
 };
 
 using InvalidationSetVector = Vector<scoped_refptr<InvalidationSet>>;
@@ -500,6 +581,16 @@ bool InvalidationSet::Backing<type>::IsEmpty(
   return !IsHashSet(flags) && !string_impl_;
 }
 
+template <typename InvalidationSet::BackingType type>
+size_t InvalidationSet::Backing<type>::Size(
+    const InvalidationSet::BackingFlags& flags) const {
+  if (const HashSet<AtomicString>* set = GetHashSet(flags))
+    return set->size();
+  if (const StringImpl* impl = GetStringImpl(flags))
+    return 1;
+  return 0;
+}
+
 template <>
 struct DowncastTraits<DescendantInvalidationSet> {
   static bool AllowFrom(const InvalidationSet& value) {
@@ -513,6 +604,15 @@ struct DowncastTraits<SiblingInvalidationSet> {
     return value.IsSiblingInvalidationSet();
   }
 };
+
+template <>
+struct DowncastTraits<NthSiblingInvalidationSet> {
+  static bool AllowFrom(const InvalidationSet& value) {
+    return value.IsNthSiblingInvalidationSet();
+  }
+};
+
+CORE_EXPORT std::ostream& operator<<(std::ostream&, const InvalidationSet&);
 
 }  // namespace blink
 

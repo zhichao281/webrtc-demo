@@ -29,7 +29,7 @@
 #include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/ref_counted.h"
 #include "third_party/blink/renderer/platform/wtf/text/unicode.h"
@@ -52,19 +52,11 @@ class PLATFORM_EXPORT FontData : public RefCounted<FontData> {
   virtual bool IsLoadingFallback() const = 0;
   virtual bool IsSegmented() const = 0;
   virtual bool ShouldSkipDrawing() const = 0;
+  virtual bool HasAdvanceOverride() const = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(FontData);
 };
-
-#define DEFINE_FONT_DATA_TYPE_CASTS(thisType, predicate)     \
-  template <typename T>                                      \
-  inline thisType* To##thisType(const scoped_refptr<T>& fontData) { \
-    return To##thisType(fontData.get());                     \
-  }                                                          \
-  DEFINE_TYPE_CASTS(thisType, FontData, fontData,            \
-                    fontData->IsSegmented() == predicate,    \
-                    fontData.IsSegmented() == predicate)
 
 }  // namespace blink
 

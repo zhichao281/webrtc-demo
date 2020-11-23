@@ -12,6 +12,7 @@
 #define RTC_BASE_BUFFER_H_
 
 #include <stdint.h>
+
 #include <algorithm>
 #include <cstring>
 #include <memory>
@@ -63,6 +64,7 @@ class BufferT {
 
  public:
   using value_type = T;
+  using const_iterator = const T*;
 
   // An empty BufferT.
   BufferT() : size_(0), capacity_(0), data_(nullptr) {
@@ -368,7 +370,9 @@ class BufferT {
                        : capacity;
 
     std::unique_ptr<T[]> new_data(new T[new_capacity]);
-    std::memcpy(new_data.get(), data_.get(), size_ * sizeof(T));
+    if (data_ != nullptr) {
+      std::memcpy(new_data.get(), data_.get(), size_ * sizeof(T));
+    }
     MaybeZeroCompleteBuffer();
     data_ = std::move(new_data);
     capacity_ = new_capacity;

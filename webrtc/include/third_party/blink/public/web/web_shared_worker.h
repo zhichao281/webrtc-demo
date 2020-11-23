@@ -34,64 +34,72 @@
 #include <memory>
 
 #include "base/unguessable_token.h"
-#include "mojo/public/cpp/bindings/scoped_interface_endpoint_handle.h"
-#include "mojo/public/cpp/system/message_pipe.h"
-#include "third_party/blink/public/common/privacy_preferences.h"
-#include "third_party/blink/public/mojom/csp/content_security_policy.mojom-shared.h"
-#include "third_party/blink/public/mojom/net/ip_address_space.mojom-shared.h"
+#include "services/metrics/public/cpp/ukm_source_id.h"
+#include "services/network/public/mojom/content_security_policy.mojom-shared.h"
+#include "services/network/public/mojom/fetch_api.mojom-shared.h"
+#include "services/network/public/mojom/ip_address_space.mojom-shared.h"
+#include "third_party/blink/public/common/tokens/tokens.h"
+#include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
+#include "third_party/blink/public/mojom/browser_interface_broker.mojom-shared.h"
+#include "third_party/blink/public/mojom/script/script_type.mojom-shared.h"
+#include "third_party/blink/public/mojom/worker/shared_worker_host.mojom-shared.h"
+#include "third_party/blink/public/mojom/worker/worker_content_settings_proxy.mojom-shared.h"
+#include "third_party/blink/public/platform/cross_variant_mojo_util.h"
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/public/platform/web_common.h"
-
-namespace base {
-class SingleThreadTaskRunner;
-}
-
-namespace network {
-class SharedURLLoaderFactory;
-}
+#include "third_party/blink/public/platform/web_security_origin.h"
 
 namespace blink {
 
-class MessagePortChannel;
 class WebString;
 class WebSharedWorkerClient;
 class WebURL;
+class WebWorkerFetchContext;
+struct WebFetchClientSettingsObject;
+struct WorkerMainScriptLoadParameters;
 
 // This is the interface to a SharedWorker thread.
 class BLINK_EXPORT WebSharedWorker {
  public:
   virtual ~WebSharedWorker() {}
 
-  // Instantiate a WebSharedWorker that interacts with the shared worker.
+  // Instantiates a WebSharedWorker that interacts with the shared worker and
+  // starts a worker context.
   // WebSharedWorkerClient given here should own this instance.
-  static std::unique_ptr<WebSharedWorker> Create(WebSharedWorkerClient*);
-
-  virtual void StartWorkerContext(
+  static std::unique_ptr<WebSharedWorker> CreateAndStart(
+      const blink::SharedWorkerToken& token,
       const WebURL& script_url,
+      mojom::ScriptType script_type,
+      network::mojom::CredentialsMode,
       const WebString& name,
+      WebSecurityOrigin constructor_origin,
+      const WebString& user_agent,
+      const UserAgentMetadata& ua_metadata,
       const WebString& content_security_policy,
-      mojom::ContentSecurityPolicyType,
-      mojom::IPAddressSpace,
+      network::mojom::ContentSecurityPolicyType,
+      network::mojom::IPAddressSpace,
+      const WebFetchClientSettingsObject& outside_fetch_client_settings_object,
+      const base::UnguessableToken& appcache_host_id,
       const base::UnguessableToken& devtools_worker_token,
-      PrivacyPreferences privacy_preferences,
-      scoped_refptr<network::SharedURLLoaderFactory> loader_factory,
-      mojo::ScopedMessagePipeHandle content_settings_handle,
-      mojo::ScopedMessagePipeHandle interface_provider) = 0;
+      CrossVariantMojoRemote<mojom::WorkerContentSettingsProxyInterfaceBase>
+          content_settings,
+      CrossVariantMojoRemote<mojom::BrowserInterfaceBrokerInterfaceBase>
+          browser_interface_broker,
+      bool pause_worker_context_on_start,
+      std::unique_ptr<blink::WorkerMainScriptLoadParameters>
+          worker_main_script_load_params,
+      scoped_refptr<WebWorkerFetchContext> web_worker_fetch_context,
+      CrossVariantMojoRemote<mojom::SharedWorkerHostInterfaceBase>,
+      WebSharedWorkerClient*,
+      ukm::SourceId ukm_source_id);
 
   // Sends a connect event to the SharedWorker context.
-  virtual void Connect(MessagePortChannel) = 0;
+  virtual void Connect(int connection_request_id,
+                       MessagePortDescriptor port) = 0;
 
   // Invoked to shutdown the worker when there are no more associated documents.
   // This eventually deletes this instance.
   virtual void TerminateWorkerContext() = 0;
-
-  virtual void PauseWorkerContextOnStart() = 0;
-  virtual void BindDevToolsAgent(
-      mojo::ScopedInterfaceEndpointHandle devtools_agent_host_ptr_info,
-      mojo::ScopedInterfaceEndpointHandle devtools_agent_request) = 0;
-
-  virtual scoped_refptr<base::SingleThreadTaskRunner> GetTaskRunner(
-      TaskType) = 0;
 };
 
 }  // namespace blink

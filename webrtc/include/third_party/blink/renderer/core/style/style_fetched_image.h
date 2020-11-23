@@ -49,19 +49,19 @@ class StyleFetchedImage final : public StyleImage,
   WrappedImagePtr Data() const override;
 
   CSSValue* CssValue() const override;
-  CSSValue* ComputedCSSValue() const override;
+  CSSValue* ComputedCSSValue(const ComputedStyle&,
+                             bool allow_visited_style) const override;
 
   bool CanRender() const override;
   bool IsLoaded() const override;
   bool ErrorOccurred() const override;
   FloatSize ImageSize(const Document&,
                       float multiplier,
-                      const LayoutSize& default_object_size) const override;
+                      const FloatSize& default_object_size,
+                      RespectImageOrientationEnum) const override;
   bool HasIntrinsicSize() const override;
   void AddClient(ImageResourceObserver*) override;
   void RemoveClient(ImageResourceObserver*) override;
-  void ImageNotifyFinished(ImageResourceContent*) override;
-  bool GetImageAnimationPolicy(ImageAnimationPolicy&) override;
   String DebugName() const override { return "StyleFetchedImage"; }
   scoped_refptr<Image> GetImage(const ImageResourceObserver&,
                                 const Document&,
@@ -74,15 +74,26 @@ class StyleFetchedImage final : public StyleImage,
 
   void LoadDeferredImage(const Document& document);
 
-  void Trace(blink::Visitor*) override;
+  RespectImageOrientationEnum ForceOrientationIfNecessary(
+      RespectImageOrientationEnum default_orientation) const override;
+
+  void Trace(Visitor*) const override;
 
  private:
   bool IsEqual(const StyleImage&) const override;
   void Dispose();
 
+  // ImageResourceObserver overrides
+  void ImageNotifyFinished(ImageResourceContent*) override;
+  bool GetImageAnimationPolicy(mojom::blink::ImageAnimationPolicy&) override;
+
   Member<ImageResourceContent> image_;
   Member<const Document> document_;
   const KURL url_;
+  const bool origin_clean_;
+
+  // Whether this was created by an ad-related CSSParserContext.
+  const bool is_ad_related_;
 };
 
 template <>

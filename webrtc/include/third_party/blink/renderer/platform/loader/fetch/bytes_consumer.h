@@ -5,6 +5,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_LOADER_FETCH_BYTES_CONSUMER_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_LOADER_FETCH_BYTES_CONSUMER_H_
 
+#include <ostream>
+
 #include "base/memory/scoped_refptr.h"
 #include "third_party/blink/renderer/platform/blob/blob_data.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
@@ -14,8 +16,6 @@
 
 namespace blink {
 
-class ExecutionContext;
-
 // BytesConsumer represents the "consumer" side of a data pipe. A user
 // can read data from it.
 //
@@ -23,8 +23,7 @@ class ExecutionContext;
 // BytesConsumer has four states: waiting, readable, closed and errored. Once
 // the state becomes closed or errored, it will never change. |readable| means
 // that the BytesConsumer is ready to read non-empty bytes synchronously.
-class PLATFORM_EXPORT BytesConsumer
-    : public GarbageCollectedFinalized<BytesConsumer> {
+class PLATFORM_EXPORT BytesConsumer : public GarbageCollected<BytesConsumer> {
  public:
   enum class Result {
     kOk,
@@ -164,21 +163,13 @@ class PLATFORM_EXPORT BytesConsumer
   // implementation for debug purpose.
   virtual String DebugName() const = 0;
 
-  // Creates two BytesConsumer both of which represent the data sequence that
-  // would be read from |src| and store them to |*dest1| and |*dest2|.
-  // |src| must not have a client when called.
-  static void Tee(ExecutionContext*,
-                  BytesConsumer* src,
-                  BytesConsumer** dest1,
-                  BytesConsumer** dest2);
-
   // Returns a BytesConsumer whose state is Closed.
   static BytesConsumer* CreateClosed();
 
   // Returns a BytesConsumer whose state is Errored.
   static BytesConsumer* CreateErrored(const Error&);
 
-  virtual void Trace(blink::Visitor* visitor) {}
+  virtual void Trace(Visitor* visitor) const {}
 
  protected:
   // This InternalState directly corresponds to the states in the class
@@ -204,6 +195,12 @@ class PLATFORM_EXPORT BytesConsumer
     return PublicState::kReadableOrWaiting;
   }
 };
+
+PLATFORM_EXPORT std::ostream& operator<<(
+    std::ostream& out,
+    const BytesConsumer::PublicState& state);
+PLATFORM_EXPORT std::ostream& operator<<(std::ostream& out,
+                                         const BytesConsumer::Result& result);
 
 }  // namespace blink
 

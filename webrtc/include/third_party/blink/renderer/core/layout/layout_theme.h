@@ -23,34 +23,30 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_LAYOUT_THEME_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_LAYOUT_THEME_H_
 
+#include "third_party/blink/public/mojom/frame/color_scheme.mojom-blink-forward.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css_value_keywords.h"
 #include "third_party/blink/renderer/core/scroll/scroll_types.h"
 #include "third_party/blink/renderer/platform/fonts/font_description.h"
 #include "third_party/blink/renderer/platform/fonts/font_selection_types.h"
+#include "third_party/blink/renderer/platform/geometry/int_rect.h"
 #include "third_party/blink/renderer/platform/geometry/layout_unit.h"
 #include "third_party/blink/renderer/platform/geometry/length_box.h"
 #include "third_party/blink/renderer/platform/geometry/length_size.h"
 #include "third_party/blink/renderer/platform/graphics/color.h"
-#include "third_party/blink/renderer/platform/graphics/color_scheme.h"
 #include "third_party/blink/renderer/platform/theme_types.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/ref_counted.h"
-#include "third_party/blink/renderer/platform/wtf/time.h"
 
 namespace blink {
 
 class ComputedStyle;
 class Element;
-class FileList;
-class Font;
+class File;
 class FontDescription;
-class HTMLInputElement;
-class LengthSize;
-class Locale;
+class LocalFrame;
 class Node;
-class ChromeClient;
 class ThemePainter;
 
 class CORE_EXPORT LayoutTheme : public RefCounted<LayoutTheme> {
@@ -66,21 +62,6 @@ class CORE_EXPORT LayoutTheme : public RefCounted<LayoutTheme> {
 
   virtual ThemePainter& Painter() = 0;
 
-  // This function is called after associated WebThemeEngine instance
-  // was replaced. This is called only in tests.
-  virtual void DidChangeThemeEngine() {}
-
-  static void SetSizeIfAuto(ComputedStyle&, const IntSize&);
-  // Sets the minimum size to |part_size| or |min_part_size| as appropriate
-  // according to the given style, if they are specified.
-  static void SetMinimumSize(ComputedStyle&,
-                             const LengthSize* part_size,
-                             const LengthSize* min_part_size = nullptr);
-  // SetMinimumSizeIfAuto must be called before SetSizeIfAuto, because we
-  // will not set a minimum size if an explicit size is set, and SetSizeIfAuto
-  // sets an explicit size.
-  static void SetMinimumSizeIfAuto(ComputedStyle&, const IntSize&);
-
   // This method is called whenever style has been computed for an element and
   // the appearance property has been set to a value other than "none".
   // The theme should map in all of the appropriate metrics and defaults given
@@ -88,7 +69,7 @@ class CORE_EXPORT LayoutTheme : public RefCounted<LayoutTheme> {
   // selection of control size based off the font, the disabling of appearance
   // when certain other properties like "border" are set, or if the appearance
   // is not supported by the theme.
-  void AdjustStyle(ComputedStyle&, Element*);
+  void AdjustStyle(const Element*, ComputedStyle&);
 
   // The remaining methods should be implemented by the platform-specific
   // portion of the theme, e.g., LayoutThemeMac.cpp for Mac OS X.
@@ -99,55 +80,39 @@ class CORE_EXPORT LayoutTheme : public RefCounted<LayoutTheme> {
   virtual String ExtraQuirksStyleSheet();
   virtual String ExtraFullscreenStyleSheet();
 
-  // A method to obtain the baseline position adjustment needed for a "leaf"
-  // control. This will only be used if a baseline position cannot be determined
-  // by examining child content.
-  // Checkboxes and radio buttons are examples of controls that need to do this.
-  virtual LayoutUnit BaselinePositionAdjustment(const ComputedStyle&) const;
-
-  // A method for asking if a control is a container or not.  Leaf controls have
-  // to have some special behavior (like the baseline position API above).
-  bool IsControlContainer(ControlPart) const;
-
   // Whether or not the control has been styled enough by the author to disable
   // the native appearance.
-  virtual bool IsControlStyled(const ComputedStyle&) const;
-
-  // Some controls may spill out of their containers (e.g., the check on an OSX
-  // 10.9 checkbox). Add this "visual overflow" to the object's border box rect.
-  virtual void AddVisualOverflow(const Node*,
-                                 const ComputedStyle&,
-                                 IntRect& border_box) {}
-
-  // This method is called whenever a control state changes on a particular
-  // themed object, e.g., the mouse becomes pressed or a control becomes
-  // disabled. The ControlState parameter indicates which state has changed
-  // (from having to not having, or vice versa).
-  bool ControlStateChanged(const Node*,
-                           const ComputedStyle&,
-                           ControlState) const;
+  virtual bool IsControlStyled(ControlPart part, const ComputedStyle&) const;
 
   bool ShouldDrawDefaultFocusRing(const Node*, const ComputedStyle&) const;
-
-  // A method asking if the theme's controls actually care about redrawing when
-  // hovered.
-  virtual bool SupportsHover(const ComputedStyle&) const { return false; }
 
   // A method asking if the platform is able to show a calendar picker for a
   // given input type.
   virtual bool SupportsCalendarPicker(const AtomicString&) const;
 
   // Text selection colors.
-  Color ActiveSelectionBackgroundColor() const;
-  Color InactiveSelectionBackgroundColor() const;
-  Color ActiveSelectionForegroundColor() const;
-  Color InactiveSelectionForegroundColor() const;
+  Color ActiveSelectionBackgroundColor(
+      mojom::blink::ColorScheme color_scheme) const;
+  Color InactiveSelectionBackgroundColor(
+      mojom::blink::ColorScheme color_scheme) const;
+  Color ActiveSelectionForegroundColor(
+      mojom::blink::ColorScheme color_scheme) const;
+  Color InactiveSelectionForegroundColor(
+      mojom::blink::ColorScheme color_scheme) const;
+  virtual void SetSelectionColors(Color active_background_color,
+                                  Color active_foreground_color,
+                                  Color inactive_background_color,
+                                  Color inactive_foreground_color) {}
 
   // List box selection colors
-  Color ActiveListBoxSelectionBackgroundColor() const;
-  Color ActiveListBoxSelectionForegroundColor() const;
-  Color InactiveListBoxSelectionBackgroundColor() const;
-  Color InactiveListBoxSelectionForegroundColor() const;
+  Color ActiveListBoxSelectionBackgroundColor(
+      mojom::blink::ColorScheme color_scheme) const;
+  Color ActiveListBoxSelectionForegroundColor(
+      mojom::blink::ColorScheme color_scheme) const;
+  Color InactiveListBoxSelectionBackgroundColor(
+      mojom::blink::ColorScheme color_scheme) const;
+  Color InactiveListBoxSelectionForegroundColor(
+      mojom::blink::ColorScheme color_scheme) const;
 
   virtual Color PlatformSpellingMarkerUnderlineColor() const;
   virtual Color PlatformGrammarMarkerUnderlineColor() const;
@@ -155,21 +120,18 @@ class CORE_EXPORT LayoutTheme : public RefCounted<LayoutTheme> {
   Color PlatformActiveSpellingMarkerHighlightColor() const;
 
   // Highlight and text colors for TextMatches.
-  Color PlatformTextSearchHighlightColor(bool active_match) const;
-  Color PlatformTextSearchColor(bool active_match) const;
+  Color PlatformTextSearchHighlightColor(
+      bool active_match,
+      bool in_forced_colors_mode,
+      mojom::blink::ColorScheme color_scheme) const;
+  Color PlatformTextSearchColor(bool active_match,
+                                bool in_forced_colors_mode,
+                                mojom::blink::ColorScheme color_scheme) const;
 
-  bool IsFocusRingOutset() const;
-  void SetIsFocusRingOutset(bool is_outset);
-  float MinimumStrokeWidthForFocusRing() const;
-  void SetMinimumStrokeWidthForFocusRing(float stroke_width);
-  Color FocusRingColor() const;
+  virtual Color FocusRingColor() const;
   virtual Color PlatformFocusRingColor() const { return Color(0, 0, 0); }
   void SetCustomFocusRingColor(const Color&);
   static Color TapHighlightColor();
-
-  // Root element text color. It can be different from the initial color in
-  // other color schemes than the light theme.
-  Color RootElementColor(ColorScheme) const;
 
   virtual Color PlatformTapHighlightColor() const {
     return LayoutTheme::kDefaultTapHighlightColor;
@@ -177,53 +139,29 @@ class CORE_EXPORT LayoutTheme : public RefCounted<LayoutTheme> {
   virtual Color PlatformDefaultCompositionBackgroundColor() const {
     return kDefaultCompositionBackgroundColor;
   }
-  virtual void PlatformColorsDidChange();
+  void PlatformColorsDidChange();
+  virtual void ColorSchemeDidChange();
 
-  void SetCaretBlinkInterval(TimeDelta);
-  virtual TimeDelta CaretBlinkInterval() const;
+  void SetCaretBlinkInterval(base::TimeDelta);
+  virtual base::TimeDelta CaretBlinkInterval() const;
 
   // System fonts and colors for CSS.
-  virtual void SystemFont(CSSValueID system_font_id,
-                          FontSelectionValue& font_slope,
-                          FontSelectionValue& font_weight,
-                          float& font_size,
-                          AtomicString& font_family) const = 0;
   void SystemFont(CSSValueID system_font_id, FontDescription&);
-  virtual Color SystemColor(CSSValueID) const;
-
-  // Whether the default system font should have its average character width
-  // adjusted to match MS Shell Dlg.
-  virtual bool NeedsHackForTextControlWithFontFamily(
-      const AtomicString&) const {
-    return false;
-  }
-
-  virtual int MinimumMenuListSize(const ComputedStyle&) const { return 0; }
+  virtual Color SystemColor(CSSValueID,
+                            mojom::blink::ColorScheme color_scheme) const;
 
   virtual void AdjustSliderThumbSize(ComputedStyle&) const;
 
   virtual int PopupInternalPaddingStart(const ComputedStyle&) const {
     return 0;
   }
-  virtual int PopupInternalPaddingEnd(const ChromeClient*,
-                                      const ComputedStyle&) const {
+  virtual int PopupInternalPaddingEnd(LocalFrame*, const ComputedStyle&) const {
     return 0;
   }
   virtual int PopupInternalPaddingTop(const ComputedStyle&) const { return 0; }
   virtual int PopupInternalPaddingBottom(const ComputedStyle&) const {
     return 0;
   }
-
-  virtual ScrollbarControlSize ScrollbarControlSizeForPart(ControlPart) {
-    return kRegularScrollbar;
-  }
-
-  virtual void AdjustProgressBarBounds(ComputedStyle& style) const {}
-
-  // Returns the repeat interval of the animation for the progress bar.
-  virtual TimeDelta AnimationRepeatIntervalForProgressBar() const;
-  // Returns the duration of the animation for the progress bar.
-  virtual TimeDelta AnimationDurationForProgressBar() const;
 
   // Returns size of one slider tick mark for a horizontal track.
   // For vertical tracks we rotate it and use it. i.e. Width is always length
@@ -232,85 +170,40 @@ class CORE_EXPORT LayoutTheme : public RefCounted<LayoutTheme> {
   // Returns the distance of slider tick origin from the slider track center.
   virtual int SliderTickOffsetFromTrackCenter() const = 0;
 
-  virtual bool ShouldHaveSpinButton(HTMLInputElement*) const;
-
   // Functions for <select> elements.
-  virtual bool DelegatesMenuListRendering() const { return false; }
+  virtual bool DelegatesMenuListRendering() const;
+  // This function has no effect for LayoutThemeAndroid, of which
+  // DelegatesMenuListRendering() always returns true.
+  void SetDelegatesMenuListRenderingForTesting(bool flag);
   virtual bool PopsMenuByArrowKeys() const { return false; }
-  virtual bool PopsMenuBySpaceKey() const { return false; }
-  virtual bool PopsMenuByReturnKey() const { return false; }
-  virtual bool PopsMenuByAltDownUpOrF4Key() const { return false; }
+  virtual bool PopsMenuByReturnKey() const { return true; }
 
-  virtual String FileListNameForWidth(Locale&,
-                                      const FileList*,
-                                      const Font&,
-                                      int width) const;
-
-  virtual bool ShouldOpenPickerWithF4Key() const;
+  virtual String DisplayNameForFile(const File& file) const;
 
   virtual bool SupportsSelectionForegroundColors() const { return true; }
-
-  virtual bool IsModalColorChooser() const { return true; }
-
-  virtual bool ShouldUseFallbackTheme(const ComputedStyle&) const;
-
-  // Methods used to adjust the ComputedStyles of controls.
-
-  // The font description result should have a zoomed font size.
-  virtual FontDescription ControlFont(ControlPart,
-                                      const FontDescription& font_description,
-                                      float /*zoomFactor*/) const {
-    return font_description;
-  }
-
-  // The size here is in zoomed coordinates already.  If a new size is returned,
-  // it also needs to be in zoomed coordinates.
-  virtual LengthSize GetControlSize(ControlPart,
-                                    const FontDescription&,
-                                    const LengthSize& zoomed_size,
-                                    float /*zoomFactor*/) const {
-    return zoomed_size;
-  }
-
-  // Returns the minimum size for a control in zoomed coordinates.
-  virtual LengthSize MinimumControlSize(ControlPart,
-                                        const FontDescription&,
-                                        float /*zoomFactor*/) const {
-    return LengthSize(Length::Fixed(0), Length::Fixed(0));
-  }
-
-  // Allows the theme to modify the existing padding/border.
-  virtual LengthBox ControlPadding(ControlPart,
-                                   const FontDescription&,
-                                   const Length& zoomed_box_top,
-                                   const Length& zoomed_box_right,
-                                   const Length& zoomed_box_bottom,
-                                   const Length& zoomed_box_left,
-                                   float zoom_factor) const;
-  virtual LengthBox ControlBorder(ControlPart,
-                                  const FontDescription&,
-                                  const LengthBox& zoomed_box,
-                                  float zoom_factor) const;
-
-  // Whether or not whitespace: pre should be forced on always.
-  virtual bool ControlRequiresPreWhiteSpace(ControlPart) const { return false; }
 
   // Adjust style as per platform selection.
   virtual void AdjustControlPartStyle(ComputedStyle&);
 
  protected:
   // The platform selection color.
-  virtual Color PlatformActiveSelectionBackgroundColor() const;
-  virtual Color PlatformInactiveSelectionBackgroundColor() const;
-  virtual Color PlatformActiveSelectionForegroundColor() const;
-  virtual Color PlatformInactiveSelectionForegroundColor() const;
+  virtual Color PlatformActiveSelectionBackgroundColor(
+      mojom::blink::ColorScheme color_scheme) const;
+  virtual Color PlatformInactiveSelectionBackgroundColor(
+      mojom::blink::ColorScheme color_scheme) const;
+  virtual Color PlatformActiveSelectionForegroundColor(
+      mojom::blink::ColorScheme color_scheme) const;
+  virtual Color PlatformInactiveSelectionForegroundColor(
+      mojom::blink::ColorScheme color_scheme) const;
 
-  virtual Color PlatformActiveListBoxSelectionBackgroundColor() const;
-  virtual Color PlatformInactiveListBoxSelectionBackgroundColor() const;
-  virtual Color PlatformActiveListBoxSelectionForegroundColor() const;
-  virtual Color PlatformInactiveListBoxSelectionForegroundColor() const;
-
-  virtual bool ThemeDrawsFocusRing(const ComputedStyle&) const = 0;
+  virtual Color PlatformActiveListBoxSelectionBackgroundColor(
+      mojom::blink::ColorScheme color_scheme) const;
+  virtual Color PlatformInactiveListBoxSelectionBackgroundColor(
+      mojom::blink::ColorScheme color_scheme) const;
+  virtual Color PlatformActiveListBoxSelectionForegroundColor(
+      mojom::blink::ColorScheme color_scheme) const;
+  virtual Color PlatformInactiveListBoxSelectionForegroundColor(
+      mojom::blink::ColorScheme color_scheme) const;
 
   // Methods for each appearance value.
   virtual void AdjustCheckboxStyle(ComputedStyle&) const;
@@ -322,40 +215,33 @@ class CORE_EXPORT LayoutTheme : public RefCounted<LayoutTheme> {
   virtual void AdjustButtonStyle(ComputedStyle&) const;
   virtual void AdjustInnerSpinButtonStyle(ComputedStyle&) const;
 
-  virtual void AdjustMenuListStyle(ComputedStyle&, Element*) const;
-  virtual void AdjustMenuListButtonStyle(ComputedStyle&, Element*) const;
-  virtual void AdjustSliderContainerStyle(ComputedStyle&, Element*) const;
+  virtual void AdjustMenuListStyle(ComputedStyle&) const;
+  virtual void AdjustMenuListButtonStyle(ComputedStyle&) const;
+  virtual void AdjustSliderContainerStyle(const Element&, ComputedStyle&) const;
   virtual void AdjustSliderThumbStyle(ComputedStyle&) const;
   virtual void AdjustSearchFieldStyle(ComputedStyle&) const;
   virtual void AdjustSearchFieldCancelButtonStyle(ComputedStyle&) const;
-  void AdjustStyleUsingFallbackTheme(ComputedStyle&);
-  void AdjustCheckboxStyleUsingFallbackTheme(ComputedStyle&) const;
-  void AdjustRadioStyleUsingFallbackTheme(ComputedStyle&) const;
 
- public:
-  // Methods for state querying
-  static ControlStates ControlStatesForNode(const Node*, const ComputedStyle&);
-  static bool IsActive(const Node*);
-  static bool IsChecked(const Node*);
-  static bool IsIndeterminate(const Node*);
-  static bool IsEnabled(const Node*);
-  static bool IsFocused(const Node*);
-  static bool IsPressed(const Node*);
-  static bool IsSpinUpButtonPartPressed(const Node*);
-  static bool IsHovered(const Node*);
-  static bool IsSpinUpButtonPartHovered(const Node*);
-  static bool IsReadOnlyControl(const Node*);
+  bool HasCustomFocusRingColor() const;
+  Color GetCustomFocusRingColor() const;
 
  private:
   // This function is to be implemented in your platform-specific theme
   // implementation to hand back the appropriate platform theme.
   static LayoutTheme& NativeTheme();
 
-  bool is_focus_ring_outset_ = false;
-  float minimum_width_for_focus_ring_ = 1.0f;
+  ControlPart AdjustAppearanceWithAuthorStyle(ControlPart part,
+                                              const ComputedStyle& style);
+
+  ControlPart AdjustAppearanceWithElementType(const ComputedStyle& style,
+                                              const Element* element);
+
   Color custom_focus_ring_color_;
   bool has_custom_focus_ring_color_;
-  TimeDelta caret_blink_interval_ = TimeDelta::FromMilliseconds(500);
+  base::TimeDelta caret_blink_interval_ =
+      base::TimeDelta::FromMilliseconds(500);
+
+  bool delegates_menu_list_rendering_ = false;
 
   // This color is expected to be drawn on a semi-transparent overlay,
   // making it more transparent than its alpha value indicates.

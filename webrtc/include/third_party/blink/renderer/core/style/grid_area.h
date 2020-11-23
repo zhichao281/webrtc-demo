@@ -32,7 +32,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_STYLE_GRID_AREA_H_
 
 #include "third_party/blink/renderer/core/style/grid_positions_resolver.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_hash.h"
@@ -41,7 +41,7 @@
 namespace blink {
 
 // Recommended maximum size for both explicit and implicit grids. Note that this
-// actually allows a [-9999,9999] range. The limit is low on purpouse because
+// actually allows a [-999,999] range. The limit is low on purpouse because
 // higher values easly trigger OOM situations. That will definitely improve once
 // we switch from a vector of vectors based grid representation to a more
 // efficient one memory-wise.

@@ -7,7 +7,10 @@
 
 #include "base/optional.h"
 #include "base/single_thread_task_runner.h"
+#include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink-forward.h"
 #include "third_party/blink/public/platform/platform.h"
+#include "third_party/blink/public/platform/resource_load_info_notifier_wrapper.h"
+#include "third_party/blink/public/platform/weak_wrapper_resource_load_info_notifier.h"
 #include "third_party/blink/renderer/platform/exported/wrapped_resource_request.h"
 #include "third_party/blink/renderer/platform/loader/fetch/fetch_client_settings_object_snapshot.h"
 #include "third_party/blink/renderer/platform/loader/fetch/fetch_context.h"
@@ -18,6 +21,10 @@
 #include <memory>
 
 namespace blink {
+
+namespace mojom {
+class ResourceLoadInfoNotifier;
+}  // namespace mojom
 
 class KURL;
 class ResourceRequest;
@@ -31,9 +38,6 @@ class MockFetchContext : public FetchContext {
 
   uint64_t GetTransferSize() const { return transfer_size_; }
 
-  void CountUsage(mojom::WebFeature) const override {}
-  void CountDeprecation(mojom::WebFeature) const override {}
-
   bool AllowImage(bool images_enabled, const KURL&) const override {
     return true;
   }
@@ -42,15 +46,18 @@ class MockFetchContext : public FetchContext {
       const ResourceRequest&,
       const KURL&,
       const ResourceLoaderOptions&,
-      SecurityViolationReportingPolicy,
-      ResourceRequest::RedirectStatus redirect_status) const override {
+      ReportingDisposition,
+      const base::Optional<ResourceRequest::RedirectInfo>& redirect_info)
+      const override {
     return base::nullopt;
   }
   base::Optional<ResourceRequestBlockedReason> CheckCSPForRequest(
-      mojom::RequestContextType,
+      mojom::blink::RequestContextType,
+      network::mojom::RequestDestination request_destination,
       const KURL& url,
       const ResourceLoaderOptions& options,
-      SecurityViolationReportingPolicy reporting_policy,
+      ReportingDisposition reporting_disposition,
+      const KURL& url_before_redirects,
       ResourceRequest::RedirectStatus redirect_status) const override {
     return base::nullopt;
   }
@@ -58,9 +65,30 @@ class MockFetchContext : public FetchContext {
       const ResourceTimingInfo& resource_timing_info) override {
     transfer_size_ = resource_timing_info.TransferSize();
   }
+  std::unique_ptr<ResourceLoadInfoNotifierWrapper>
+  CreateResourceLoadInfoNotifierWrapper() override {
+    if (!resource_load_info_notifier_)
+      return nullptr;
+
+    if (!weak_wrapper_resource_load_info_notifier_) {
+      weak_wrapper_resource_load_info_notifier_ =
+          std::make_unique<WeakWrapperResourceLoadInfoNotifier>(
+              resource_load_info_notifier_);
+    }
+    return std::make_unique<ResourceLoadInfoNotifierWrapper>(
+        weak_wrapper_resource_load_info_notifier_->AsWeakPtr());
+  }
+
+  void SetResourceLoadInfoNotifier(
+      mojom::ResourceLoadInfoNotifier* resource_load_info_notifier) {
+    resource_load_info_notifier_ = resource_load_info_notifier;
+  }
 
  private:
   uint64_t transfer_size_ = 0;
+  mojom::ResourceLoadInfoNotifier* resource_load_info_notifier_ = nullptr;
+  std::unique_ptr<WeakWrapperResourceLoadInfoNotifier>
+      weak_wrapper_resource_load_info_notifier_;
 };
 
 }  // namespace blink

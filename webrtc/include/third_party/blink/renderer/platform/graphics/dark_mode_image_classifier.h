@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,91 +7,81 @@
 
 #include <vector>
 
-#include "third_party/blink/renderer/platform/geometry/float_rect.h"
-#include "third_party/blink/renderer/platform/graphics/graphics_types.h"
-#include "third_party/blink/renderer/platform/graphics/image.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "base/gtest_prod_util.h"
+#include "base/optional.h"
+#include "third_party/blink/renderer/platform/graphics/dark_mode_types.h"
+#include "third_party/blink/renderer/platform/platform_export.h"
+#include "third_party/skia/include/core/SkPixmap.h"
+#include "third_party/skia/include/core/SkRect.h"
 
 namespace blink {
 
-class IntRect;
+FORWARD_DECLARE_TEST(DarkModeImageClassifierTest, BlockSamples);
+FORWARD_DECLARE_TEST(DarkModeImageClassifierTest, FeaturesAndClassification);
 
+// This class is not threadsafe as the cache used for storing classification
+// results is not threadsafe. So it can be used only in blink main thread.
 class PLATFORM_EXPORT DarkModeImageClassifier {
-  DISALLOW_NEW();
-
  public:
   DarkModeImageClassifier();
-  ~DarkModeImageClassifier() = default;
+  ~DarkModeImageClassifier();
 
-  DarkModeClassification ClassifyBitmapImageForDarkMode(
-      Image& image,
-      const FloatRect& src_rect);
+  struct Features {
+    // True if the image is in color, false if it is grayscale.
+    bool is_colorful;
 
-  bool ComputeImageFeaturesForTesting(Image& image,
-                                      std::vector<float>* features) {
-    std::vector<SkColor> sampled_pixels;
-    return ComputeImageFeatures(
-        image,
-        FloatRect(0, 0, static_cast<float>(image.width()),
-                  static_cast<float>(image.height())),
-        features, &sampled_pixels);
-  }
+    // Ratio of the number of bucketed colors used in the image to all
+    // possibilities. Color buckets are represented with 4 bits per color
+    // channel.
+    float color_buckets_ratio;
 
-  DarkModeClassification ClassifyImageUsingDecisionTreeForTesting(
-      const std::vector<float>& features) {
-    return ClassifyImageUsingDecisionTree(features);
-  }
+    // How much of the image is transparent or considered part of the
+    // background.
+    float transparency_ratio;
+    float background_ratio;
+  };
+
+  DarkModeResult Classify(const SkPixmap& pixmap, const SkIRect& src) const;
 
  private:
+  DarkModeResult ClassifyWithFeatures(const Features& features) const;
+  DarkModeResult ClassifyUsingDecisionTree(const Features& features) const;
+
   enum class ColorMode { kColor = 0, kGrayscale = 1 };
 
-  // Computes the features vector for a given image.
-  bool ComputeImageFeatures(Image&,
-                            const FloatRect&,
-                            std::vector<float>*,
-                            std::vector<SkColor>*);
-
-  // Converts image to SkBitmap and returns true if successful.
-  bool GetBitmap(Image&, const FloatRect&, SkBitmap*);
-
-  // Given a SkBitmap, extracts a sample set of pixels (|sampled_pixels|),
-  // |transparency_ratio|, and |background_ratio|.
-  void GetSamples(const SkBitmap&,
+  base::Optional<Features> GetFeatures(const SkPixmap& pixmap,
+                                       const SkIRect& src) const;
+  // Extracts a sample set of pixels (|sampled_pixels|), |transparency_ratio|,
+  // and |background_ratio|.
+  void GetSamples(const SkPixmap& pixmap,
+                  const SkIRect& src,
                   std::vector<SkColor>* sampled_pixels,
                   float* transparency_ratio,
-                  float* background_ratio);
+                  float* background_ratio) const;
+  // Gets the |required_samples_count| for a specific |block| of the given
+  // pixmap, and returns |sampled_pixels| and |transparent_pixels_count|.
+  void GetBlockSamples(const SkPixmap& pixmap,
+                       const SkIRect& block,
+                       const int required_samples_count,
+                       std::vector<SkColor>* sampled_pixels,
+                       int* transparent_pixels_count) const;
 
   // Given |sampled_pixels|, |transparency_ratio|, and |background_ratio| for an
-  // image, computes the required |features| for classification.
-  void GetFeatures(const std::vector<SkColor>& sampled_pixels,
-                   const float transparency_ratio,
-                   const float background_ratio,
-                   std::vector<float>* features);
-
-  // Makes a decision about the image given its features.
-  DarkModeClassification ClassifyImage(const std::vector<float>&);
+  // image, computes and returns the features required for classification.
+  Features ComputeFeatures(const std::vector<SkColor>& sampled_pixels,
+                           const float transparency_ratio,
+                           const float background_ratio) const;
 
   // Receives sampled pixels and color mode, and returns the ratio of color
   // buckets count to all possible color buckets. If image is in color, a color
   // bucket is a 4 bit per channel representation of each RGB color, and if it
   // is grayscale, each bucket is a 4 bit representation of luminance.
-  float ComputeColorBucketsRatio(const std::vector<SkColor>&, const ColorMode);
+  float ComputeColorBucketsRatio(const std::vector<SkColor>& sampled_pixels,
+                                 const ColorMode color_mode) const;
 
-  // Gets the |required_samples_count| for a specific |block| of the given
-  // SkBitmap, and returns |sampled_pixels| and |transparent_pixels_count|.
-  void GetBlockSamples(const SkBitmap&,
-                       const IntRect& block,
-                       const int required_samples_count,
-                       std::vector<SkColor>* sampled_pixels,
-                       int* transparent_pixels_count);
-
-  // Decides if the filter should be applied to the image or not, only using the
-  // decision tree. Returns 'kNotClassified' if decision tree cannot give a
-  // trustable answer.
-  DarkModeClassification ClassifyImageUsingDecisionTree(
-      const std::vector<float>&);
-
-  int pixels_to_sample_;
+  FRIEND_TEST_ALL_PREFIXES(DarkModeImageClassifierTest, BlockSamples);
+  FRIEND_TEST_ALL_PREFIXES(DarkModeImageClassifierTest,
+                           FeaturesAndClassification);
 };
 
 }  // namespace blink

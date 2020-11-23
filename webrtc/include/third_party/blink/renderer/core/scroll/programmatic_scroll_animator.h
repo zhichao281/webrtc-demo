@@ -9,7 +9,7 @@
 #include "third_party/blink/renderer/core/scroll/scroll_animator_compositor_coordinator.h"
 #include "third_party/blink/renderer/core/scroll/scrollable_area.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
@@ -25,10 +25,11 @@ class CompositorScrollOffsetAnimationCurve;
 // ScrollAnimatorMac.
 
 class ProgrammaticScrollAnimator : public ScrollAnimatorCompositorCoordinator {
-  DISALLOW_COPY_AND_ASSIGN(ProgrammaticScrollAnimator);
-
  public:
   explicit ProgrammaticScrollAnimator(ScrollableArea*);
+  ProgrammaticScrollAnimator(const ProgrammaticScrollAnimator&) = delete;
+  ProgrammaticScrollAnimator& operator=(const ProgrammaticScrollAnimator&) =
+      delete;
   ~ProgrammaticScrollAnimator() override;
 
   void ScrollToOffsetWithoutAnimation(const ScrollOffset&,
@@ -52,7 +53,7 @@ class ProgrammaticScrollAnimator : public ScrollAnimatorCompositorCoordinator {
   void LayerForCompositedScrollingDidChange(
       CompositorAnimationTimeline*) override;
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  private:
   void NotifyOffsetChanged(const ScrollOffset&);

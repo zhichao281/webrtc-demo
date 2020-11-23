@@ -12,6 +12,7 @@
 #define MODULES_AUDIO_PROCESSING_AGC2_RNN_VAD_SPECTRAL_FEATURES_INTERNAL_H_
 
 #include <stddef.h>
+
 #include <array>
 #include <vector>
 
@@ -24,7 +25,7 @@ namespace rnn_vad {
 // At a sample rate of 24 kHz, the last 3 Opus bands are beyond the Nyquist
 // frequency. However, band #19 gets the contributions from band #18 because
 // of the symmetric triangular filter with peak response at 12 kHz.
-constexpr size_t kOpusBands24kHz = 20;
+constexpr int kOpusBands24kHz = 20;
 static_assert(kOpusBands24kHz < kNumBands,
               "The number of bands at 24 kHz must be less than those defined "
               "in the Opus scale at 48 kHz.");

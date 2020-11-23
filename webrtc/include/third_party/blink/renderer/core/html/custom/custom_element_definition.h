@@ -33,7 +33,7 @@ enum class FormAssociationFlag {
 };
 
 class CORE_EXPORT CustomElementDefinition
-    : public GarbageCollectedFinalized<CustomElementDefinition>,
+    : public GarbageCollected<CustomElementDefinition>,
       public NameClient {
  public:
   // Each definition has an ID that is unique within the
@@ -42,7 +42,7 @@ class CORE_EXPORT CustomElementDefinition
 
   virtual ~CustomElementDefinition();
 
-  virtual void Trace(Visitor*);
+  virtual void Trace(Visitor*) const;
   const char* NameInHeapSnapshot() const override {
     return "CustomElementDefinition";
   }
@@ -98,8 +98,7 @@ class CORE_EXPORT CustomElementDefinition
       const FileOrUSVStringOrFormData& value,
       const String& mode) = 0;
 
-  void EnqueueUpgradeReaction(Element&,
-                              bool upgrade_invisible_elements = false);
+  void EnqueueUpgradeReaction(Element&);
   void EnqueueConnectedCallback(Element&);
   void EnqueueDisconnectedCallback(Element&);
   void EnqueueAdoptedCallback(Element&,
@@ -122,6 +121,7 @@ class CORE_EXPORT CustomElementDefinition
   bool HasDefaultStyleSheets() const {
     return !default_style_sheets_.IsEmpty();
   }
+  bool DisableShadow() const { return disable_shadow_; }
   bool DisableInternals() const { return disable_internals_; }
   bool IsFormAssociated() const { return is_form_associated_; }
 
@@ -135,7 +135,7 @@ class CORE_EXPORT CustomElementDefinition
 
    private:
     ConstructionStack& construction_stack_;
-    Member<Element> element_;
+    Element* element_;
     size_t depth_;
   };
 
@@ -162,6 +162,7 @@ class CORE_EXPORT CustomElementDefinition
   HashSet<AtomicString> observed_attributes_;
   bool has_style_attribute_changed_callback_;
   bool added_default_style_sheet_ = false;
+  bool disable_shadow_ = false;
   bool disable_internals_ = false;
   bool is_form_associated_ = false;
 

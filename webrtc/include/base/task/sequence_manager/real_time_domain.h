@@ -6,7 +6,6 @@
 #define BASE_TASK_SEQUENCE_MANAGER_REAL_TIME_DOMAIN_H_
 
 #include "base/base_export.h"
-#include "base/macros.h"
 #include "base/task/sequence_manager/time_domain.h"
 
 namespace base {
@@ -15,8 +14,10 @@ namespace internal {
 
 class BASE_EXPORT RealTimeDomain : public TimeDomain {
  public:
-  RealTimeDomain();
-  ~RealTimeDomain() override;
+  RealTimeDomain() = default;
+  RealTimeDomain(const RealTimeDomain&) = delete;
+  RealTimeDomain& operator=(const RealTimeDomain&) = delete;
+  ~RealTimeDomain() override = default;
 
   // TimeDomain implementation:
   LazyNow CreateLazyNow() const override;
@@ -25,10 +26,12 @@ class BASE_EXPORT RealTimeDomain : public TimeDomain {
   bool MaybeFastForwardToNextTask(bool quit_when_idle_requested) override;
 
  protected:
+  void OnRegisterWithSequenceManager(
+      SequenceManagerImpl* sequence_manager) override;
   const char* GetName() const override;
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(RealTimeDomain);
+  const TickClock* tick_clock_ = nullptr;
 };
 
 }  // namespace internal

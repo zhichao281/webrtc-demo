@@ -39,14 +39,14 @@
 namespace blink {
 class Database;
 
-class InspectorDatabaseResource
-    : public GarbageCollectedFinalized<InspectorDatabaseResource> {
+class InspectorDatabaseResource final
+    : public GarbageCollected<InspectorDatabaseResource> {
  public:
   InspectorDatabaseResource(Database*,
                             const String& domain,
                             const String& name,
                             const String& version);
-  void Trace(blink::Visitor*);
+  void Trace(Visitor*) const;
 
   void Bind(protocol::Database::Frontend*);
   Database* GetDatabase() { return database_.Get(); }

@@ -21,21 +21,23 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_SVG_SVG_POLY_ELEMENT_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_SVG_SVG_POLY_ELEMENT_H_
 
-#include "third_party/blink/renderer/core/svg/svg_animated_point_list.h"
 #include "third_party/blink/renderer/core/svg/svg_geometry_element.h"
 #include "third_party/blink/renderer/core/svg_names.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 
 namespace blink {
 
+class SVGAnimatedPointList;
+class SVGPointListTearOff;
+
 class SVGPolyElement : public SVGGeometryElement {
  public:
   SVGAnimatedPointList* Points() const { return points_.Get(); }
 
-  SVGPointListTearOff* pointsFromJavascript() { return points_->baseVal(); }
-  SVGPointListTearOff* animatedPoints() { return points_->animVal(); }
+  SVGPointListTearOff* pointsFromJavascript();
+  SVGPointListTearOff* animatedPoints();
 
-  void Trace(blink::Visitor*) override;
+  void Trace(Visitor*) const override;
 
  protected:
   SVGPolyElement(const QualifiedName&, Document&);
@@ -43,18 +45,26 @@ class SVGPolyElement : public SVGGeometryElement {
   Path AsPathFromPoints() const;
 
  private:
-  void SvgAttributeChanged(const QualifiedName&) final;
+  void SvgAttributeChanged(const SvgAttributeChangedParams&) final;
 
- private:
   Member<SVGAnimatedPointList> points_;
 };
 
-inline bool IsSVGPolyElement(const SVGElement& element) {
-  return element.HasTagName(svg_names::kPolygonTag) ||
-         element.HasTagName(svg_names::kPolylineTag);
+template <>
+inline bool IsElementOfType<const SVGPolyElement>(const Node& node) {
+  return IsA<SVGPolyElement>(node);
 }
-
-DEFINE_SVGELEMENT_TYPE_CASTS_WITH_FUNCTION(SVGPolyElement);
+template <>
+struct DowncastTraits<SVGPolyElement> {
+  static bool AllowFrom(const Node& node) {
+    auto* svg_element = DynamicTo<SVGElement>(node);
+    return svg_element && AllowFrom(*svg_element);
+  }
+  static bool AllowFrom(const SVGElement& svg_element) {
+    return svg_element.HasTagName(svg_names::kPolygonTag) ||
+           svg_element.HasTagName(svg_names::kPolylineTag);
+  }
+};
 
 }  // namespace blink
 

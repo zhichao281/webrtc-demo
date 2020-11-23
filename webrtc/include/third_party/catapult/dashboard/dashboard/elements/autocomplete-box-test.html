@@ -88,6 +88,17 @@ tr.b.unittest.testSuite(function() {
     ]);
   }, testOptions);
 
+  test('simple_clear_item', function() {
+    const fixture = document.createElement('autocomplete-box-test-fixture');
+    fixture.set('items', [this.foo, this.fooish, this.bar]);
+    assert.deepEqual(fixture.get('selectedItem'), null);
+    fixture.selectItem(this.foo);
+    assert.deepEqual(fixture.get('selectedItem'), this.foo);
+    fixture.clearItem();
+    assert.deepEqual(fixture.get('selectedItem'), null);
+    assert.deepEqual(fixture.get('query'), '');
+  }, testOptions);
+
   test('simple_selecting_an_item', function() {
     const fixture = document.createElement('autocomplete-box-test-fixture');
     fixture.set('items', [this.foo, this.fooish, this.bar]);
@@ -161,12 +172,42 @@ tr.b.unittest.testSuite(function() {
     assert.isFalse(fixture.get('showDropdown'));
   }, testOptions);
 
-  test('maybe_backspace_selection', function() {
-    const fixture = document.createElement('autocomplete-box-test-fixture');
+  test('on_query_change', function() {
+    const fixture = document.createElement('autocomplete-box');
     fixture.set('items', [this.foo, this.fooish, this.bar]);
     fixture.set('selectedItem', this.foo);
-    fixture.maybeBackspaceSelection();
+
+    fixture.set('query', this.foo.name);
     assert.deepEqual(fixture.get('selectedItem'), this.foo);
+
+    fixture.set('query', this.bar.name);
+    assert.deepEqual(fixture.get('selectedItem'), undefined);
+  }, testOptions);
+
+  test('on_blur_input', function() {
+    const fixture = document.createElement('autocomplete-box');
+    const master1 = item('Master1', undefined, true);
+    const master2 = item('Master2', undefined, true);
+    const botA1 = item('BotA', 'Master1');
+    const botB1 = item('BotB', 'Master1');
+    const botA2 = item('BotA', 'Master2');
+    fixture.set('items', [master1, botA1, botB1, master2, botA2]);
+    fixture.selectItem(botA2);
+
+    // Verify that the selection is not changed if the query is not changed.
+    fixture.onBlurInput();
+    assert.deepEqual(fixture.get('selectedItem'), botA2);
+
+    // Verify that the selection is not changed if the query is changed to
+    // same value.
+    fixture.set('query', botA1.name); // Setting it to "BotA"
+    fixture.onBlurInput();
+    assert.deepEqual(fixture.get('selectedItem'), botA2);
+
+    // Verify that it does when a new query is entered.
+    fixture.set('query', botB1.name);
+    fixture.onBlurInput();
+    assert.deepEqual(fixture.get('selectedItem'), botB1);
   }, testOptions);
 
   test('maybe_select_locus', function() {
@@ -251,6 +292,21 @@ tr.b.unittest.testSuite(function() {
       {'name': 'galaxy s6', 'group': 'Android'},
     ];
     this.addHTMLOutput(box);
+  });
+
+  test('required_passed_through', function() {
+    const box = document.createElement('autocomplete-box');
+    box.required = true;
+    this.addHTMLOutput(box);
+
+    assert.strictEqual(box.$.textbox.required, true);
+  });
+
+  test('validatable', function() {
+    const box = document.createElement('autocomplete-box');
+    this.addHTMLOutput(box);
+
+    assert.isDefined(box.validate);
   });
 });
 </script>

@@ -61,13 +61,13 @@ class CORE_EXPORT LayoutReplaced : public LayoutBox {
 
   bool HasReplacedLogicalHeight() const;
   // This function returns the local rect of the replaced content.
-  virtual LayoutRect ReplacedContentRect() const;
+  virtual PhysicalRect ReplacedContentRect() const;
 
   // This is used by a few special elements, e.g. <video>, <iframe> to ensure
   // a persistent sizing under different subpixel offset, because these
   // elements have a high cost to resize. The drawback is that we may overflow
   // or underflow the final content box by 1px.
-  static LayoutRect PreSnappedRectForPersistentSizing(LayoutRect);
+  static PhysicalRect PreSnappedRectForPersistentSizing(const PhysicalRect&);
 
   bool NeedsPreferredWidthsRecalculation() const override;
 
@@ -77,75 +77,103 @@ class CORE_EXPORT LayoutReplaced : public LayoutBox {
   // http://www.w3.org/TR/CSS2/visudet.html#inline-replaced-width
   static const int kDefaultWidth;
   static const int kDefaultHeight;
-  bool CanHaveChildren() const override { return false; }
+  bool CanHaveChildren() const override {
+    NOT_DESTROYED();
+    return false;
+  }
   virtual void PaintReplaced(const PaintInfo&,
-                             const LayoutPoint& paint_offset) const {}
-  LayoutRect LocalSelectionRect() const final;
+                             const PhysicalOffset& paint_offset) const {
+    NOT_DESTROYED();
+  }
+
+  PhysicalRect LocalSelectionVisualRect() const final;
 
   bool HasObjectFit() const {
+    NOT_DESTROYED();
     return StyleRef().GetObjectFit() !=
            ComputedStyleInitialValues::InitialObjectFit();
   }
 
   void Paint(const PaintInfo&) const override;
 
-  // Replaced objects often have contents to paint.
-  bool PaintedOutputOfObjectHasNoEffectRegardlessOfSize() const override {
-    return false;
-  }
-
   // This function is public only so we can call it when computing
   // intrinsic size in LayoutNG.
   virtual void ComputeIntrinsicSizingInfo(IntrinsicSizingInfo&) const;
 
- protected:
-  void WillBeDestroyed() override;
-
-  void UpdateLayout() override;
-
-  LayoutSize IntrinsicSize() const final { return intrinsic_size_; }
-
-  void ComputePositionedLogicalWidth(
-      LogicalExtentComputedValues&) const override;
-  void ComputePositionedLogicalHeight(
-      LogicalExtentComputedValues&) const override;
-
-  void ComputeIntrinsicLogicalWidths(LayoutUnit& min_logical_width,
-                                     LayoutUnit& max_logical_width) const final;
-
-  // This function calculates the placement of the replaced contents. It takes
-  // intrinsic size of the replaced contents, stretch to fit CSS content box
-  // according to object-fit.
-  LayoutRect ComputeObjectFit(
-      const LayoutSize* overridden_intrinsic_size = nullptr) const;
-
-  LayoutUnit IntrinsicContentLogicalHeight() const override {
-    return IntrinsicLogicalHeight();
-  }
-
-  virtual LayoutUnit MinimumReplacedHeight() const { return LayoutUnit(); }
-
-  void StyleDidChange(StyleDifference, const ComputedStyle* old_style) override;
-
-  void SetIntrinsicSize(const LayoutSize& intrinsic_size) {
-    intrinsic_size_ = intrinsic_size;
-  }
-
-  // This callback is invoked whenever the intrinsic size changed.
+  // This callback must be invoked whenever the underlying intrinsic size has
+  // changed.
   //
   // The intrinsic size can change due to the network (from the default
   // intrinsic size [see above] to the actual intrinsic size) or to some
   // CSS properties like 'zoom' or 'image-orientation'.
   virtual void IntrinsicSizeChanged();
 
-  PositionWithAffinity PositionForPoint(const LayoutPoint&) const override;
+ protected:
+  void WillBeDestroyed() override;
+
+  void UpdateLayout() override;
+
+  LayoutSize IntrinsicSize() const final {
+    NOT_DESTROYED();
+    return LayoutSize(IntrinsicWidth(), IntrinsicHeight());
+  }
+
+  LayoutUnit IntrinsicWidth() const {
+    NOT_DESTROYED();
+    if (HasOverrideIntrinsicContentWidth())
+      return OverrideIntrinsicContentWidth();
+    else if (ShouldApplySizeContainment())
+      return LayoutUnit();
+    return intrinsic_size_.Width();
+  }
+  LayoutUnit IntrinsicHeight() const {
+    NOT_DESTROYED();
+    if (HasOverrideIntrinsicContentHeight())
+      return OverrideIntrinsicContentHeight();
+    else if (ShouldApplySizeContainment())
+      return LayoutUnit();
+    return intrinsic_size_.Height();
+  }
+
+  void ComputePositionedLogicalWidth(
+      LogicalExtentComputedValues&) const override;
+  void ComputePositionedLogicalHeight(
+      LogicalExtentComputedValues&) const override;
+
+  MinMaxSizes ComputeIntrinsicLogicalWidths() const final;
+
+  // This function calculates the placement of the replaced contents. It takes
+  // intrinsic size of the replaced contents, stretch to fit CSS content box
+  // according to object-fit.
+  PhysicalRect ComputeObjectFit(
+      const LayoutSize* overridden_intrinsic_size = nullptr) const;
+
+  LayoutUnit IntrinsicContentLogicalHeight() const override {
+    NOT_DESTROYED();
+    return IntrinsicLogicalHeight();
+  }
+
+  virtual LayoutUnit MinimumReplacedHeight() const {
+    NOT_DESTROYED();
+    return LayoutUnit();
+  }
+
+  void StyleDidChange(StyleDifference, const ComputedStyle* old_style) override;
+
+  void SetIntrinsicSize(const LayoutSize& intrinsic_size) {
+    NOT_DESTROYED();
+    intrinsic_size_ = intrinsic_size;
+  }
+
+  PositionWithAffinity PositionForPoint(const PhysicalOffset&) const override;
 
   bool IsOfType(LayoutObjectType type) const override {
-    return type == kLayoutObjectLayoutReplaced || LayoutBox::IsOfType(type);
+    NOT_DESTROYED();
+    return type == kLayoutObjectReplaced || LayoutBox::IsOfType(type);
   }
 
  private:
-  void ComputePreferredLogicalWidths() final;
+  MinMaxSizes PreferredLogicalWidths() const final;
 
   void ComputeIntrinsicSizingInfoForReplacedContent(IntrinsicSizingInfo&) const;
   FloatSize ConstrainIntrinsicSizeToMinMax(const IntrinsicSizingInfo&) const;
@@ -155,7 +183,12 @@ class CORE_EXPORT LayoutReplaced : public LayoutBox {
   mutable LayoutSize intrinsic_size_;
 };
 
-DEFINE_LAYOUT_OBJECT_TYPE_CASTS(LayoutReplaced, IsLayoutReplaced());
+template <>
+struct DowncastTraits<LayoutReplaced> {
+  static bool AllowFrom(const LayoutObject& object) {
+    return object.IsLayoutReplaced();
+  }
+};
 
 }  // namespace blink
 

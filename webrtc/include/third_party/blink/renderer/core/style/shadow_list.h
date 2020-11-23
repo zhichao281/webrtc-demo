@@ -35,7 +35,7 @@
 #include "third_party/blink/renderer/core/style/shadow_data.h"
 #include "third_party/blink/renderer/platform/geometry/float_rect_outsets.h"
 #include "third_party/blink/renderer/platform/graphics/draw_looper_builder.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/ref_counted.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
@@ -67,6 +67,7 @@ class ShadowList : public RefCounted<ShadowList> {
 
   sk_sp<SkDrawLooper> CreateDrawLooper(DrawLooperBuilder::ShadowAlphaMode,
                                        const Color& current_color,
+                                       mojom::blink::ColorScheme color_scheme,
                                        bool is_horizontal = true) const;
 
  private:

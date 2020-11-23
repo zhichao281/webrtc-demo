@@ -10,7 +10,7 @@
 #include "base/optional.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/space_split_string.h"
-#include "third_party/blink/renderer/platform/wtf/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string_hash.h"
@@ -27,6 +27,8 @@ class CORE_EXPORT NamesMap {
 
  public:
   NamesMap() = default;
+  NamesMap(const NamesMap&) = delete;
+  NamesMap& operator=(const NamesMap&) = delete;
   explicit NamesMap(const AtomicString& string);
 
   // Clears any existing mapping, parses the string and sets the mapping from
@@ -44,8 +46,6 @@ class CORE_EXPORT NamesMap {
   void Set(const AtomicString&, const CharacterType*);
 
   HashMap<AtomicString, base::Optional<SpaceSplitString>> data_;
-
-  DISALLOW_COPY_AND_ASSIGN(NamesMap);
 };
 
 }  // namespace blink

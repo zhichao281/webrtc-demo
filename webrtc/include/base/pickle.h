@@ -11,16 +11,12 @@
 #include <string>
 
 #include "base/base_export.h"
-#include "base/compiler_specific.h"
+#include "base/check_op.h"
+#include "base/containers/span.h"
 #include "base/gtest_prod_util.h"
-#include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/strings/string16.h"
 #include "base/strings/string_piece.h"
-
-#if defined(OS_POSIX)
-#include "base/files/file.h"
-#endif
 
 namespace base {
 
@@ -60,6 +56,9 @@ class BASE_EXPORT PickleIterator {
   // until the message data is mutated). Do not keep the pointer around!
   bool ReadData(const char** data, int* length) WARN_UNUSED_RESULT;
 
+  // Similar, but using base::span for convenience.
+  bool ReadData(base::span<const uint8_t>* data) WARN_UNUSED_RESULT;
+
   // A pointer to the data will be placed in |*data|. The caller specifies the
   // number of bytes to read, and ReadBytes will validate this length. The
   // pointer placed into |*data| points into the message's buffer so it will be
@@ -78,6 +77,8 @@ class BASE_EXPORT PickleIterator {
   bool SkipBytes(int num_bytes) WARN_UNUSED_RESULT {
     return !!GetReadPointerAndAdvance(num_bytes);
   }
+
+  bool ReachedEnd() const { return read_index_ == end_index_; }
 
  private:
   // Read Type from Pickle.
@@ -134,12 +135,12 @@ class BASE_EXPORT Pickle {
   class BASE_EXPORT Attachment : public RefCountedThreadSafe<Attachment> {
    public:
     Attachment();
+    Attachment(const Attachment&) = delete;
+    Attachment& operator=(const Attachment&) = delete;
 
    protected:
     friend class RefCountedThreadSafe<Attachment>;
     virtual ~Attachment();
-
-    DISALLOW_COPY_AND_ASSIGN(Attachment);
   };
 
   // Initialize a Pickle object using the default header size.

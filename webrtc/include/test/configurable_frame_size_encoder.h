@@ -13,6 +13,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
 #include <functional>
 #include <memory>
 #include <vector>
@@ -32,9 +33,11 @@ class ConfigurableFrameSizeEncoder : public VideoEncoder {
   explicit ConfigurableFrameSizeEncoder(size_t max_frame_size);
   ~ConfigurableFrameSizeEncoder() override;
 
+  void SetFecControllerOverride(
+      FecControllerOverride* fec_controller_override) override;
+
   int32_t InitEncode(const VideoCodec* codec_settings,
-                     int32_t number_of_cores,
-                     size_t max_payload_size) override;
+                     const Settings& settings) override;
 
   int32_t Encode(const VideoFrame& input_image,
                  const std::vector<VideoFrameType>* frame_types) override;
@@ -44,8 +47,7 @@ class ConfigurableFrameSizeEncoder : public VideoEncoder {
 
   int32_t Release() override;
 
-  int32_t SetRateAllocation(const VideoBitrateAllocation& allocation,
-                            uint32_t framerate) override;
+  void SetRates(const RateControlParameters& parameters) override;
 
   int32_t SetFrameSize(size_t size);
 
@@ -58,9 +60,7 @@ class ConfigurableFrameSizeEncoder : public VideoEncoder {
   EncodedImageCallback* callback_;
   absl::optional<std::function<void(void)>> post_encode_callback_;
 
-  const size_t max_frame_size_;
   size_t current_frame_size_;
-  std::unique_ptr<uint8_t[]> buffer_;
   VideoCodecType codec_type_;
 };
 
