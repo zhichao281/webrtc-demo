@@ -78,6 +78,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
+    <IncludePath>../webrtc/include;../webrtc/include/third_party/abseil-cpp;../webrtc/include/third_party/jsoncpp/source/include;../webrtc/include/third_party/libyuv/include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -120,14 +121,17 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NO_CRYPTO;NDEBUG;_WINDOWS;NOMINMAX;WIN32_LEAN_AND_MEAN;WEBRTC_WIN;_CRT_SECURE_NO_DEPRECATE;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;WIN32;WEBRTCSDK_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>..\webrtc\lib\$(Configuration)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>webrtc.lib;json_reader.obj;json_value.obj;json_writer.obj;json.obj;field_trial.obj;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -158,6 +162,7 @@
     <ClInclude Include="main_wnd.h" />
     <ClInclude Include="MyCapturer.h" />
     <ClInclude Include="peer_connection_client.h" />
+    <ClInclude Include="vcm_capturer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="conductor.cc" />
@@ -166,6 +171,8 @@
     <ClCompile Include="main_wnd.cc" />
     <ClCompile Include="MyCapturer.cc" />
     <ClCompile Include="peer_connection_client.cc" />
+    <ClCompile Include="test_video_capturer.cc" />
+    <ClCompile Include="vcm_capturer.cc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

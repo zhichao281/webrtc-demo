@@ -33,6 +33,9 @@
     <ClInclude Include="MyCapturer.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="vcm_capturer.h">
+      <Filter>源文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cc">
@@ -51,6 +54,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="MyCapturer.cc">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="vcm_capturer.cc">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="test_video_capturer.cc">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
