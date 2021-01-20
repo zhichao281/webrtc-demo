@@ -28,6 +28,7 @@
 #include "rtc_base/numerics/sequence_number_util.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/synchronization/sequence_checker.h"
+#include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/task_queue.h"
 #include "rtc_base/task_utils/repeating_task.h"
 #include "rtc_base/thread_annotations.h"
@@ -147,10 +148,6 @@ class FrameBuffer {
 
   void ClearFramesAndHistory() RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
-  // Checks if the superframe, which current frame belongs to, is complete.
-  bool IsCompleteSuperFrame(const EncodedFrame& frame)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
-
   bool HasBadRenderTiming(const EncodedFrame& frame, int64_t now_ms)
       RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
@@ -161,8 +158,8 @@ class FrameBuffer {
   EncodedFrame* CombineAndDeleteFrames(
       const std::vector<EncodedFrame*>& frames) const;
 
-  SequenceChecker construction_checker_;
-  SequenceChecker callback_checker_;
+  RTC_NO_UNIQUE_ADDRESS SequenceChecker construction_checker_;
+  RTC_NO_UNIQUE_ADDRESS SequenceChecker callback_checker_;
 
   // Stores only undecoded frames.
   FrameMap frames_ RTC_GUARDED_BY(mutex_);

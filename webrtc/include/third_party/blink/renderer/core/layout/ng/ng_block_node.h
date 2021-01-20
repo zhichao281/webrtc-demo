@@ -21,7 +21,7 @@ class NGEarlyBreak;
 class NGFragmentItems;
 class NGLayoutResult;
 class NGPhysicalBoxFragment;
-class NGPhysicalContainerFragment;
+class NGPhysicalFragment;
 struct NGBoxStrut;
 struct NGLayoutAlgorithmParams;
 
@@ -220,11 +220,6 @@ class CORE_EXPORT NGBlockNode : public NGLayoutInputNode {
       const NGPhysicalBoxFragment& container,
       const NGFragmentItems& items,
       const NGBlockBreakToken* previous_break_token) const;
-  void CopyFragmentDataToLayoutBoxForInlineChildren(
-      const NGPhysicalContainerFragment& container,
-      LayoutUnit initial_container_width,
-      bool initial_container_is_flipped,
-      PhysicalOffset offset = {}) const;
   void PlaceChildrenInLayoutBox(
       const NGPhysicalBoxFragment&,
       const NGBlockBreakToken* previous_break_token) const;

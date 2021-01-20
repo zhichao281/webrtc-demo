@@ -87,7 +87,6 @@ class LayoutNGTableSectionInterface;
 class LayoutNGTableCellInterface;
 class LayoutView;
 class LocalFrameView;
-class NGPaintFragment;
 class NGPhysicalBoxFragment;
 class PaintLayer;
 class PseudoElementStyleRequest;
@@ -625,6 +624,10 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
     NOT_DESTROYED();
     return ShouldApplyPaintContainment() && ShouldApplyLayoutContainment() &&
            ShouldApplySizeContainment();
+  }
+  inline bool IsContainerForContainerQueries() const {
+    NOT_DESTROYED();
+    return ShouldApplyLayoutContainment() && ShouldApplySizeContainment();
   }
 
   inline bool IsStackingContext() const {
@@ -1259,10 +1262,10 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
   // SVGGraphicsElement::getBBox().
   // NOTE: Markers are not specifically ignored here by SVG 1.1 spec, but we
   // ignore them since stroke-width is ignored (and marker size can depend on
-  // stroke-width). objectBoundingBox is returned local coordinates.
+  // stroke-width). objectBoundingBox is returned in local coordinates and
+  // always unzoomed.
   // The name objectBoundingBox is taken from the SVG 1.1 spec.
   virtual FloatRect ObjectBoundingBox() const;
-  virtual FloatRect StrokeBoundingBox() const;
 
   // Returns the smallest rectangle enclosing all of the painted content
   // respecting clipping, masking, filters, opacity, stroke-width and markers.
@@ -1271,6 +1274,11 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
   // LayoutSVGViewportContainer and  LayoutSVGResourceMarker), the local SVG
   // coordinate space is the viewport space.
   virtual FloatRect VisualRectInLocalSVGCoordinates() const;
+
+  // Like VisualRectInLocalSVGCoordinates() but does not include visual overflow
+  // (name is misleading). May be zoomed (currently only for <foreignObject>,
+  // which represents this via its LocalToSVGParentTransform()).
+  virtual FloatRect StrokeBoundingBox() const;
 
   // This returns the transform applying to the local SVG coordinate space,
   // which combines the CSS transform properties and animation motion transform.
@@ -1323,6 +1331,15 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
   }
   virtual LayoutBoxModelObject* VirtualContinuation() const {
     NOT_DESTROYED();
+    return nullptr;
+  }
+  // Returns the |ComputedStyle| to use for painting outlines. When |this| is
+  // a block in a continuation-chain, it may need to paint outlines if its
+  // ancestor inline boxes in the DOM tree has outlines.
+  const ComputedStyle* StyleForContinuationOutline() const {
+    NOT_DESTROYED();
+    if (UNLIKELY(IsAnonymous() && !IsInline()))
+      return SlowStyleForContinuationOutline();
     return nullptr;
   }
 
@@ -1700,6 +1717,10 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
 
   bool IsRenderedLegendInternal() const;
 
+  // Returns true if this object represents ::marker for the first SUMMARY
+  // child of a DETAILS, and list-style-type is disclosure-*.
+  bool IsListMarkerForSummary() const;
+
   // The pseudo element style can be cached or uncached. Use the cached method
   // if the pseudo element doesn't respect any pseudo classes (and therefore
   // has no concept of changing state). The cached pseudo style always inherits
@@ -1798,12 +1819,12 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
         filter_skipped_ = true;
     }
 
-    // TODO(mstensho): Get rid of this. It's just a temporary thing to retain
-    // old behavior in LayoutObject::container().
-    void ResetOutput() {
-      ancestor_skipped_ = false;
-      filter_skipped_ = false;
+#if DCHECK_IS_ON()
+    void AssertClean() {
+      DCHECK(!ancestor_skipped_);
+      DCHECK(!filter_skipped_);
     }
+#endif
 
     bool AncestorSkipped() const { return ancestor_skipped_; }
     bool FilterSkipped() const {
@@ -1964,13 +1985,6 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
   // LayoutInline that's contained by a legacy LayoutBlockFlow).
   inline bool CanTraversePhysicalFragments() const;
 
-  // Returns the associated |NGPaintFragment|. When this is not a |nullptr|,
-  // this is the root of an inline formatting context, laid out by LayoutNG.
-  virtual const NGPaintFragment* PaintFragment() const {
-    NOT_DESTROYED();
-    return nullptr;
-  }
-
   // Return true if |this| produces one or more inline fragments, including
   // whitespace-only text fragments.
   virtual bool HasInlineFragments() const {
@@ -1983,11 +1997,6 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
   // layout-clean. crbug.com/963103
   bool IsFirstInlineFragmentSafe() const;
   void SetIsInLayoutNGInlineFormattingContext(bool);
-  virtual NGPaintFragment* FirstInlineFragment() const {
-    NOT_DESTROYED();
-    return nullptr;
-  }
-  virtual void SetFirstInlineFragment(NGPaintFragment*) { NOT_DESTROYED(); }
   virtual wtf_size_t FirstInlineFragmentItemIndex() const {
     NOT_DESTROYED();
     return 0u;
@@ -2168,7 +2177,11 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
   PositionWithAffinity CreatePositionWithAffinity(int offset,
                                                   TextAffinity) const;
   PositionWithAffinity CreatePositionWithAffinity(int offset) const;
-  PositionWithAffinity CreatePositionWithAffinity(const Position&) const;
+  PositionWithAffinity FindPosition() const;
+  PositionWithAffinity FirstPositionInOrBeforeThis() const;
+  PositionWithAffinity LastPositionInOrAfterThis() const;
+  PositionWithAffinity PositionAfterThis() const;
+  PositionWithAffinity PositionBeforeThis() const;
 
   virtual void DirtyLinesFromChangedChild(
       LayoutObject*,
@@ -2717,9 +2730,6 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
     return false;
   }
 
-  virtual int CaretMinOffset() const;
-  virtual int CaretMaxOffset() const;
-
   // ImageResourceObserver override.
   void ImageChanged(ImageResourceContent*, CanDeferInvalidation) final;
   void ImageChanged(WrappedImagePtr, CanDeferInvalidation) override {
@@ -2844,7 +2854,12 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
   void SetShouldDoFullPaintInvalidation(
       PaintInvalidationReason = PaintInvalidationReason::kFull);
   void SetShouldDoFullPaintInvalidationWithoutGeometryChange(
-      PaintInvalidationReason = PaintInvalidationReason::kFull);
+      PaintInvalidationReason reason = PaintInvalidationReason::kFull) {
+    NOT_DESTROYED();
+    // Use SetBackgroundNeedsFullPaintInvalidation() instead. See comment above.
+    DCHECK_NE(reason, PaintInvalidationReason::kBackground);
+    SetShouldDoFullPaintInvalidationWithoutGeometryChangeInternal(reason);
+  }
 
   void ClearPaintInvalidationFlags();
 
@@ -2852,7 +2867,13 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
     NOT_DESTROYED();
     return bitfields_.ShouldCheckForPaintInvalidation();
   }
+  // Sets both ShouldCheckForPaintInvalidation() and
+  // ShouldCheckGeometryForPaintInvalidation(). Though the setter and the getter
+  // are asymmetric, this prevents callers from accidentally missing the
+  // geometry checking flag.
   void SetShouldCheckForPaintInvalidation();
+  // Sets ShouldCheckForPaintInvalidation() only. PaintInvalidator won't require
+  // paint property tree update or other geometry related updates.
   void SetShouldCheckForPaintInvalidationWithoutGeometryChange();
 
   bool SubtreeShouldCheckForPaintInvalidation() const {
@@ -2893,6 +2914,7 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
     return bitfields_.ShouldDelayFullPaintInvalidation();
   }
   void SetShouldDelayFullPaintInvalidation();
+  void ClearShouldDelayFullPaintInvalidation();
 
   bool ShouldInvalidateSelection() const {
     NOT_DESTROYED();
@@ -2978,6 +3000,7 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
   // mark all ancestors as having a descendant that changed. This will cause a
   // PrePaint tree walk to update effective allowed touch action.
   void MarkEffectiveAllowedTouchActionChanged();
+  void MarkDescendantEffectiveAllowedTouchActionChanged();
   bool EffectiveAllowedTouchActionChanged() const {
     NOT_DESTROYED();
     return bitfields_.EffectiveAllowedTouchActionChanged();
@@ -3000,6 +3023,7 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
   // mark all ancestors as having a descendant that changed. This will cause a
   // PrePaint tree walk to update blocking wheel event handler state.
   void MarkBlockingWheelEventHandlerChanged();
+  void MarkDescendantBlockingWheelEventHandlerChanged();
   bool BlockingWheelEventHandlerChanged() const {
     // TODO(https://crbug.com/841364): This block is optimized to avoid costly
     // checks for kWheelEventRegions. It will be simplified once
@@ -3041,8 +3065,9 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
     }
     void SetShouldDoFullPaintInvalidationWithoutGeometryChange(
         PaintInvalidationReason reason) {
-      layout_object_.SetShouldDoFullPaintInvalidationWithoutGeometryChange(
-          reason);
+      layout_object_
+          .SetShouldDoFullPaintInvalidationWithoutGeometryChangeInternal(
+              reason);
     }
     void SetBackgroundNeedsFullPaintInvalidation() {
       layout_object_.SetBackgroundNeedsFullPaintInvalidation();
@@ -3099,6 +3124,10 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
     }
 #endif
 
+    void SetShouldSkipNextLayoutShiftTracking(bool b) {
+      layout_object_.SetShouldSkipNextLayoutShiftTracking(b);
+    }
+
     FragmentData& FirstFragment() { return layout_object_.fragment_; }
 
     void EnsureId() { layout_object_.fragment_.EnsureId(); }
@@ -3139,6 +3168,7 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
   // descendant needing a paint property update too.
   void SetNeedsPaintPropertyUpdate();
   void SetNeedsPaintPropertyUpdatePreservingCachedRects();
+  void SetDescendantNeedsPaintPropertyUpdate();
   bool NeedsPaintPropertyUpdate() const {
     NOT_DESTROYED();
     return bitfields_.NeedsPaintPropertyUpdate();
@@ -3158,9 +3188,9 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
     NOT_DESTROYED();
     return bitfields_.DescendantNeedsPaintPropertyUpdate();
   }
-  // Main thread scrolling reasons require fully updating paint propeties of all
-  // ancestors (see: ScrollPaintPropertyNode.h).
-  void SetAncestorsNeedPaintPropertyUpdateForMainThreadScrolling();
+  // Called when some change needs paint property update of all ancestors (not
+  // crossing frame boundaries).
+  void ForceAllAncestorsNeedPaintPropertyUpdate();
 
   void SetIsScrollAnchorObject() {
     NOT_DESTROYED();
@@ -3206,7 +3236,7 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
   }
   void SetBackgroundNeedsFullPaintInvalidation() {
     NOT_DESTROYED();
-    SetShouldDoFullPaintInvalidationWithoutGeometryChange(
+    SetShouldDoFullPaintInvalidationWithoutGeometryChangeInternal(
         PaintInvalidationReason::kBackground);
     bitfields_.SetBackgroundNeedsFullPaintInvalidation(true);
   }
@@ -3308,6 +3338,13 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
   bool TransformAffectsVectorEffect() const {
     NOT_DESTROYED();
     return bitfields_.TransformAffectsVectorEffect();
+  }
+
+  bool ShouldSkipNextLayoutShiftTracking() const {
+    return bitfields_.ShouldSkipNextLayoutShiftTracking();
+  }
+  void SetShouldSkipNextLayoutShiftTracking(bool b) {
+    bitfields_.SetShouldSkipNextLayoutShiftTracking(b);
   }
 
  protected:
@@ -3576,14 +3613,14 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
   inline void MarkContainerChainForOverflowRecalcIfNeeded(
       bool mark_container_chain_layout_overflow_recalc);
 
-  inline void SetShouldCheckGeometryForPaintInvalidation();
-
   inline void InvalidateContainerIntrinsicLogicalWidths();
 
   const LayoutBoxModelObject* EnclosingDirectlyCompositableContainer() const;
 
   LayoutFlowThread* LocateFlowThreadContainingBlock() const;
   void RemoveFromLayoutFlowThreadRecursive(LayoutFlowThread*);
+
+  const ComputedStyle* SlowStyleForContinuationOutline() const;
 
   StyleDifference AdjustStyleDifference(StyleDifference) const;
 
@@ -3598,10 +3635,6 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
 
   static bool IsAllowedToModifyLayoutTreeStructure(Document&);
 
-  // Returns the parent LayoutObject, or nullptr. This has a special case for
-  // LayoutView to return the owning LayoutObject in the containing frame.
-  inline LayoutObject* ParentCrossingFrames() const;
-
   void UpdateImageObservers(const ComputedStyle* old_style,
                             const ComputedStyle* new_style);
   void UpdateFirstLineImageObservers(const ComputedStyle* new_style);
@@ -3615,6 +3648,9 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
       const LayoutBox* box_for_flipping) const;
 
   void MarkSelfPaintingLayerForVisualOverflowRecalc();
+
+  void SetShouldDoFullPaintInvalidationWithoutGeometryChangeInternal(
+      PaintInvalidationReason);
 
   // This is set by Set[Subtree]ShouldDoFullPaintInvalidation, and cleared
   // during PrePaint in this object's InvalidatePaint(). It's different from
@@ -3741,6 +3777,7 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
           is_layout_ng_object_for_list_marker_image_(false),
           is_table_column_constraints_dirty_(false),
           transform_affects_vector_effect_(false),
+          should_skip_next_layout_shift_tracking_(true),
           positioned_state_(kIsStaticallyPositioned),
           selection_state_(static_cast<unsigned>(SelectionState::kNone)),
           subtree_paint_property_update_reasons_(
@@ -4055,6 +4092,11 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
     ADD_BOOLEAN_BITFIELD(transform_affects_vector_effect_,
                          TransformAffectsVectorEffect);
 
+    // Whether to skip layout shift tracking in the next paint invalidation.
+    // See PaintInvalidator::UpdateLayoutShiftTracking().
+    ADD_BOOLEAN_BITFIELD(should_skip_next_layout_shift_tracking_,
+                         ShouldSkipNextLayoutShiftTracking);
+
    private:
     // This is the cached 'position' value of this object
     // (see ComputedStyle::position).
@@ -4254,10 +4296,6 @@ inline bool LayoutObject::CanTraversePhysicalFragments() const {
     if (!IsInLayoutNGInlineFormattingContext())
       return false;
   }
-  // Bail if we have an NGPaintFragment. NGPaintFragment will be removed, and we
-  // will not attempt to add support for them here.
-  if (PaintFragment())
-    return false;
   // The NG paint system currently doesn't support table-cells.
   if (IsTableCellLegacy())
     return false;

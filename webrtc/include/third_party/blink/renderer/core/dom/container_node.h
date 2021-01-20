@@ -40,6 +40,7 @@ class Element;
 class ExceptionState;
 class HTMLCollection;
 class RadioNodeList;
+class StyleRecalcContext;
 class WhitespaceAttacher;
 
 using StaticElementList = StaticNodeTypeList<Element>;
@@ -286,7 +287,8 @@ class CORE_EXPORT ContainerNode : public Node {
                                    Element* changed_element,
                                    Node* node_before_change,
                                    Node* node_after_change);
-  void RecalcDescendantStyles(const StyleRecalcChange);
+  void RecalcDescendantStyles(const StyleRecalcChange,
+                              const StyleRecalcContext&);
   void RebuildChildrenLayoutTrees(WhitespaceAttacher&);
   void RebuildLayoutTreeForChild(Node* child, WhitespaceAttacher&);
 
@@ -318,7 +320,7 @@ class CORE_EXPORT ContainerNode : public Node {
                                &node,
                                unchanged_previous,
                                unchanged_next,
-                               nullptr};
+                               {}};
       return change;
     }
 
@@ -333,7 +335,7 @@ class CORE_EXPORT ContainerNode : public Node {
                                &node,
                                previous_sibling,
                                next_sibling,
-                               nullptr};
+                               {}};
       return change;
     }
 
@@ -367,9 +369,9 @@ class CORE_EXPORT ContainerNode : public Node {
     //  - nextSibling of the last inserted node after multiple node insertion.
     Node* sibling_after_change = nullptr;
     // List of removed nodes for ChildrenChangeType::kAllChildrenRemoved.
-    // This is available only if ChildrenChangedAllChildrenRemovedNeedsList()
-    // returns true.
-    HeapVector<Member<Node>>* removed_nodes;
+    // Only populated if ChildrenChangedAllChildrenRemovedNeedsList() returns
+    // true.
+    HeapVector<Member<Node>> removed_nodes;
   };
 
   // Notifies the node that it's list of children have changed (either by adding

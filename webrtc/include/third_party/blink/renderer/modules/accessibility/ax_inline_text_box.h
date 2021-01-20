@@ -46,7 +46,6 @@ class AXInlineTextBox final : public AXObject {
   AXInlineTextBox(scoped_refptr<AbstractInlineTextBox>, AXObjectCacheImpl&);
 
   // AXObject overrides.
-  ax::mojom::blink::Role RoleValue() const override;
   String GetName(ax::mojom::blink::NameFrom&,
                  AXObject::AXObjectVector* name_objects) const override;
   void TextCharacterOffsets(Vector<int>&) const override;
@@ -58,7 +57,6 @@ class AXInlineTextBox final : public AXObject {
                          FloatRect& out_bounds_in_container,
                          SkMatrix44& out_container_transform,
                          bool* clips_children = nullptr) const override;
-  AXObject* ComputeParent() const override;
   ax::mojom::blink::WritingDirection GetTextDirection() const override;
   Node* GetNode() const override;
   AXObject* NextOnLine() const override;
@@ -67,7 +65,7 @@ class AXInlineTextBox final : public AXObject {
                           Vector<AXRange>* marker_ranges) const override;
 
  protected:
-  void Init() override;
+  void Init(AXObject* parent) override;
   void Detach() override;
   bool IsDetached() const override;
   bool IsAXInlineTextBox() const override;

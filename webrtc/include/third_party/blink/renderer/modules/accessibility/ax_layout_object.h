@@ -76,7 +76,6 @@ class MODULES_EXPORT AXLayoutObject : public AXNodeObject {
   // Overridden from AXObject.
   //
 
-  void Init() override;
   void Detach() override;
   bool IsDetached() const override;
   bool IsAXLayoutObject() const final;
@@ -135,17 +134,7 @@ class MODULES_EXPORT AXLayoutObject : public AXNodeObject {
 
   // Hit testing.
   AXObject* AccessibilityHitTest(const IntPoint&) const override;
-  AXObject* ElementAccessibilityHitTest(const IntPoint&) const override;
 
-  // High-level accessibility tree access. Other modules should only use these
-  // functions.
-  AXObject* ComputeParent() const override;
-  AXObject* ComputeParentIfExists() const override;
-
-  // Low-level accessibility tree exploration, only for use within the
-  // accessibility module.
-  AXObject* RawFirstChild() const override;
-  AXObject* RawNextSibling() const override;
   bool CanHaveChildren() const override;
 
   // Notifications that this object may have changed.
@@ -187,9 +176,6 @@ class MODULES_EXPORT AXLayoutObject : public AXNodeObject {
   bool IsTabItemSelected() const;
   AXObject* AccessibilityImageMapHitTest(HTMLAreaElement*,
                                          const IntPoint&) const;
-  void DetachRemoteSVGRoot();
-  AXObject* RemoteSVGElementHitTest(const IntPoint&) const;
-  void OffsetBoundingBoxForRemoteSVGElement(LayoutRect&) const;
   bool FindAllTableCellsWithRole(ax::mojom::blink::Role, AXObjectVector&) const;
 
   LayoutRect ComputeElementRect() const;

@@ -26,11 +26,9 @@ class AXRelationCache {
   // Safe to call at any time. Doesn't make any changes to the tree.
   //
 
-  // Scan the initial document.
-  void Init();
-
   // Returns true if the given object's position in the tree was due to
   // aria-owns.
+  bool IsAriaOwned(AXID) const;
   bool IsAriaOwned(const AXObject*) const;
 
   // Returns the parent of the given object due to aria-owns.
@@ -47,7 +45,9 @@ class AXRelationCache {
   // just changed, check to see if another object wants to be its parent due to
   // aria-owns. If so, add it to a queue of ids to process later during
   // ProcessUpdatesWithCleanLayout.
-  void UpdateRelatedTree(Node*);
+  // |node| is not optional.
+  // |obj| is optional. If provided, it must match the AXObject for |node|.
+  void UpdateRelatedTree(Node* node, AXObject* obj);
 
   // Remove given AXID from cache.
   void RemoveAXID(AXID);
@@ -108,6 +108,10 @@ class AXRelationCache {
       AXObject* owner,
       HeapVector<Member<AXObject>>& validated_owned_children_result);
 
+  // Whether the document has been scanned for initial relationships
+  // first or not.
+  bool initialized_ = false;
+
   WeakPersistent<AXObjectCacheImpl> object_cache_;
 
   // Map from the AXID of the owner to the AXIDs of the children.
@@ -144,9 +148,13 @@ class AXRelationCache {
 
   // Helpers that call back into object cache
   AXObject* ObjectFromAXID(AXID) const;
-  AXObject* GetOrCreate(Node*);
+  AXObject* GetOrCreate(Node*, const AXObject* owner);
   AXObject* Get(Node*);
   void ChildrenChanged(AXObject*);
+
+  // Do an initial scan of the document to find any relationships.
+  // We'll catch any subsequent ones when attributes change.
+  void DoInitialDocumentScan();
 
   DISALLOW_COPY_AND_ASSIGN(AXRelationCache);
 };

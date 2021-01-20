@@ -211,8 +211,7 @@ extern "C" {
 // shouldn't be a problem in practice.
 #define TLSEXT_TYPE_quic_transport_parameters 0xffa5
 
-// ExtensionType value assigned to
-// https://tools.ietf.org/html/draft-ietf-tls-certificate-compression-03
+// ExtensionType value from RFC8879
 #define TLSEXT_TYPE_cert_compression 27
 
 // ExtensionType value from RFC4507
@@ -238,6 +237,11 @@ extern "C" {
 // ExtensionType value from draft-vvv-tls-alps. This is not an IANA defined
 // extension number.
 #define TLSEXT_TYPE_application_settings 17513
+
+// ExtensionType values from draft-ietf-tls-esni-09. This is not an IANA defined
+// extension number.
+#define TLSEXT_TYPE_encrypted_client_hello 0xfe09
+#define TLSEXT_TYPE_ech_is_inner 0xda09
 
 // ExtensionType value from RFC6962
 #define TLSEXT_TYPE_certificate_timestamp 18
@@ -271,7 +275,7 @@ extern "C" {
 #define TLSEXT_hash_sha384 5
 #define TLSEXT_hash_sha512 6
 
-// From https://tools.ietf.org/html/draft-ietf-tls-certificate-compression-03#section-3
+// From https://www.rfc-editor.org/rfc/rfc8879.html#section-3
 #define TLSEXT_cert_compression_zlib 1
 #define TLSEXT_cert_compression_brotli 2
 

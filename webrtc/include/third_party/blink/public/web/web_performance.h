@@ -47,9 +47,17 @@ class WindowPerformance;
 
 class WebPerformance {
  public:
+  // The count to record the times on requestAnimationFrame after the page is
+  // restored from the back-forward cache.
+  static constexpr int
+      kRequestAnimationFramesToRecordAfterBackForwardCacheRestore = 3;
+
   struct BackForwardCacheRestoreTiming {
     double navigation_start = 0;
     double first_paint = 0;
+    std::array<double,
+               kRequestAnimationFramesToRecordAfterBackForwardCacheRestore>
+        request_animation_frames = {};
     base::Optional<base::TimeDelta> first_input_delay;
   };
 
@@ -108,6 +116,7 @@ class WebPerformance {
   BLINK_EXPORT uint64_t LargestImagePaintSize() const;
   BLINK_EXPORT double LargestTextPaint() const;
   BLINK_EXPORT uint64_t LargestTextPaintSize() const;
+  BLINK_EXPORT base::TimeTicks LargestContentfulPaintAsMonotonicTime() const;
   BLINK_EXPORT double ExperimentalLargestImagePaint() const;
   BLINK_EXPORT uint64_t ExperimentalLargestImagePaintSize() const;
   BLINK_EXPORT double ExperimentalLargestTextPaint() const;

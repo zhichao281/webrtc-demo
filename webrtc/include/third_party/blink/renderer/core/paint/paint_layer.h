@@ -463,7 +463,7 @@ class CORE_EXPORT PaintLayer : public DisplayItemClient {
 
   enum CalculateBoundsOptions {
     // Include clips between this layer and its ancestor layer (inclusive).
-    kIncludeClips = 0x1,
+    kIncludeAncestorClips = 0x1,
     // Include transforms, irrespective of if they are applied via composition
     // or painting.
     kIncludeTransforms = 0x2,
@@ -1019,6 +1019,7 @@ class CORE_EXPORT PaintLayer : public DisplayItemClient {
     return self_needs_repaint_ || descendant_needs_repaint_;
   }
   void SetNeedsRepaint();
+  void SetDescendantNeedsRepaint();
   void ClearNeedsRepaintRecursively();
 
   // These previousXXX() functions are for subsequence caching. They save the
@@ -1159,6 +1160,7 @@ class CORE_EXPORT PaintLayer : public DisplayItemClient {
 
   // Bounding box in the coordinates of this layer.
   PhysicalRect LocalBoundingBox() const;
+  PhysicalRect ClippedLocalBoundingBox(const PaintLayer& ancestor_layer) const;
 
   bool HasOverflowControls() const;
 
@@ -1289,9 +1291,9 @@ class CORE_EXPORT PaintLayer : public DisplayItemClient {
 
   bool IsTopMostNotAffectedByScrollOf(const PaintLayer* ancestor) const;
 
-  void ExpandRectForStackingChildren(const PaintLayer& composited_layer,
-                                     PhysicalRect& result,
-                                     unsigned options) const;
+  void ExpandRectForSelfPaintingDescendants(const PaintLayer& composited_layer,
+                                            PhysicalRect& result,
+                                            unsigned options) const;
 
   // The return value is in the space of |stackingParent|, if non-null, or
   // |this| otherwise.

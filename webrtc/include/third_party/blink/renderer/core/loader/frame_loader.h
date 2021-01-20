@@ -42,6 +42,7 @@
 #include "third_party/blink/public/mojom/loader/request_context_frame_type.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/page_state/page_state.mojom-blink.h"
 #include "third_party/blink/public/platform/scheduler/web_scoped_virtual_time_pauser.h"
+#include "third_party/blink/public/platform/web_url_loader.h"
 #include "third_party/blink/public/web/web_document_loader.h"
 #include "third_party/blink/public/web/web_frame_load_type.h"
 #include "third_party/blink/public/web/web_navigation_type.h"
@@ -132,7 +133,7 @@ class CORE_EXPORT FrameLoader final {
 
   DocumentLoader* GetDocumentLoader() const { return document_loader_.Get(); }
 
-  void SetDefersLoading(bool);
+  void SetDefersLoading(WebURLLoader::DeferType defer);
 
   void DidExplicitOpen();
 
@@ -144,18 +145,11 @@ class CORE_EXPORT FrameLoader final {
   void DispatchDocumentElementAvailable();
   void RunScriptsAtDocumentElementAvailable();
 
-  // The following sandbox flags will be forced, regardless of changes to the
-  // sandbox attribute of any parent frames.
-  void ForceSandboxFlags(network::mojom::blink::WebSandboxFlags flags);
-
-  network::mojom::blink::WebSandboxFlags GetForcedSandboxFlags() const {
-    return forced_sandbox_flags_;
-  }
-
-  // Includes the collection of forced, inherited, and FrameOwner's sandbox
-  // flags. Note: with FeaturePolicyForSandbox the frame owner's sandbox flags
-  // only includes the flags which are *not* implemented as feature policies
-  // already present in the FrameOwner's ContainerPolicy.
+  // See content/browser/renderer_host/sandbox_flags.md
+  // This contains the sandbox flags to commit for new documents.
+  // - For main documents, it contains the sandbox inherited from the opener.
+  // - For nested documents, it contains the sandbox flags inherited from the
+  //   parent and the one defined in the <iframe>'s sandbox attribute.
   network::mojom::blink::WebSandboxFlags PendingEffectiveSandboxFlags() const;
 
   // Modifying itself is done based on |fetch_client_settings_object|.
@@ -202,7 +196,7 @@ class CORE_EXPORT FrameLoader final {
   void DispatchUnloadEvent(SecurityOrigin* committing_origin,
                            base::Optional<Document::UnloadEventTiming>*);
 
-  bool AllowPlugins(ReasonForCallingAllowPlugins);
+  bool AllowPlugins();
 
   void SaveScrollAnchor();
   void SaveScrollState();
@@ -298,8 +292,6 @@ class CORE_EXPORT FrameLoader final {
     KURL url;
   };
   std::unique_ptr<ClientNavigationState> client_navigation_;
-
-  network::mojom::blink::WebSandboxFlags forced_sandbox_flags_;
 
   // The state is set to kInitialized when Init() completes, and kDetached
   // during teardown in Detach().

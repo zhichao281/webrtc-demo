@@ -124,7 +124,7 @@ class PeerConnection : public PeerConnectionInternal,
   //
   // Note that the function takes ownership of dependencies, and will
   // either use them or release them, whether it succeeds or fails.
-  static rtc::scoped_refptr<PeerConnection> Create(
+  static RTCErrorOr<rtc::scoped_refptr<PeerConnection>> Create(
       rtc::scoped_refptr<ConnectionContext> context,
       const PeerConnectionFactoryInterface::Options& options,
       std::unique_ptr<RtcEventLog> event_log,
@@ -379,8 +379,9 @@ class PeerConnection : public PeerConnectionInternal,
   void SetIceConnectionState(IceConnectionState new_state);
   void NoteUsageEvent(UsageEvent event);
 
-  // Report the UMA metric SdpFormatReceived for the given remote offer.
-  void ReportSdpFormatReceived(const SessionDescriptionInterface& remote_offer);
+  // Report the UMA metric SdpFormatReceived for the given remote description.
+  void ReportSdpFormatReceived(
+      const SessionDescriptionInterface& remote_description);
 
   // Returns true if the PeerConnection is configured to use Unified Plan
   // semantics for creating offers/answers and setting local/remote
@@ -459,7 +460,7 @@ class PeerConnection : public PeerConnectionInternal,
   ~PeerConnection() override;
 
  private:
-  bool Initialize(
+  RTCError Initialize(
       const PeerConnectionInterface::RTCConfiguration& configuration,
       PeerConnectionDependencies dependencies);
 

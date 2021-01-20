@@ -113,6 +113,8 @@ struct PaintPropertyTreeBuilderFragmentContext {
   // containing block of corresponding positioned descendants.  Overflow clips
   // are also inherited by containing block tree instead of DOM tree, thus they
   // are included in the additional context too.
+  //
+  // Note that these contexts are not used in LayoutNGFragmentTraversal.
   ContainingBlockContext absolute_position;
 
   ContainingBlockContext fixed_position;
@@ -127,6 +129,7 @@ struct PaintPropertyTreeBuilderFragmentContext {
   // Therefore, we don't need extra bookkeeping for effect nodes and can
   // generate the effect tree from a DOM-order traversal.
   const EffectPaintPropertyNodeOrAlias* current_effect;
+  bool this_or_ancestor_opacity_is_zero = false;
 
   // If the object is a flow thread, this records the clip rect for this
   // fragment.
@@ -142,6 +145,12 @@ struct PaintPropertyTreeBuilderFragmentContext {
   PhysicalOffset repeating_paint_offset_adjustment;
 
   PhysicalOffset old_paint_offset;
+
+  // An additional offset that applies to the current fragment, but is detected
+  // *before* the ContainingBlockContext is updated for it. Once the
+  // ContainingBlockContext is set, this value should be added to
+  // ContainingBlockContext::additional_offset_to_layout_shift_root_delta.
+  PhysicalOffset pending_additional_offset_to_layout_shift_root_delta;
 };
 
 struct PaintPropertyTreeBuilderContext {
@@ -151,6 +160,8 @@ struct PaintPropertyTreeBuilderContext {
   PaintPropertyTreeBuilderContext();
 
   Vector<PaintPropertyTreeBuilderFragmentContext, 1> fragments;
+
+  // TODO(mstensho): Stop using these in LayoutNGFragmentTraversal.
   const LayoutObject* container_for_absolute_position = nullptr;
   const LayoutObject* container_for_fixed_position = nullptr;
 

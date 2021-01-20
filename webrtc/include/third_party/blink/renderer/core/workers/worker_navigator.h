@@ -30,44 +30,23 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/execution_context/navigator_base.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
 
-// TODO(japhet): Move classes that Supplement WorkerNavigator to use
-// NavigatorBase instead and remove Supplementable<WorkerNavigator> here.
-class CORE_EXPORT WorkerNavigator final
-    : public NavigatorBase,
-      public AcceptLanguagesWatcher,
-      public Supplementable<WorkerNavigator> {
+class CORE_EXPORT WorkerNavigator final : public NavigatorBase,
+                                          public AcceptLanguagesWatcher {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  WorkerNavigator(const String& user_agent,
-                  const UserAgentMetadata&,
-                  ExecutionContext* execution_context);
+  explicit WorkerNavigator(ExecutionContext*);
   ~WorkerNavigator() override;
-
-  // NavigatorID override
-  String userAgent() const override;
 
   // NavigatorLanguage override
   String GetAcceptLanguages() override;
 
   // AcceptLanguagesWatcher override
   void NotifyUpdate() override;
-
-  void Trace(Visitor*) const override;
-
- protected:
-  UserAgentMetadata GetUserAgentMetadata() const override {
-    return ua_metadata_;
-  }
-
- private:
-  String user_agent_;
-  UserAgentMetadata ua_metadata_;
 };
 
 }  // namespace blink

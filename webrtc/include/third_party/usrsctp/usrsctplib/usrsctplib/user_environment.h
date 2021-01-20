@@ -68,8 +68,7 @@ extern int nmbclusters;
 #endif
 
 void init_random(void);
-void read_random(void *, size_t);
-void finish_random(void);
+int read_random(void *, int);
 
 /* errno's may differ per OS.  errno.h now included in sctp_os_userspace.h */
 /* Source: /usr/src/sys/sys/errno.h */

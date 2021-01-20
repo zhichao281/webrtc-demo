@@ -26,7 +26,6 @@ class AXValidationMessage final : public AXMockObject {
   // AXObject:
   bool CanHaveChildren() const override { return false; }
   bool ComputeAccessibilityIsIgnored(IgnoredReasons* = nullptr) const override;
-  AXObject* ComputeParent() const override;
   void GetRelativeBounds(AXObject** out_container,
                          FloatRect& out_bounds_in_container,
                          SkMatrix44& out_container_transform,
@@ -42,7 +41,7 @@ class AXValidationMessage final : public AXMockObject {
                          ax::mojom::NameFrom&,
                          AXRelatedObjectVector*,
                          NameSources*) const override;
-  ax::mojom::Role RoleValue() const override;
+  ax::mojom::blink::Role DetermineAccessibilityRole() override;
 
   ListedElement* RelatedFormControlIfVisible() const;
 

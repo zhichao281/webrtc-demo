@@ -118,6 +118,7 @@ class CORE_EXPORT NGBoxFragmentBuilder final
 #if DCHECK_IS_ON()
     if (has_block_fragmentation_)
       DCHECK(block_size_is_for_all_fragments_);
+    DCHECK(size_.block_size != kIndefiniteSize);
 #endif
     return size_.block_size;
   }
@@ -137,6 +138,7 @@ class CORE_EXPORT NGBoxFragmentBuilder final
 #if DCHECK_IS_ON()
     if (has_block_fragmentation_)
       DCHECK(!block_size_is_for_all_fragments_);
+    DCHECK(size_.block_size != kIndefiniteSize);
 #endif
     return size_.block_size;
   }
@@ -200,11 +202,6 @@ class CORE_EXPORT NGBoxFragmentBuilder final
   // offset to the builder, but also keeping track of out-of-flow positioned
   // descendants, propagating fragmentainer breaks, and more.
   void AddResult(const NGLayoutResult&, const LogicalOffset);
-
-  void AddChild(scoped_refptr<const NGPhysicalTextFragment> child,
-                const LogicalOffset& offset) {
-    AddChildInternal(child, offset);
-  }
 
   void AddChild(const NGPhysicalContainerFragment&,
                 const LogicalOffset&,
@@ -485,7 +482,7 @@ class CORE_EXPORT NGBoxFragmentBuilder final
     table_grid_rect_ = table_grid_rect;
   }
 
-  void SetTableColumnGeometry(
+  void SetTableColumnGeometries(
       const NGTableFragmentData::ColumnGeometries& table_column_geometries) {
     table_column_geometries_ = table_column_geometries;
   }
@@ -536,8 +533,6 @@ class CORE_EXPORT NGBoxFragmentBuilder final
   // Computes the geometry required for any inline containing blocks.
   // |inline_containing_block_map| is a map whose keys specify which inline
   // containing block geometry is required.
-  void ComputeInlineContainerGeometryFromFragmentTree(
-      InlineContainingBlockMap* inline_containing_block_map);
   void ComputeInlineContainerGeometry(
       InlineContainingBlockMap* inline_containing_block_map);
 
@@ -593,6 +588,7 @@ class CORE_EXPORT NGBoxFragmentBuilder final
   bool is_math_fraction_ = false;
   bool is_math_operator_ = false;
   bool is_at_block_end_ = false;
+  bool has_violating_break_ = false;
   LayoutUnit consumed_block_size_;
   LayoutUnit block_offset_for_additional_columns_;
   unsigned sequence_number_ = 0;

@@ -80,13 +80,6 @@ enum class AOMFloatProperty;
 enum class AOMRelationProperty;
 enum class AOMRelationListProperty;
 
-class AXSparseAttributeClient {
- public:
-  virtual void AddObjectAttribute(AXObjectAttribute, AXObject&) = 0;
-  virtual void AddObjectVectorAttribute(AXObjectVectorAttribute,
-                                        HeapVector<Member<AXObject>>*) = 0;
-};
-
 class IgnoredReason {
   DISALLOW_NEW();
 
@@ -343,6 +336,12 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
  protected:
   explicit AXObject(AXObjectCacheImpl&);
 
+#if DCHECK_IS_ON()
+  bool is_initializing_ = false;
+  mutable bool is_updating_cached_values_ = false;
+  bool is_adding_children_ = false;
+#endif
+
  public:
   virtual ~AXObject();
   virtual void Trace(Visitor*) const;
@@ -353,16 +352,21 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   // unique ID, then added to AXObjectCacheImpl, and finally init() must
   // be called last.
   void SetAXObjectID(AXID ax_object_id) { id_ = ax_object_id; }
-  virtual void Init();
+  virtual void Init(AXObject* parent_if_known);
 
   // When the corresponding WebCore object that this AXObject
   // wraps is deleted, it must be detached.
   virtual void Detach();
   virtual bool IsDetached() const;
 
-  // Sets the parent AXObject directly. If the parent of this object is known,
-  // this can be faster than using computeParent().
-  virtual void SetParent(AXObject* parent);
+  // Updates the cached attribute values. This may be recursive, so to prevent
+  // deadlocks, functions called here may only search up the tree (ancestors),
+  // not down.
+  // Fires children change on the parent if the node's ignored or included in
+  // tree status changes. Use |notify_parent_of_ignored_changes = false| to
+  // prevent this.
+  void UpdateCachedAttributeValuesIfNeeded(
+      bool notify_parent_of_ignored_changes = true) const;
 
   // The AXObjectCacheImpl that owns this object, and its unique ID within this
   // cache.
@@ -395,8 +399,6 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
 
   void TokenVectorFromAttribute(Vector<String>&, const QualifiedName&) const;
 
-  void GetSparseAXAttributes(AXSparseAttributeClient&) const;
-
   // Serialize the properties of this node into |node_data|.
   //
   // TODO(crbug.com/1068668): AX onion soup - finish migrating
@@ -418,17 +420,15 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   virtual bool IsProgressIndicator() const;
   virtual bool IsAXRadioInput() const;
   virtual bool IsSlider() const;
-  virtual bool IsAXSVGRoot() const;
   virtual bool IsValidationMessage() const;
   virtual bool IsVirtualObject() const;
 
   // Check object role or purpose.
-  virtual ax::mojom::blink::Role RoleValue() const;
+  ax::mojom::blink::Role RoleValue() const;
   bool IsARIATextControl() const;
   bool IsAnchor() const;
   bool IsButton() const;
   bool IsCanvas() const;
-  bool IsCheckbox() const;
   bool IsCheckboxOrRadio() const;
   bool IsColorWell() const;
   virtual bool IsControl() const;
@@ -453,9 +453,6 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   virtual bool IsPasswordField() const;
   bool IsPasswordFieldAndShouldHideValue() const;
   bool IsPresentational() const;
-  bool IsRadioButton() const {
-    return RoleValue() == ax::mojom::blink::Role::kRadioButton;
-  }
   bool IsRangeValueSupported() const;
   bool IsScrollbar() const {
     return RoleValue() == ax::mojom::blink::Role::kScrollBar;
@@ -487,7 +484,7 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   virtual bool IsLineBreakingObject() const { return false; }
   virtual bool IsLinked() const { return false; }
   virtual bool IsLoaded() const { return false; }
-  virtual bool IsModal() const { return false; }
+  virtual bool IsModal() const;
   virtual bool IsMultiSelectable() const { return false; }
   virtual bool IsOffScreen() const { return false; }
   virtual bool IsRequired() const { return false; }
@@ -533,6 +530,9 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   bool ComputeIsInertOrAriaHidden(IgnoredReasons* = nullptr) const;
   bool IsBlockedByAriaModalDialog(IgnoredReasons* = nullptr) const;
   bool IsDescendantOfLeafNode() const;
+  bool LastKnownIsDescendantOfLeafNode() const {
+    return cached_is_descendant_of_leaf_node_;
+  }
   AXObject* LeafNodeAncestor() const;
   bool IsDescendantOfDisabledNode() const;
   bool ComputeAccessibilityIsIgnoredButIncludedInTree() const;
@@ -541,10 +541,8 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   const AXObject* DatetimeAncestor(int max_levels_to_check = 3) const;
   const AXObject* DisabledAncestor() const;
   bool LastKnownIsIgnoredValue() const;
-  void SetLastKnownIsIgnoredValue(bool);
   bool LastKnownIsIgnoredButIncludedInTreeValue() const;
   bool LastKnownIsIncludedInTreeValue() const;
-  void SetLastKnownIsIgnoredButIncludedInTreeValue(bool);
   bool HasInheritedPresentationalRole() const;
   bool IsPresentationalChild() const;
   bool CanBeActiveDescendant() const;
@@ -811,7 +809,6 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   virtual bool SupportsARIADragging() const { return false; }
   virtual void Dropeffects(
       Vector<ax::mojom::blink::Dropeffect>& dropeffects) const {}
-  virtual bool SupportsARIAOwns() const { return false; }
   bool SupportsARIAReadOnly() const;
 
   // Returns 0-based index.
@@ -826,8 +823,8 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   bool IsLiveRegionRoot() const;  // Any live region, including polite="off".
   bool IsActiveLiveRegionRoot() const;  // Live region that is not polite="off".
   AXObject* LiveRegionRoot() const;  // Container that controls live politeness.
-  virtual const AtomicString& LiveRegionStatus() const { return g_null_atom; }
-  virtual const AtomicString& LiveRegionRelevant() const { return g_null_atom; }
+  virtual const AtomicString& LiveRegionStatus() const;
+  virtual const AtomicString& LiveRegionRelevant() const;
   bool LiveRegionAtomic() const;
 
   const AtomicString& ContainerLiveRegionStatus() const;
@@ -928,6 +925,8 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   //
   // Can be called on all nodes that are included in the accessibility tree,
   // including those that are accessibility ignored.
+  // TODO(accessibility) This actually returns ignored children when they are
+  // included in the tree. A better name would be ChildrenIncludedInTree().
   const AXObjectVector UnignoredChildren() const;
   const AXObjectVector UnignoredChildren();
 
@@ -1047,14 +1046,28 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   AXObject* ParentObject() const;
 
   // Get the parent of this object if it has already been created.
-  //
   // Works for all nodes, and may return nodes that are accessibility ignored,
   // including nodes that might not be in the tree.
-  AXObject* ParentObjectIfExists() const;
-
-  virtual AXObject* ComputeParent() const = 0;
-  virtual AXObject* ComputeParentIfExists() const { return nullptr; }
   AXObject* CachedParentObject() const { return parent_; }
+
+  // Sets the parent AXObject directly. If the parent of this object is known,
+  // this can be faster than using ComputeParent().
+  void SetParent(AXObject* parent);
+
+  // If parent was not initialized during AddChildren() it can be computed by
+  // walking the DOM (or layout for nodeless aka anonymous layout object).
+  // ComputeParent() adds DCHECKs to ensure that it is not being called when
+  // an attached parent_ is already cached, and that it is possible to compute
+  // the parent. It calls ComputeParentImpl() for the actual work.
+  AXObject* ComputeParent() const;
+  // Subclasses override ComputeParentImpl() to change parent computation.
+  virtual AXObject* ComputeParentImpl() const;
+
+#if DCHECK_IS_ON()
+  // When the parent on children during AddChildren(), take the opportunity to
+  // check out ComputeParent() implementation. It should match.
+  void EnsureCorrectParentComputation();
+#endif
 
   // Get or create the first ancestor that's not accessibility ignored.
   // Works for all nodes.
@@ -1067,28 +1080,14 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   AXObject* ContainerWidget() const;
   bool IsContainerWidget() const;
 
-  // Low-level accessibility tree exploration, only for use within the
-  // accessibility module.
-
-  // Returns the AXObject's first child, skipping over any children that
-  // represent continuations in the layout tree. If the AXObject has no
-  // children, returns the AXObject representing the next in pre-order
-  // continuation in the layout tree, if any.
-  //
-  // In the accessibility tree, this results in continuations becoming
-  // descendants of the nodes they "continue".
-  virtual AXObject* RawFirstChild() const { return nullptr; }
-
-  // Returns the AXObject's next sibling, skipping over any siblings that
-  // represent continuations in the layout tree. If this is the last child,
-  // returns the AXObject representing the next in pre-order continuation in the
-  // layout tree, if any.
-  //
-  // In the accessibility tree, this results in continuations becoming
-  // descendants of the nodes they "continue".
-  virtual AXObject* RawNextSibling() const { return nullptr; }
-
   virtual void AddChildren() {}
+  // There are two types of traversal for obtaining children:
+  // 1. LayoutTreeBuilderTraversal. Despite the name, this traverses a flattened
+  // DOM tree that includes pseudo element children such as ::before, and where
+  // shadow DOM slotting has been run.
+  // 2. LayoutObject traversal. This is necessary if there is no parent node,
+  // or if the parent node is a pseudo element.
+  bool ShouldUseLayoutObjectTraversalForChildren() const;
   virtual bool CanHaveChildren() const { return true; }
   bool HasChildren() const { return have_children_; }
   virtual void UpdateChildrenIfNecessary();
@@ -1217,8 +1216,10 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   virtual void SelectionChanged();
 
   // Static helper functions.
+  // TODO(accessibility) Move these to a static helper util class.
   static bool IsARIAControl(ax::mojom::blink::Role);
   static bool IsARIAInput(ax::mojom::blink::Role);
+  static bool HasARIAOwns(Element* element);
   // Is this a widget that requires container widget.
   bool IsSubWidget() const;
   static ax::mojom::blink::Role AriaRoleToWebCoreRole(const String&);
@@ -1242,16 +1243,17 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   bool IsHiddenForTextAlternativeCalculation() const;
 
   // Returns a string representation of this object.
-  String ToString(bool verbose = false) const;
+  // |cached_values_only| avoids recomputing cached values, and thus can be
+  // used during UpdateCachedValuesIfNecessary() without causing recursion.
+  String ToString(bool verbose = false, bool cached_values_only = false) const;
 
  protected:
   AXID id_;
+  // Only children that are included in tree, maybe rename to children_in_tree_.
   AXObjectVector children_;
   mutable bool have_children_;
   ax::mojom::blink::Role role_;
   ax::mojom::blink::Role aria_role_;
-  mutable AXObjectInclusion last_known_is_ignored_value_;
-  mutable AXObjectInclusion last_known_is_ignored_but_included_in_tree_value_;
   LayoutRect explicit_element_rect_;
   AXID explicit_container_id_;
 
@@ -1289,8 +1291,6 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
     return nullptr;
   }
 
-  bool NameFromSelectedOption(bool recursive) const;
-
   ax::mojom::blink::Role ButtonRoleType() const;
 
   virtual LayoutObject* LayoutObjectForRelativeBounds() const {
@@ -1310,16 +1310,25 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   const AXObject* TableRowParent() const;
   const AXObject* TableParent() const;
 
+  // Any parent, regardless of whether it's ignored or not included in the tree.
   mutable Member<AXObject> parent_;
 
-  // The following cached attribute values (the ones starting with m_cached*)
-  // are only valid if m_lastModificationCount matches
-  // AXObjectCacheImpl::modificationCount().
+  // Helpers for serialization.
+  void SerializeStyleAttributes(ui::AXNodeData* node_data);
+  void SerializeSparseAttributes(ui::AXNodeData* node_data);
+  void SerializeTableAttributes(ui::AXNodeData* node_data);
+  void SerializeListAttributes(ui::AXNodeData* node_data);
+  void SerializeScrollAttributes(ui::AXNodeData* node_data);
+
+ private:
   mutable int last_modification_count_;
+
+  // The following cached attribute values (the ones starting with m_cached*)
+  // are only valid if last_modification_count_ matches
+  // AXObjectCacheImpl::ModificationCount().
   mutable RGBA32 cached_background_color_;
   mutable bool cached_is_ignored_ : 1;
   mutable bool cached_is_ignored_but_included_in_tree_ : 1;
-
   mutable bool cached_is_inert_or_aria_hidden_ : 1;
   mutable bool cached_is_hidden_via_style : 1;
   mutable bool cached_is_descendant_of_leaf_node_ : 1;
@@ -1332,17 +1341,6 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   mutable FloatRect cached_local_bounding_box_rect_for_accessibility_;
 
   Member<AXObjectCacheImpl> ax_object_cache_;
-
-  // Updates the cached attribute values. This may be recursive, so to prevent
-  // deadlocks,
-  // functions called here may only search up the tree (ancestors), not down.
-  void UpdateCachedAttributeValuesIfNeeded() const;
-
-  // Helpers for serialization.
-  // TODO(meredithl): Serialize all sparse/table attributes and rename.
-  void SerializePartialSparseAttributes(ui::AXNodeData* node_data);
-  void SerializeStyleAttributes(ui::AXNodeData* node_data);
-  void SerializeTableAttributes(ui::AXNodeData* node_data);
 
  private:
   void UpdateDistributionForFlatTreeTraversal() const;
@@ -1390,6 +1388,7 @@ MODULES_EXPORT bool operator<=(const AXObject& first, const AXObject& second);
 MODULES_EXPORT bool operator>(const AXObject& first, const AXObject& second);
 MODULES_EXPORT bool operator>=(const AXObject& first, const AXObject& second);
 MODULES_EXPORT std::ostream& operator<<(std::ostream&, const AXObject&);
+MODULES_EXPORT std::ostream& operator<<(std::ostream&, const AXObject*);
 
 }  // namespace blink
 

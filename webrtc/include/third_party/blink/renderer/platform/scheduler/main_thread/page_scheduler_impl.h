@@ -63,6 +63,7 @@ class PLATFORM_EXPORT PageSchedulerImpl : public PageScheduler {
   void SetPageVisible(bool page_visible) override;
   void SetPageFrozen(bool) override;
   void SetPageBackForwardCached(bool) override;
+  void OnFocusChanged(bool focused) override;
   void SetKeepActive(bool) override;
   bool IsMainFrameLocal() const override;
   void SetIsMainFrameLocal(bool is_local) override;
@@ -70,7 +71,7 @@ class PLATFORM_EXPORT PageSchedulerImpl : public PageScheduler {
   base::TimeTicks GetStoredInBackForwardCacheTimestamp() {
     return stored_in_back_forward_cache_timestamp_;
   }
-  bool is_stored_in_back_forward_cache() {
+  bool IsInBackForwardCache() const override {
     return is_stored_in_back_forward_cache_;
   }
   bool has_ipc_detection_enabled() { return has_ipc_detection_enabled_; }
@@ -125,6 +126,8 @@ class PLATFORM_EXPORT PageSchedulerImpl : public PageScheduler {
   void OnThrottlingStatusUpdated();
 
   void OnTraceLogEnabled();
+
+  bool IsPageFocused() const;
 
   // Virtual for testing.
   virtual bool IsWaitingForMainFrameContentfulPaint() const;
@@ -316,6 +319,7 @@ class PLATFORM_EXPORT PageSchedulerImpl : public PageScheduler {
   bool are_wake_ups_intensively_throttled_;
   bool keep_active_;
   bool had_recent_title_or_favicon_update_;
+  bool focused_;
   CPUTimeBudgetPool* cpu_time_budget_pool_ = nullptr;
 
   // Wake up budget pools for each throttling scenario:

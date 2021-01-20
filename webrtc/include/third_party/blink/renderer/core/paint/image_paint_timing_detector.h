@@ -11,7 +11,6 @@
 
 #include "base/memory/weak_ptr.h"
 #include "base/optional.h"
-#include "third_party/blink/public/web/web_widget_client.h"
 #include "third_party/blink/renderer/core/dom/dom_node_ids.h"
 #include "third_party/blink/renderer/core/loader/resource/image_resource_content.h"
 #include "third_party/blink/renderer/core/paint/paint_timing_detector.h"
@@ -77,8 +76,8 @@ class CORE_EXPORT ImageRecordsManager {
   ImageRecordsManager& operator=(const ImageRecordsManager&) = delete;
   ImageRecord* FindLargestPaintCandidate() const;
 
-  inline void RemoveInvisibleRecordIfNeeded(const LayoutObject& object) {
-    invisible_images_.erase(&object);
+  inline void RemoveInvisibleRecordIfNeeded(const RecordId& record_id) {
+    invisible_images_.erase(record_id);
   }
 
   inline void RemoveImageFinishedRecord(const RecordId& record_id) {
@@ -106,15 +105,15 @@ class CORE_EXPORT ImageRecordsManager {
     // record will be removed in |AssignPaintTimeToRegisteredQueuedRecords|.
   }
 
-  inline void RecordInvisible(const LayoutObject& object) {
-    invisible_images_.insert(&object);
+  inline void RecordInvisible(const RecordId& record_id) {
+    invisible_images_.insert(record_id);
   }
   void RecordVisible(const RecordId& record_id, const uint64_t& visual_size);
   bool IsRecordedVisibleImage(const RecordId& record_id) const {
     return visible_images_.Contains(record_id);
   }
-  bool IsRecordedInvisibleImage(const LayoutObject& object) const {
-    return invisible_images_.Contains(&object);
+  bool IsRecordedInvisibleImage(const RecordId& record_id) const {
+    return invisible_images_.Contains(record_id);
   }
 
   void NotifyImageFinished(const RecordId& record_id) {
@@ -194,12 +193,12 @@ class CORE_EXPORT ImageRecordsManager {
   }
 
   HashMap<RecordId, std::unique_ptr<ImageRecord>> visible_images_;
-  HashSet<const LayoutObject*> invisible_images_;
+  HashSet<RecordId> invisible_images_;
 
   // This stores the image records, which are ordered by size.
   ImageRecordSet size_ordered_set_;
   // |ImageRecord|s waiting for paint time are stored in this queue
-  // until they get a swap time.
+  // until they get a presentation time.
   Deque<base::WeakPtr<ImageRecord>> images_queued_for_paint_time_;
   // Map containing timestamps of when LayoutObject::ImageNotifyFinished is
   // first called.
@@ -259,7 +258,6 @@ class CORE_EXPORT ImagePaintTimingDetector final
                    const IntRect& image_border);
   void NotifyImageFinished(const LayoutObject&, const ImageResourceContent*);
   void OnPaintFinished();
-  void LayoutObjectWillBeDestroyed(const LayoutObject&);
   void NotifyImageRemoved(const LayoutObject&, const ImageResourceContent*);
   // After the method being called, the detector stops to record new entries and
   // node removal. But it still observe the loading status. In other words, if
@@ -269,12 +267,13 @@ class CORE_EXPORT ImagePaintTimingDetector final
   void StopRecordEntries();
   inline bool IsRecording() const { return is_recording_; }
   inline bool FinishedReportingImages() const {
-    return !is_recording_ && num_pending_swap_callbacks_ == 0;
+    return !is_recording_ && num_pending_presentation_callbacks_ == 0;
   }
   void ResetCallbackManager(PaintTimingCallbackManager* manager) {
     callback_manager_ = manager;
   }
-  void ReportSwapTime(unsigned last_queued_frame_index, base::TimeTicks);
+  void ReportPresentationTime(unsigned last_queued_frame_index,
+                              base::TimeTicks);
 
   // Return the candidate.
   ImageRecord* UpdateCandidate();
@@ -290,7 +289,7 @@ class CORE_EXPORT ImagePaintTimingDetector final
   friend class LargestContentfulPaintCalculatorTest;
 
   void PopulateTraceValue(TracedValue&, const ImageRecord& first_image_paint);
-  void RegisterNotifySwapTime();
+  void RegisterNotifyPresentationTime();
   void ReportCandidateToTrace(ImageRecord&);
   void ReportNoCandidateToTrace();
   // Computes the size of an image for the purpose of LargestContentfulPaint,
@@ -314,9 +313,10 @@ class CORE_EXPORT ImagePaintTimingDetector final
   // no effect on recording the loading status.
   bool is_recording_ = true;
 
-  // Used to determine how many swap callbacks are pending. In combination with
-  // |is_recording|, helps determine whether this detector can be destroyed.
-  int num_pending_swap_callbacks_ = 0;
+  // Used to determine how many presentation callbacks are pending. In
+  // combination with |is_recording|, helps determine whether this detector can
+  // be destroyed.
+  int num_pending_presentation_callbacks_ = 0;
 
   // This need to be set whenever changes that can affect the output of
   // |FindLargestPaintCandidate| occur during the paint tree walk.

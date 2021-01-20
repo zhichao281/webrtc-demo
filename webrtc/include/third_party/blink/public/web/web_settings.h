@@ -181,9 +181,9 @@ class WebSettings {
   virtual void SetPluginsEnabled(bool) = 0;
   virtual void SetPresentationReceiver(bool) = 0;
   virtual void SetAvailablePointerTypes(int) = 0;
-  virtual void SetPrimaryPointerType(ui::PointerType) = 0;
+  virtual void SetPrimaryPointerType(blink::mojom::PointerType) = 0;
   virtual void SetAvailableHoverTypes(int) = 0;
-  virtual void SetPrimaryHoverType(ui::HoverType) = 0;
+  virtual void SetPrimaryHoverType(blink::mojom::HoverType) = 0;
   virtual void SetPreferHiddenVolumeControls(bool) = 0;
   virtual void SetShouldProtectAgainstIpcFlooding(bool) = 0;
   virtual void SetRenderVSyncNotificationEnabled(bool) = 0;
@@ -219,6 +219,8 @@ class WebSettings {
   virtual void SetSupportDeprecatedTargetDensityDPI(bool) = 0;
   virtual void SetSupportsMultipleWindows(bool) = 0;
   virtual void SetSyncXHRInDocumentsEnabled(bool) = 0;
+  // TODO(https://crbug.com/1163644): Remove once Chrome Apps are deprecated.
+  virtual void SetTargetBlankImpliesNoOpenerEnabledWillBeRemoved(bool) = 0;
   virtual void SetTextAreasAreResizable(bool) = 0;
   virtual void SetTextAutosizingEnabled(bool) = 0;
   virtual void SetAccessibilityFontScaleFactor(float) = 0;

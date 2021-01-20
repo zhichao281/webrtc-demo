@@ -38,10 +38,11 @@ inline bool NeedMinMaxSize(const ComputedStyle& style) {
          style.LogicalMaxWidth().IsContentOrIntrinsic();
 }
 
-LayoutUnit InlineSizeFromAspectRatio(const NGBoxStrut& border_padding,
-                                     const LogicalSize& aspect_ratio,
-                                     EBoxSizing box_sizing,
-                                     LayoutUnit block_size);
+CORE_EXPORT LayoutUnit
+InlineSizeFromAspectRatio(const NGBoxStrut& border_padding,
+                          const LogicalSize& aspect_ratio,
+                          EBoxSizing box_sizing,
+                          LayoutUnit block_size);
 
 LayoutUnit BlockSizeFromAspectRatio(const NGBoxStrut& border_padding,
                                     const LogicalSize& aspect_ratio,
@@ -82,6 +83,7 @@ CORE_EXPORT LayoutUnit ResolveBlockLengthInternal(
     const NGBoxStrut& border_padding,
     const Length&,
     LayoutUnit intrinsic_size,
+    LayoutUnit available_block_size_adjustment = LayoutUnit(),
     const LayoutUnit* opt_percentage_resolution_block_size_for_min_max =
         nullptr);
 
@@ -203,6 +205,7 @@ inline LayoutUnit ResolveMinBlockLength(
     const NGBoxStrut& border_padding,
     const Length& length,
     LengthResolvePhase phase,
+    LayoutUnit available_block_size_adjustment = LayoutUnit(),
     const LayoutUnit* opt_percentage_resolution_block_size_for_min_max =
         nullptr) {
   if (LIKELY(BlockLengthUnresolvable(
@@ -212,6 +215,7 @@ inline LayoutUnit ResolveMinBlockLength(
 
   return ResolveBlockLengthInternal(
       constraint_space, style, border_padding, length, kIndefiniteSize,
+      available_block_size_adjustment,
       opt_percentage_resolution_block_size_for_min_max);
 }
 
@@ -222,6 +226,7 @@ inline LayoutUnit ResolveMaxBlockLength(
     const NGBoxStrut& border_padding,
     const Length& length,
     LengthResolvePhase phase,
+    LayoutUnit available_block_size_adjustment = LayoutUnit(),
     const LayoutUnit* opt_percentage_resolution_block_size_for_min_max =
         nullptr) {
   if (LIKELY(BlockLengthUnresolvable(
@@ -231,6 +236,7 @@ inline LayoutUnit ResolveMaxBlockLength(
 
   return ResolveBlockLengthInternal(
       constraint_space, style, border_padding, length, kIndefiniteSize,
+      available_block_size_adjustment,
       opt_percentage_resolution_block_size_for_min_max);
 }
 
@@ -242,6 +248,7 @@ inline LayoutUnit ResolveMainBlockLength(
     const Length& length,
     LayoutUnit intrinsic_size,
     LengthResolvePhase phase,
+    LayoutUnit available_block_size_adjustment = LayoutUnit(),
     const LayoutUnit* opt_percentage_resolution_block_size_for_min_max =
         nullptr) {
   DCHECK(!length.IsAuto());
@@ -253,6 +260,7 @@ inline LayoutUnit ResolveMainBlockLength(
 
   return ResolveBlockLengthInternal(
       constraint_space, style, border_padding, length, intrinsic_size,
+      available_block_size_adjustment,
       opt_percentage_resolution_block_size_for_min_max);
 }
 
@@ -264,6 +272,7 @@ inline LayoutUnit ResolveMainBlockLength(
     const Length& length,
     const IntrinsicBlockSizeFunc& intrinsic_block_size_func,
     LengthResolvePhase phase,
+    LayoutUnit available_block_size_adjustment = LayoutUnit(),
     const LayoutUnit* opt_percentage_resolution_block_size_for_min_max =
         nullptr) {
   DCHECK(!length.IsAuto());
@@ -279,6 +288,7 @@ inline LayoutUnit ResolveMainBlockLength(
 
   return ResolveBlockLengthInternal(
       constraint_space, style, border_padding, length, intrinsic_block_size,
+      available_block_size_adjustment,
       opt_percentage_resolution_block_size_for_min_max);
 }
 
@@ -316,6 +326,7 @@ MinMaxSizes ComputeMinMaxBlockSize(
     const ComputedStyle&,
     const NGBoxStrut& border_padding,
     LayoutUnit intrinsic_size,
+    LayoutUnit available_block_size_adjustment = LayoutUnit(),
     const LayoutUnit* opt_percentage_resolution_block_size_for_min_max =
         nullptr);
 
@@ -360,15 +371,29 @@ CORE_EXPORT LayoutUnit ComputeInlineSizeForFragment(
     const NGBoxStrut& border_padding,
     const MinMaxSizes* override_min_max_sizes_for_test = nullptr);
 
+// Similar to |ComputeInlineSizeForFragment| but for determining the "used"
+// inline-size for a table fragment. See:
+// https://drafts.csswg.org/css-tables-3/#used-width-of-table
+CORE_EXPORT LayoutUnit ComputeUsedInlineSizeForTableFragment(
+    const NGConstraintSpace& space,
+    NGLayoutInputNode node,
+    const NGBoxStrut& border_padding,
+    const MinMaxSizes& table_grid_min_max_sizes);
+
 // Same as ComputeInlineSizeForFragment, but uses height instead of width.
 // |inline_size| is necessary to compute the block size when an aspect ratio
 // is in use.
-CORE_EXPORT LayoutUnit
-ComputeBlockSizeForFragment(const NGConstraintSpace&,
-                            const ComputedStyle&,
-                            const NGBoxStrut& border_padding,
-                            LayoutUnit intrinsic_size,
-                            base::Optional<LayoutUnit> inline_size);
+// |available_block_size_adjustment| is needed for <table> layout. When a table
+// is under an extrinsic constraint (being stretched by its parent, or forced
+// to a fixed block-size), we need to subtract the block-size of all the
+// <caption>s from the available block-size.
+CORE_EXPORT LayoutUnit ComputeBlockSizeForFragment(
+    const NGConstraintSpace&,
+    const ComputedStyle&,
+    const NGBoxStrut& border_padding,
+    LayoutUnit intrinsic_size,
+    base::Optional<LayoutUnit> inline_size,
+    LayoutUnit available_block_size_adjustment = LayoutUnit());
 
 // Intrinsic size for replaced elements is computed as:
 // - |out_replaced_size| intrinsic size of the element. It might have no value.

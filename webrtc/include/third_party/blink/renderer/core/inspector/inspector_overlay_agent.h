@@ -148,7 +148,8 @@ class CORE_EXPORT InspectorOverlayAgent final
   static std::unique_ptr<InspectorFlexContainerHighlightConfig>
   ToFlexContainerHighlightConfig(
       protocol::Overlay::FlexContainerHighlightConfig*);
-  static std::unique_ptr<LineStyle> ToLineStyle(protocol::Overlay::LineStyle*);
+  static base::Optional<LineStyle> ToLineStyle(protocol::Overlay::LineStyle*);
+  static base::Optional<BoxStyle> ToBoxStyle(protocol::Overlay::BoxStyle*);
   static std::unique_ptr<InspectorHighlightConfig> ToHighlightConfig(
       protocol::Overlay::HighlightConfig*);
   InspectorOverlayAgent(WebLocalFrameImpl*,
@@ -232,6 +233,8 @@ class CORE_EXPORT InspectorOverlayAgent final
   void Inspect(Node*);
   void EnsureAXContext(Node*);
   void DispatchBufferedTouchEvents();
+  void PageScrollStarted();
+  void PageScrollEnded();
   WebInputEventResult HandleInputEvent(const WebInputEvent&);
   WebInputEventResult HandleInputEventInOverlay(const WebInputEvent&);
   void PageLayoutInvalidated(bool resized);
@@ -302,6 +305,7 @@ class CORE_EXPORT InspectorOverlayAgent final
   HeapHashMap<WeakMember<Document>, std::unique_ptr<AXContext>>
       document_to_ax_context_;
   bool swallow_next_mouse_up_;
+  bool is_page_scrolling_ = false;
   DOMNodeId backend_node_id_to_inspect_;
   InspectorAgentState::Boolean enabled_;
   InspectorAgentState::Boolean show_ad_highlights_;

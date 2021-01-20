@@ -1738,9 +1738,9 @@ OPENSSL_EXPORT void SSL_SESSION_get0_ocsp_response(const SSL_SESSION *session,
 // SSL_MAX_MASTER_KEY_LENGTH is the maximum length of a master secret.
 #define SSL_MAX_MASTER_KEY_LENGTH 48
 
-// SSL_SESSION_get_master_key writes up to |max_out| bytes of |session|'s master
-// secret to |out| and returns the number of bytes written. If |max_out| is
-// zero, it returns the size of the master secret.
+// SSL_SESSION_get_master_key writes up to |max_out| bytes of |session|'s secret
+// to |out| and returns the number of bytes written. If |max_out| is zero, it
+// returns the size of the secret.
 OPENSSL_EXPORT size_t SSL_SESSION_get_master_key(const SSL_SESSION *session,
                                                  uint8_t *out, size_t max_out);
 
@@ -2823,13 +2823,11 @@ OPENSSL_EXPORT int SSL_has_application_settings(const SSL *ssl);
 
 // Certificate compression.
 //
-// Certificates in TLS 1.3 can be compressed[1]. BoringSSL supports this as both
-// a client and a server, but does not link against any specific compression
-// libraries in order to keep dependencies to a minimum. Instead, hooks for
-// compression and decompression can be installed in an |SSL_CTX| to enable
-// support.
-//
-// [1] https://tools.ietf.org/html/draft-ietf-tls-certificate-compression-03.
+// Certificates in TLS 1.3 can be compressed (RFC 8879). BoringSSL supports this
+// as both a client and a server, but does not link against any specific
+// compression libraries in order to keep dependencies to a minimum. Instead,
+// hooks for compression and decompression can be installed in an |SSL_CTX| to
+// enable support.
 
 // ssl_cert_compression_func_t is a pointer to a function that performs
 // compression. It must write the compressed representation of |in| to |out|,
@@ -3555,6 +3553,21 @@ OPENSSL_EXPORT const char *SSL_early_data_reason_string(
     enum ssl_early_data_reason_t reason);
 
 
+// Encrypted Client Hello.
+//
+// ECH is a mechanism for encrypting the entire ClientHello message in TLS 1.3.
+// This can prevent observers from seeing cleartext information about the
+// connection, such as the server_name extension.
+//
+// ECH support in BoringSSL is still experimental and under development.
+//
+// See https://tools.ietf.org/html/draft-ietf-tls-esni-09.
+
+// SSL_set_enable_ech_grease configures whether the client may send ECH GREASE
+// as part of this connection.
+OPENSSL_EXPORT void SSL_set_enable_ech_grease(SSL *ssl, int enable);
+
+
 // Alerts.
 //
 // TLS uses alerts to signal error conditions. Alerts have a type (warning or
@@ -4086,19 +4099,6 @@ OPENSSL_EXPORT size_t SSL_max_seal_overhead(const SSL *ssl);
 // without negotiating ALPN.
 OPENSSL_EXPORT void SSL_CTX_set_false_start_allowed_without_alpn(SSL_CTX *ctx,
                                                                  int allowed);
-
-// SSL_CTX_set_ignore_tls13_downgrade configures whether connections on |ctx|
-// ignore the downgrade signal in the server's random value.
-OPENSSL_EXPORT void SSL_CTX_set_ignore_tls13_downgrade(SSL_CTX *ctx,
-                                                       int ignore);
-
-// SSL_set_ignore_tls13_downgrade configures whether |ssl| ignores the downgrade
-// signal in the server's random value.
-OPENSSL_EXPORT void SSL_set_ignore_tls13_downgrade(SSL *ssl, int ignore);
-
-// SSL_is_tls13_downgrade returns one if the TLS 1.3 anti-downgrade
-// mechanism would have aborted |ssl|'s handshake and zero otherwise.
-OPENSSL_EXPORT int SSL_is_tls13_downgrade(const SSL *ssl);
 
 // SSL_used_hello_retry_request returns one if the TLS 1.3 HelloRetryRequest
 // message has been either sent by the server or received by the client. It
@@ -4775,6 +4775,18 @@ OPENSSL_EXPORT int SSL_CTX_set_tlsext_status_arg(SSL_CTX *ctx, void *arg);
 // upstream added it as |SSL_CIPHER_get_protocol_id|. Switch callers to the new
 // name and remove this one.
 OPENSSL_EXPORT uint16_t SSL_CIPHER_get_value(const SSL_CIPHER *cipher);
+
+// SSL_CTX_set_ignore_tls13_downgrade does nothing.
+OPENSSL_EXPORT void SSL_CTX_set_ignore_tls13_downgrade(SSL_CTX *ctx,
+                                                       int ignore);
+
+// SSL_set_ignore_tls13_downgrade does nothing.
+OPENSSL_EXPORT void SSL_set_ignore_tls13_downgrade(SSL *ssl, int ignore);
+
+// SSL_is_tls13_downgrade returns zero. Historically, this function returned
+// whether the TLS 1.3 downgrade signal would have been enforced if not
+// disabled. The TLS 1.3 downgrade signal is now always enforced.
+OPENSSL_EXPORT int SSL_is_tls13_downgrade(const SSL *ssl);
 
 
 // Nodejs compatibility section (hidden).

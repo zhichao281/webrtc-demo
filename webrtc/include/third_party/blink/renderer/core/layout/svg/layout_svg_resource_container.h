@@ -78,7 +78,7 @@ class LayoutSVGResourceContainer : public LayoutSVGHiddenContainer {
   static void MarkForLayoutAndParentResourceInvalidation(
       LayoutObject&,
       bool needs_layout = true);
-  static void StyleDidChange(LayoutObject&, StyleDifference);
+  static void StyleChanged(LayoutObject&, StyleDifference);
 
   void ClearInvalidationMask() {
     NOT_DESTROYED();
@@ -101,6 +101,8 @@ class LayoutSVGResourceContainer : public LayoutSVGHiddenContainer {
   void WillBeDestroyed() override;
 
  private:
+  void InvalidateClientsIfActiveResource();
+
   // Track global (markAllClientsForInvalidation) invalidations to avoid
   // redundant crawls.
   unsigned completed_invalidations_mask_ : 8;
@@ -122,10 +124,12 @@ inline bool IsResourceOfType(const LayoutSVGResourceContainer* container) {
 }
 
 template <typename ContainerType>
-inline ContainerType* GetSVGResourceAsType(const SVGResource* resource) {
+inline ContainerType* GetSVGResourceAsType(SVGResourceClient& client,
+                                           const SVGResource* resource) {
   if (!resource)
     return nullptr;
-  if (LayoutSVGResourceContainer* container = resource->ResourceContainer()) {
+  if (LayoutSVGResourceContainer* container =
+          resource->ResourceContainer(client)) {
     if (IsResourceOfType<ContainerType>(container))
       return static_cast<ContainerType*>(container);
   }
@@ -134,10 +138,12 @@ inline ContainerType* GetSVGResourceAsType(const SVGResource* resource) {
 
 template <typename ContainerType>
 inline ContainerType* GetSVGResourceAsType(
+    SVGResourceClient& client,
     const StyleSVGResource* style_resource) {
   if (!style_resource)
     return nullptr;
-  return GetSVGResourceAsType<ContainerType>(style_resource->Resource());
+  return GetSVGResourceAsType<ContainerType>(client,
+                                             style_resource->Resource());
 }
 
 }  // namespace blink

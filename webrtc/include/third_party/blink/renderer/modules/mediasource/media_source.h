@@ -24,6 +24,11 @@
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/threading_primitives.h"
 
+namespace media {
+class AudioDecoderConfig;
+class VideoDecoderConfig;
+}  // namespace media
+
 namespace blink {
 
 class EventQueue;
@@ -31,6 +36,7 @@ class ExceptionState;
 class HTMLMediaElement;
 class CrossThreadMediaSourceAttachment;
 class SameThreadMediaSourceAttachment;
+class SourceBufferConfig;
 class TrackBase;
 class WebSourceBuffer;
 
@@ -67,6 +73,9 @@ class MediaSource final : public EventTargetWithInlineData,
   }
   SourceBuffer* addSourceBuffer(const String& type, ExceptionState&)
       LOCKS_EXCLUDED(attachment_link_lock_);
+  SourceBuffer* AddSourceBufferUsingConfig(const SourceBufferConfig*,
+                                           ExceptionState&)
+      LOCKS_EXCLUDED(attachment_link_lock_);
   void removeSourceBuffer(SourceBuffer*, ExceptionState&)
       LOCKS_EXCLUDED(attachment_link_lock_);
   void setDuration(double, ExceptionState&)
@@ -86,6 +95,17 @@ class MediaSource final : public EventTargetWithInlineData,
       LOCKS_EXCLUDED(attachment_link_lock_);
 
   static bool isTypeSupported(ExecutionContext* context, const String& type);
+
+  // Helper for isTypeSupported, addSourceBuffer and SourceBuffer changeType.
+  // Set |enforce_codec_specificity| true to require fully specified mime and
+  // codecs, false otherwise.
+  // TODO(https://crbug.com/535738): When |enforce_codec_specificity| is set to
+  // false, then fully relax requirements beyond initial special casing for HEVC
+  // on ChromeOS with EME in mp4.
+  static bool IsTypeSupportedInternal(ExecutionContext* context,
+                                      const String& type,
+                                      bool enforce_codec_specificity);
+
   static bool canConstructInDedicatedWorker();
 
   // Methods needed by a MediaSourceAttachmentSupplement to service operations
@@ -168,6 +188,8 @@ class MediaSource final : public EventTargetWithInlineData,
   // also require the same, since they can be called from within these methods.
   void AddSourceBuffer_Locked(
       const String& type /* in */,
+      std::unique_ptr<media::AudioDecoderConfig> audio_config /* in */,
+      std::unique_ptr<media::VideoDecoderConfig> video_config /* in */,
       ExceptionState* exception_state /* in/out */,
       SourceBuffer** created_buffer /* out */,
       MediaSourceAttachmentSupplement::ExclusiveKey /* passkey */)
@@ -190,10 +212,12 @@ class MediaSource final : public EventTargetWithInlineData,
 
   bool IsUpdating() const;
 
-  std::unique_ptr<WebSourceBuffer> CreateWebSourceBuffer(const String& type,
-                                                         const String& codecs,
-                                                         ExceptionState&)
-      LOCKS_EXCLUDED(attachment_link_lock_);
+  std::unique_ptr<WebSourceBuffer> CreateWebSourceBuffer(
+      const String& type,
+      const String& codecs,
+      std::unique_ptr<media::AudioDecoderConfig> audio_config,
+      std::unique_ptr<media::VideoDecoderConfig> video_config,
+      ExceptionState&) LOCKS_EXCLUDED(attachment_link_lock_);
   void ScheduleEvent(const AtomicString& event_name);
   static void RecordIdentifiabilityMetric(ExecutionContext* context,
                                           const String& type,
@@ -240,7 +264,7 @@ class MediaSource final : public EventTargetWithInlineData,
 
   // |attachment_link_lock_| protects read/write of |media_source_attachment_|,
   // |attachment_tracer_|, |context_already_destroyed_|, and
-  // |live_seekable_range_|.  It is only truly necessary for
+  // |*live_seekable_range*_|.  It is only truly necessary for
   // CrossThreadAttachment usage of worker MSE, to prevent read/write collision
   // on main thread versus worker thread. Note that |attachment_link_lock_| must
   // be released before attempting CrossThreadMediaSourceAttachment
@@ -265,7 +289,11 @@ class MediaSource final : public EventTargetWithInlineData,
   Member<SourceBufferList> source_buffers_;
   Member<SourceBufferList> active_source_buffers_;
 
-  Member<TimeRanges> live_seekable_range_ GUARDED_BY(attachment_link_lock_);
+  // These are kept as raw data (not an Oilpan managed GC-able TimeRange) to
+  // avoid need to take lock during ::Trace, which could lead to deadlock.
+  bool has_live_seekable_range_ GUARDED_BY(attachment_link_lock_);
+  double live_seekable_range_start_ GUARDED_BY(attachment_link_lock_);
+  double live_seekable_range_end_ GUARDED_BY(attachment_link_lock_);
 };
 
 }  // namespace blink

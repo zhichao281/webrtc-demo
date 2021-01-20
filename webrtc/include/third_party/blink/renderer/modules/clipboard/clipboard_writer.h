@@ -8,13 +8,13 @@
 #include "base/sequence_checker.h"
 #include "third_party/blink/renderer/core/fileapi/blob.h"
 #include "third_party/blink/renderer/core/fileapi/file_reader_loader_client.h"
+#include "third_party/blink/renderer/modules/clipboard/clipboard_promise.h"
 #include "third_party/blink/renderer/platform/heap/heap.h"
 #include "third_party/blink/renderer/platform/heap/self_keep_alive.h"
 #include "third_party/skia/include/core/SkImage.h"
 
 namespace blink {
 
-class ClipboardPromise;
 class FileReaderLoader;
 class SystemClipboard;
 class RawSystemClipboard;
@@ -55,10 +55,12 @@ class ClipboardWriter : public GarbageCollected<ClipboardWriter>,
                         public FileReaderLoaderClient {
  public:
   // For writing sanitized MIME types.
+  // IsValidType() must return true on types passed into `mime_type`.
   static ClipboardWriter* Create(SystemClipboard* system_clipboard,
                                  const String& mime_type,
                                  ClipboardPromise* promise);
   // For writing unsanitized types.
+  // IsValidType() must return true on types passed into `mime_type`.
   static ClipboardWriter* Create(RawSystemClipboard* raw_system_clipboard,
                                  const String& mime_type,
                                  ClipboardPromise* promise);
@@ -66,8 +68,12 @@ class ClipboardWriter : public GarbageCollected<ClipboardWriter>,
 
   // Returns whether ClipboardWriter has implemented support for this type.
   //
-  // If this API returns false for a `mime_type`, Create() must not be called
-  // with that `mime_type`.
+  // IsValidType() is expected to be called before Create(). If it returns false
+  // for a `mime_type`, Create() must not be called with that `mime_type`.
+  //
+  // IsValidType() is used for both ClipboardWriter and ClipboardReader, as read
+  // and write currently support the same types. If this changes in the future,
+  // please create separate IsValidType functions.
   static bool IsValidType(const String& mime_type, bool is_raw);
   // Begins the sequence of writing the Blob to the system clipbaord.
   void WriteToSystem(Blob* blob);
@@ -91,8 +97,17 @@ class ClipboardWriter : public GarbageCollected<ClipboardWriter>,
       DOMArrayBuffer* raw_data,
       scoped_refptr<base::SingleThreadTaskRunner> task_runner) = 0;
 
-  SystemClipboard* system_clipboard() { return system_clipboard_; }
-  RawSystemClipboard* raw_system_clipboard() { return raw_system_clipboard_; }
+  // SystemClipboard and RawSystemClipboard are bound to LocalFrame, so the
+  // bound LocalFrame must still be valid by the time they're used.
+  SystemClipboard* system_clipboard() {
+    DCHECK(promise_->GetLocalFrame());
+    return system_clipboard_;
+  }
+
+  RawSystemClipboard* raw_system_clipboard() {
+    DCHECK(promise_->GetLocalFrame());
+    return raw_system_clipboard_;
+  }
 
   // This ClipboardPromise owns this ClipboardWriter. Subclasses use `promise_`
   // to report success or failure, or to obtain the execution context.
