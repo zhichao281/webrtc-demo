@@ -1,7 +1,6 @@
 # PeerConnectionClientDemo
-PeerConnectionClient Demo for vs2017
+PeerConnectionClient Demo for vs2019
 
-WebRTC lib编译：https://www.jianshu.com/p/351b29e36243
 
-window屏幕抓取：https://www.jianshu.com/p/afaf871f02f0
+这个是webrtc 2021年1/19日的最新代码  4394节点的编译
 
