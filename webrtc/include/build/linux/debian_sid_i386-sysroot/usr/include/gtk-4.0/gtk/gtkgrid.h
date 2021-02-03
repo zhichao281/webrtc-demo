@@ -24,7 +24,7 @@
 #error "Only <gtk/gtk.h> can be included directly."
 #endif
 
-#include <gtk/gtkcontainer.h>
+#include <gtk/gtkwidget.h>
 
 
 G_BEGIN_DECLS
@@ -43,7 +43,7 @@ typedef struct _GtkGridClass         GtkGridClass;
 struct _GtkGrid
 {
   /*< private >*/
-  GtkContainer parent_instance;
+  GtkWidget parent_instance;
 };
 
 /**
@@ -52,18 +52,11 @@ struct _GtkGrid
  */
 struct _GtkGridClass
 {
-  GtkContainerClass parent_class;
+  GtkWidgetClass parent_class;
 
   /*< private >*/
 
-  void (*_gtk_reserved1) (void);
-  void (*_gtk_reserved2) (void);
-  void (*_gtk_reserved3) (void);
-  void (*_gtk_reserved4) (void);
-  void (*_gtk_reserved5) (void);
-  void (*_gtk_reserved6) (void);
-  void (*_gtk_reserved7) (void);
-  void (*_gtk_reserved8) (void);
+  gpointer padding[8];
 };
 
 GDK_AVAILABLE_IN_ALL
@@ -73,33 +66,37 @@ GtkWidget* gtk_grid_new                    (void);
 GDK_AVAILABLE_IN_ALL
 void       gtk_grid_attach                 (GtkGrid         *grid,
                                             GtkWidget       *child,
-                                            gint             left,
-                                            gint             top,
-                                            gint             width,
-                                            gint             height);
+                                            int              column,
+                                            int              row,
+                                            int              width,
+                                            int              height);
 GDK_AVAILABLE_IN_ALL
 void       gtk_grid_attach_next_to         (GtkGrid         *grid,
                                             GtkWidget       *child,
                                             GtkWidget       *sibling,
                                             GtkPositionType  side,
-                                            gint             width,
-                                            gint             height);
+                                            int              width,
+                                            int              height);
 GDK_AVAILABLE_IN_ALL
 GtkWidget *gtk_grid_get_child_at           (GtkGrid         *grid,
-                                            gint             left,
-                                            gint             top);
+                                            int              column,
+                                            int              row);
+GDK_AVAILABLE_IN_ALL
+void       gtk_grid_remove                 (GtkGrid         *grid,
+                                            GtkWidget       *child);
+
 GDK_AVAILABLE_IN_ALL
 void       gtk_grid_insert_row             (GtkGrid         *grid,
-                                            gint             position);
+                                            int              position);
 GDK_AVAILABLE_IN_ALL
 void       gtk_grid_insert_column          (GtkGrid         *grid,
-                                            gint             position);
+                                            int              position);
 GDK_AVAILABLE_IN_ALL
 void       gtk_grid_remove_row             (GtkGrid         *grid,
-                                            gint             position);
+                                            int              position);
 GDK_AVAILABLE_IN_ALL
 void       gtk_grid_remove_column          (GtkGrid         *grid,
-                                            gint             position);
+                                            int              position);
 GDK_AVAILABLE_IN_ALL
 void       gtk_grid_insert_next_to         (GtkGrid         *grid,
                                             GtkWidget       *sibling,
@@ -126,24 +123,24 @@ GDK_AVAILABLE_IN_ALL
 guint      gtk_grid_get_column_spacing     (GtkGrid         *grid);
 GDK_AVAILABLE_IN_ALL
 void       gtk_grid_set_row_baseline_position (GtkGrid      *grid,
-					       gint          row,
-					       GtkBaselinePosition pos);
+                                               int           row,
+                                               GtkBaselinePosition pos);
 GDK_AVAILABLE_IN_ALL
 GtkBaselinePosition gtk_grid_get_row_baseline_position (GtkGrid      *grid,
-							gint          row);
+                                                        int           row);
 GDK_AVAILABLE_IN_ALL
 void       gtk_grid_set_baseline_row       (GtkGrid         *grid,
-					    gint             row);
+                                            int              row);
 GDK_AVAILABLE_IN_ALL
-gint       gtk_grid_get_baseline_row       (GtkGrid         *grid);
+int        gtk_grid_get_baseline_row       (GtkGrid         *grid);
 
 GDK_AVAILABLE_IN_ALL
 void       gtk_grid_query_child            (GtkGrid         *grid,
                                             GtkWidget       *child,
-                                            gint            *left,
-                                            gint            *top,
-                                            gint            *width,
-                                            gint            *height);
+                                            int             *column,
+                                            int             *row,
+                                            int             *width,
+                                            int             *height);
 
 G_END_DECLS
 

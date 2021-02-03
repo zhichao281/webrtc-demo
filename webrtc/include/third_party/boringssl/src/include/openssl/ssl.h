@@ -267,7 +267,7 @@ OPENSSL_EXPORT int SSL_is_dtls(const SSL *ssl);
 // |SSL_set0_rbio| and |SSL_set0_wbio| instead.
 OPENSSL_EXPORT void SSL_set_bio(SSL *ssl, BIO *rbio, BIO *wbio);
 
-// SSL_set0_rbio configures |ssl| to write to |rbio|. It takes ownership of
+// SSL_set0_rbio configures |ssl| to read from |rbio|. It takes ownership of
 // |rbio|.
 //
 // Note that, although this function and |SSL_set0_wbio| may be called on the
@@ -3383,6 +3383,12 @@ OPENSSL_EXPORT int SSL_set_quic_transport_params(SSL *ssl,
 // |SSL|. If no params were received from the peer, |*out_params_len| will be 0.
 OPENSSL_EXPORT void SSL_get_peer_quic_transport_params(
     const SSL *ssl, const uint8_t **out_params, size_t *out_params_len);
+
+// SSL_set_quic_use_legacy_codepoint configures whether to use the legacy QUIC
+// extension codepoint 0xffa5 as opposed to the official value 57. Call with
+// |use_legacy| set to 1 to use 0xffa5 and call with 0 to use 57. The default
+// value for this is currently 1 but it will change to 0 at a later date.
+OPENSSL_EXPORT void SSL_set_quic_use_legacy_codepoint(SSL *ssl, int use_legacy);
 
 // SSL_set_quic_early_data_context configures a context string in QUIC servers
 // for accepting early data. If a resumption connection offers early data, the

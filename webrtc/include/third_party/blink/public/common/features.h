@@ -43,7 +43,7 @@ BLINK_COMMON_EXPORT extern const base::Feature kLayoutNGFieldset;
 BLINK_COMMON_EXPORT extern const base::Feature kLayoutNGTextControl;
 BLINK_COMMON_EXPORT extern const base::Feature kMixedContentAutoupgrade;
 BLINK_COMMON_EXPORT extern const base::Feature kNavigationPredictor;
-BLINK_COMMON_EXPORT extern const base::Feature kParentNodeReplaceChildren;
+BLINK_COMMON_EXPORT extern const base::Feature kNavigatorPluginsEmpty;
 BLINK_COMMON_EXPORT extern const base::Feature kPlzDedicatedWorker;
 BLINK_COMMON_EXPORT extern const base::Feature kPortals;
 BLINK_COMMON_EXPORT extern const base::Feature kPortalsCrossOrigin;
@@ -52,6 +52,9 @@ BLINK_COMMON_EXPORT extern const base::Feature kPrerender2;
 enum class Prerender2ActivationMode { kEnabled, kDisabled };
 BLINK_COMMON_EXPORT extern const base::FeatureParam<Prerender2ActivationMode>
     kPrerender2Param;
+
+// Returns true when Prerender2 feature is enabled.
+BLINK_COMMON_EXPORT bool IsPrerender2Enabled();
 
 BLINK_COMMON_EXPORT extern const base::Feature
     kPreviewsResourceLoadingHintsSpecificResourceTypes;
@@ -146,8 +149,6 @@ BLINK_COMMON_EXPORT extern const base::Feature
     kLowerJavaScriptPriorityWhenForceDeferred;
 
 BLINK_COMMON_EXPORT extern const base::Feature kDisableForceDeferInChildFrames;
-
-BLINK_COMMON_EXPORT extern const base::Feature kCompositeCrossOriginIframes;
 
 BLINK_COMMON_EXPORT extern const base::Feature kTransformInterop;
 
@@ -355,12 +356,9 @@ BLINK_COMMON_EXPORT extern const base::Feature kInterestCohortAPIOriginTrial;
 
 BLINK_COMMON_EXPORT extern const base::Feature kInterestCohortFeaturePolicy;
 
-// Flags used to test DocumentPolicy's default value being controlled by
-// different runtime flag states.
-BLINK_COMMON_EXPORT extern const base::Feature
-    kDocumentPolicyRuntimeFlag1ForTest;
-BLINK_COMMON_EXPORT extern const base::Feature
-    kDocumentPolicyRuntimeFlag2ForTest;
+BLINK_COMMON_EXPORT extern const base::Feature kTextFragmentColorChange;
+
+BLINK_COMMON_EXPORT extern const base::Feature kDisableDocumentDomainByDefault;
 
 }  // namespace features
 }  // namespace blink

@@ -24,7 +24,8 @@
 typedef enum {
 	SPD_PUNCT_ALL = 0,
 	SPD_PUNCT_NONE = 1,
-	SPD_PUNCT_SOME = 2
+	SPD_PUNCT_SOME = 2,
+	SPD_PUNCT_MOST = 3
 } SPDPunctuation;
 
 typedef enum {
@@ -51,7 +52,9 @@ typedef enum {
 
 typedef struct {
 	char *name;		/* Name of the voice (id) */
-	char *language;		/* 2-letter ISO language code */
+	char *language;		/* 2/3-letter ISO language code,
+				 * possibly followed by 2/3-letter ISO region code,
+				 * e.g. en-US */
 	char *variant;		/* a not-well defined string describing dialect etc. */
 } SPDVoice;
 

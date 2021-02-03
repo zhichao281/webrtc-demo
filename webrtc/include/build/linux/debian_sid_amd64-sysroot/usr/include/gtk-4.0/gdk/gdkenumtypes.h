@@ -4,7 +4,7 @@
 #ifndef __GDK_ENUM_TYPES_H__
 #define __GDK_ENUM_TYPES_H__
 
-#if !defined (__GDK_H_INSIDE__) && !defined (GDK_COMPILATION)
+#if !defined (__GDK_H_INSIDE__) && !defined (GTK_COMPILATION)
 #error "Only <gdk/gdk.h> can be included directly."
 #endif
 
@@ -16,10 +16,6 @@ G_BEGIN_DECLS
 /* enumerations from "gdkdevice.h" */
 GDK_AVAILABLE_IN_ALL GType gdk_input_source_get_type (void) G_GNUC_CONST;
 #define GDK_TYPE_INPUT_SOURCE (gdk_input_source_get_type ())
-GDK_AVAILABLE_IN_ALL GType gdk_input_mode_get_type (void) G_GNUC_CONST;
-#define GDK_TYPE_INPUT_MODE (gdk_input_mode_get_type ())
-GDK_AVAILABLE_IN_ALL GType gdk_device_type_get_type (void) G_GNUC_CONST;
-#define GDK_TYPE_DEVICE_TYPE (gdk_device_type_get_type ())
 
 /* enumerations from "gdkdevicepad.h" */
 GDK_AVAILABLE_IN_ALL GType gdk_device_pad_feature_get_type (void) G_GNUC_CONST;
@@ -44,6 +40,8 @@ GDK_AVAILABLE_IN_ALL GType gdk_notify_type_get_type (void) G_GNUC_CONST;
 #define GDK_TYPE_NOTIFY_TYPE (gdk_notify_type_get_type ())
 GDK_AVAILABLE_IN_ALL GType gdk_crossing_mode_get_type (void) G_GNUC_CONST;
 #define GDK_TYPE_CROSSING_MODE (gdk_crossing_mode_get_type ())
+GDK_AVAILABLE_IN_ALL GType gdk_key_match_get_type (void) G_GNUC_CONST;
+#define GDK_TYPE_KEY_MATCH (gdk_key_match_get_type ())
 
 /* enumerations from "gdkframeclock.h" */
 GDK_AVAILABLE_IN_ALL GType gdk_frame_clock_phase_get_type (void) G_GNUC_CONST;
@@ -61,49 +59,31 @@ GDK_AVAILABLE_IN_ALL GType gdk_subpixel_layout_get_type (void) G_GNUC_CONST;
 GDK_AVAILABLE_IN_ALL GType gdk_paintable_flags_get_type (void) G_GNUC_CONST;
 #define GDK_TYPE_PAINTABLE_FLAGS (gdk_paintable_flags_get_type ())
 
+/* enumerations from "gdkpopuplayout.h" */
+GDK_AVAILABLE_IN_ALL GType gdk_anchor_hints_get_type (void) G_GNUC_CONST;
+#define GDK_TYPE_ANCHOR_HINTS (gdk_anchor_hints_get_type ())
+
 /* enumerations from "gdkseat.h" */
 GDK_AVAILABLE_IN_ALL GType gdk_seat_capabilities_get_type (void) G_GNUC_CONST;
 #define GDK_TYPE_SEAT_CAPABILITIES (gdk_seat_capabilities_get_type ())
 
-/* enumerations from "gdksurface.h" */
-GDK_AVAILABLE_IN_ALL GType gdk_surface_type_get_type (void) G_GNUC_CONST;
-#define GDK_TYPE_SURFACE_TYPE (gdk_surface_type_get_type ())
-GDK_AVAILABLE_IN_ALL GType gdk_surface_hints_get_type (void) G_GNUC_CONST;
-#define GDK_TYPE_SURFACE_HINTS (gdk_surface_hints_get_type ())
-GDK_AVAILABLE_IN_ALL GType gdk_wm_decoration_get_type (void) G_GNUC_CONST;
-#define GDK_TYPE_WM_DECORATION (gdk_wm_decoration_get_type ())
-GDK_AVAILABLE_IN_ALL GType gdk_wm_function_get_type (void) G_GNUC_CONST;
-#define GDK_TYPE_WM_FUNCTION (gdk_wm_function_get_type ())
-GDK_AVAILABLE_IN_ALL GType gdk_gravity_get_type (void) G_GNUC_CONST;
-#define GDK_TYPE_GRAVITY (gdk_gravity_get_type ())
-GDK_AVAILABLE_IN_ALL GType gdk_anchor_hints_get_type (void) G_GNUC_CONST;
-#define GDK_TYPE_ANCHOR_HINTS (gdk_anchor_hints_get_type ())
+/* enumerations from "gdktoplevel.h" */
 GDK_AVAILABLE_IN_ALL GType gdk_surface_edge_get_type (void) G_GNUC_CONST;
 #define GDK_TYPE_SURFACE_EDGE (gdk_surface_edge_get_type ())
 GDK_AVAILABLE_IN_ALL GType gdk_fullscreen_mode_get_type (void) G_GNUC_CONST;
 #define GDK_TYPE_FULLSCREEN_MODE (gdk_fullscreen_mode_get_type ())
-GDK_AVAILABLE_IN_ALL GType gdk_surface_state_get_type (void) G_GNUC_CONST;
-#define GDK_TYPE_SURFACE_STATE (gdk_surface_state_get_type ())
+GDK_AVAILABLE_IN_ALL GType gdk_toplevel_state_get_type (void) G_GNUC_CONST;
+#define GDK_TYPE_TOPLEVEL_STATE (gdk_toplevel_state_get_type ())
 
 /* enumerations from "gdktypes.h" */
-GDK_AVAILABLE_IN_ALL GType gdk_byte_order_get_type (void) G_GNUC_CONST;
-#define GDK_TYPE_BYTE_ORDER (gdk_byte_order_get_type ())
+GDK_AVAILABLE_IN_ALL GType gdk_gravity_get_type (void) G_GNUC_CONST;
+#define GDK_TYPE_GRAVITY (gdk_gravity_get_type ())
 GDK_AVAILABLE_IN_ALL GType gdk_modifier_type_get_type (void) G_GNUC_CONST;
 #define GDK_TYPE_MODIFIER_TYPE (gdk_modifier_type_get_type ())
-GDK_AVAILABLE_IN_ALL GType gdk_modifier_intent_get_type (void) G_GNUC_CONST;
-#define GDK_TYPE_MODIFIER_INTENT (gdk_modifier_intent_get_type ())
-GDK_AVAILABLE_IN_ALL GType gdk_grab_status_get_type (void) G_GNUC_CONST;
-#define GDK_TYPE_GRAB_STATUS (gdk_grab_status_get_type ())
-GDK_AVAILABLE_IN_ALL GType gdk_grab_ownership_get_type (void) G_GNUC_CONST;
-#define GDK_TYPE_GRAB_OWNERSHIP (gdk_grab_ownership_get_type ())
-GDK_AVAILABLE_IN_ALL GType gdk_event_mask_get_type (void) G_GNUC_CONST;
-#define GDK_TYPE_EVENT_MASK (gdk_event_mask_get_type ())
 GDK_AVAILABLE_IN_ALL GType gdk_gl_error_get_type (void) G_GNUC_CONST;
 #define GDK_TYPE_GL_ERROR (gdk_gl_error_get_type ())
 GDK_AVAILABLE_IN_ALL GType gdk_vulkan_error_get_type (void) G_GNUC_CONST;
 #define GDK_TYPE_VULKAN_ERROR (gdk_vulkan_error_get_type ())
-GDK_AVAILABLE_IN_ALL GType gdk_surface_type_hint_get_type (void) G_GNUC_CONST;
-#define GDK_TYPE_SURFACE_TYPE_HINT (gdk_surface_type_hint_get_type ())
 GDK_AVAILABLE_IN_ALL GType gdk_axis_use_get_type (void) G_GNUC_CONST;
 #define GDK_TYPE_AXIS_USE (gdk_axis_use_get_type ())
 GDK_AVAILABLE_IN_ALL GType gdk_axis_flags_get_type (void) G_GNUC_CONST;

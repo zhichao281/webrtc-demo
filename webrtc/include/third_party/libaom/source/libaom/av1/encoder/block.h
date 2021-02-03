@@ -442,16 +442,14 @@ typedef struct {
    *
    * See the documentation for \ref WinnerModeParams for more detail.
    */
-  unsigned int coeff_opt_dist_threshold;
-  //! \copydoc coeff_opt_dist_threshold
-  unsigned int coeff_opt_satd_threshold;
-  //! \copydoc coeff_opt_dist_threshold
+  unsigned int coeff_opt_thresholds[2];
+  /*! \copydoc coeff_opt_thresholds */
   unsigned int tx_domain_dist_threshold;
-  //! \copydoc coeff_opt_dist_threshold
+  /*! \copydoc coeff_opt_thresholds */
   TX_SIZE_SEARCH_METHOD tx_size_search_method;
-  //! \copydoc coeff_opt_dist_threshold
+  /*! \copydoc coeff_opt_thresholds */
   unsigned int use_transform_domain_distortion;
-  //! \copydoc coeff_opt_dist_threshold
+  /*! \copydoc coeff_opt_thresholds */
   unsigned int skip_txfm_level;
 
   /*! \brief How to search for the optimal tx_size
@@ -1174,7 +1172,9 @@ typedef struct macroblock {
   //! SSE of the current predictor.
   unsigned int pred_sse[REF_FRAMES];
   //! Prediction for ML based partition.
+#if CONFIG_RT_ML_PARTITIONING
   DECLARE_ALIGNED(16, uint8_t, est_pred[128 * 128]);
+#endif
   /**@}*/
 } MACROBLOCK;
 #undef SINGLE_REF_MODES

@@ -93,6 +93,10 @@ namespace cc {
 class LayerTreeSettings;
 }  // namespace cc
 
+namespace gfx {
+class Rect;
+}  // namespace gfx
+
 namespace blink {
 namespace mojom {
 enum class TreeScopeType;
@@ -124,9 +128,8 @@ class WebURLResponse;
 struct FramePolicy;
 struct MobileFriendliness;
 struct WebConsoleMessage;
-struct WebContextMenuData;
+struct ContextMenuData;
 struct WebPluginParams;
-struct WebRect;
 
 class BLINK_EXPORT WebLocalFrameClient {
  public:
@@ -230,9 +233,7 @@ class BLINK_EXPORT WebLocalFrameClient {
       const FramePolicy&,
       const WebFrameOwnerProperties&,
       mojom::FrameOwnerElementType,
-      CrossVariantMojoAssociatedReceiver<
-          mojom::PolicyContainerHostInterfaceBase>
-          policy_container_host_receiver) {
+      WebPolicyContainerBindParams policy_container_bind_params) {
     return nullptr;
   }
   // When CreateChildFrame() returns there is no core LocalFrame backing the
@@ -368,9 +369,6 @@ class BLINK_EXPORT WebLocalFrameClient {
       const ParsedFeaturePolicy& feature_policy_header,
       const DocumentPolicyFeatureState& document_policy_header) {}
 
-  // The frame's initial empty document has just been initialized.
-  virtual void DidCreateInitialEmptyDocument() {}
-
   // A new document has just been committed as a result of evaluating
   // javascript url or XSLT. This document inherited everything from the
   // previous document (url, origin, global object, etc.).
@@ -465,11 +463,8 @@ class BLINK_EXPORT WebLocalFrameClient {
 
   // Shows a context menu with commands relevant to a specific element on
   // the given frame. Additional context data and location are supplied.
-  virtual void ShowContextMenu(const WebContextMenuData&,
+  virtual void ShowContextMenu(const ContextMenuData&,
                                const base::Optional<gfx::Point>&) {}
-
-  // Called when the frame rects changed.
-  virtual void FrameRectsChanged(const WebRect&) {}
 
   // Called when a new element gets focused. |from_element| is the previously
   // focused element, |to_element| is the newly focused one. Either can be null.
@@ -477,7 +472,7 @@ class BLINK_EXPORT WebLocalFrameClient {
 
   // Called when a frame's intersection with the main frame has changed.
   virtual void OnMainFrameIntersectionChanged(
-      const WebRect& intersection_rect) {}
+      const gfx::Rect& intersection_rect) {}
 
   // Called when an overlay interstitial pop up ad is detected.
   virtual void OnOverlayPopupAdDetected() {}

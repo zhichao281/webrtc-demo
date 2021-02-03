@@ -58,7 +58,6 @@ class MODULES_EXPORT AXLayoutObject : public AXNodeObject {
   Node* GetNodeOrContainingBlockNode() const;
 
   // DOM and layout tree access.
-  Node* GetNode() const override;
   Document* GetDocument() const override;
   LocalFrameView* DocumentFrameView() const override;
   Element* AnchorElement() const override;
@@ -90,18 +89,12 @@ class MODULES_EXPORT AXLayoutObject : public AXNodeObject {
   bool IsVisited() const override;
 
   // Check object state.
-  bool IsFocused() const override;
-  // aria-grabbed is deprecated in WAI-ARIA 1.1.
-  AccessibilityGrabbedState IsGrabbed() const override;
-  AccessibilitySelectedState IsSelected() const override;
-  bool IsSelectedFromFocus() const override;
   bool IsNotUserSelectable() const override;
 
   // Whether objects are ignored, i.e. not included in the tree.
   AXObjectInclusion DefaultObjectInclusion(
       IgnoredReasons* = nullptr) const override;
   bool ComputeAccessibilityIsIgnored(IgnoredReasons* = nullptr) const override;
-  bool CanIgnoreTextAsEmpty() const override;
 
   // Properties of static elements.
   ax::mojom::blink::ListStyle GetListStyle() const final;
@@ -173,16 +166,12 @@ class MODULES_EXPORT AXLayoutObject : public AXNodeObject {
       ax::mojom::blink::Role dom_role) const override;
 
  private:
-  bool IsTabItemSelected() const;
   AXObject* AccessibilityImageMapHitTest(HTMLAreaElement*,
                                          const IntPoint&) const;
   bool FindAllTableCellsWithRole(ax::mojom::blink::Role, AXObjectVector&) const;
 
   LayoutRect ComputeElementRect() const;
-  bool CanIgnoreSpaceNextTo(LayoutObject*, bool is_after) const;
-  bool HasAriaCellRole(Element*) const;
   bool IsPlaceholder() const;
-  bool SelectionShouldFollowFocus() const;
 
   static ax::mojom::blink::TextDecorationStyle
   TextDecorationStyleToAXTextDecorationStyle(

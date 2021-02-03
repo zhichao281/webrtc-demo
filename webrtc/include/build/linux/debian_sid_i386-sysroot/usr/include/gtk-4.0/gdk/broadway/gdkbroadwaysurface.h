@@ -36,7 +36,7 @@ G_BEGIN_DECLS
 #define GDK_IS_BROADWAY_SURFACE_CLASS(klass)   (G_TYPE_CHECK_CLASS_TYPE ((klass), GDK_TYPE_BROADWAY_SURFACE))
 #define GDK_BROADWAY_SURFACE_GET_CLASS(obj)    (G_TYPE_INSTANCE_GET_CLASS ((obj), GDK_TYPE_BROADWAY_SURFACE, GdkBroadwaySurfaceClass))
 
-#ifdef GDK_COMPILATION
+#ifdef GTK_COMPILATION
 typedef struct _GdkBroadwaySurface GdkBroadwaySurface;
 #else
 typedef GdkSurface GdkBroadwaySurface;
@@ -45,9 +45,6 @@ typedef struct _GdkBroadwaySurfaceClass GdkBroadwaySurfaceClass;
 
 GDK_AVAILABLE_IN_ALL
 GType    gdk_broadway_surface_get_type          (void);
-
-GDK_AVAILABLE_IN_ALL
-guint32  gdk_broadway_get_last_seen_time (GdkSurface       *surface);
 
 G_END_DECLS
 

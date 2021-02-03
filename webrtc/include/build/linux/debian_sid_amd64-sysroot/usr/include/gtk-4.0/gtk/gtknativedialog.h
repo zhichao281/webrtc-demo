@@ -36,7 +36,7 @@ struct _GtkNativeDialogClass
 {
   GObjectClass parent_class;
 
-  void (* response) (GtkNativeDialog *self, gint response_id);
+  void (* response) (GtkNativeDialog *self, int response_id);
 
   /* <private> */
   void (* show) (GtkNativeDialog *self);
@@ -72,9 +72,6 @@ void                  gtk_native_dialog_set_transient_for (GtkNativeDialog *self
                                                            GtkWindow *parent);
 GDK_AVAILABLE_IN_ALL
 GtkWindow *           gtk_native_dialog_get_transient_for (GtkNativeDialog *self);
-
-GDK_AVAILABLE_IN_ALL
-gint                  gtk_native_dialog_run (GtkNativeDialog *self);
 
 G_END_DECLS
 

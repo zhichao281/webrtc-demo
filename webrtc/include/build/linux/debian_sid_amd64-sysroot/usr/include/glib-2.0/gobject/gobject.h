@@ -320,7 +320,7 @@ struct  _GObjectClass
   GSList      *construct_properties;
 
   /*< public >*/
-  /* seldom overidden */
+  /* seldom overridden */
   GObject*   (*constructor)     (GType                  type,
                                  guint                  n_construct_properties,
                                  GObjectConstructParam *construct_properties);
@@ -335,7 +335,7 @@ struct  _GObjectClass
                                          GParamSpec     *pspec);
   void       (*dispose)			(GObject        *object);
   void       (*finalize)		(GObject        *object);
-  /* seldom overidden */
+  /* seldom overridden */
   void       (*dispatch_properties_changed) (GObject      *object,
 					     guint	   n_pspecs,
 					     GParamSpec  **pspecs);
@@ -738,11 +738,30 @@ static inline gboolean
   return TRUE;
 }
 
+/* We need GCC for __extension__, which we need to sort out strict aliasing of @object_ptr */
+#if defined(__GNUC__)
+
+#define g_set_object(object_ptr, new_object) \
+  (G_GNUC_EXTENSION ({ \
+    G_STATIC_ASSERT (sizeof *(object_ptr) == sizeof (new_object)); \
+    /* Only one access, please; work around type aliasing */ \
+    union { char *in; GObject **out; } _object_ptr; \
+    _object_ptr.in = (char *) (object_ptr); \
+    /* Check types match */ \
+    (void) (0 ? *(object_ptr) = (new_object), FALSE : FALSE); \
+    (g_set_object) (_object_ptr.out, (GObject *) new_object); \
+  })) \
+  GLIB_AVAILABLE_MACRO_IN_2_44
+
+#else  /* if !defined(__GNUC__) */
+
 #define g_set_object(object_ptr, new_object) \
  (/* Check types match. */ \
   0 ? *(object_ptr) = (new_object), FALSE : \
   (g_set_object) ((GObject **) (object_ptr), (GObject *) (new_object)) \
  )
+
+#endif  /* !defined(__GNUC__) */
 
 /**
  * g_assert_finalize_object: (skip)
@@ -819,7 +838,7 @@ static inline void
  *
  * Updates a pointer to weakly refer to @new_object. It assigns @new_object
  * to @weak_pointer_location and ensures that @weak_pointer_location will
- * automaticaly be set to %NULL if @new_object gets destroyed. The assignment
+ * automatically be set to %NULL if @new_object gets destroyed. The assignment
  * is not atomic. The weak reference is not thread-safe, see
  * g_object_add_weak_pointer() for details.
  *

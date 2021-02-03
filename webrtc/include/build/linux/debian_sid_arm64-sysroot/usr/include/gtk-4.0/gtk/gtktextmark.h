@@ -78,18 +78,16 @@ struct _GtkTextMarkClass
 {
   GObjectClass parent_class;
 
-  /* Padding for future expansion */
-  void (*_gtk_reserved1) (void);
-  void (*_gtk_reserved2) (void);
-  void (*_gtk_reserved3) (void);
-  void (*_gtk_reserved4) (void);
+  /*< private >*/
+
+  gpointer padding[8];
 };
 
 GDK_AVAILABLE_IN_ALL
 GType                 gtk_text_mark_get_type         (void) G_GNUC_CONST;
 
 GDK_AVAILABLE_IN_ALL
-GtkTextMark          *gtk_text_mark_new              (const gchar *name,
+GtkTextMark          *gtk_text_mark_new              (const char *name,
                                                       gboolean     left_gravity);
 GDK_AVAILABLE_IN_ALL
 void                  gtk_text_mark_set_visible      (GtkTextMark *mark,
@@ -98,7 +96,7 @@ GDK_AVAILABLE_IN_ALL
 gboolean              gtk_text_mark_get_visible      (GtkTextMark *mark);
 
 GDK_AVAILABLE_IN_ALL
-const gchar *         gtk_text_mark_get_name         (GtkTextMark *mark);
+const char *         gtk_text_mark_get_name         (GtkTextMark *mark);
 GDK_AVAILABLE_IN_ALL
 gboolean              gtk_text_mark_get_deleted      (GtkTextMark *mark);
 GDK_AVAILABLE_IN_ALL

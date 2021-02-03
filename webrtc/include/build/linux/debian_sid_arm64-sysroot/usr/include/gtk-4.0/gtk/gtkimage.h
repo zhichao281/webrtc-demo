@@ -38,24 +38,16 @@ G_BEGIN_DECLS
 
 #define GTK_TYPE_IMAGE                  (gtk_image_get_type ())
 #define GTK_IMAGE(obj)                  (G_TYPE_CHECK_INSTANCE_CAST ((obj), GTK_TYPE_IMAGE, GtkImage))
-#define GTK_IMAGE_CLASS(klass)          (G_TYPE_CHECK_CLASS_CAST ((klass), GTK_TYPE_IMAGE, GtkImageClass))
 #define GTK_IS_IMAGE(obj)               (G_TYPE_CHECK_INSTANCE_TYPE ((obj), GTK_TYPE_IMAGE))
-#define GTK_IS_IMAGE_CLASS(klass)       (G_TYPE_CHECK_CLASS_TYPE ((klass), GTK_TYPE_IMAGE))
-#define GTK_IMAGE_GET_CLASS(obj)        (G_TYPE_INSTANCE_GET_CLASS ((obj), GTK_TYPE_IMAGE, GtkImageClass))
-
 
 typedef struct _GtkImage              GtkImage;
-typedef struct _GtkImageClass         GtkImageClass;
 
 /**
  * GtkImageType:
  * @GTK_IMAGE_EMPTY: there is no image displayed by the widget
- * @GTK_IMAGE_ICON_NAME: the widget contains a named icon.
- *  This image type was added in GTK+ 2.6
- * @GTK_IMAGE_GICON: the widget contains a #GIcon.
- *  This image type was added in GTK+ 2.14
- * @GTK_IMAGE_PAINTABLE: the widget contains a #GdkPaintable.
- *  This image type was added in GTK+ 3.96
+ * @GTK_IMAGE_ICON_NAME: the widget contains a named icon
+ * @GTK_IMAGE_GICON: the widget contains a #GIcon
+ * @GTK_IMAGE_PAINTABLE: the widget contains a #GdkPaintable
  *
  * Describes the image data representation used by a #GtkImage. If you
  * want to get the image from the widget, you can only get the
@@ -73,43 +65,21 @@ typedef enum
   GTK_IMAGE_PAINTABLE
 } GtkImageType;
 
-/**
- * GtkImage:
- *
- * This struct contain private data only and should be accessed by the functions
- * below.
- */
-struct _GtkImage
-{
-  GtkWidget parent_instance;
-};
-
-struct _GtkImageClass
-{
-  GtkWidgetClass parent_class;
-
-  /* Padding for future expansion */
-  void (*_gtk_reserved1) (void);
-  void (*_gtk_reserved2) (void);
-  void (*_gtk_reserved3) (void);
-  void (*_gtk_reserved4) (void);
-};
-
 GDK_AVAILABLE_IN_ALL
 GType      gtk_image_get_type (void) G_GNUC_CONST;
 
 GDK_AVAILABLE_IN_ALL
 GtkWidget* gtk_image_new                (void);
 GDK_AVAILABLE_IN_ALL
-GtkWidget* gtk_image_new_from_file      (const gchar     *filename);
+GtkWidget* gtk_image_new_from_file      (const char      *filename);
 GDK_AVAILABLE_IN_ALL
-GtkWidget* gtk_image_new_from_resource  (const gchar     *resource_path);
+GtkWidget* gtk_image_new_from_resource  (const char      *resource_path);
 GDK_AVAILABLE_IN_ALL
 GtkWidget* gtk_image_new_from_pixbuf    (GdkPixbuf       *pixbuf);
 GDK_AVAILABLE_IN_ALL
 GtkWidget* gtk_image_new_from_paintable (GdkPaintable    *paintable);
 GDK_AVAILABLE_IN_ALL
-GtkWidget* gtk_image_new_from_icon_name (const gchar     *icon_name);
+GtkWidget* gtk_image_new_from_icon_name (const char      *icon_name);
 GDK_AVAILABLE_IN_ALL
 GtkWidget* gtk_image_new_from_gicon     (GIcon           *icon);
 
@@ -117,10 +87,10 @@ GDK_AVAILABLE_IN_ALL
 void gtk_image_clear              (GtkImage        *image);
 GDK_AVAILABLE_IN_ALL
 void gtk_image_set_from_file      (GtkImage        *image,
-                                   const gchar     *filename);
+                                   const char      *filename);
 GDK_AVAILABLE_IN_ALL
 void gtk_image_set_from_resource  (GtkImage        *image,
-                                   const gchar     *resource_path);
+                                   const char      *resource_path);
 GDK_AVAILABLE_IN_ALL
 void gtk_image_set_from_pixbuf    (GtkImage        *image,
                                    GdkPixbuf       *pixbuf);
@@ -129,13 +99,13 @@ void gtk_image_set_from_paintable (GtkImage        *image,
                                    GdkPaintable    *paintable);
 GDK_AVAILABLE_IN_ALL
 void gtk_image_set_from_icon_name (GtkImage        *image,
-				   const gchar     *icon_name);
+				   const char      *icon_name);
 GDK_AVAILABLE_IN_ALL
 void gtk_image_set_from_gicon     (GtkImage        *image,
 				   GIcon           *icon);
 GDK_AVAILABLE_IN_ALL
 void gtk_image_set_pixel_size     (GtkImage        *image,
-				   gint             pixel_size);
+				   int              pixel_size);
 GDK_AVAILABLE_IN_ALL
 void gtk_image_set_icon_size      (GtkImage        *image,
                                    GtkIconSize      icon_size);
@@ -151,7 +121,7 @@ const char *gtk_image_get_icon_name (GtkImage     *image);
 GDK_AVAILABLE_IN_ALL
 GIcon *    gtk_image_get_gicon     (GtkImage              *image);
 GDK_AVAILABLE_IN_ALL
-gint       gtk_image_get_pixel_size (GtkImage             *image);
+int        gtk_image_get_pixel_size (GtkImage             *image);
 GDK_AVAILABLE_IN_ALL
 GtkIconSize gtk_image_get_icon_size (GtkImage             *image);
 

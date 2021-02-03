@@ -16,7 +16,7 @@
  */
 
 
-#if !defined (__GSK_H_INSIDE__) && !defined (GSK_COMPILATION)
+#if !defined (__GSK_H_INSIDE__) && !defined (GTK_COMPILATION)
 #error "Only <gsk/gsk.h> can be included directly."
 #endif
 
@@ -24,5 +24,6 @@
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(GskRenderer, g_object_unref)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(GskRenderNode, gsk_render_node_unref)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(GskTransform, gsk_transform_unref)
 
 #endif

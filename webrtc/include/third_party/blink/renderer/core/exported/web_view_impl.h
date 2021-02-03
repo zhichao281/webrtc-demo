@@ -48,7 +48,6 @@
 #include "third_party/blink/public/mojom/renderer_preference_watcher.mojom-blink.h"
 #include "third_party/blink/public/platform/scheduler/web_agent_group_scheduler.h"
 #include "third_party/blink/public/platform/web_input_event_result.h"
-#include "third_party/blink/public/platform/web_rect.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/platform/web_vector.h"
 #include "third_party/blink/public/web/web_frame_widget.h"
@@ -188,7 +187,6 @@ class CORE_EXPORT WebViewImpl final : public WebView,
   void DidCloseContextMenu() override;
   void CancelPagePopup() override;
   WebPagePopupImpl* GetPagePopup() const override { return page_popup_.get(); }
-  void AcceptLanguagesChanged() override;
   void SetPageFrozen(bool frozen) override;
   WebFrameWidget* MainFrameWidget() override;
   void SetBaseBackgroundColor(SkColor) override;
@@ -232,7 +230,7 @@ class CORE_EXPORT WebViewImpl final : public WebView,
                                  cc::BrowserControlsParams);
 
   // Requests a page-scale animation based on the specified point/rect.
-  void AnimateDoubleTapZoom(const gfx::Point&, const WebRect& block_bounds);
+  void AnimateDoubleTapZoom(const gfx::Point&, const gfx::Rect& block_bounds);
 
   // mojom::blink::PageBroadcast method:
   void SetPageLifecycleState(
@@ -380,11 +378,11 @@ class CORE_EXPORT WebViewImpl final : public WebView,
   void FullFramePluginZoomLevelChanged(double zoom_level);
 
   // Requests a page-scale animation based on the specified rect.
-  void ZoomToFindInPageRect(const WebRect&);
+  void ZoomToFindInPageRect(const gfx::Rect&);
 
   void ComputeScaleAndScrollForBlockRect(
       const gfx::Point& hit_point,
-      const WebRect& block_rect,
+      const gfx::Rect& block_rect,
       float padding,
       float default_scale_when_already_legible,
       float& scale,
@@ -547,6 +545,7 @@ class CORE_EXPORT WebViewImpl final : public WebView,
   friend class WebView;  // So WebView::Create can call our constructor
   friend class WTF::RefCounted<WebViewImpl>;
 
+  void AcceptLanguagesChanged();
   void ThemeChanged();
 
   // Update the target url locally and tell the browser that the target URL has
@@ -605,9 +604,9 @@ class CORE_EXPORT WebViewImpl final : public WebView,
   // while keeping it smaller than page width.
   //
   // This method can only be called if the main frame is local.
-  WebRect WidenRectWithinPageBounds(const WebRect& source,
-                                    int target_margin,
-                                    int minimum_margin);
+  gfx::Rect WidenRectWithinPageBounds(const gfx::Rect& source,
+                                      int target_margin,
+                                      int minimum_margin);
 
   void EnablePopupMouseWheelEventListener(WebLocalFrameImpl* local_root);
   void DisablePopupMouseWheelEventListener();

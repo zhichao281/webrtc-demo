@@ -2,6 +2,7 @@
  * spd_audio_plugin.h -- The SPD Audio Plugin Header
  *
  * Copyright (C) 2004 Brailcom, o.p.s.
+ * Copyright (C) 2019 Samuel Thibault <samuel.thibault@ens-lyon.org>
  *
  * This is free software; you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free
@@ -55,12 +56,30 @@ typedef struct {
 typedef struct spd_audio_plugin {
 	const char *name;
 	AudioID *(*open) (void **pars);
+	/* Play audio track synchronously */
 	int (*play) (AudioID * id, AudioTrack track);
 	int (*stop) (AudioID * id);
 	int (*close) (AudioID * id);
 	int (*set_volume) (AudioID * id, int);
 	void (*set_loglevel) (int level);
 	char const *(*get_playcmd) (void);
+
+	/* Optional */
+	/* Configure audio for playing this track. Only bits, num_channels, and
+	   sample_rate should be read */
+	int (*begin) (AudioID *id, AudioTrack track);
+	/* Feed track to audio and wait for playback completion.
+	   bits, num_channels, and sample_rate shall be the same as during begin() call */
+	int (*feed_sync) (AudioID *id, AudioTrack track);
+	/* Feed track to audio and wait for almost complete playback completion.
+	   There should be enough playback left in audio buffers for caller to
+	   have the time to report a mark and submit the subsequent audio
+	   pieces, without risking an underrun.
+	   bits, num_channels, and sample_rate shall be the same as during begin() call */
+	int (*feed_sync_overlap) (AudioID *id, AudioTrack track);
+	/* Clean up audio after playback. Needs to drain the audio if this
+	   wasn't done already. */
+	int (*end)  (AudioID *id);
 } spd_audio_plugin_t;
 
 /* *INDENT-OFF* */

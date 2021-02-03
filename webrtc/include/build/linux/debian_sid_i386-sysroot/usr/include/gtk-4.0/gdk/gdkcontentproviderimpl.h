@@ -19,7 +19,7 @@
 #ifndef __GDK_CONTENT_PROVIDER_IMPL_H__
 #define __GDK_CONTENT_PROVIDER_IMPL_H__
 
-#if !defined (__GDK_H_INSIDE__) && !defined (GDK_COMPILATION)
+#if !defined (__GDK_H_INSIDE__) && !defined (GTK_COMPILATION)
 #error "Only <gdk/gdk.h> can be included directly."
 #endif
 
@@ -31,6 +31,12 @@ G_BEGIN_DECLS
 
 GDK_AVAILABLE_IN_ALL
 GdkContentProvider *    gdk_content_provider_new_for_value              (const GValue           *value);
+GDK_AVAILABLE_IN_ALL
+GdkContentProvider *    gdk_content_provider_new_typed                  (GType                   type,
+                                                                         ...);
+GDK_AVAILABLE_IN_ALL
+GdkContentProvider *    gdk_content_provider_new_union                  (GdkContentProvider    **providers,
+                                                                         gsize                   n_providers);
 GDK_AVAILABLE_IN_ALL
 GdkContentProvider *    gdk_content_provider_new_for_bytes              (const char             *mime_type,
                                                                          GBytes                 *bytes);

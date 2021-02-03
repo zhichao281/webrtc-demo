@@ -34,27 +34,8 @@ G_BEGIN_DECLS
 GDK_AVAILABLE_IN_ALL
 G_DECLARE_INTERFACE (GtkRoot, gtk_root, GTK, ROOT, GtkWidget)
 
-/**
- * GtkRootIface:
- *
- * The list of functions that must be implemented for the #GtkRoot interface.
- */
-struct _GtkRootInterface
-{
-  /*< private >*/
-  GTypeInterface g_iface;
-
-  /*< public >*/
-  GdkDisplay *          (* get_display)                 (GtkRoot                *self);
-  GskRenderer *         (* get_renderer)                (GtkRoot                *self);
-
-  void                  (* get_surface_transform)       (GtkRoot                *root,
-                                                         int                    *x,
-                                                         int                    *y);
-};
-
 GDK_AVAILABLE_IN_ALL
-GtkWidget * gtk_root_get_for_surface (GdkSurface *surface);
+GdkDisplay * gtk_root_get_display (GtkRoot *self);
 
 GDK_AVAILABLE_IN_ALL
 void        gtk_root_set_focus (GtkRoot   *self,

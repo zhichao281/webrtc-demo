@@ -169,7 +169,9 @@ class CORE_EXPORT LocalFrameClient : public FrameClient {
           initiator_csp,
       network::mojom::IPAddressSpace,
       mojo::PendingRemote<mojom::blink::NavigationInitiator>,
-      const base::UnguessableToken* initiator_frame_token) = 0;
+      const base::UnguessableToken* initiator_frame_token,
+      mojo::PendingRemote<mojom::blink::PolicyContainerHostKeepAliveHandle>
+          initiator_policy_container_handle) = 0;
 
   virtual void DispatchWillSendSubmitEvent(HTMLFormElement*) = 0;
 
@@ -283,7 +285,6 @@ class CORE_EXPORT LocalFrameClient : public FrameClient {
   virtual WebRemotePlaybackClient* CreateWebRemotePlaybackClient(
       HTMLMediaElement&) = 0;
 
-  virtual void DidCreateInitialEmptyDocument() = 0;
   virtual void DidCommitDocumentReplacementNavigation(DocumentLoader*) = 0;
   virtual void DispatchDidClearWindowObjectInMainWorld() = 0;
   virtual void DocumentElementAvailable() = 0;
@@ -354,8 +355,6 @@ class CORE_EXPORT LocalFrameClient : public FrameClient {
   virtual void DidChangeContents() {}
 
   virtual Frame* FindFrame(const AtomicString& name) const = 0;
-
-  virtual void FrameRectsChanged(const IntRect&) {}
 
   virtual void OnOverlayPopupAdDetected() {}
 

@@ -33,14 +33,9 @@ G_BEGIN_DECLS
 
 #define GTK_TYPE_ENTRY_COMPLETION            (gtk_entry_completion_get_type ())
 #define GTK_ENTRY_COMPLETION(obj)            (G_TYPE_CHECK_INSTANCE_CAST ((obj), GTK_TYPE_ENTRY_COMPLETION, GtkEntryCompletion))
-#define GTK_ENTRY_COMPLETION_CLASS(klass)    (G_TYPE_CHECK_CLASS_CAST ((klass), GTK_TYPE_ENTRY_COMPLETION, GtkEntryCompletionClass))
 #define GTK_IS_ENTRY_COMPLETION(obj)         (G_TYPE_CHECK_INSTANCE_TYPE ((obj), GTK_TYPE_ENTRY_COMPLETION))
-#define GTK_IS_ENTRY_COMPLETION_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE ((klass), GTK_TYPE_ENTRY_COMPLETION))
-#define GTK_ENTRY_COMPLETION_GET_CLASS(obj)  (G_TYPE_INSTANCE_GET_CLASS ((obj), GTK_TYPE_ENTRY_COMPLETION, GtkEntryCompletionClass))
 
 typedef struct _GtkEntryCompletion            GtkEntryCompletion;
-typedef struct _GtkEntryCompletionClass       GtkEntryCompletionClass;
-typedef struct _GtkEntryCompletionPrivate     GtkEntryCompletionPrivate;
 
 /**
  * GtkEntryCompletionMatchFunc:
@@ -60,42 +55,11 @@ typedef struct _GtkEntryCompletionPrivate     GtkEntryCompletionPrivate;
  *     for @key
  */
 typedef gboolean (* GtkEntryCompletionMatchFunc) (GtkEntryCompletion *completion,
-                                                  const gchar        *key,
+                                                  const char         *key,
                                                   GtkTreeIter        *iter,
                                                   gpointer            user_data);
 
 
-struct _GtkEntryCompletion
-{
-  GObject parent_instance;
-
-  /*< private >*/
-  GtkEntryCompletionPrivate *priv;
-};
-
-struct _GtkEntryCompletionClass
-{
-  GObjectClass parent_class;
-
-  gboolean (* match_selected)   (GtkEntryCompletion *completion,
-                                 GtkTreeModel       *model,
-                                 GtkTreeIter        *iter);
-  void     (* action_activated) (GtkEntryCompletion *completion,
-                                 gint                index_);
-  gboolean (* insert_prefix)    (GtkEntryCompletion *completion,
-                                 const gchar        *prefix);
-  gboolean (* cursor_on_match)  (GtkEntryCompletion *completion,
-                                 GtkTreeModel       *model,
-                                 GtkTreeIter        *iter);
-  void     (* no_matches)       (GtkEntryCompletion *completion);
-
-  /* Padding for future expansion */
-  void (*_gtk_reserved0) (void);
-  void (*_gtk_reserved1) (void);
-  void (*_gtk_reserved2) (void);
-};
-
-/* core */
 GDK_AVAILABLE_IN_ALL
 GType               gtk_entry_completion_get_type               (void) G_GNUC_CONST;
 GDK_AVAILABLE_IN_ALL
@@ -119,28 +83,16 @@ void                gtk_entry_completion_set_match_func         (GtkEntryComplet
                                                                  GDestroyNotify               func_notify);
 GDK_AVAILABLE_IN_ALL
 void                gtk_entry_completion_set_minimum_key_length (GtkEntryCompletion          *completion,
-                                                                 gint                         length);
+                                                                 int                          length);
 GDK_AVAILABLE_IN_ALL
-gint                gtk_entry_completion_get_minimum_key_length (GtkEntryCompletion          *completion);
+int                 gtk_entry_completion_get_minimum_key_length (GtkEntryCompletion          *completion);
 GDK_AVAILABLE_IN_ALL
-gchar *             gtk_entry_completion_compute_prefix         (GtkEntryCompletion          *completion,
+char *             gtk_entry_completion_compute_prefix         (GtkEntryCompletion          *completion,
                                                                  const char                  *key);
 GDK_AVAILABLE_IN_ALL
 void                gtk_entry_completion_complete               (GtkEntryCompletion          *completion);
 GDK_AVAILABLE_IN_ALL
 void                gtk_entry_completion_insert_prefix          (GtkEntryCompletion          *completion);
-
-GDK_AVAILABLE_IN_ALL
-void                gtk_entry_completion_insert_action_text     (GtkEntryCompletion          *completion,
-                                                                 gint                         index_,
-                                                                 const gchar                 *text);
-GDK_AVAILABLE_IN_ALL
-void                gtk_entry_completion_insert_action_markup   (GtkEntryCompletion          *completion,
-                                                                 gint                         index_,
-                                                                 const gchar                 *markup);
-GDK_AVAILABLE_IN_ALL
-void                gtk_entry_completion_delete_action          (GtkEntryCompletion          *completion,
-                                                                 gint                         index_);
 
 GDK_AVAILABLE_IN_ALL
 void                gtk_entry_completion_set_inline_completion  (GtkEntryCompletion          *completion,
@@ -169,13 +121,13 @@ GDK_AVAILABLE_IN_ALL
 gboolean            gtk_entry_completion_get_popup_single_match (GtkEntryCompletion          *completion);
 
 GDK_AVAILABLE_IN_ALL
-const gchar         *gtk_entry_completion_get_completion_prefix (GtkEntryCompletion *completion);
+const char          *gtk_entry_completion_get_completion_prefix (GtkEntryCompletion *completion);
 /* convenience */
 GDK_AVAILABLE_IN_ALL
 void                gtk_entry_completion_set_text_column        (GtkEntryCompletion          *completion,
-                                                                 gint                         column);
+                                                                 int                          column);
 GDK_AVAILABLE_IN_ALL
-gint                gtk_entry_completion_get_text_column        (GtkEntryCompletion          *completion);
+int                 gtk_entry_completion_get_text_column        (GtkEntryCompletion          *completion);
 
 G_END_DECLS
 

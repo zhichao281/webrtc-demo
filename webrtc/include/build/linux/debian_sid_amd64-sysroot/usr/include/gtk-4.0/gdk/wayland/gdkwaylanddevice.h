@@ -18,8 +18,8 @@
 #ifndef __GDK_WAYLAND_DEVICE_H__
 #define __GDK_WAYLAND_DEVICE_H__
 
-#if !defined (__GDKWAYLAND_H_INSIDE__) && !defined (GDK_COMPILATION)
-#error "Only <gdk/gdkwayland.h> can be included directly."
+#if !defined (__GDKWAYLAND_H_INSIDE__) && !defined (GTK_COMPILATION)
+#error "Only <gdk/wayland/gdkwayland.h> can be included directly."
 #endif
 
 #include <gdk/gdk.h>
@@ -28,11 +28,12 @@
 
 G_BEGIN_DECLS
 
-#ifdef GDK_COMPILATION
+#ifdef GTK_COMPILATION
 typedef struct _GdkWaylandDevice GdkWaylandDevice;
 #else
 typedef GdkDevice GdkWaylandDevice;
 #endif
+
 typedef struct _GdkWaylandDeviceClass GdkWaylandDeviceClass;
 
 #define GDK_TYPE_WAYLAND_DEVICE         (gdk_wayland_device_get_type ())
@@ -53,16 +54,7 @@ GDK_AVAILABLE_IN_ALL
 struct wl_keyboard  *gdk_wayland_device_get_wl_keyboard     (GdkDevice *device);
 
 GDK_AVAILABLE_IN_ALL
-struct wl_seat      *gdk_wayland_seat_get_wl_seat           (GdkSeat   *seat);
-
-GDK_AVAILABLE_IN_ALL
-const gchar         *gdk_wayland_device_get_node_path       (GdkDevice *device);
-
-GDK_AVAILABLE_IN_ALL
-void                 gdk_wayland_device_pad_set_feedback (GdkDevice           *device,
-                                                          GdkDevicePadFeature  element,
-                                                          guint                idx,
-                                                          const gchar         *label);
+const char          *gdk_wayland_device_get_node_path       (GdkDevice *device);
 
 G_END_DECLS
 

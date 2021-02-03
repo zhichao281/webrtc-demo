@@ -60,6 +60,9 @@
 #if CONFIG_TUNE_VMAF
 #include "av1/encoder/tune_vmaf.h"
 #endif
+#if CONFIG_AV1_TEMPORAL_DENOISING
+#include "av1/encoder/av1_temporal_denoiser.h"
+#endif
 
 #include "aom/internal/aom_codec_internal.h"
 #include "aom_util/aom_thread.h"
@@ -156,6 +159,18 @@ typedef enum {
   COST_UPD_TILE,
   COST_UPD_OFF,
 } COST_UPDATE_TYPE;
+
+typedef enum {
+  MOD_FP,           // First pass
+  MOD_TF,           // Temporal filtering
+  MOD_TPL,          // TPL
+  MOD_GME,          // Global motion estimation
+  MOD_ENC,          // Encode stage
+  MOD_LPF,          // Deblocking loop filter
+  MOD_CDEF_SEARCH,  // CDEF search
+  MOD_LR,           // Loop restoration filtering
+  NUM_MT_MODULES
+} MULTI_THREADED_MODULES;
 
 /*!\endcond */
 
@@ -864,6 +879,10 @@ typedef struct AV1EncoderConfig {
   int noise_block_size;
 #endif
 
+#if CONFIG_AV1_TEMPORAL_DENOISING
+  // Noise sensitivity.
+  int noise_sensitivity;
+#endif
   // Bit mask to specify which tier each of the 32 possible operating points
   // conforms to.
   unsigned int tier_mask;
@@ -1345,14 +1364,21 @@ typedef struct MultiThreadInfo {
   int num_workers;
 
   /*!
-   * Number of workers created for tpl and tile/row multi-threading of encoder.
+   * Number of workers used for different MT modules.
    */
-  int num_enc_workers;
+  int num_mod_workers[NUM_MT_MODULES];
 
   /*!
-   * Number of workers created for first-pass multi-threading.
+   * Flag to indicate whether thread specific buffers need to be allocated for
+   * tile/row based multi-threading of first pass stage.
    */
-  int num_fp_workers;
+  int fp_mt_buf_init_done;
+
+  /*!
+   * Flag to indicate whether thread specific buffers need to be allocated for
+   * tile/row based multi-threading of encode stage.
+   */
+  int enc_mt_buf_init_done;
 
   /*!
    * Synchronization object used to launch job in the worker thread.
@@ -1484,15 +1510,15 @@ typedef struct {
 
 /*!\cond */
 
-#if CONFIG_COLLECT_PARTITION_STATS == 2
-typedef struct PartitionStats {
+#if CONFIG_COLLECT_PARTITION_STATS
+typedef struct FramePartitionTimingStats {
   int partition_decisions[6][EXT_PARTITION_TYPES];
   int partition_attempts[6][EXT_PARTITION_TYPES];
   int64_t partition_times[6][EXT_PARTITION_TYPES];
 
   int partition_redo;
-} PartitionStats;
-#endif
+} FramePartitionTimingStats;
+#endif  // CONFIG_COLLECT_PARTITION_STATS
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
 #include "aom_ports/aom_timer.h"
@@ -1789,18 +1815,13 @@ typedef struct {
  */
 typedef struct {
   /*!
-   * Threshold to determine the best number of transform coefficients to keep
-   * using trellis optimization.
-   * Corresponds to enable_winner_mode_for_coeff_opt speed feature.
-   */
-  unsigned int coeff_opt_dist_threshold[MODE_EVAL_TYPES];
-
-  /*!
    * Threshold to determine if trellis optimization is to be enabled
-   * based on SATD.
+   * based on :
+   * 0 : dist threshold
+   * 1 : satd threshold
    * Corresponds to enable_winner_mode_for_coeff_opt speed feature.
    */
-  unsigned int coeff_opt_satd_threshold[MODE_EVAL_TYPES];
+  unsigned int coeff_opt_thresholds[MODE_EVAL_TYPES][2];
 
   /*!
    * Determines the tx size search method during rdopt.
@@ -1963,6 +1984,13 @@ typedef struct {
   int subsampling_x;
   int subsampling_y;
 } FRAME_INFO;
+
+/*!
+ * \brief This structure stores different types of frame indices.
+ */
+typedef struct {
+  int show_frame_count;
+} FRAME_INDEX_SET;
 
 /*!\endcond */
 
@@ -2373,6 +2401,11 @@ typedef struct AV1_COMP {
   FRAME_INFO frame_info;
 
   /*!
+   * Stores different types of frame indices.
+   */
+  FRAME_INDEX_SET frame_index_set;
+
+  /*!
    * Structure to store the dimensions of current frame.
    */
   InitialDimensions initial_dimensions;
@@ -2499,9 +2532,12 @@ typedef struct AV1_COMP {
    */
   int is_screen_content_type;
 
-#if CONFIG_COLLECT_PARTITION_STATS == 2
-  PartitionStats partition_stats;
-#endif
+#if CONFIG_COLLECT_PARTITION_STATS
+  /*!
+   * Accumulates the partition timing stat over the whole frame.
+   */
+  FramePartitionTimingStats partition_stats;
+#endif  // CONFIG_COLLECT_PARTITION_STATS
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   /*!
@@ -2609,6 +2645,13 @@ typedef struct AV1_COMP {
    * Temporal Noise Estimate
    */
   NOISE_ESTIMATE noise_estimate;
+
+#if CONFIG_AV1_TEMPORAL_DENOISING
+  /*!
+   * Temporal Denoiser
+   */
+  AV1_DENOISER denoiser;
+#endif
 
   /*!
    * Count on how many consecutive times a block uses small/zeromv for encoding
@@ -3180,9 +3223,17 @@ static AOM_INLINE int is_psnr_calc_enabled(const AV1_COMP *cpi) {
          cm->show_frame;
 }
 
+#if CONFIG_AV1_TEMPORAL_DENOISING
+static INLINE int denoise_svc(const struct AV1_COMP *const cpi) {
+  return (!cpi->use_svc || (cpi->use_svc && cpi->svc.spatial_layer_id >=
+                                                cpi->svc.first_layer_denoise));
+}
+#endif
+
 #if CONFIG_COLLECT_PARTITION_STATS == 2
-static INLINE void av1_print_partition_stats(PartitionStats *part_stats) {
-  FILE *f = fopen("partition_stats.csv", "w");
+static INLINE void av1_print_fr_partition_timing_stats(
+    const FramePartitionTimingStats *part_stats, const char *filename) {
+  FILE *f = fopen(filename, "w");
   if (!f) {
     return;
   }
@@ -3199,7 +3250,7 @@ static INLINE void av1_print_partition_stats(PartitionStats *part_stats) {
   }
   fprintf(f, "\n");
 
-  const int bsizes[6] = { 128, 64, 32, 16, 8, 4 };
+  static const int bsizes[6] = { 128, 64, 32, 16, 8, 4 };
 
   for (int bsize_idx = 0; bsize_idx < 6; bsize_idx++) {
     fprintf(f, "%d,%d,", bsizes[bsize_idx], part_stats->partition_redo);

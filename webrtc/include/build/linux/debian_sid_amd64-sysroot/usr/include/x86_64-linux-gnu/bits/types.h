@@ -1,5 +1,5 @@
 /* bits/types.h -- definitions of __*_t types underlying *_t types.
-   Copyright (C) 2002-2019 Free Software Foundation, Inc.
+   Copyright (C) 2002-2020 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -14,7 +14,7 @@
 
    You should have received a copy of the GNU Lesser General Public
    License along with the GNU C Library; if not, see
-   <http://www.gnu.org/licenses/>.  */
+   <https://www.gnu.org/licenses/>.  */
 
 /*
  * Never include this file directly; use <sys/types.h> instead.
@@ -213,10 +213,13 @@ __STD_TYPE __U32_TYPE __socklen_t;
    It is not currently necessary for this to be machine-specific.  */
 typedef int __sig_atomic_t;
 
-#if __TIMESIZE == 64
+/* Seconds since the Epoch, visible to user code when time_t is too
+   narrow only for consistency with the old way of widening too-narrow
+   types.  User code should never use __time64_t.  */
+#if __TIMESIZE == 64 && defined __LIBC
 # define __time64_t __time_t
-#else
-__STD_TYPE __TIME64_T_TYPE __time64_t;	/* Seconds since the Epoch.  */
+#elif __TIMESIZE != 64
+__STD_TYPE __TIME64_T_TYPE __time64_t;
 #endif
 
 #undef __STD_TYPE

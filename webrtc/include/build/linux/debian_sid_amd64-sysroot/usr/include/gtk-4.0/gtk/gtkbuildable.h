@@ -33,22 +33,58 @@ G_BEGIN_DECLS
 #define GTK_IS_BUILDABLE(obj)         (G_TYPE_CHECK_INSTANCE_TYPE ((obj), GTK_TYPE_BUILDABLE))
 #define GTK_BUILDABLE_GET_IFACE(obj)  (G_TYPE_INSTANCE_GET_INTERFACE ((obj), GTK_TYPE_BUILDABLE, GtkBuildableIface))
 
-
 typedef struct _GtkBuildable      GtkBuildable; /* Dummy typedef */
 typedef struct _GtkBuildableIface GtkBuildableIface;
+
+typedef struct _GtkBuildableParseContext      GtkBuildableParseContext;
+typedef struct _GtkBuildableParser GtkBuildableParser;
+
+struct _GtkBuildableParser
+{
+  /* Called for open tags <foo bar="baz"> */
+  void (*start_element)  (GtkBuildableParseContext *context,
+                          const char               *element_name,
+                          const char              **attribute_names,
+                          const char              **attribute_values,
+                          gpointer                  user_data,
+                          GError                  **error);
+
+  /* Called for close tags </foo> */
+  void (*end_element)    (GtkBuildableParseContext *context,
+                          const char               *element_name,
+                          gpointer                  user_data,
+                          GError                  **error);
+
+  /* Called for character data */
+  /* text is not nul-terminated */
+  void (*text)           (GtkBuildableParseContext *context,
+                          const char               *text,
+                          gsize                     text_len,
+                          gpointer                  user_data,
+                          GError                  **error);
+
+  /* Called on error, including one set by other
+   * methods in the vtable. The GError should not be freed.
+   */
+  void (*error)          (GtkBuildableParseContext *context,
+                          GError                   *error,
+                          gpointer                 user_data);
+
+  gpointer padding[4];
+};
 
 /**
  * GtkBuildableIface:
  * @g_iface: the parent class
- * @set_name: Stores the name attribute given in the GtkBuilder UI definition.
+ * @set_id: Stores the id attribute given in the GtkBuilder UI definition.
  *  #GtkWidget stores the name as object data. Implement this method if your
- *  object has some notion of “name” and it makes sense to map the XML name
+ *  object has some notion of “ID” and it makes sense to map the XML id
  *  attribute to it.
- * @get_name: The getter corresponding to @set_name. Implement this
- *  if you implement @set_name.
+ * @get_id: The getter corresponding to @set_id. Implement this
+ *  if you implement @set_id.
  * @add_child: Adds a child. The @type parameter can be used to
- *  differentiate the kind of child. #GtkContainer implements this
- *  to add add a child widget to the container, #GtkNotebook uses
+ *  differentiate the kind of child. #GtkWidget implements this
+ *  to add event controllers to the widget, #GtkNotebook uses
  *  the @type to distinguish between page labels (of type "page-label")
  *  and normal children.
  * @set_buildable_property: Sets a property of a buildable object.
@@ -65,7 +101,7 @@ typedef struct _GtkBuildableIface GtkBuildableIface;
  *  content below <child>. To handle an element, the implementation
  *  must fill in the @parser and @user_data and return %TRUE.
  *  #GtkWidget implements this to parse keyboard accelerators specified
- *  in <accelerator> elements. 
+ *  in <accelerator> elements.
  *  Note that @user_data must be freed in @custom_tag_end or @custom_finished.
  * @custom_tag_end: Called for the end tag of each custom element that is
  *  handled by the buildable (see @custom_tag_start).
@@ -90,42 +126,101 @@ struct _GtkBuildableIface
   GTypeInterface g_iface;
 
   /* virtual table */
-  void          (* set_name)               (GtkBuildable  *buildable,
-                                            const gchar   *name);
-  const gchar * (* get_name)               (GtkBuildable  *buildable);
-  void          (* add_child)              (GtkBuildable  *buildable,
-					    GtkBuilder    *builder,
-					    GObject       *child,
-					    const gchar   *type);
-  void          (* set_buildable_property) (GtkBuildable  *buildable,
-					    GtkBuilder    *builder,
-					    const gchar   *name,
-					    const GValue  *value);
-  GObject *     (* construct_child)        (GtkBuildable  *buildable,
-					    GtkBuilder    *builder,
-					    const gchar   *name);
-  gboolean      (* custom_tag_start)       (GtkBuildable  *buildable,
-					    GtkBuilder    *builder,
-					    GObject       *child,
-					    const gchar   *tagname,
-					    GMarkupParser *parser,
-					    gpointer      *data);
-  void          (* custom_tag_end)         (GtkBuildable  *buildable,
-					    GtkBuilder    *builder,
-					    GObject       *child,
-					    const gchar   *tagname,
-					    gpointer       data);
-  void          (* custom_finished)        (GtkBuildable  *buildable,
-					    GtkBuilder    *builder,
-					    GObject       *child,
-					    const gchar   *tagname,
-					    gpointer       data);
-  void          (* parser_finished)        (GtkBuildable  *buildable,
-					    GtkBuilder    *builder);
+  void          (* set_id)                 (GtkBuildable       *buildable,
+                                            const char         *id);
+  const char *  (* get_id)                 (GtkBuildable       *buildable);
 
-  GObject *     (* get_internal_child)     (GtkBuildable  *buildable,
-					    GtkBuilder    *builder,
-					    const gchar   *childname);
+  /**
+   * GtkBuildableIface::add_child:
+   * @buildable: a #GtkBuildable
+   * @builder: a #GtkBuilder
+   * @child: child to add
+   * @type: (nullable): kind of child or %NULL
+   *
+   * Adds a child to @buildable. @type is an optional string
+   * describing how the child should be added.
+   */
+  void          (* add_child)              (GtkBuildable       *buildable,
+                                            GtkBuilder         *builder,
+                                            GObject            *child,
+                                            const char         *type);
+  void          (* set_buildable_property) (GtkBuildable       *buildable,
+                                            GtkBuilder         *builder,
+                                            const char         *name,
+                                            const GValue       *value);
+  GObject *     (* construct_child)        (GtkBuildable       *buildable,
+                                            GtkBuilder         *builder,
+                                            const char         *name);
+
+  /**
+   * GtkBuildableIface::custom_tag_start:
+   * @buildable: a #GtkBuildable
+   * @builder: a #GtkBuilder used to construct this object
+   * @child: (nullable): child object or %NULL for non-child tags
+   * @tagname: name of tag
+   * @parser: (out): a #GMarkupParser to fill in
+   * @data: (out): return location for user data that will be passed in
+   *   to parser functions
+   *
+   * Called for each unknown element under `<child>`.
+   *
+   * Returns: %TRUE if an object has a custom implementation, %FALSE
+   *   if it doesn't.
+   */
+  gboolean      (* custom_tag_start)       (GtkBuildable       *buildable,
+                                            GtkBuilder         *builder,
+                                            GObject            *child,
+                                            const char         *tagname,
+                                            GtkBuildableParser *parser,
+                                            gpointer           *data);
+  /**
+   * GtkBuildableIface::custom_tag_end:
+   * @buildable: A #GtkBuildable
+   * @builder: #GtkBuilder used to construct this object
+   * @child: (nullable): child object or %NULL for non-child tags
+   * @tagname: name of tag
+   * @data: user data that will be passed in to parser functions
+   *
+   * Called at the end of each custom element handled by
+   * the buildable.
+   */
+  void          (* custom_tag_end)         (GtkBuildable       *buildable,
+                                            GtkBuilder         *builder,
+                                            GObject            *child,
+                                            const char         *tagname,
+                                            gpointer            data);
+   /**
+    * GtkBuildableIface::custom_finished:
+    * @buildable: a #GtkBuildable
+    * @builder: a #GtkBuilder
+    * @child: (nullable): child object or %NULL for non-child tags
+    * @tagname: the name of the tag
+    * @data: user data created in custom_tag_start
+    *
+    * Similar to gtk_buildable_parser_finished() but is
+    * called once for each custom tag handled by the @buildable.
+    */
+  void          (* custom_finished)        (GtkBuildable       *buildable,
+                                            GtkBuilder         *builder,
+                                            GObject            *child,
+                                            const char         *tagname,
+                                            gpointer            data);
+  void          (* parser_finished)        (GtkBuildable       *buildable,
+                                            GtkBuilder         *builder);
+
+  /**
+   * GtkBuildableIface::get_internal_child:
+   * @buildable: a #GtkBuildable
+   * @builder: a #GtkBuilder
+   * @childname: name of child
+   *
+   * Retrieves the internal child called @childname of the @buildable object.
+   *
+   * Returns: (transfer none): the internal child of the buildable object
+   */
+  GObject *     (* get_internal_child)     (GtkBuildable       *buildable,
+                                            GtkBuilder         *builder,
+                                            const char         *childname);
 };
 
 
@@ -133,50 +228,22 @@ GDK_AVAILABLE_IN_ALL
 GType     gtk_buildable_get_type               (void) G_GNUC_CONST;
 
 GDK_AVAILABLE_IN_ALL
-void      gtk_buildable_set_name               (GtkBuildable        *buildable,
-						const gchar         *name);
+const char * gtk_buildable_get_buildable_id    (GtkBuildable        *buildable);
+
 GDK_AVAILABLE_IN_ALL
-const gchar * gtk_buildable_get_name           (GtkBuildable        *buildable);
+void          gtk_buildable_parse_context_push              (GtkBuildableParseContext *context,
+                                                             const GtkBuildableParser *parser,
+                                                             gpointer                  user_data);
 GDK_AVAILABLE_IN_ALL
-void      gtk_buildable_add_child              (GtkBuildable        *buildable,
-						GtkBuilder          *builder,
-						GObject             *child,
-						const gchar         *type);
+gpointer      gtk_buildable_parse_context_pop               (GtkBuildableParseContext *context);
 GDK_AVAILABLE_IN_ALL
-void      gtk_buildable_set_buildable_property (GtkBuildable        *buildable,
-						GtkBuilder          *builder,
-						const gchar         *name,
-						const GValue        *value);
+const char *  gtk_buildable_parse_context_get_element       (GtkBuildableParseContext *context);
 GDK_AVAILABLE_IN_ALL
-GObject * gtk_buildable_construct_child        (GtkBuildable        *buildable,
-						GtkBuilder          *builder,
-						const gchar         *name);
+GPtrArray    *gtk_buildable_parse_context_get_element_stack (GtkBuildableParseContext *context);
 GDK_AVAILABLE_IN_ALL
-gboolean  gtk_buildable_custom_tag_start       (GtkBuildable        *buildable,
-						GtkBuilder          *builder,
-						GObject             *child,
-						const gchar         *tagname,
-						GMarkupParser       *parser,
-						gpointer            *data);
-GDK_AVAILABLE_IN_ALL
-void      gtk_buildable_custom_tag_end         (GtkBuildable        *buildable,
-						GtkBuilder          *builder,
-						GObject             *child,
-						const gchar         *tagname,
-						gpointer             data);
-GDK_AVAILABLE_IN_ALL
-void      gtk_buildable_custom_finished        (GtkBuildable        *buildable,
-						GtkBuilder          *builder,
-						GObject             *child,
-						const gchar         *tagname,
-						gpointer             data);
-GDK_AVAILABLE_IN_ALL
-void      gtk_buildable_parser_finished        (GtkBuildable        *buildable,
-						GtkBuilder          *builder);
-GDK_AVAILABLE_IN_ALL
-GObject * gtk_buildable_get_internal_child     (GtkBuildable        *buildable,
-						GtkBuilder          *builder,
-						const gchar         *childname);
+void          gtk_buildable_parse_context_get_position      (GtkBuildableParseContext *context,
+                                                             int                      *line_number,
+                                                             int                      *char_number);
 
 G_END_DECLS
 

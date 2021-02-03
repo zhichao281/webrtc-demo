@@ -29,193 +29,149 @@
 #error "Only <gtk/gtk.h> can be included directly."
 #endif
 
-#include <gtk/gtkwindow.h>
-#include <gtk/gtkmenu.h>
 #include <gtk/gtkwidget.h>
 
 G_BEGIN_DECLS
 
 #define GTK_TYPE_LABEL		  (gtk_label_get_type ())
 #define GTK_LABEL(obj)		  (G_TYPE_CHECK_INSTANCE_CAST ((obj), GTK_TYPE_LABEL, GtkLabel))
-#define GTK_LABEL_CLASS(klass)	  (G_TYPE_CHECK_CLASS_CAST ((klass), GTK_TYPE_LABEL, GtkLabelClass))
 #define GTK_IS_LABEL(obj)	  (G_TYPE_CHECK_INSTANCE_TYPE ((obj), GTK_TYPE_LABEL))
-#define GTK_IS_LABEL_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE ((klass), GTK_TYPE_LABEL))
-#define GTK_LABEL_GET_CLASS(obj)  (G_TYPE_INSTANCE_GET_CLASS ((obj), GTK_TYPE_LABEL, GtkLabelClass))
 
-
-typedef struct _GtkLabel              GtkLabel;
-typedef struct _GtkLabelPrivate       GtkLabelPrivate;
-typedef struct _GtkLabelClass         GtkLabelClass;
-
-typedef struct _GtkLabelSelectionInfo GtkLabelSelectionInfo;
-
-struct _GtkLabel
-{
-  GtkWidget parent_instance;
-};
-
-struct _GtkLabelClass
-{
-  GtkWidgetClass parent_class;
-
-  void (* move_cursor)     (GtkLabel       *label,
-			    GtkMovementStep step,
-			    gint            count,
-			    gboolean        extend_selection);
-  void (* copy_clipboard)  (GtkLabel       *label);
-
-  /* Hook to customize right-click popup for selectable labels */
-  void (* populate_popup)   (GtkLabel       *label,
-                             GtkMenu        *menu);
-
-  gboolean (*activate_link) (GtkLabel       *label,
-                             const gchar    *uri);
-
-  /* Padding for future expansion */
-  void (*_gtk_reserved1) (void);
-  void (*_gtk_reserved2) (void);
-  void (*_gtk_reserved3) (void);
-  void (*_gtk_reserved4) (void);
-  void (*_gtk_reserved5) (void);
-  void (*_gtk_reserved6) (void);
-  void (*_gtk_reserved7) (void);
-  void (*_gtk_reserved8) (void);
-};
+typedef struct _GtkLabel GtkLabel;
 
 GDK_AVAILABLE_IN_ALL
 GType                 gtk_label_get_type          (void) G_GNUC_CONST;
 GDK_AVAILABLE_IN_ALL
-GtkWidget*            gtk_label_new               (const gchar   *str);
+GtkWidget*            gtk_label_new               (const char    *str);
 GDK_AVAILABLE_IN_ALL
-GtkWidget*            gtk_label_new_with_mnemonic (const gchar   *str);
+GtkWidget*            gtk_label_new_with_mnemonic (const char    *str);
 GDK_AVAILABLE_IN_ALL
-void                  gtk_label_set_text          (GtkLabel      *label,
-						   const gchar   *str);
+void                  gtk_label_set_text          (GtkLabel      *self,
+						   const char    *str);
 GDK_AVAILABLE_IN_ALL
-const gchar*          gtk_label_get_text          (GtkLabel      *label);
+const char *          gtk_label_get_text          (GtkLabel      *self);
 GDK_AVAILABLE_IN_ALL
-void                  gtk_label_set_attributes    (GtkLabel      *label,
+void                  gtk_label_set_attributes    (GtkLabel      *self,
 						   PangoAttrList *attrs);
 GDK_AVAILABLE_IN_ALL
-PangoAttrList        *gtk_label_get_attributes    (GtkLabel      *label);
+PangoAttrList        *gtk_label_get_attributes    (GtkLabel      *self);
 GDK_AVAILABLE_IN_ALL
-void                  gtk_label_set_label         (GtkLabel      *label,
-						   const gchar   *str);
+void                  gtk_label_set_label         (GtkLabel      *self,
+						   const char    *str);
 GDK_AVAILABLE_IN_ALL
-const gchar *         gtk_label_get_label         (GtkLabel      *label);
+const char *         gtk_label_get_label         (GtkLabel      *self);
 GDK_AVAILABLE_IN_ALL
-void                  gtk_label_set_markup        (GtkLabel      *label,
-						   const gchar   *str);
+void                  gtk_label_set_markup        (GtkLabel      *self,
+						   const char    *str);
 GDK_AVAILABLE_IN_ALL
-void                  gtk_label_set_use_markup    (GtkLabel      *label,
+void                  gtk_label_set_use_markup    (GtkLabel      *self,
 						   gboolean       setting);
 GDK_AVAILABLE_IN_ALL
-gboolean              gtk_label_get_use_markup    (GtkLabel      *label);
+gboolean              gtk_label_get_use_markup    (GtkLabel      *self);
 GDK_AVAILABLE_IN_ALL
-void                  gtk_label_set_use_underline (GtkLabel      *label,
+void                  gtk_label_set_use_underline (GtkLabel      *self,
 						   gboolean       setting);
 GDK_AVAILABLE_IN_ALL
-gboolean              gtk_label_get_use_underline (GtkLabel      *label);
+gboolean              gtk_label_get_use_underline (GtkLabel      *self);
 
 GDK_AVAILABLE_IN_ALL
-void     gtk_label_set_markup_with_mnemonic       (GtkLabel         *label,
-						   const gchar      *str);
+void     gtk_label_set_markup_with_mnemonic       (GtkLabel         *self,
+						   const char       *str);
 GDK_AVAILABLE_IN_ALL
-guint    gtk_label_get_mnemonic_keyval            (GtkLabel         *label);
+guint    gtk_label_get_mnemonic_keyval            (GtkLabel         *self);
 GDK_AVAILABLE_IN_ALL
-void     gtk_label_set_mnemonic_widget            (GtkLabel         *label,
+void     gtk_label_set_mnemonic_widget            (GtkLabel         *self,
 						   GtkWidget        *widget);
 GDK_AVAILABLE_IN_ALL
-GtkWidget *gtk_label_get_mnemonic_widget          (GtkLabel         *label);
+GtkWidget *gtk_label_get_mnemonic_widget          (GtkLabel         *self);
 GDK_AVAILABLE_IN_ALL
-void     gtk_label_set_text_with_mnemonic         (GtkLabel         *label,
-						   const gchar      *str);
+void     gtk_label_set_text_with_mnemonic         (GtkLabel         *self,
+						   const char       *str);
 GDK_AVAILABLE_IN_ALL
-void     gtk_label_set_justify                    (GtkLabel         *label,
+void     gtk_label_set_justify                    (GtkLabel         *self,
 						   GtkJustification  jtype);
 GDK_AVAILABLE_IN_ALL
-GtkJustification gtk_label_get_justify            (GtkLabel         *label);
+GtkJustification gtk_label_get_justify            (GtkLabel         *self);
 GDK_AVAILABLE_IN_ALL
-void     gtk_label_set_ellipsize		  (GtkLabel         *label,
-						   PangoEllipsizeMode mode);
+void     gtk_label_set_ellipsize                  (GtkLabel         *self,
+                                                   PangoEllipsizeMode mode);
 GDK_AVAILABLE_IN_ALL
-PangoEllipsizeMode gtk_label_get_ellipsize        (GtkLabel         *label);
+PangoEllipsizeMode gtk_label_get_ellipsize        (GtkLabel         *self);
 GDK_AVAILABLE_IN_ALL
-void     gtk_label_set_width_chars		  (GtkLabel         *label,
-						   gint              n_chars);
+void     gtk_label_set_width_chars                (GtkLabel         *self,
+                                                   int               n_chars);
 GDK_AVAILABLE_IN_ALL
-gint     gtk_label_get_width_chars                (GtkLabel         *label);
+int      gtk_label_get_width_chars                (GtkLabel         *self);
 GDK_AVAILABLE_IN_ALL
-void     gtk_label_set_max_width_chars    	  (GtkLabel         *label,
-					  	   gint              n_chars);
+void     gtk_label_set_max_width_chars            (GtkLabel         *self,
+                                                   int               n_chars);
 GDK_AVAILABLE_IN_ALL
-gint     gtk_label_get_max_width_chars  	  (GtkLabel         *label);
+int      gtk_label_get_max_width_chars            (GtkLabel         *self);
 GDK_AVAILABLE_IN_ALL
-void     gtk_label_set_lines                      (GtkLabel         *label,
-                                                   gint              lines);
+void     gtk_label_set_lines                      (GtkLabel         *self,
+                                                   int               lines);
 GDK_AVAILABLE_IN_ALL
-gint     gtk_label_get_lines                      (GtkLabel         *label);
+int      gtk_label_get_lines                      (GtkLabel         *self);
 GDK_AVAILABLE_IN_ALL
-void     gtk_label_set_pattern                    (GtkLabel         *label,
-						   const gchar      *pattern);
+void     gtk_label_set_wrap                       (GtkLabel         *self,
+                                                   gboolean          wrap);
 GDK_AVAILABLE_IN_ALL
-void     gtk_label_set_line_wrap                  (GtkLabel         *label,
-						   gboolean          wrap);
+gboolean gtk_label_get_wrap                       (GtkLabel         *self);
 GDK_AVAILABLE_IN_ALL
-gboolean gtk_label_get_line_wrap                  (GtkLabel         *label);
+void     gtk_label_set_wrap_mode                  (GtkLabel         *self,
+                                                   PangoWrapMode     wrap_mode);
 GDK_AVAILABLE_IN_ALL
-void     gtk_label_set_line_wrap_mode             (GtkLabel         *label,
-						   PangoWrapMode     wrap_mode);
+PangoWrapMode gtk_label_get_wrap_mode             (GtkLabel         *self);
 GDK_AVAILABLE_IN_ALL
-PangoWrapMode gtk_label_get_line_wrap_mode        (GtkLabel         *label);
-GDK_AVAILABLE_IN_ALL
-void     gtk_label_set_selectable                 (GtkLabel         *label,
+void     gtk_label_set_selectable                 (GtkLabel         *self,
 						   gboolean          setting);
 GDK_AVAILABLE_IN_ALL
-gboolean gtk_label_get_selectable                 (GtkLabel         *label);
+gboolean gtk_label_get_selectable                 (GtkLabel         *self);
 GDK_AVAILABLE_IN_ALL
-void     gtk_label_select_region                  (GtkLabel         *label,
-						   gint              start_offset,
-						   gint              end_offset);
+void     gtk_label_select_region                  (GtkLabel         *self,
+						   int               start_offset,
+						   int               end_offset);
 GDK_AVAILABLE_IN_ALL
-gboolean gtk_label_get_selection_bounds           (GtkLabel         *label,
-                                                   gint             *start,
-                                                   gint             *end);
+gboolean gtk_label_get_selection_bounds           (GtkLabel         *self,
+                                                   int              *start,
+                                                   int              *end);
 
 GDK_AVAILABLE_IN_ALL
-PangoLayout *gtk_label_get_layout         (GtkLabel *label);
+PangoLayout *gtk_label_get_layout         (GtkLabel *self);
 GDK_AVAILABLE_IN_ALL
-void         gtk_label_get_layout_offsets (GtkLabel *label,
-                                           gint     *x,
-                                           gint     *y);
+void         gtk_label_get_layout_offsets (GtkLabel *self,
+                                           int      *x,
+                                           int      *y);
 
 GDK_AVAILABLE_IN_ALL
-void         gtk_label_set_single_line_mode  (GtkLabel *label,
+void         gtk_label_set_single_line_mode  (GtkLabel *self,
                                               gboolean single_line_mode);
 GDK_AVAILABLE_IN_ALL
-gboolean     gtk_label_get_single_line_mode  (GtkLabel *label);
+gboolean     gtk_label_get_single_line_mode  (GtkLabel *self);
 
 GDK_AVAILABLE_IN_ALL
-const gchar *gtk_label_get_current_uri (GtkLabel *label);
-GDK_AVAILABLE_IN_ALL
-void         gtk_label_set_track_visited_links  (GtkLabel *label,
-                                                 gboolean  track_links);
-GDK_AVAILABLE_IN_ALL
-gboolean     gtk_label_get_track_visited_links  (GtkLabel *label);
+const char *gtk_label_get_current_uri (GtkLabel *self);
 
 GDK_AVAILABLE_IN_ALL
-void         gtk_label_set_xalign (GtkLabel *label,
-                                   gfloat    xalign);
+void         gtk_label_set_xalign (GtkLabel *self,
+                                   float     xalign);
 
 GDK_AVAILABLE_IN_ALL
-gfloat       gtk_label_get_xalign (GtkLabel *label);
+float        gtk_label_get_xalign (GtkLabel *self);
 
 GDK_AVAILABLE_IN_ALL
-void         gtk_label_set_yalign (GtkLabel *label,
-                                   gfloat    yalign);
+void         gtk_label_set_yalign (GtkLabel *self,
+                                   float     yalign);
 
 GDK_AVAILABLE_IN_ALL
-gfloat       gtk_label_get_yalign (GtkLabel *label);
+float        gtk_label_get_yalign (GtkLabel *self);
+
+GDK_AVAILABLE_IN_ALL
+void         gtk_label_set_extra_menu (GtkLabel   *self,
+                                       GMenuModel *model);
+GDK_AVAILABLE_IN_ALL
+GMenuModel * gtk_label_get_extra_menu (GtkLabel   *self);
+
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(GtkLabel, g_object_unref)
 

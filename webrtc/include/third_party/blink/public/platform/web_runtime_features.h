@@ -70,6 +70,7 @@ class WebRuntimeFeatures {
 
   BLINK_PLATFORM_EXPORT static void EnableAOMAriaRelationshipProperties(bool);
   BLINK_PLATFORM_EXPORT static void EnableAccelerated2dCanvas(bool);
+  BLINK_PLATFORM_EXPORT static void EnableAccessibilityAriaVirtualContent(bool);
   BLINK_PLATFORM_EXPORT static void EnableAccessibilityExposeDisplayNone(bool);
   BLINK_PLATFORM_EXPORT static void EnableAccessibilityExposeHTMLElement(bool);
   BLINK_PLATFORM_EXPORT static void EnableAccessibilityExposeIgnoredNodes(bool);
@@ -149,6 +150,7 @@ class WebRuntimeFeatures {
   BLINK_PLATFORM_EXPORT static void EnableSharedArrayBuffer(bool);
   BLINK_PLATFORM_EXPORT static void EnableSharedWorker(bool);
   BLINK_PLATFORM_EXPORT static void EnableTextFragmentAnchor(bool);
+  BLINK_PLATFORM_EXPORT static void EnableTextFragmentColorChange(bool);
   BLINK_PLATFORM_EXPORT static void EnableTouchEventFeatureDetection(bool);
   BLINK_PLATFORM_EXPORT static void EnableScrollUnification(bool);
   BLINK_PLATFORM_EXPORT static void EnableUserActivationSameOriginVisibility(

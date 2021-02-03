@@ -26,67 +26,18 @@
 #error "Only <gtk/gtk.h> can be included directly."
 #endif
 
-#include <gtk/gtkbin.h>
+#include <gtk/gtkwidget.h>
 
 G_BEGIN_DECLS
 
 
 #define GTK_TYPE_LIST_BOX (gtk_list_box_get_type ())
 #define GTK_LIST_BOX(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), GTK_TYPE_LIST_BOX, GtkListBox))
-#define GTK_LIST_BOX_CLASS(klass) (G_TYPE_CHECK_CLASS_CAST ((klass), GTK_TYPE_LIST_BOX, GtkListBoxClass))
 #define GTK_IS_LIST_BOX(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), GTK_TYPE_LIST_BOX))
-#define GTK_IS_LIST_BOX_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE ((klass), GTK_TYPE_LIST_BOX))
-#define GTK_LIST_BOX_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), GTK_TYPE_LIST_BOX, GtkListBoxClass))
 
 typedef struct _GtkListBox        GtkListBox;
-typedef struct _GtkListBoxClass   GtkListBoxClass;
-
 typedef struct _GtkListBoxRow        GtkListBoxRow;
 typedef struct _GtkListBoxRowClass   GtkListBoxRowClass;
-
-struct _GtkListBox
-{
-  GtkContainer parent_instance;
-};
-
-/**
- * GtkListBoxClass:
- * @parent_class: The parent class.
- * @row_selected: Class handler for the #GtkListBox::row-selected signal
- * @row_activated: Class handler for the #GtkListBox::row-activated signal
- * @activate_cursor_row: Class handler for the #GtkListBox::activate-cursor-row signal
- * @toggle_cursor_row: Class handler for the #GtkListBox::toggle-cursor-row signal
- * @move_cursor: Class handler for the #GtkListBox::move-cursor signal
- * @selected_rows_changed: Class handler for the #GtkListBox::selected-rows-changed signal
- * @select_all: Class handler for the #GtkListBox::select-all signal
- * @unselect_all: Class handler for the #GtkListBox::unselect-all signal
- */
-struct _GtkListBoxClass
-{
-  GtkContainerClass parent_class;
-
-  /*< public >*/
-
-  void (*row_selected)        (GtkListBox      *box,
-                               GtkListBoxRow   *row);
-  void (*row_activated)       (GtkListBox      *box,
-                               GtkListBoxRow   *row);
-  void (*activate_cursor_row) (GtkListBox      *box);
-  void (*toggle_cursor_row)   (GtkListBox      *box);
-  void (*move_cursor)         (GtkListBox      *box,
-                               GtkMovementStep  step,
-                               gint             count);
-  void (*selected_rows_changed) (GtkListBox    *box);
-  void (*select_all)            (GtkListBox    *box);
-  void (*unselect_all)          (GtkListBox    *box);
-
-  /*< private >*/
-
-  /* Padding for future expansion */
-  void (*_gtk_reserved1) (void);
-  void (*_gtk_reserved2) (void);
-  void (*_gtk_reserved3) (void);
-};
 
 #define GTK_TYPE_LIST_BOX_ROW            (gtk_list_box_row_get_type ())
 #define GTK_LIST_BOX_ROW(obj)            (G_TYPE_CHECK_INSTANCE_CAST ((obj), GTK_TYPE_LIST_BOX_ROW, GtkListBoxRow))
@@ -97,7 +48,7 @@ struct _GtkListBoxClass
 
 struct _GtkListBoxRow
 {
-  GtkBin parent_instance;
+  GtkWidget parent_instance;
 };
 
 /**
@@ -107,7 +58,7 @@ struct _GtkListBoxRow
  */
 struct _GtkListBoxRowClass
 {
-  GtkBinClass parent_class;
+  GtkWidgetClass parent_class;
 
   /*< public >*/
 
@@ -115,9 +66,7 @@ struct _GtkListBoxRowClass
 
   /*< private >*/
 
-  /* Padding for future expansion */
-  void (*_gtk_reserved1) (void);
-  void (*_gtk_reserved2) (void);
+  gpointer padding[8];
 };
 
 /**
@@ -144,9 +93,9 @@ typedef gboolean (*GtkListBoxFilterFunc) (GtkListBoxRow *row,
  * Returns: < 0 if @row1 should be before @row2, 0 if they are
  *     equal and > 0 otherwise
  */
-typedef gint (*GtkListBoxSortFunc) (GtkListBoxRow *row1,
-                                    GtkListBoxRow *row2,
-                                    gpointer       user_data);
+typedef int (*GtkListBoxSortFunc) (GtkListBoxRow *row1,
+                                   GtkListBoxRow *row2,
+                                   gpointer       user_data);
 
 /**
  * GtkListBoxUpdateHeaderFunc:
@@ -180,13 +129,20 @@ GDK_AVAILABLE_IN_ALL
 GType      gtk_list_box_row_get_type      (void) G_GNUC_CONST;
 GDK_AVAILABLE_IN_ALL
 GtkWidget* gtk_list_box_row_new           (void);
+
+GDK_AVAILABLE_IN_ALL
+void       gtk_list_box_row_set_child     (GtkListBoxRow *row,
+                                           GtkWidget      *child);
+GDK_AVAILABLE_IN_ALL
+GtkWidget *gtk_list_box_row_get_child     (GtkListBoxRow *row);
+
 GDK_AVAILABLE_IN_ALL
 GtkWidget* gtk_list_box_row_get_header    (GtkListBoxRow *row);
 GDK_AVAILABLE_IN_ALL
 void       gtk_list_box_row_set_header    (GtkListBoxRow *row,
                                            GtkWidget     *header);
 GDK_AVAILABLE_IN_ALL
-gint       gtk_list_box_row_get_index     (GtkListBoxRow *row);
+int        gtk_list_box_row_get_index     (GtkListBoxRow *row);
 GDK_AVAILABLE_IN_ALL
 void       gtk_list_box_row_changed       (GtkListBoxRow *row);
 
@@ -212,17 +168,23 @@ GDK_AVAILABLE_IN_ALL
 void           gtk_list_box_prepend                      (GtkListBox                    *box,
                                                           GtkWidget                     *child);
 GDK_AVAILABLE_IN_ALL
+void           gtk_list_box_append                       (GtkListBox                    *box,
+                                                          GtkWidget                     *child);
+GDK_AVAILABLE_IN_ALL
 void           gtk_list_box_insert                       (GtkListBox                    *box,
                                                           GtkWidget                     *child,
-                                                          gint                           position);
+                                                          int                            position);
+GDK_AVAILABLE_IN_ALL
+void           gtk_list_box_remove                       (GtkListBox                    *box,
+                                                          GtkWidget                     *child);
 GDK_AVAILABLE_IN_ALL
 GtkListBoxRow* gtk_list_box_get_selected_row             (GtkListBox                    *box);
 GDK_AVAILABLE_IN_ALL
 GtkListBoxRow* gtk_list_box_get_row_at_index             (GtkListBox                    *box,
-                                                          gint                           index_);
+                                                          int                            index_);
 GDK_AVAILABLE_IN_ALL
 GtkListBoxRow* gtk_list_box_get_row_at_y                 (GtkListBox                    *box,
-                                                          gint                           y);
+                                                          int                            y);
 GDK_AVAILABLE_IN_ALL
 void           gtk_list_box_select_row                   (GtkListBox                    *box,
                                                           GtkListBoxRow                 *row);

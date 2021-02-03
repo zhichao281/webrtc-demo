@@ -49,7 +49,7 @@ struct _GtkEditableInterface
 
   /* signals */
   void (* insert_text)              (GtkEditable    *editable,
-                                     const gchar    *text,
+                                     const char     *text,
                                      int             length,
                                      int            *position);
   void (* delete_text)              (GtkEditable    *editable,
@@ -138,6 +138,11 @@ int      gtk_editable_get_max_width_chars  (GtkEditable *editable);
 GDK_AVAILABLE_IN_ALL
 void     gtk_editable_set_max_width_chars  (GtkEditable *editable,
                                             int          n_chars);
+GDK_AVAILABLE_IN_ALL
+gboolean gtk_editable_get_enable_undo      (GtkEditable *editable);
+GDK_AVAILABLE_IN_ALL
+void     gtk_editable_set_enable_undo      (GtkEditable *editable,
+                                            gboolean     enable_undo);
 
 /* api for implementations */
 
@@ -149,12 +154,15 @@ typedef enum {
   GTK_EDITABLE_PROP_WIDTH_CHARS,
   GTK_EDITABLE_PROP_MAX_WIDTH_CHARS,
   GTK_EDITABLE_PROP_XALIGN,
+  GTK_EDITABLE_PROP_ENABLE_UNDO,
   GTK_EDITABLE_NUM_PROPERTIES
 } GtkEditableProperties;
 
 GDK_AVAILABLE_IN_ALL
 guint        gtk_editable_install_properties    (GObjectClass *object_class,
                                                  guint         first_prop);
+GDK_AVAILABLE_IN_ALL
+GtkEditable *gtk_editable_get_delegate          (GtkEditable *editable);
 GDK_AVAILABLE_IN_ALL
 void         gtk_editable_init_delegate         (GtkEditable  *editable);
 GDK_AVAILABLE_IN_ALL

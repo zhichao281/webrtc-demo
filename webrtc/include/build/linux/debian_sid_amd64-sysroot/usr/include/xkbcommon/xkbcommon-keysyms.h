@@ -111,11 +111,11 @@ SOFTWARE.
  * When adding new keysyms to this file, do not forget to also update the
  * following as needed:
  *
- *   - the mappings in src/KeyBind.c in the repo
- *     git://anongit.freedesktop.org/xorg/lib/libX11.git
+ *   - the mappings in src/KeyBind.c in the libX11 repo
+ *     https://gitlab.freedesktop.org/xorg/lib/libx11
  *
- *   - the protocol specification in specs/keysyms.xml
- *     in the repo git://anongit.freedesktop.org/xorg/proto/x11proto.git
+ *   - the protocol specification in specs/keysyms.xml in this repo
+ *     https://gitlab.freedesktop.org/xorg/proto/xorgproto
  *
  */
 
@@ -2654,6 +2654,8 @@ SOFTWARE.
 #define XKB_KEY_XF86AudioPreset	0x1008FFB6   /* Select equalizer preset, e.g. theatre-mode */
 
 #define XKB_KEY_XF86RotationLockToggle 0x1008FFB7 /* Toggle screen rotation lock on/off */
+
+#define XKB_KEY_XF86FullScreen	0x1008FFB8   /* Toggle fullscreen */
 
 /* Keys for special action keys (hot keys) */
 /* Virtual terminals on some operating systems */

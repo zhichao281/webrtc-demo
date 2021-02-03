@@ -49,6 +49,7 @@
 #include "base/allocator/partition_allocator/thread_cache.h"
 #include "base/bits.h"
 #include "base/optional.h"
+#include "base/partition_alloc_buildflags.h"
 #include "build/build_config.h"
 
 // If set to 1, enables zeroing memory on Free() with roughly 1% probability.
@@ -69,10 +70,6 @@
 
 namespace base {
 
-// This file may end up getting included even when PartitionAlloc isn't used,
-// but the .cc file won't be linked. Exclude the code that relies on it.
-#if BUILDFLAG(USE_PARTITION_ALLOC)
-
 namespace internal {
 // Avoid including partition_address_space.h from this .h file, by moving the
 // call to IfManagedByPartitionAllocNormalBuckets into the .cc file.
@@ -82,8 +79,6 @@ BASE_EXPORT void DCheckIfManagedByPartitionAllocNormalBuckets(const void* ptr);
 ALWAYS_INLINE void DCheckIfManagedByPartitionAllocNormalBuckets(const void*) {}
 #endif
 }  // namespace internal
-
-#endif  // BUILDFLAG(USE_PARTITION_ALLOC)
 
 enum PartitionPurgeFlags {
   // Decommitting the ring list of empty slot spans is reasonably fast.
@@ -100,8 +95,8 @@ enum PartitionPurgeFlags {
 // Options struct used to configure PartitionRoot and PartitionAllocator.
 struct PartitionOptions {
   enum class Alignment {
-    // By default all allocations will be aligned to 8B (16B if
-    // BUILDFLAG_INTERNAL_USE_PARTITION_ALLOC_AS_MALLOC is true).
+    // By default all allocations will be aligned to `base::kAlignment`,
+    // likely to be 8B or 16B depending on platforms and toolchains.
     kRegular,
 
     // In addition to the above alignment enforcement, this option allows using
@@ -131,9 +126,19 @@ struct PartitionOptions {
   };
 
   enum class RefCount {
-    kEnabled,
     kDisabled,
+    kEnabled,
   };
+
+  // Constructor to suppress aggregate initialization.
+  constexpr PartitionOptions(Alignment alignment,
+                             ThreadCache thread_cache,
+                             PCScan pcscan,
+                             RefCount ref_count)
+      : alignment(alignment),
+        thread_cache(thread_cache),
+        pcscan(pcscan),
+        ref_count(ref_count) {}
 
   Alignment alignment;
   ThreadCache thread_cache;
@@ -298,8 +303,9 @@ struct BASE_EXPORT PartitionRoot {
   ALWAYS_INLINE void FreeNoHooksImmediate(void* ptr, SlotSpan* slot_span);
 
   ALWAYS_INLINE static size_t GetUsableSize(void* ptr);
-  ALWAYS_INLINE size_t GetSize(void* ptr) const;
-  ALWAYS_INLINE size_t ActualSize(size_t size);
+
+  ALWAYS_INLINE size_t AllocationCapacityFromPtr(void* ptr) const;
+  ALWAYS_INLINE size_t AllocationCapacityFromRequestedSize(size_t size) const;
 
   // Frees memory from this partition, if possible, by decommitting pages or
   // even etnire slot spans. |flags| is an OR of base::PartitionPurgeFlags.
@@ -311,11 +317,12 @@ struct BASE_EXPORT PartitionRoot {
 
   static uint16_t SizeToBucketIndex(size_t size);
 
-  // Frees memory, with |ptr| as returned by |RawAlloc()|.
-  ALWAYS_INLINE void RawFree(void* ptr);
-  ALWAYS_INLINE void RawFree(void* ptr, SlotSpan* slot_span);
+  // Frees memory, with |slot_start| as returned by |RawAlloc()|.
+  ALWAYS_INLINE void RawFree(void* slot_start);
+  ALWAYS_INLINE void RawFree(void* slot_start, SlotSpan* slot_span);
 
-  ALWAYS_INLINE void RawFreeWithThreadCache(void* ptr, SlotSpan* slot_span);
+  ALWAYS_INLINE void RawFreeWithThreadCache(void* slot_start,
+                                            SlotSpan* slot_span);
 
   internal::ThreadCache* thread_cache_for_testing() const {
     return with_thread_cache ? internal::ThreadCache::Get() : nullptr;
@@ -326,7 +333,7 @@ struct BASE_EXPORT PartitionRoot {
 
   bool UsesGigaCage() const {
     return features::IsPartitionAllocGigaCageEnabled()
-#if ENABLE_REF_COUNT_FOR_BACKUP_REF_PTR
+#if BUILDFLAG(USE_BACKUP_REF_PTR)
            && allow_ref_count
 #endif
         ;
@@ -422,7 +429,8 @@ struct BASE_EXPORT PartitionRoot {
   //
   // See crbug.com/1150772 for an instance of Clusterfuzz / UBSAN detecting
   // this.
-  ALWAYS_INLINE Bucket& NO_SANITIZE("undefined") bucket_at(size_t i) {
+  ALWAYS_INLINE const Bucket& NO_SANITIZE("undefined")
+      bucket_at(size_t i) const {
     PA_DCHECK(i <= kNumBuckets);
     return buckets[i];
   }
@@ -450,7 +458,8 @@ struct BASE_EXPORT PartitionRoot {
       internal::SlotSpanMetadata<thread_safe>* slot_span,
       size_t requested_size) EXCLUSIVE_LOCKS_REQUIRED(lock_);
   void DecommitEmptySlotSpans() EXCLUSIVE_LOCKS_REQUIRED(lock_);
-  ALWAYS_INLINE void RawFreeLocked(void* ptr) EXCLUSIVE_LOCKS_REQUIRED(lock_);
+  ALWAYS_INLINE void RawFreeLocked(void* slot_start)
+      EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
   friend class internal::ThreadCache;
 };
@@ -636,16 +645,14 @@ PartitionAllocGetSlotSpanForSizeQuery(void* ptr) {
   // No need to lock here. Only |ptr| being freed by another thread could
   // cause trouble, and the caller is responsible for that not happening.
   auto* slot_span =
-      internal::SlotSpanMetadata<thread_safe>::FromPointerNoAlignmentCheck(ptr);
+      internal::SlotSpanMetadata<thread_safe>::FromSlotInnerPtr(ptr);
   // TODO(palmer): See if we can afford to make this a CHECK.
   PA_DCHECK(PartitionRoot<thread_safe>::IsValidSlotSpan(slot_span));
   return slot_span;
 }
 
-// This file may end up getting included even when PartitionAlloc isn't used,
-// but the .cc file won't be linked. Exclude the code that relies on it.
-#if BUILDFLAG(USE_PARTITION_ALLOC)
 // Gets the offset from the beginning of the allocated slot.
+//
 // CAUTION! Use only for normal buckets. Using on direct-mapped allocations may
 // lead to undefined behavior.
 //
@@ -665,13 +672,32 @@ ALWAYS_INLINE size_t PartitionAllocGetSlotOffset(void* ptr) {
   // Get the offset from the beginning of the slot span.
   uintptr_t ptr_addr = reinterpret_cast<uintptr_t>(ptr);
   uintptr_t slot_span_start = reinterpret_cast<uintptr_t>(
-      internal::SlotSpanMetadata<internal::ThreadSafe>::ToPointer(slot_span));
+      internal::SlotSpanMetadata<internal::ThreadSafe>::ToSlotSpanStartPtr(
+          slot_span));
   size_t offset_in_slot_span = ptr_addr - slot_span_start;
 
   return slot_span->bucket->GetSlotOffset(offset_in_slot_span);
 }
 
+// Gets the pointer to the beginning of the allocated slot.
+//
+// CAUTION! Use only for normal buckets. Using on direct-mapped allocations may
+// lead to undefined behavior.
+//
+// This function is not a template, and can be used on either variant
+// (thread-safe or not) of the allocator. This relies on the two PartitionRoot<>
+// having the same layout, which is enforced by static_assert().
 ALWAYS_INLINE void* PartitionAllocGetSlotStart(void* ptr) {
+#if BUILDFLAG(USE_BACKUP_REF_PTR)
+  // Adjust to support pointers right past the end of an allocation, which in
+  // some cases appear to point outside the designated allocation slot.
+  // There is no risk of going too far i.e. confusing |ptr -
+  // kPartitionRefCountOffset| with the previous allocation because |ptr|, which
+  // is a pointer within the user-accessible area, is at least
+  // |kPartitionRefCountOffset| bytes away from the beginning of its slot.
+  ptr = reinterpret_cast<char*>(ptr) - kPartitionRefCountOffset;
+#endif  // BUILDFLAG(USE_BACKUP_REF_PTR)
+
   internal::DCheckIfManagedByPartitionAllocNormalBuckets(ptr);
   auto* slot_span =
       internal::PartitionAllocGetSlotSpanForSizeQuery<internal::ThreadSafe>(
@@ -684,7 +710,8 @@ ALWAYS_INLINE void* PartitionAllocGetSlotStart(void* ptr) {
   // Get the offset from the beginning of the slot span.
   uintptr_t ptr_addr = reinterpret_cast<uintptr_t>(ptr);
   uintptr_t slot_span_start = reinterpret_cast<uintptr_t>(
-      internal::SlotSpanMetadata<internal::ThreadSafe>::ToPointer(slot_span));
+      internal::SlotSpanMetadata<internal::ThreadSafe>::ToSlotSpanStartPtr(
+          slot_span));
   size_t offset_in_slot_span = ptr_addr - slot_span_start;
 
   auto* bucket = slot_span->bucket;
@@ -693,14 +720,13 @@ ALWAYS_INLINE void* PartitionAllocGetSlotStart(void* ptr) {
       bucket->slot_size * bucket->GetSlotNumber(offset_in_slot_span));
 }
 
-#if ENABLE_REF_COUNT_FOR_BACKUP_REF_PTR
+#if BUILDFLAG(USE_BACKUP_REF_PTR)
 // TODO(glazunov): Simplify the function once the non-thread-safe PartitionRoot
 // is no longer used.
 ALWAYS_INLINE void PartitionAllocFreeForRefCounting(void* slot_start) {
-  PA_DCHECK(!internal::PartitionRefCountPointerNoDCheck(slot_start)->IsAlive());
+  PA_DCHECK(!internal::PartitionRefCountPointer(slot_start)->IsAlive());
 
-  auto* slot_span =
-      SlotSpanMetadata<ThreadSafe>::FromPointerNoAlignmentCheck(slot_start);
+  auto* slot_span = SlotSpanMetadata<ThreadSafe>::FromSlotStartPtr(slot_start);
   auto* root = PartitionRoot<ThreadSafe>::FromSlotSpan(slot_span);
   // PartitionRefCount is required to be allocated inside a `PartitionRoot` that
   // supports reference counts.
@@ -722,8 +748,7 @@ ALWAYS_INLINE void PartitionAllocFreeForRefCounting(void* slot_start) {
   non_thread_safe_root->RawFreeWithThreadCache(slot_start,
                                                non_thread_safe_slot_span);
 }
-#endif  // ENABLE_REF_COUNT_FOR_BACKUP_REF_PTR
-#endif  // BUILDFLAG(USE_PARTITION_ALLOC)
+#endif  // BUILDFLAG(USE_BACKUP_REF_PTR)
 
 }  // namespace internal
 
@@ -739,8 +764,8 @@ ALWAYS_INLINE void* PartitionRoot<thread_safe>::AllocFromBucket(
   PA_DCHECK(slot_span);
   PA_DCHECK(slot_span->num_allocated_slots >= 0);
 
-  void* ret = slot_span->freelist_head;
-  if (LIKELY(ret)) {
+  void* slot_start = slot_span->freelist_head;
+  if (LIKELY(slot_start)) {
     *is_already_zeroed = false;
     *utilized_slot_size = bucket->slot_size;
 
@@ -759,14 +784,16 @@ ALWAYS_INLINE void* PartitionRoot<thread_safe>::AllocFromBucket(
 
     PA_DCHECK(slot_span->bucket == bucket);
   } else {
-    ret = bucket->SlowPathAlloc(this, flags, raw_size, is_already_zeroed);
+    slot_start =
+        bucket->SlowPathAlloc(this, flags, raw_size, is_already_zeroed);
     // TODO(palmer): See if we can afford to make this a CHECK.
-    PA_DCHECK(!ret || IsValidSlotSpan(SlotSpan::FromPointer(ret)));
+    PA_DCHECK(!slot_start ||
+              IsValidSlotSpan(SlotSpan::FromSlotStartPtr(slot_start)));
 
-    if (UNLIKELY(!ret))
+    if (UNLIKELY(!slot_start))
       return nullptr;
 
-    slot_span = SlotSpan::FromPointer(ret);
+    slot_span = SlotSpan::FromSlotStartPtr(slot_start);
     // For direct mapped allocations, |bucket| is the sentinel.
     PA_DCHECK((slot_span->bucket == bucket) ||
               (slot_span->bucket->is_direct_mapped() &&
@@ -775,7 +802,7 @@ ALWAYS_INLINE void* PartitionRoot<thread_safe>::AllocFromBucket(
     *utilized_slot_size = slot_span->GetUtilizedSlotSize();
   }
 
-  return ret;
+  return slot_start;
 }
 
 // static
@@ -812,17 +839,15 @@ ALWAYS_INLINE void PartitionRoot<thread_safe>::FreeNoHooks(void* ptr) {
     // This is a crash to detect imperfect symbol interception. However, we can
     // forward allocations we don't own to the system malloc() implementation in
     // these rare cases, assuming that some remain.
-    //
-    // TODO(lizeb): Make this a PA_CHECK() at least temporarily to detect
-    // potential issues in the wild as well.
 #if defined(OS_ANDROID) && BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && \
-    !ENABLE_REF_COUNT_FOR_BACKUP_REF_PTR
-  PA_DCHECK(IsManagedByPartitionAllocNormalBuckets(ptr) ||
-            IsManagedByPartitionAllocDirectMap(ptr));
+    !BUILDFLAG(USE_BACKUP_REF_PTR)
+  PA_CHECK(IsManagedByPartitionAllocNormalBuckets(ptr) ||
+           IsManagedByPartitionAllocDirectMap(ptr));
 #endif
 
-  // No check as the pointer hasn't been adjusted yet.
-  SlotSpan* slot_span = SlotSpan::FromPointerNoAlignmentCheck(ptr);
+  // Call FromSlotInnerPtr instead of FromSlotStartPtr because the pointer
+  // hasn't been adjusted yet.
+  SlotSpan* slot_span = SlotSpan::FromSlotInnerPtr(ptr);
   // TODO(palmer): See if we can afford to make this a CHECK.
   PA_DCHECK(IsValidSlotSpan(slot_span));
   auto* root = FromSlotSpan(slot_span);
@@ -868,15 +893,13 @@ ALWAYS_INLINE void PartitionRoot<thread_safe>::FreeNoHooksImmediate(
   // Note: ref-count and cookies can be 0-sized.
   //
   // For more context, see the other "Layout inside the slot" comment below.
-#if ENABLE_REF_COUNT_FOR_BACKUP_REF_PTR || DCHECK_IS_ON() || \
-    ZERO_RANDOMLY_ON_FREE
+#if BUILDFLAG(USE_BACKUP_REF_PTR) || DCHECK_IS_ON() || ZERO_RANDOMLY_ON_FREE
   const size_t utilized_slot_size = slot_span->GetUtilizedSlotSize();
 #endif
 
-#if ENABLE_REF_COUNT_FOR_BACKUP_REF_PTR || DCHECK_IS_ON()
+#if BUILDFLAG(USE_BACKUP_REF_PTR) || DCHECK_IS_ON()
   const size_t usable_size = AdjustSizeForExtrasSubtract(utilized_slot_size);
 #endif
-
   void* slot_start = AdjustPointerForExtrasSubtract(ptr);
 
 #if DCHECK_IS_ON()
@@ -889,10 +912,10 @@ ALWAYS_INLINE void PartitionRoot<thread_safe>::FreeNoHooksImmediate(
   }
 #endif
 
-#if ENABLE_REF_COUNT_FOR_BACKUP_REF_PTR
+#if BUILDFLAG(USE_BACKUP_REF_PTR)
   if (allow_ref_count) {
     if (LIKELY(!slot_span->bucket->is_direct_mapped())) {
-      auto* ref_count = internal::PartitionRefCountPointerNoDCheck(slot_start);
+      auto* ref_count = internal::PartitionRefCountPointer(slot_start);
       // If we are holding the last reference to the allocation, it can be freed
       // immediately. Otherwise, defer the operation and zap the memory to turn
       // potential use-after-free issues into unexploitable crashes.
@@ -903,45 +926,42 @@ ALWAYS_INLINE void PartitionRoot<thread_safe>::FreeNoHooksImmediate(
         return;
     }
   }
-#endif  // ENABLE_REF_COUNT_FOR_BACKUP_REF_PTR
-
-  // Shift `ptr` to the beginning of the slot.
-  ptr = slot_start;
+#endif  // BUILDFLAG(USE_BACKUP_REF_PTR)
 
 #if DCHECK_IS_ON()
-  memset(ptr, kFreedByte, utilized_slot_size);
+  memset(slot_start, kFreedByte, utilized_slot_size);
 #elif ZERO_RANDOMLY_ON_FREE
   // `memset` only once in a while: we're trading off safety for time
   // efficiency.
   if (UNLIKELY(internal::RandomPeriod()) &&
       !slot_span->bucket->is_direct_mapped()) {
-    internal::SecureZero(ptr, utilized_slot_size);
+    internal::SecureZero(slot_start, utilized_slot_size);
   }
 #endif
 
-  RawFreeWithThreadCache(ptr, slot_span);
+  RawFreeWithThreadCache(slot_start, slot_span);
 }
 
 template <bool thread_safe>
-ALWAYS_INLINE void PartitionRoot<thread_safe>::RawFree(void* ptr) {
-  SlotSpan* slot_span = SlotSpan::FromPointerNoAlignmentCheck(ptr);
-  RawFree(ptr, slot_span);
+ALWAYS_INLINE void PartitionRoot<thread_safe>::RawFree(void* slot_start) {
+  SlotSpan* slot_span = SlotSpan::FromSlotStartPtr(slot_start);
+  RawFree(slot_start, slot_span);
 }
 
 template <bool thread_safe>
-ALWAYS_INLINE void PartitionRoot<thread_safe>::RawFree(void* ptr,
+ALWAYS_INLINE void PartitionRoot<thread_safe>::RawFree(void* slot_start,
                                                        SlotSpan* slot_span) {
   internal::DeferredUnmap deferred_unmap;
   {
     ScopedGuard guard{lock_};
-    deferred_unmap = slot_span->Free(ptr);
+    deferred_unmap = slot_span->Free(slot_start);
   }
   deferred_unmap.Run();
 }
 
 template <bool thread_safe>
 ALWAYS_INLINE void PartitionRoot<thread_safe>::RawFreeWithThreadCache(
-    void* ptr,
+    void* slot_start,
     SlotSpan* slot_span) {
   // TLS access can be expensive, do a cheap local check first.
   //
@@ -957,18 +977,18 @@ ALWAYS_INLINE void PartitionRoot<thread_safe>::RawFreeWithThreadCache(
     size_t bucket_index = slot_span->bucket - this->buckets;
     auto* thread_cache = internal::ThreadCache::Get();
     if (LIKELY(thread_cache &&
-               thread_cache->MaybePutInCache(ptr, bucket_index))) {
+               thread_cache->MaybePutInCache(slot_start, bucket_index))) {
       return;
     }
   }
 
-  RawFree(ptr, slot_span);
+  RawFree(slot_start, slot_span);
 }
 
 template <bool thread_safe>
-ALWAYS_INLINE void PartitionRoot<thread_safe>::RawFreeLocked(void* ptr) {
-  SlotSpan* slot_span = SlotSpan::FromPointerNoAlignmentCheck(ptr);
-  auto deferred_unmap = slot_span->Free(ptr);
+ALWAYS_INLINE void PartitionRoot<thread_safe>::RawFreeLocked(void* slot_start) {
+  SlotSpan* slot_span = SlotSpan::FromSlotStartPtr(slot_start);
+  auto deferred_unmap = slot_span->Free(slot_start);
   PA_DCHECK(!deferred_unmap.ptr);  // Only used with bucketed allocations.
   deferred_unmap.Run();
 }
@@ -1047,7 +1067,7 @@ ALWAYS_INLINE void PartitionRoot<thread_safe>::RecommitSystemPagesForData(
 // Used as malloc_usable_size.
 template <bool thread_safe>
 ALWAYS_INLINE size_t PartitionRoot<thread_safe>::GetUsableSize(void* ptr) {
-  SlotSpan* slot_span = SlotSpan::FromPointerNoAlignmentCheck(ptr);
+  SlotSpan* slot_span = SlotSpan::FromSlotInnerPtr(ptr);
   auto* root = FromSlotSpan(slot_span);
 
   size_t size = slot_span->GetUtilizedSlotSize();
@@ -1056,11 +1076,15 @@ ALWAYS_INLINE size_t PartitionRoot<thread_safe>::GetUsableSize(void* ptr) {
   return size;
 }
 
-// Gets the size of the allocated slot that contains |ptr|, adjusted for the
-// cookie and ref-count (if any). CAUTION! For direct-mapped allocation, |ptr|
-// has to be within the first partition page.
+// Return the capacity of the underlying slot (adjusted for extras). This
+// doesn't mean this capacity is readily available. It merely means that if
+// a new allocation (or realloc) happened with that returned value, it'd use
+// the same amount of underlying memory.
+// CAUTION! For direct-mapped allocation, |ptr| has to be within the first
+// partition page.
 template <bool thread_safe>
-ALWAYS_INLINE size_t PartitionRoot<thread_safe>::GetSize(void* ptr) const {
+ALWAYS_INLINE size_t
+PartitionRoot<thread_safe>::AllocationCapacityFromPtr(void* ptr) const {
   ptr = AdjustPointerForExtrasSubtract(ptr);
   auto* slot_span =
       internal::PartitionAllocGetSlotSpanForSizeQuery<thread_safe>(ptr);
@@ -1130,7 +1154,7 @@ ALWAYS_INLINE void* PartitionRoot<thread_safe>::AllocFlagsNoHooks(
   // 3. Handle cookies/ref-count, zero allocation if required
 
   size_t raw_size = requested_size;
-#if ENABLE_REF_COUNT_FOR_BACKUP_REF_PTR
+#if BUILDFLAG(USE_BACKUP_REF_PTR)
   // Without the size adjustment below, |Alloc()| returns a pointer past the end
   // of a slot (most of the time a pointer to the beginning of the next slot)
   // for zero-sized allocations when |PartitionRefCount| is used. The returned
@@ -1138,14 +1162,14 @@ ALWAYS_INLINE void* PartitionRoot<thread_safe>::AllocFlagsNoHooks(
   // bitwise operations on pointers, e.g., |PartitionAllocGetSlotOffset()|.
   if (UNLIKELY(raw_size == 0))
     raw_size = 1;
-#endif  // ENABLE_REF_COUNT_FOR_BACKUP_REF_PTR
+#endif  // BUILDFLAG(USE_BACKUP_REF_PTR)
   raw_size = AdjustSizeForExtrasAdd(raw_size);
   PA_CHECK(raw_size >= requested_size);  // check for overflows
 
   uint16_t bucket_index = SizeToBucketIndex(raw_size);
   size_t utilized_slot_size;
   bool is_already_zeroed;
-  void* ret = nullptr;
+  void* slot_start = nullptr;
 
   // !thread_safe => !with_thread_cache, but adding the condition allows the
   // compiler to statically remove this branch for the thread-unsafe variant.
@@ -1177,14 +1201,14 @@ ALWAYS_INLINE void* PartitionRoot<thread_safe>::AllocFlagsNoHooks(
       tcache = internal::ThreadCache::Create(this);
       with_thread_cache = true;
     }
-    ret = tcache->GetFromCache(bucket_index, &utilized_slot_size);
+    slot_start = tcache->GetFromCache(bucket_index, &utilized_slot_size);
     is_already_zeroed = false;
 
 #if DCHECK_IS_ON()
     // Make sure that the allocated pointer comes from the same place it would
     // for a non-thread cache allocation.
-    if (ret) {
-      SlotSpan* slot_span = SlotSpan::FromPointerNoAlignmentCheck(ret);
+    if (slot_start) {
+      SlotSpan* slot_span = SlotSpan::FromSlotStartPtr(slot_start);
       PA_DCHECK(IsValidSlotSpan(slot_span));
       PA_DCHECK(slot_span->bucket == &bucket_at(bucket_index));
       // All large allocations must go through the RawAlloc path to correctly
@@ -1195,16 +1219,16 @@ ALWAYS_INLINE void* PartitionRoot<thread_safe>::AllocFlagsNoHooks(
 #endif
 
     // UNLIKELY: median hit rate in the thread cache is 95%, from metrics.
-    if (UNLIKELY(!ret)) {
-      ret = RawAlloc(buckets + bucket_index, flags, raw_size,
-                     &utilized_slot_size, &is_already_zeroed);
+    if (UNLIKELY(!slot_start)) {
+      slot_start = RawAlloc(buckets + bucket_index, flags, raw_size,
+                            &utilized_slot_size, &is_already_zeroed);
     }
   } else {
-    ret = RawAlloc(buckets + bucket_index, flags, raw_size, &utilized_slot_size,
-                   &is_already_zeroed);
+    slot_start = RawAlloc(buckets + bucket_index, flags, raw_size,
+                          &utilized_slot_size, &is_already_zeroed);
   }
 
-  if (UNLIKELY(!ret))
+  if (UNLIKELY(!slot_start))
     return nullptr;
 
   // Layout inside the slot:
@@ -1237,12 +1261,9 @@ ALWAYS_INLINE void* PartitionRoot<thread_safe>::AllocFlagsNoHooks(
   //   to save raw_size, i.e. only for large allocations. For small allocations,
   //   we have no other choice than putting the cookie at the very end of the
   //   slot, thus creating the "empty" space.
-#if ENABLE_REF_COUNT_FOR_BACKUP_REF_PTR
-  void* slot_start = ret;
-#endif  // ENABLE_REF_COUNT_FOR_BACKUP_REF_PTR
   size_t usable_size = AdjustSizeForExtrasSubtract(utilized_slot_size);
   // The value given to the application is just after the ref-count and cookie.
-  ret = AdjustPointerForExtrasAdd(ret);
+  void* ret = AdjustPointerForExtrasAdd(slot_start);
 
 #if DCHECK_IS_ON()
   // Surround the region with 2 cookies.
@@ -1265,14 +1286,14 @@ ALWAYS_INLINE void* PartitionRoot<thread_safe>::AllocFlagsNoHooks(
     memset(ret, 0, usable_size);
   }
 
-#if ENABLE_REF_COUNT_FOR_BACKUP_REF_PTR
+#if BUILDFLAG(USE_BACKUP_REF_PTR)
   bool is_direct_mapped = raw_size > kMaxBucketed;
   // LIKELY: Direct mapped allocations are large and rare.
   if (allow_ref_count && LIKELY(!is_direct_mapped)) {
     new (internal::PartitionRefCountPointer(slot_start))
         internal::PartitionRefCount();
   }
-#endif  // ENABLE_REF_COUNT_FOR_BACKUP_REF_PTR
+#endif  // BUILDFLAG(USE_BACKUP_REF_PTR)
 
   return ret;
 }
@@ -1321,8 +1342,9 @@ ALWAYS_INLINE void* PartitionRoot<thread_safe>::AlignedAllocFlags(
   if (requested_size < size) {
     if (flags & PartitionAllocReturnNull)
       return nullptr;
-    // OutOfMemoryDeathTest.AlignedAlloc requires base::OnNoMemoryInternal
-    // (invoked by PartitionExcessiveAllocationSize).
+    // OutOfMemoryDeathTest.AlignedAlloc requires
+    // base::TerminateBecauseOutOfMemory (invoked by
+    // PartitionExcessiveAllocationSize).
     internal::PartitionExcessiveAllocationSize(size);
     // internal::PartitionExcessiveAllocationSize(size) causes OOM_CRASH.
     NOTREACHED();
@@ -1361,8 +1383,15 @@ ALWAYS_INLINE void* PartitionRoot<thread_safe>::TryRealloc(
   return ReallocFlags(PartitionAllocReturnNull, ptr, new_size, type_name);
 }
 
+// Return the capacity of the underlying slot (adjusted for extras) that'd be
+// used to satisfy a request of |size|. This doesn't mean this capacity would be
+// readily available. It merely means that if an allocation happened with that
+// returned value, it'd use the same amount of underlying memory as the
+// allocation with |size|.
 template <bool thread_safe>
-ALWAYS_INLINE size_t PartitionRoot<thread_safe>::ActualSize(size_t size) {
+ALWAYS_INLINE size_t
+PartitionRoot<thread_safe>::AllocationCapacityFromRequestedSize(
+    size_t size) const {
 #if defined(MEMORY_TOOL_REPLACES_ALLOCATOR)
   return size;
 #else

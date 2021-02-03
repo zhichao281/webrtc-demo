@@ -1628,7 +1628,7 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
   }
 
   // Not returning StyleRef().HasTransformRelatedProperty() because some objects
-  // ignore the transform-related styles (e.g. LayoutInline, LayoutSVGBlock).
+  // ignore the transform-related styles (e.g., LayoutInline).
   bool HasTransformRelatedProperty() const {
     NOT_DESTROYED();
     return bitfields_.HasTransformRelatedProperty();
@@ -2244,6 +2244,8 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
   LayoutObject* NonAnonymousAncestor() const;
 
   const LayoutBlock* InclusiveContainingBlock() const;
+
+  const LayoutBlock* EnclosingScrollportBox() const;
 
   bool CanContainAbsolutePositionObjects() const {
     NOT_DESTROYED();
@@ -3324,6 +3326,13 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
     bitfields_.SetIsLayoutNGObjectForListMarkerImage(b);
   }
 
+  bool IsLayoutNGObjectForCanvasFormattedText() const {
+    return bitfields_.IsLayoutNGObjectForCanvasFormattedText();
+  }
+  void SetIsLayoutNGObjectForCanvasFormattedText(bool b) {
+    bitfields_.SetIsLayoutNGObjectForCanvasFormattedText(b);
+  }
+
   bool PreviousVisibilityVisible() const {
     NOT_DESTROYED();
     return bitfields_.PreviousVisibilityVisible();
@@ -3777,6 +3786,7 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
           is_layout_ng_object_for_list_marker_image_(false),
           is_table_column_constraints_dirty_(false),
           transform_affects_vector_effect_(false),
+          is_layout_ng_object_for_canvas_formatted_text(false),
           should_skip_next_layout_shift_tracking_(true),
           positioned_state_(kIsStaticallyPositioned),
           selection_state_(static_cast<unsigned>(SelectionState::kNone)),
@@ -4091,6 +4101,8 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
     // included).
     ADD_BOOLEAN_BITFIELD(transform_affects_vector_effect_,
                          TransformAffectsVectorEffect);
+    ADD_BOOLEAN_BITFIELD(is_layout_ng_object_for_canvas_formatted_text,
+                         IsLayoutNGObjectForCanvasFormattedText);
 
     // Whether to skip layout shift tracking in the next paint invalidation.
     // See PaintInvalidator::UpdateLayoutShiftTracking().
@@ -4296,8 +4308,15 @@ inline bool LayoutObject::CanTraversePhysicalFragments() const {
     if (!IsInLayoutNGInlineFormattingContext())
       return false;
   }
+  // The NG paint system currently doesn't support replaced content.
+  if (IsLayoutReplaced())
+    return false;
   // The NG paint system currently doesn't support table-cells.
   if (IsTableCellLegacy())
+    return false;
+  // Text controls have some logic in the layout objects that will be missed if
+  // we traverse the fragment tree when hit-testing.
+  if (IsTextControlIncludingNG())
     return false;
   return true;
 }

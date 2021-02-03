@@ -55,19 +55,19 @@ typedef enum
  * GtkResponseType:
  * @GTK_RESPONSE_NONE: Returned if an action widget has no response id,
  *     or if the dialog gets programmatically hidden or destroyed
- * @GTK_RESPONSE_REJECT: Generic response id, not used by GTK+ dialogs
- * @GTK_RESPONSE_ACCEPT: Generic response id, not used by GTK+ dialogs
+ * @GTK_RESPONSE_REJECT: Generic response id, not used by GTK dialogs
+ * @GTK_RESPONSE_ACCEPT: Generic response id, not used by GTK dialogs
  * @GTK_RESPONSE_DELETE_EVENT: Returned if the dialog is deleted
- * @GTK_RESPONSE_OK: Returned by OK buttons in GTK+ dialogs
- * @GTK_RESPONSE_CANCEL: Returned by Cancel buttons in GTK+ dialogs
- * @GTK_RESPONSE_CLOSE: Returned by Close buttons in GTK+ dialogs
- * @GTK_RESPONSE_YES: Returned by Yes buttons in GTK+ dialogs
- * @GTK_RESPONSE_NO: Returned by No buttons in GTK+ dialogs
- * @GTK_RESPONSE_APPLY: Returned by Apply buttons in GTK+ dialogs
- * @GTK_RESPONSE_HELP: Returned by Help buttons in GTK+ dialogs
+ * @GTK_RESPONSE_OK: Returned by OK buttons in GTK dialogs
+ * @GTK_RESPONSE_CANCEL: Returned by Cancel buttons in GTK dialogs
+ * @GTK_RESPONSE_CLOSE: Returned by Close buttons in GTK dialogs
+ * @GTK_RESPONSE_YES: Returned by Yes buttons in GTK dialogs
+ * @GTK_RESPONSE_NO: Returned by No buttons in GTK dialogs
+ * @GTK_RESPONSE_APPLY: Returned by Apply buttons in GTK dialogs
+ * @GTK_RESPONSE_HELP: Returned by Help buttons in GTK dialogs
  *
  * Predefined values for use as response ids in gtk_dialog_add_button().
- * All predefined values are negative; GTK+ leaves values of 0 or greater for
+ * All predefined values are negative; GTK leaves values of 0 or greater for
  * application-defined response ids.
  */
 typedef enum
@@ -120,7 +120,7 @@ struct _GtkDialogClass
 
   /*< public >*/
 
-  void (* response) (GtkDialog *dialog, gint response_id);
+  void (* response) (GtkDialog *dialog, int response_id);
 
   /* Keybinding signals */
 
@@ -128,11 +128,7 @@ struct _GtkDialogClass
 
   /*< private >*/
 
-  /* Padding for future expansion */
-  void (*_gtk_reserved1) (void);
-  void (*_gtk_reserved2) (void);
-  void (*_gtk_reserved3) (void);
-  void (*_gtk_reserved4) (void);
+  gpointer padding[8];
 };
 
 
@@ -142,47 +138,43 @@ GDK_AVAILABLE_IN_ALL
 GtkWidget* gtk_dialog_new      (void);
 
 GDK_AVAILABLE_IN_ALL
-GtkWidget* gtk_dialog_new_with_buttons (const gchar     *title,
+GtkWidget* gtk_dialog_new_with_buttons (const char      *title,
                                         GtkWindow       *parent,
                                         GtkDialogFlags   flags,
-                                        const gchar     *first_button_text,
+                                        const char      *first_button_text,
                                         ...) G_GNUC_NULL_TERMINATED;
 
 GDK_AVAILABLE_IN_ALL
 void       gtk_dialog_add_action_widget (GtkDialog   *dialog,
                                          GtkWidget   *child,
-                                         gint         response_id);
+                                         int          response_id);
 GDK_AVAILABLE_IN_ALL
 GtkWidget* gtk_dialog_add_button        (GtkDialog   *dialog,
-                                         const gchar *button_text,
-                                         gint         response_id);
+                                         const char *button_text,
+                                         int          response_id);
 GDK_AVAILABLE_IN_ALL
 void       gtk_dialog_add_buttons       (GtkDialog   *dialog,
-                                         const gchar *first_button_text,
+                                         const char *first_button_text,
                                          ...) G_GNUC_NULL_TERMINATED;
 
 GDK_AVAILABLE_IN_ALL
 void gtk_dialog_set_response_sensitive (GtkDialog *dialog,
-                                        gint       response_id,
+                                        int        response_id,
                                         gboolean   setting);
 GDK_AVAILABLE_IN_ALL
 void gtk_dialog_set_default_response   (GtkDialog *dialog,
-                                        gint       response_id);
+                                        int        response_id);
 GDK_AVAILABLE_IN_ALL
 GtkWidget* gtk_dialog_get_widget_for_response (GtkDialog *dialog,
-                                               gint       response_id);
+                                               int        response_id);
 GDK_AVAILABLE_IN_ALL
-gint gtk_dialog_get_response_for_widget (GtkDialog *dialog,
+int gtk_dialog_get_response_for_widget (GtkDialog *dialog,
                                          GtkWidget *widget);
 
 /* Emit response signal */
 GDK_AVAILABLE_IN_ALL
 void gtk_dialog_response           (GtkDialog *dialog,
-                                    gint       response_id);
-
-/* Returns response_id */
-GDK_AVAILABLE_IN_ALL
-gint gtk_dialog_run                (GtkDialog *dialog);
+                                    int        response_id);
 
 GDK_AVAILABLE_IN_ALL
 GtkWidget * gtk_dialog_get_content_area (GtkDialog *dialog);

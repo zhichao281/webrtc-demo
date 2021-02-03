@@ -30,7 +30,7 @@
 #error "Only <gtk/gtk.h> can be included directly."
 #endif
 
-#include <gtk/gtkcontainer.h>
+#include <gtk/gtkwidget.h>
 
 
 G_BEGIN_DECLS
@@ -47,18 +47,16 @@ typedef struct _GtkFixedClass         GtkFixedClass;
 
 struct _GtkFixed
 {
-  GtkContainer parent_instance;
+  GtkWidget parent_instance;
 };
 
 struct _GtkFixedClass
 {
-  GtkContainerClass parent_class;
+  GtkWidgetClass parent_class;
 
-  /* Padding for future expansion */
-  void (*_gtk_reserved1) (void);
-  void (*_gtk_reserved2) (void);
-  void (*_gtk_reserved3) (void);
-  void (*_gtk_reserved4) (void);
+  /*< private >*/
+
+  gpointer padding[8];
 };
 
 GDK_AVAILABLE_IN_ALL
@@ -69,18 +67,21 @@ GtkWidget *     gtk_fixed_new                (void);
 GDK_AVAILABLE_IN_ALL
 void            gtk_fixed_put                   (GtkFixed     *fixed,
                                                  GtkWidget    *widget,
-                                                 gint          x,
-                                                 gint          y);
+                                                 double        x,
+                                                 double        y);
+GDK_AVAILABLE_IN_ALL
+void            gtk_fixed_remove                (GtkFixed     *fixed,
+                                                 GtkWidget    *widget);
 GDK_AVAILABLE_IN_ALL
 void            gtk_fixed_move                  (GtkFixed     *fixed,
                                                  GtkWidget    *widget,
-                                                 gint          x,
-                                                 gint          y);
+                                                 double        x,
+                                                 double        y);
 GDK_AVAILABLE_IN_ALL
 void            gtk_fixed_get_child_position    (GtkFixed     *fixed,
                                                  GtkWidget    *widget,
-                                                 gint         *x,
-                                                 gint         *y);
+                                                 double       *x,
+                                                 double       *y);
 
 GDK_AVAILABLE_IN_ALL
 void            gtk_fixed_set_child_transform   (GtkFixed     *fixed,

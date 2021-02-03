@@ -18,27 +18,40 @@
 
 #include "absl/types/optional.h"
 #include "api/candidate.h"
+#include "api/crypto_params.h"
 #include "api/ice_transport_interface.h"
 #include "api/jsep.h"
+#include "api/rtc_error.h"
+#include "api/scoped_refptr.h"
 #include "api/transport/data_channel_transport_interface.h"
 #include "media/sctp/sctp_transport_internal.h"
 #include "p2p/base/dtls_transport.h"
+#include "p2p/base/dtls_transport_internal.h"
+#include "p2p/base/ice_transport_internal.h"
 #include "p2p/base/p2p_constants.h"
+#include "p2p/base/transport_description.h"
 #include "p2p/base/transport_info.h"
 #include "pc/composite_rtp_transport.h"
 #include "pc/dtls_srtp_transport.h"
 #include "pc/dtls_transport.h"
 #include "pc/rtcp_mux_filter.h"
 #include "pc/rtp_transport.h"
+#include "pc/rtp_transport_internal.h"
 #include "pc/sctp_transport.h"
 #include "pc/session_description.h"
 #include "pc/srtp_filter.h"
 #include "pc/srtp_transport.h"
 #include "pc/transport_stats.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/constructor_magic.h"
 #include "rtc_base/rtc_certificate.h"
+#include "rtc_base/ssl_fingerprint.h"
 #include "rtc_base/ssl_stream_adapter.h"
+#include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/synchronization/sequence_checker.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
+#include "rtc_base/thread.h"
+#include "rtc_base/thread_annotations.h"
 #include "rtc_base/thread_checker.h"
 
 namespace cricket {
@@ -131,12 +144,14 @@ class JsepTransport : public sigslot::has_slots<> {
   //
   // This and the below method can be called safely from any thread as long as
   // SetXTransportDescription is not in progress.
+  // TODO(tommi): Investigate on which threads (network or signal?) we really
+  // need to access the needs_ice_restart flag.
   void SetNeedsIceRestartFlag() RTC_LOCKS_EXCLUDED(accessor_lock_);
   // Returns true if the ICE restart flag above was set, and no ICE restart has
   // occurred yet for this transport (by applying a local description with
   // changed ufrag/password).
   bool needs_ice_restart() const RTC_LOCKS_EXCLUDED(accessor_lock_) {
-    rtc::CritScope scope(&accessor_lock_);
+    webrtc::MutexLock lock(&accessor_lock_);
     return needs_ice_restart_;
   }
 
@@ -160,7 +175,7 @@ class JsepTransport : public sigslot::has_slots<> {
 
   webrtc::RtpTransportInternal* rtp_transport() const
       RTC_LOCKS_EXCLUDED(accessor_lock_) {
-    rtc::CritScope scope(&accessor_lock_);
+    webrtc::MutexLock lock(&accessor_lock_);
     if (composite_rtp_transport_) {
       return composite_rtp_transport_.get();
     } else if (datagram_rtp_transport_) {
@@ -172,7 +187,7 @@ class JsepTransport : public sigslot::has_slots<> {
 
   const DtlsTransportInternal* rtp_dtls_transport() const
       RTC_LOCKS_EXCLUDED(accessor_lock_) {
-    rtc::CritScope scope(&accessor_lock_);
+    webrtc::MutexLock lock(&accessor_lock_);
     if (rtp_dtls_transport_) {
       return rtp_dtls_transport_->internal();
     } else {
@@ -182,13 +197,13 @@ class JsepTransport : public sigslot::has_slots<> {
 
   DtlsTransportInternal* rtp_dtls_transport()
       RTC_LOCKS_EXCLUDED(accessor_lock_) {
-    rtc::CritScope scope(&accessor_lock_);
+    webrtc::MutexLock lock(&accessor_lock_);
     return rtp_dtls_transport_locked();
   }
 
   const DtlsTransportInternal* rtcp_dtls_transport() const
       RTC_LOCKS_EXCLUDED(accessor_lock_) {
-    rtc::CritScope scope(&accessor_lock_);
+    webrtc::MutexLock lock(&accessor_lock_);
     if (rtcp_dtls_transport_) {
       return rtcp_dtls_transport_->internal();
     } else {
@@ -198,7 +213,7 @@ class JsepTransport : public sigslot::has_slots<> {
 
   DtlsTransportInternal* rtcp_dtls_transport()
       RTC_LOCKS_EXCLUDED(accessor_lock_) {
-    rtc::CritScope scope(&accessor_lock_);
+    webrtc::MutexLock lock(&accessor_lock_);
     if (rtcp_dtls_transport_) {
       return rtcp_dtls_transport_->internal();
     } else {
@@ -208,13 +223,13 @@ class JsepTransport : public sigslot::has_slots<> {
 
   rtc::scoped_refptr<webrtc::DtlsTransport> RtpDtlsTransport()
       RTC_LOCKS_EXCLUDED(accessor_lock_) {
-    rtc::CritScope scope(&accessor_lock_);
+    webrtc::MutexLock lock(&accessor_lock_);
     return rtp_dtls_transport_;
   }
 
   rtc::scoped_refptr<webrtc::SctpTransport> SctpTransport() const
       RTC_LOCKS_EXCLUDED(accessor_lock_) {
-    rtc::CritScope scope(&accessor_lock_);
+    webrtc::MutexLock lock(&accessor_lock_);
     return sctp_transport_;
   }
 
@@ -222,7 +237,7 @@ class JsepTransport : public sigslot::has_slots<> {
   // SctpTransport() instead.
   webrtc::DataChannelTransportInterface* data_channel_transport() const
       RTC_LOCKS_EXCLUDED(accessor_lock_) {
-    rtc::CritScope scope(&accessor_lock_);
+    webrtc::MutexLock lock(&accessor_lock_);
     if (sctp_data_channel_transport_) {
       return sctp_data_channel_transport_.get();
     }
@@ -244,7 +259,8 @@ class JsepTransport : public sigslot::has_slots<> {
       const rtc::RTCCertificate* certificate,
       const rtc::SSLFingerprint* fingerprint) const;
 
-  void SetActiveResetSrtpParams(bool active_reset_srtp_params);
+  void SetActiveResetSrtpParams(bool active_reset_srtp_params)
+      RTC_LOCKS_EXCLUDED(accessor_lock_);
 
  private:
   DtlsTransportInternal* rtp_dtls_transport_locked()
@@ -258,7 +274,7 @@ class JsepTransport : public sigslot::has_slots<> {
 
   bool SetRtcpMux(bool enable, webrtc::SdpType type, ContentSource source);
 
-  void ActivateRtcpMux();
+  void ActivateRtcpMux() RTC_LOCKS_EXCLUDED(accessor_lock_);
 
   bool SetSdes(const std::vector<CryptoParams>& cryptos,
                const std::vector<int>& encrypted_extension_ids,
@@ -314,9 +330,10 @@ class JsepTransport : public sigslot::has_slots<> {
 
   // Owning thread, for safety checks
   const rtc::Thread* const network_thread_;
-  // Critical scope for fields accessed off-thread
+  // Critical scope for fields accessed off-thread. Mutable, since it is used by
+  // getter methods.
   // TODO(https://bugs.webrtc.org/10300): Stop doing this.
-  rtc::RecursiveCriticalSection accessor_lock_;
+  mutable webrtc::Mutex accessor_lock_;
   const std::string mid_;
   // needs-ice-restart bit as described in JSEP.
   bool needs_ice_restart_ RTC_GUARDED_BY(accessor_lock_) = false;

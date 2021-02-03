@@ -30,7 +30,7 @@
 #error "Only <gtk/gtk.h> can be included directly."
 #endif
 
-#include <gtk/gtkbin.h>
+#include <gtk/gtkwidget.h>
 
 G_BEGIN_DECLS
 
@@ -48,7 +48,7 @@ typedef struct _GtkButtonClass        GtkButtonClass;
 struct _GtkButton
 {
   /*< private >*/
-  GtkBin parent_instance;
+  GtkWidget parent_instance;
 };
 
 /**
@@ -61,7 +61,7 @@ struct _GtkButton
  */
 struct _GtkButtonClass
 {
-  GtkBinClass        parent_class;
+  GtkWidgetClass        parent_class;
 
   /*< public >*/
 
@@ -70,11 +70,7 @@ struct _GtkButtonClass
 
   /*< private >*/
 
-  /* Padding for future expansion */
-  void (*_gtk_reserved1) (void);
-  void (*_gtk_reserved2) (void);
-  void (*_gtk_reserved3) (void);
-  void (*_gtk_reserved4) (void);
+  gpointer padding[8];
 };
 
 
@@ -83,24 +79,22 @@ GType          gtk_button_get_type          (void) G_GNUC_CONST;
 GDK_AVAILABLE_IN_ALL
 GtkWidget*     gtk_button_new               (void);
 GDK_AVAILABLE_IN_ALL
-GtkWidget*     gtk_button_new_with_label    (const gchar    *label);
+GtkWidget*     gtk_button_new_with_label    (const char     *label);
 GDK_AVAILABLE_IN_ALL
-GtkWidget*     gtk_button_new_from_icon_name (const gchar    *icon_name);
+GtkWidget*     gtk_button_new_from_icon_name (const char     *icon_name);
 GDK_AVAILABLE_IN_ALL
-GtkWidget*     gtk_button_new_with_mnemonic (const gchar    *label);
-GDK_AVAILABLE_IN_ALL
-void           gtk_button_clicked           (GtkButton      *button);
+GtkWidget*     gtk_button_new_with_mnemonic (const char     *label);
 
 GDK_AVAILABLE_IN_ALL
-void                  gtk_button_set_relief         (GtkButton      *button,
-						     GtkReliefStyle  relief);
+void                  gtk_button_set_has_frame      (GtkButton      *button,
+						     gboolean        has_frame);
 GDK_AVAILABLE_IN_ALL
-GtkReliefStyle        gtk_button_get_relief         (GtkButton      *button);
+gboolean              gtk_button_get_has_frame      (GtkButton      *button);
 GDK_AVAILABLE_IN_ALL
 void                  gtk_button_set_label          (GtkButton      *button,
-						     const gchar    *label);
+						     const char     *label);
 GDK_AVAILABLE_IN_ALL
-const gchar *         gtk_button_get_label          (GtkButton      *button);
+const char *         gtk_button_get_label          (GtkButton      *button);
 GDK_AVAILABLE_IN_ALL
 void                  gtk_button_set_use_underline  (GtkButton      *button,
 						     gboolean        use_underline);
@@ -113,6 +107,11 @@ void                  gtk_button_set_icon_name      (GtkButton      *button,
 GDK_AVAILABLE_IN_ALL
 const char *          gtk_button_get_icon_name      (GtkButton      *button);
 
+GDK_AVAILABLE_IN_ALL
+void                  gtk_button_set_child          (GtkButton      *button,
+                                                     GtkWidget      *child);
+GDK_AVAILABLE_IN_ALL
+GtkWidget *           gtk_button_get_child          (GtkButton      *button);
 
 G_END_DECLS
 

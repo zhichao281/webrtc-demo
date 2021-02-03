@@ -151,6 +151,10 @@ struct PaintPropertyTreeBuilderFragmentContext {
   // ContainingBlockContext is set, this value should be added to
   // ContainingBlockContext::additional_offset_to_layout_shift_root_delta.
   PhysicalOffset pending_additional_offset_to_layout_shift_root_delta;
+
+  // Whether this object was  a layout shift root during the previous render
+  // (not this one).
+  bool was_layout_shift_root = false;
 };
 
 struct PaintPropertyTreeBuilderContext {
@@ -205,7 +209,7 @@ struct PaintPropertyTreeBuilderContext {
   // its clip since this variable was last set to false. This is used
   // to find out whether a clip changed since the last transform update.
   // Code outside of this class resets clip_changed to false when transforms
-  // change.
+  // change. Used only when CullRectUpdate is not enabled.
   unsigned clip_changed : 1;
 
   // When printing, fixed-position objects and their descendants need to repeat

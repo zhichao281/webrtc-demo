@@ -26,7 +26,7 @@
 #error "Only <gtk/gtk.h> can be included directly."
 #endif
 
-#include <gtk/gtkcontainer.h>
+#include <gtk/gtkwidget.h>
 #include <gtk/gtkselectionmodel.h>
 
 G_BEGIN_DECLS
@@ -34,23 +34,15 @@ G_BEGIN_DECLS
 
 #define GTK_TYPE_STACK (gtk_stack_get_type ())
 #define GTK_STACK(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), GTK_TYPE_STACK, GtkStack))
-#define GTK_STACK_CLASS(klass) (G_TYPE_CHECK_CLASS_CAST ((klass), GTK_TYPE_STACK, GtkStackClass))
 #define GTK_IS_STACK(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), GTK_TYPE_STACK))
-#define GTK_IS_STACK_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE ((klass), GTK_TYPE_STACK))
-#define GTK_STACK_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), GTK_TYPE_STACK, GtkStackClass))
 
 typedef struct _GtkStack GtkStack;
-typedef struct _GtkStackClass GtkStackClass;
 
 #define GTK_TYPE_STACK_PAGE (gtk_stack_page_get_type ())
 #define GTK_STACK_PAGE(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), GTK_TYPE_STACK_PAGE, GtkStackPage))
-#define GTK_STACK_PAGE_CLASS(klass) (G_TYPE_CHECK_CLASS_CAST ((klass), GTK_TYPE_STACK_PAGE, GtkStackPageClass))
 #define GTK_IS_STACK_PAGE(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), GTK_TYPE_STACK_PAGE))
-#define GTK_IS_STACK_PAGE_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE ((klass), GTK_TYPE_STACK_PAGE))
-#define GTK_STACK_PAGE_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), GTK_TYPE_STACK_PAGE, GtkStackPageClass))
 
 typedef struct _GtkStackPage GtkStackPage;
-typedef struct _GtkStackPageClass GtkStackPageClass;
 
 typedef enum {
   GTK_STACK_TRANSITION_TYPE_NONE,
@@ -78,16 +70,42 @@ typedef enum {
   GTK_STACK_TRANSITION_TYPE_ROTATE_LEFT_RIGHT
 } GtkStackTransitionType;
 
-struct _GtkStack {
-  GtkContainer parent_instance;
-};
-
-struct _GtkStackClass {
-  GtkContainerClass parent_class;
-};
-
 GDK_AVAILABLE_IN_ALL
-GType                  gtk_stack_page_get_type           (void) G_GNUC_CONST;
+GType                  gtk_stack_page_get_type            (void) G_GNUC_CONST;
+GDK_AVAILABLE_IN_ALL
+GtkWidget *            gtk_stack_page_get_child           (GtkStackPage           *self);
+GDK_AVAILABLE_IN_ALL
+gboolean               gtk_stack_page_get_visible         (GtkStackPage           *self);
+GDK_AVAILABLE_IN_ALL
+void                   gtk_stack_page_set_visible         (GtkStackPage           *self,
+                                                           gboolean                visible);
+GDK_AVAILABLE_IN_ALL
+gboolean               gtk_stack_page_get_needs_attention (GtkStackPage           *self);
+GDK_AVAILABLE_IN_ALL
+void                   gtk_stack_page_set_needs_attention (GtkStackPage           *self,
+                                                           gboolean                setting);
+GDK_AVAILABLE_IN_ALL
+gboolean               gtk_stack_page_get_use_underline   (GtkStackPage           *self);
+GDK_AVAILABLE_IN_ALL
+void                   gtk_stack_page_set_use_underline   (GtkStackPage           *self,
+                                                           gboolean                setting);
+GDK_AVAILABLE_IN_ALL
+const char *           gtk_stack_page_get_name            (GtkStackPage           *self);
+GDK_AVAILABLE_IN_ALL
+void                   gtk_stack_page_set_name            (GtkStackPage           *self,
+                                                            const char            *setting);
+GDK_AVAILABLE_IN_ALL
+const char *           gtk_stack_page_get_title           (GtkStackPage           *self);
+GDK_AVAILABLE_IN_ALL
+void                   gtk_stack_page_set_title           (GtkStackPage           *self,
+                                                           const char             *setting);
+GDK_AVAILABLE_IN_ALL
+const char *           gtk_stack_page_get_icon_name       (GtkStackPage           *self);
+GDK_AVAILABLE_IN_ALL
+void                   gtk_stack_page_set_icon_name       (GtkStackPage           *self,
+                                                           const char             *setting);
+
+
 
 GDK_AVAILABLE_IN_ALL
 GType                  gtk_stack_get_type                (void) G_GNUC_CONST;
@@ -95,24 +113,27 @@ GType                  gtk_stack_get_type                (void) G_GNUC_CONST;
 GDK_AVAILABLE_IN_ALL
 GtkWidget *            gtk_stack_new                     (void);
 GDK_AVAILABLE_IN_ALL
-void                   gtk_stack_add_named               (GtkStack               *stack,
-                                                          GtkWidget              *child,
-                                                          const gchar            *name);
+GtkStackPage *         gtk_stack_add_child               (GtkStack               *stack,
+                                                          GtkWidget              *child);
 GDK_AVAILABLE_IN_ALL
-void                   gtk_stack_add_titled              (GtkStack               *stack,
+GtkStackPage *         gtk_stack_add_named               (GtkStack               *stack,
                                                           GtkWidget              *child,
-                                                          const gchar            *name,
-                                                          const gchar            *title);
+                                                          const char             *name);
+GDK_AVAILABLE_IN_ALL
+GtkStackPage *         gtk_stack_add_titled              (GtkStack               *stack,
+                                                          GtkWidget              *child,
+                                                          const char             *name,
+                                                          const char             *title);
+GDK_AVAILABLE_IN_ALL
+void                   gtk_stack_remove                  (GtkStack               *stack,
+                                                          GtkWidget              *child);
 
 GDK_AVAILABLE_IN_ALL
 GtkStackPage *         gtk_stack_get_page                (GtkStack               *stack,
                                                           GtkWidget              *child);
 GDK_AVAILABLE_IN_ALL
-GtkWidget *            gtk_stack_page_get_child          (GtkStackPage           *page);
-
-GDK_AVAILABLE_IN_ALL
 GtkWidget *            gtk_stack_get_child_by_name       (GtkStack               *stack,
-                                                          const gchar            *name);
+                                                          const char             *name);
 GDK_AVAILABLE_IN_ALL
 void                   gtk_stack_set_visible_child       (GtkStack               *stack,
                                                           GtkWidget              *child);
@@ -120,18 +141,13 @@ GDK_AVAILABLE_IN_ALL
 GtkWidget *            gtk_stack_get_visible_child       (GtkStack               *stack);
 GDK_AVAILABLE_IN_ALL
 void                   gtk_stack_set_visible_child_name  (GtkStack               *stack,
-                                                          const gchar            *name);
+                                                          const char             *name);
 GDK_AVAILABLE_IN_ALL
-const gchar *          gtk_stack_get_visible_child_name  (GtkStack               *stack);
+const char *          gtk_stack_get_visible_child_name  (GtkStack               *stack);
 GDK_AVAILABLE_IN_ALL
 void                   gtk_stack_set_visible_child_full  (GtkStack               *stack,
-                                                          const gchar            *name,
+                                                          const char             *name,
                                                           GtkStackTransitionType  transition);
-GDK_AVAILABLE_IN_ALL
-void                   gtk_stack_set_homogeneous         (GtkStack               *stack,
-                                                          gboolean                homogeneous);
-GDK_AVAILABLE_IN_ALL
-gboolean               gtk_stack_get_homogeneous         (GtkStack               *stack);
 GDK_AVAILABLE_IN_ALL
 void                   gtk_stack_set_hhomogeneous        (GtkStack               *stack,
                                                           gboolean                hhomogeneous);

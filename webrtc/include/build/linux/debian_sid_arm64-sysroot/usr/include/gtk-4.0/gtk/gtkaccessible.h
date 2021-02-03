@@ -1,73 +1,79 @@
-/* GTK - The GIMP Toolkit
- * Copyright 2001 Sun Microsystems Inc.
+/* gtkaccessible.h: Accessible interface
+ *
+ * Copyright 2020  GNOME Foundation
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
  *
  * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Library General Public
+ * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
+ * version 2.1 of the License, or (at your option) any later version.
  *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Library General Public License for more details.
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU Library General Public
- * License along with this library. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __GTK_ACCESSIBLE_H__
-#define __GTK_ACCESSIBLE_H__
+#pragma once
 
 #if !defined (__GTK_H_INSIDE__) && !defined (GTK_COMPILATION)
 #error "Only <gtk/gtk.h> can be included directly."
 #endif
 
-#include <atk/atk.h>
-#include <gtk/gtkwidget.h>
+#include <glib-object.h>
+#include <gtk/gtktypes.h>
+#include <gtk/gtkenums.h>
 
 G_BEGIN_DECLS
 
-#define GTK_TYPE_ACCESSIBLE                  (gtk_accessible_get_type ())
-#define GTK_ACCESSIBLE(obj)                  (G_TYPE_CHECK_INSTANCE_CAST ((obj), GTK_TYPE_ACCESSIBLE, GtkAccessible))
-#define GTK_ACCESSIBLE_CLASS(klass)          (G_TYPE_CHECK_CLASS_CAST ((klass), GTK_TYPE_ACCESSIBLE, GtkAccessibleClass))
-#define GTK_IS_ACCESSIBLE(obj)               (G_TYPE_CHECK_INSTANCE_TYPE ((obj), GTK_TYPE_ACCESSIBLE))
-#define GTK_IS_ACCESSIBLE_CLASS(klass)       (G_TYPE_CHECK_CLASS_TYPE ((klass), GTK_TYPE_ACCESSIBLE))
-#define GTK_ACCESSIBLE_GET_CLASS(obj)        (G_TYPE_INSTANCE_GET_CLASS ((obj), GTK_TYPE_ACCESSIBLE, GtkAccessibleClass))
-
-typedef struct _GtkAccessible        GtkAccessible;
-typedef struct _GtkAccessiblePrivate GtkAccessiblePrivate;
-typedef struct _GtkAccessibleClass   GtkAccessibleClass;
-
-struct _GtkAccessible
-{
-  AtkObject parent;
-
-  /*< private >*/
-  GtkAccessiblePrivate *priv;
-};
-
-struct _GtkAccessibleClass
-{
-  AtkObjectClass parent_class;
-
-  void (*widget_set)               (GtkAccessible *accessible);
-  void (*widget_unset)             (GtkAccessible *accessible);
-  /* Padding for future expansion */
-  void (*_gtk_reserved3) (void);
-  void (*_gtk_reserved4) (void);
-};
+#define GTK_TYPE_ACCESSIBLE (gtk_accessible_get_type())
 
 GDK_AVAILABLE_IN_ALL
-GType      gtk_accessible_get_type                 (void) G_GNUC_CONST;
+G_DECLARE_INTERFACE (GtkAccessible, gtk_accessible, GTK, ACCESSIBLE, GObject)
 
 GDK_AVAILABLE_IN_ALL
-void       gtk_accessible_set_widget               (GtkAccessible *accessible,
-                                                    GtkWidget     *widget);
+GtkAccessibleRole       gtk_accessible_get_accessible_role      (GtkAccessible         *self);
+
 GDK_AVAILABLE_IN_ALL
-GtkWidget *gtk_accessible_get_widget               (GtkAccessible *accessible);
+void                    gtk_accessible_update_state             (GtkAccessible         *self,
+                                                                 GtkAccessibleState     first_state,
+                                                                 ...);
+GDK_AVAILABLE_IN_ALL
+void                    gtk_accessible_update_property          (GtkAccessible         *self,
+                                                                 GtkAccessibleProperty  first_property,
+                                                                 ...);
+GDK_AVAILABLE_IN_ALL
+void                    gtk_accessible_update_relation          (GtkAccessible         *self,
+                                                                 GtkAccessibleRelation  first_relation,
+                                                                 ...);
+GDK_AVAILABLE_IN_ALL
+void                    gtk_accessible_update_state_value       (GtkAccessible         *self,
+                                                                 int                    n_states,
+                                                                 GtkAccessibleState     states[],
+                                                                 const GValue           values[]);
+GDK_AVAILABLE_IN_ALL
+void                    gtk_accessible_update_property_value    (GtkAccessible         *self,
+                                                                 int                    n_properties,
+                                                                 GtkAccessibleProperty  properties[],
+                                                                 const GValue           values[]);
+GDK_AVAILABLE_IN_ALL
+void                    gtk_accessible_update_relation_value    (GtkAccessible         *self,
+                                                                 int                    n_relations,
+                                                                 GtkAccessibleRelation  relations[],
+                                                                 const GValue           values[]);
+
+GDK_AVAILABLE_IN_ALL
+void                    gtk_accessible_reset_state              (GtkAccessible         *self,
+                                                                 GtkAccessibleState     state);
+GDK_AVAILABLE_IN_ALL
+void                    gtk_accessible_reset_property           (GtkAccessible         *self,
+                                                                 GtkAccessibleProperty  property);
+GDK_AVAILABLE_IN_ALL
+void                    gtk_accessible_reset_relation           (GtkAccessible         *self,
+                                                                 GtkAccessibleRelation  relation);
 
 G_END_DECLS
-
-#endif /* __GTK_ACCESSIBLE_H__ */
-
-

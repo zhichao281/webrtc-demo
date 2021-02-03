@@ -119,7 +119,7 @@ class PLATFORM_EXPORT BlinkGCObserver {
   // observer lists.
   virtual ~BlinkGCObserver();
 
-  virtual void OnCompleteSweepDone() = 0;
+  virtual void OnGarbageCollection() = 0;
 
  private:
   // As a ThreadState must live when a BlinkGCObserver lives, holding a raw
@@ -363,7 +363,7 @@ class PLATFORM_EXPORT ThreadState final {
                           WTF::GetCurrentStackPosition())));
   }
 
-  int GcAge() const { return gc_age_; }
+  size_t GcAge() const { return gc_age_; }
 
   MarkingVisitor* CurrentVisitor() const {
     return current_gc_data_.visitor.get();
@@ -410,6 +410,10 @@ class PLATFORM_EXPORT ThreadState final {
   }
   void LeaveNoHeapVerificationScopeForTesting() {
     --disable_heap_verification_scope_;
+  }
+
+  void NotifyGarbageCollection() {
+    // Only used for v8_wrapper version.
   }
 
  private:
@@ -460,9 +464,6 @@ class PLATFORM_EXPORT ThreadState final {
     DCHECK_GT(gc_forbidden_count_, 0u);
     gc_forbidden_count_--;
   }
-
-  void EnterStaticReferenceRegistrationDisabledScope();
-  void LeaveStaticReferenceRegistrationDisabledScope();
 
   // Performs stand-alone garbage collections considering only C++ objects.
   //
@@ -614,7 +615,6 @@ class PLATFORM_EXPORT ThreadState final {
   bool forced_scheduled_gc_for_testing_ = false;
   size_t no_allocation_count_ = 0;
   size_t gc_forbidden_count_ = 0;
-  size_t static_persistent_registration_disabled_count_ = 0;
 
   GCState gc_state_ = GCState::kNoGCScheduled;
   GCPhase gc_phase_ = GCPhase::kNone;
@@ -639,7 +639,7 @@ class PLATFORM_EXPORT ThreadState final {
 
   HashSet<BlinkGCObserver*> observers_;
 
-  int gc_age_ = 0;
+  size_t gc_age_ = 0;
 
   struct GCData {
     BlinkGC::CollectionType collection_type;

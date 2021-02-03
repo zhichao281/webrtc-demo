@@ -110,11 +110,12 @@ typedef struct SVC {
   unsigned int current_superframe;
   unsigned int buffer_time_index[REF_FRAMES];
   unsigned char buffer_spatial_layer[REF_FRAMES];
-  int skip_nonzeromv_last;
-  int skip_nonzeromv_gf;
+  int skip_mvsearch_last;
+  int skip_mvsearch_gf;
   int spatial_layer_fb[REF_FRAMES];
   int temporal_layer_fb[REF_FRAMES];
   int num_encoded_top_layer;
+  int first_layer_denoise;
   /*!\endcond */
 
   /*!
@@ -137,6 +138,21 @@ typedef struct SVC {
    * Force zero-mv in mode search for the spatial/inter-layer reference.
    */
   int force_zero_mode_spatial_ref;
+
+  /*!
+   *  max threads per spatial layer.
+   */
+  int max_threads[AOM_MAX_SS_LAYERS];
+
+  /*!
+   *  tile columns per spatial layer.
+   */
+  int tile_columns[AOM_MAX_SS_LAYERS];
+
+  /*!
+   *  tile rows per spatial layer.
+   */
+  int tile_rows[AOM_MAX_SS_LAYERS];
 } SVC;
 
 struct AV1_COMP;
@@ -254,6 +270,32 @@ void av1_one_pass_cbr_svc_start_layer(struct AV1_COMP *const cpi);
  * \return  The primary reference frame for current layer.
  */
 int av1_svc_primary_ref_frame(const struct AV1_COMP *const cpi);
+
+/*!\brief Get resolution for current layer.
+ *
+ * \ingroup SVC
+ * \param[in]       width_org    Original width, unscaled
+ * \param[in]       height_org   Original height, unscaled
+ * \param[in]       num          Numerator for the scale ratio
+ * \param[in]       den          Denominator for the scale ratio
+ * \param[in]       width_out    Output width, scaled for current layer
+ * \param[in]       height_out   Output height, scaled for current layer
+ *
+ * \return Nothing is returned. Instead the scaled width and height are set.
+ */
+void av1_get_layer_resolution(const int width_org, const int height_org,
+                              const int num, const int den, int *width_out,
+                              int *height_out);
+
+/*!\brief Set multi-threading for the current spatial layer.
+ *
+ * \ingroup SVC
+ * \param[in]       cpi  Top level encoder structure
+ *
+ * \return Nothing is returned. Instead the max_threads, tile_columns and
+ tile_rows are set for the current spatial layer.
+ */
+void av1_svc_set_mt_per_spatial_layer(struct AV1_COMP *const cpi);
 
 #ifdef __cplusplus
 }  // extern "C"

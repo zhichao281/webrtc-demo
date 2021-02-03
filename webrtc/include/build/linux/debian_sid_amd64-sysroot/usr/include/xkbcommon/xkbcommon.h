@@ -208,6 +208,15 @@ typedef uint32_t xkb_keysym_t;
  * Therefore, it is not safe to use the name as a unique identifier for a
  * layout.  Layout names are case-sensitive.
  *
+ * Layout names are specified in the layout's definition, for example
+ * "English (US)".  These are different from the (conventionally) short names
+ * which are used to locate the layout, for example "us" or "us(intl)".  These
+ * names are not present in a compiled keymap.
+ *
+ * If the user selects layouts from a list generated from the XKB registry
+ * (using libxkbregistry or directly), and this metadata is needed later on, it
+ * is recommended to store it along with the keymap.
+ *
  * Layouts are also called "groups" by XKB.
  *
  * @sa xkb_keymap_num_layouts() xkb_keymap_num_layouts_for_key()
@@ -494,6 +503,29 @@ uint32_t
 xkb_keysym_to_utf32(xkb_keysym_t keysym);
 
 /**
+ * Get the keysym corresponding to a Unicode/UTF-32 codepoint.
+ *
+ * @returns The keysym corresponding to the specified Unicode
+ * codepoint, or XKB_KEY_NoSymbol if there is none.
+ *
+ * This function is the inverse of @ref xkb_keysym_to_utf32. In cases
+ * where a single codepoint corresponds to multiple keysyms, returns
+ * the keysym with the lowest value.
+ *
+ * Unicode codepoints which do not have a special (legacy) keysym
+ * encoding use a direct encoding scheme. These keysyms don't usually
+ * have an associated keysym constant (XKB_KEY_*).
+ *
+ * For noncharacter Unicode codepoints and codepoints outside of the
+ * defined Unicode planes this function returns XKB_KEY_NoSymbol.
+ *
+ * @sa xkb_keysym_to_utf32()
+ * @since 1.0.0
+ */
+xkb_keysym_t
+xkb_utf32_to_keysym(uint32_t ucs);
+
+/**
  * Convert a keysym to its uppercase form.
  *
  * If there is no such form, the keysym is returned unchanged.
@@ -530,7 +562,7 @@ xkb_keysym_to_lower(xkb_keysym_t ks);
  *
  * The user may set some environment variables which affect the library:
  *
- * - `XKB_CONFIG_ROOT`, `HOME` - see @ref include-path.
+ * - `XKB_CONFIG_ROOT`, `XKB_EXTRA_PATH`, `XDG_CONFIG_DIR`, `HOME` - see @ref include-path.
  * - `XKB_LOG_LEVEL` - see xkb_context_set_log_level().
  * - `XKB_LOG_VERBOSITY` - see xkb_context_set_log_verbosity().
  * - `XKB_DEFAULT_RULES`, `XKB_DEFAULT_MODEL`, `XKB_DEFAULT_LAYOUT`,
@@ -616,11 +648,16 @@ xkb_context_get_user_data(struct xkb_context *context);
  * The include paths are the file-system paths that are searched when an
  * include statement is encountered during keymap compilation.
  *
- * The default include paths are:
- * - The system XKB root, defined at library configuration time.
- *   If * the `XKB_CONFIG_ROOT` environment is defined, it is used instead.
+ * The default include paths are, in that lookup order:
+ * - The path `$XDG_CONFIG_HOME/xkb`, with the usual `XDG_CONFIG_HOME`
+ *   fallback to `$HOME/.config/` if unset.
  * - The path `$HOME/.xkb`, where $HOME is the value of the environment
  *   variable `HOME`.
+ * - The `XKB_EXTRA_PATH` environment variable, if defined, otherwise the
+ *   system configuration directory, defined at library configuration time
+ *   (usually `/etc/xkb`).
+ * - The `XKB_CONFIG_ROOT` environment variable, if defined, otherwise
+ *   the system XKB root, defined at library configuration time.
  *
  * @{
  */
@@ -1059,6 +1096,7 @@ xkb_keymap_num_layouts(struct xkb_keymap *keymap);
  * a name, returns NULL.
  *
  * @sa xkb_layout_index_t
+ *     For notes on layout names.
  * @memberof xkb_keymap
  */
 const char *
@@ -1071,6 +1109,8 @@ xkb_keymap_layout_get_name(struct xkb_keymap *keymap, xkb_layout_index_t idx);
  * XKB_LAYOUT_INVALID.  If more than one layout in the keymap has this name,
  * returns the lowest index among them.
  *
+ * @sa xkb_layout_index_t
+ *     For notes on layout names.
  * @memberof xkb_keymap
  */
 xkb_layout_index_t
@@ -1139,6 +1179,49 @@ xkb_keymap_num_levels_for_key(struct xkb_keymap *keymap, xkb_keycode_t key,
                               xkb_layout_index_t layout);
 
 /**
+ * Retrieves every possible modifier mask that produces the specified
+ * shift level for a specific key and layout.
+ *
+ * This API is useful for inverse key transformation; i.e. finding out
+ * which modifiers need to be active in order to be able to type the
+ * keysym(s) corresponding to the specific key code, layout and level.
+ *
+ * @warning It returns only up to masks_size modifier masks. If the
+ * buffer passed is too small, some of the possible modifier combinations
+ * will not be returned.
+ *
+ * @param[in] keymap      The keymap.
+ * @param[in] key         The keycode of the key.
+ * @param[in] layout      The layout for which to get modifiers.
+ * @param[in] level       The shift level in the layout for which to get the
+ * modifiers. This should be smaller than:
+ * @code xkb_keymap_num_levels_for_key(keymap, key) @endcode
+ * @param[out] masks_out  A buffer in which the requested masks should be
+ * stored.
+ * @param[out] masks_size The size of the buffer pointed to by masks_out.
+ *
+ * If @c layout is out of range for this key (that is, larger or equal to
+ * the value returned by xkb_keymap_num_layouts_for_key()), it is brought
+ * back into range in a manner consistent with xkb_state_key_get_layout().
+ *
+ * @returns The number of modifier masks stored in the masks_out array.
+ * If the key is not in the keymap or if the specified shift level cannot
+ * be reached it returns 0 and does not modify the masks_out buffer.
+ *
+ * @sa xkb_level_index_t
+ * @sa xkb_mod_mask_t
+ * @memberof xkb_keymap
+ * @since 1.0.0
+ */
+size_t
+xkb_keymap_key_get_mods_for_level(struct xkb_keymap *keymap,
+                                  xkb_keycode_t key,
+                                  xkb_layout_index_t layout,
+                                  xkb_level_index_t level,
+                                  xkb_mod_mask_t *masks_out,
+                                  size_t masks_size);
+
+/**
  * Get the keysyms obtained from pressing a key in a given layout and
  * shift level.
  *
@@ -1150,7 +1233,7 @@ xkb_keymap_num_levels_for_key(struct xkb_keymap *keymap, xkb_keycode_t key,
  * @param[in] key       The keycode of the key.
  * @param[in] layout    The layout for which to get the keysyms.
  * @param[in] level     The shift level in the layout for which to get the
- * keysyms. This must be smaller than:
+ * keysyms. This should be smaller than:
  * @code xkb_keymap_num_levels_for_key(keymap, key) @endcode
  * @param[out] syms_out An immutable array of keysyms corresponding to the
  * key in the given layout and shift level.

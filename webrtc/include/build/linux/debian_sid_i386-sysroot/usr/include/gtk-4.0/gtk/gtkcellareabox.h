@@ -32,37 +32,9 @@ G_BEGIN_DECLS
 
 #define GTK_TYPE_CELL_AREA_BOX            (gtk_cell_area_box_get_type ())
 #define GTK_CELL_AREA_BOX(obj)            (G_TYPE_CHECK_INSTANCE_CAST ((obj), GTK_TYPE_CELL_AREA_BOX, GtkCellAreaBox))
-#define GTK_CELL_AREA_BOX_CLASS(klass)    (G_TYPE_CHECK_CLASS_CAST ((klass), GTK_TYPE_CELL_AREA_BOX, GtkCellAreaBoxClass))
 #define GTK_IS_CELL_AREA_BOX(obj)         (G_TYPE_CHECK_INSTANCE_TYPE ((obj), GTK_TYPE_CELL_AREA_BOX))
-#define GTK_IS_CELL_AREA_BOX_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE ((klass), GTK_TYPE_CELL_AREA_BOX))
-#define GTK_CELL_AREA_BOX_GET_CLASS(obj)  (G_TYPE_INSTANCE_GET_CLASS ((obj), GTK_TYPE_CELL_AREA_BOX, GtkCellAreaBoxClass))
 
 typedef struct _GtkCellAreaBox              GtkCellAreaBox;
-typedef struct _GtkCellAreaBoxClass         GtkCellAreaBoxClass;
-typedef struct _GtkCellAreaBoxPrivate       GtkCellAreaBoxPrivate;
-
-struct _GtkCellAreaBox
-{
-  /*< private >*/
-  GtkCellArea parent_instance;
-
-  GtkCellAreaBoxPrivate *priv;
-};
-
-/**
- * GtkCellAreaBoxClass:
- */
-struct _GtkCellAreaBoxClass
-{
-  /*< private >*/
-  GtkCellAreaClass parent_class;
-
-  /* Padding for future expansion */
-  void (*_gtk_reserved1) (void);
-  void (*_gtk_reserved2) (void);
-  void (*_gtk_reserved3) (void);
-  void (*_gtk_reserved4) (void);
-};
 
 GDK_AVAILABLE_IN_ALL
 GType        gtk_cell_area_box_get_type    (void) G_GNUC_CONST;
@@ -82,14 +54,14 @@ void         gtk_cell_area_box_pack_end    (GtkCellAreaBox  *box,
                                             gboolean         align,
                                             gboolean         fixed);
 GDK_AVAILABLE_IN_ALL
-gint         gtk_cell_area_box_get_spacing (GtkCellAreaBox  *box);
+int          gtk_cell_area_box_get_spacing (GtkCellAreaBox  *box);
 GDK_AVAILABLE_IN_ALL
 void         gtk_cell_area_box_set_spacing (GtkCellAreaBox  *box,
-                                            gint             spacing);
+                                            int              spacing);
 
 /* Private interaction with GtkCellAreaBoxContext */
 gboolean    _gtk_cell_area_box_group_visible (GtkCellAreaBox  *box,
-                                              gint             group_idx);
+                                              int              group_idx);
 
 G_END_DECLS
 

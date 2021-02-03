@@ -22,7 +22,7 @@
 #ifndef __GDK_DISPLAY_H__
 #define __GDK_DISPLAY_H__
 
-#if !defined (__GDK_H_INSIDE__) && !defined (GDK_COMPILATION)
+#if !defined (__GDK_H_INSIDE__) && !defined (GTK_COMPILATION)
 #error "Only <gdk/gdk.h> can be included directly."
 #endif
 
@@ -41,10 +41,10 @@ G_BEGIN_DECLS
 GDK_AVAILABLE_IN_ALL
 GType       gdk_display_get_type (void) G_GNUC_CONST;
 GDK_AVAILABLE_IN_ALL
-GdkDisplay *gdk_display_open                (const gchar *display_name);
+GdkDisplay *gdk_display_open                (const char *display_name);
 
 GDK_AVAILABLE_IN_ALL
-const gchar * gdk_display_get_name         (GdkDisplay *display);
+const char * gdk_display_get_name         (GdkDisplay *display);
 
 GDK_AVAILABLE_IN_ALL
 gboolean    gdk_display_device_is_grabbed  (GdkDisplay  *display,
@@ -65,22 +65,11 @@ GDK_AVAILABLE_IN_ALL
 gboolean    gdk_display_is_composited      (GdkDisplay  *display);
 GDK_AVAILABLE_IN_ALL
 gboolean    gdk_display_is_rgba            (GdkDisplay  *display);
-
 GDK_AVAILABLE_IN_ALL
-GdkEvent* gdk_display_get_event  (GdkDisplay     *display);
-GDK_AVAILABLE_IN_ALL
-GdkEvent* gdk_display_peek_event (GdkDisplay     *display);
-GDK_AVAILABLE_IN_ALL
-void      gdk_display_put_event  (GdkDisplay     *display,
-                                  const GdkEvent *event);
-GDK_AVAILABLE_IN_ALL
-gboolean  gdk_display_has_pending (GdkDisplay  *display);
+gboolean    gdk_display_supports_input_shapes (GdkDisplay    *display);
 
 GDK_AVAILABLE_IN_ALL
 GdkDisplay *gdk_display_get_default (void);
-
-GDK_AVAILABLE_IN_ALL
-GdkSurface *gdk_display_get_default_group       (GdkDisplay *display); 
 
 GDK_AVAILABLE_IN_ALL
 GdkClipboard *          gdk_display_get_clipboard               (GdkDisplay     *display);
@@ -88,14 +77,10 @@ GDK_AVAILABLE_IN_ALL
 GdkClipboard *          gdk_display_get_primary_clipboard       (GdkDisplay     *display);
 
 GDK_AVAILABLE_IN_ALL
-gboolean gdk_display_supports_shapes           (GdkDisplay    *display);
-GDK_AVAILABLE_IN_ALL
-gboolean gdk_display_supports_input_shapes     (GdkDisplay    *display);
-GDK_AVAILABLE_IN_ALL
 void     gdk_display_notify_startup_complete   (GdkDisplay    *display,
-                                                const gchar   *startup_id);
+                                                const char    *startup_id);
 GDK_AVAILABLE_IN_ALL
-const gchar * gdk_display_get_startup_notification_id (GdkDisplay *display);
+const char * gdk_display_get_startup_notification_id (GdkDisplay *display);
 
 GDK_AVAILABLE_IN_ALL
 GdkAppLaunchContext *gdk_display_get_app_launch_context (GdkDisplay *display);
@@ -107,22 +92,37 @@ GDK_AVAILABLE_IN_ALL
 GList   * gdk_display_list_seats       (GdkDisplay *display);
 
 GDK_AVAILABLE_IN_ALL
-int          gdk_display_get_n_monitors        (GdkDisplay *display);
-GDK_AVAILABLE_IN_ALL
-GdkMonitor * gdk_display_get_monitor           (GdkDisplay *display,
-                                                int         monitor_num);
-GDK_AVAILABLE_IN_ALL
-GdkMonitor * gdk_display_get_primary_monitor   (GdkDisplay *display);
-GDK_AVAILABLE_IN_ALL
-GdkMonitor * gdk_display_get_monitor_at_point  (GdkDisplay *display,
-                                                int         x,
-                                                int         y);
+GListModel * gdk_display_get_monitors          (GdkDisplay *self) G_GNUC_PURE;
 GDK_AVAILABLE_IN_ALL
 GdkMonitor * gdk_display_get_monitor_at_surface (GdkDisplay *display,
                                                 GdkSurface  *surface);
 
 GDK_AVAILABLE_IN_ALL
-GdkKeymap *  gdk_display_get_keymap  (GdkDisplay *display);
+void      gdk_display_put_event  (GdkDisplay     *display,
+                                  GdkEvent       *event);
+
+GDK_AVAILABLE_IN_ALL
+gboolean       gdk_display_map_keyval  (GdkDisplay    *display,
+                                        guint          keyval,
+                                        GdkKeymapKey **keys,
+                                        int           *n_keys);
+
+GDK_AVAILABLE_IN_ALL
+gboolean       gdk_display_map_keycode (GdkDisplay    *display,
+                                        guint          keycode,
+                                        GdkKeymapKey **keys,
+                                        guint        **keyvals,
+                                        int           *n_entries);
+
+GDK_AVAILABLE_IN_ALL
+gboolean       gdk_display_translate_key (GdkDisplay      *display,
+                                          guint            keycode,
+                                          GdkModifierType  state,
+                                          int              group,
+                                          guint           *keyval,
+                                          int             *effective_group,
+                                          int             *level,
+                                          GdkModifierType *consumed);
 
 GDK_AVAILABLE_IN_ALL
 gboolean     gdk_display_get_setting (GdkDisplay *display,

@@ -99,8 +99,14 @@ GDK_AVAILABLE_IN_ALL
 void            gtk_snapshot_push_cross_fade            (GtkSnapshot            *snapshot,
                                                          double                  progress);
 GDK_AVAILABLE_IN_ALL
+void            gtk_snapshot_push_gl_shader             (GtkSnapshot            *snapshot,
+                                                         GskGLShader            *shader,
+                                                         const graphene_rect_t  *bounds,
+                                                         GBytes                 *take_args);
+GDK_AVAILABLE_IN_ALL
+void           gtk_snapshot_gl_shader_pop_texture       (GtkSnapshot            *snapshot);
+GDK_AVAILABLE_IN_ALL
 void            gtk_snapshot_pop                        (GtkSnapshot            *snapshot);
-
 GDK_AVAILABLE_IN_ALL
 void            gtk_snapshot_save                       (GtkSnapshot            *snapshot);
 GDK_AVAILABLE_IN_ALL
@@ -165,6 +171,26 @@ void            gtk_snapshot_append_repeating_linear_gradient (GtkSnapshot      
                                                                const GskColorStop     *stops,
                                                                gsize                   n_stops);
 GDK_AVAILABLE_IN_ALL
+void            gtk_snapshot_append_radial_gradient     (GtkSnapshot            *snapshot,
+                                                         const graphene_rect_t  *bounds,
+                                                         const graphene_point_t *center,
+                                                         float                   hradius,
+                                                         float                   vradius,
+                                                         float                   start,
+                                                         float                   end,
+                                                         const GskColorStop     *stops,
+                                                         gsize                   n_stops);
+GDK_AVAILABLE_IN_ALL
+void            gtk_snapshot_append_repeating_radial_gradient (GtkSnapshot            *snapshot,
+                                                               const graphene_rect_t  *bounds,
+                                                               const graphene_point_t *center,
+                                                               float                   hradius,
+                                                               float                   vradius,
+                                                               float                   start,
+                                                               float                   end,
+                                                               const GskColorStop     *stops,
+                                                               gsize                   n_stops);
+GDK_AVAILABLE_IN_ALL
 void            gtk_snapshot_append_border              (GtkSnapshot            *snapshot,
                                                          const GskRoundedRect   *outline,
                                                          const float             border_width[4],
@@ -195,35 +221,35 @@ void            gtk_snapshot_append_layout              (GtkSnapshot            
 GDK_AVAILABLE_IN_ALL
 void            gtk_snapshot_render_background          (GtkSnapshot            *snapshot,
                                                          GtkStyleContext        *context,
-                                                         gdouble                 x,
-                                                         gdouble                 y,
-                                                         gdouble                 width,
-                                                         gdouble                 height);
+                                                         double                  x,
+                                                         double                  y,
+                                                         double                  width,
+                                                         double                  height);
 GDK_AVAILABLE_IN_ALL
 void            gtk_snapshot_render_frame               (GtkSnapshot            *snapshot,
                                                          GtkStyleContext        *context,
-                                                         gdouble                 x,
-                                                         gdouble                 y,
-                                                         gdouble                 width,
-                                                         gdouble                 height);
+                                                         double                  x,
+                                                         double                  y,
+                                                         double                  width,
+                                                         double                  height);
 GDK_AVAILABLE_IN_ALL
 void            gtk_snapshot_render_focus               (GtkSnapshot            *snapshot,
                                                          GtkStyleContext        *context,
-                                                         gdouble                 x,
-                                                         gdouble                 y,
-                                                         gdouble                 width,
-                                                         gdouble                 height);
+                                                         double                  x,
+                                                         double                  y,
+                                                         double                  width,
+                                                         double                  height);
 GDK_AVAILABLE_IN_ALL
 void            gtk_snapshot_render_layout              (GtkSnapshot            *snapshot,
                                                          GtkStyleContext        *context,
-                                                         gdouble                 x,
-                                                         gdouble                 y,
+                                                         double                  x,
+                                                         double                  y,
                                                          PangoLayout            *layout);
 GDK_AVAILABLE_IN_ALL /* in gtkstylecontext.c */
 void            gtk_snapshot_render_insertion_cursor    (GtkSnapshot            *snapshot,
                                                          GtkStyleContext        *context,
-                                                         gdouble                 x,
-                                                         gdouble                 y,
+                                                         double                  x,
+                                                         double                  y,
                                                          PangoLayout            *layout,
                                                          int                     index,
                                                          PangoDirection          direction);

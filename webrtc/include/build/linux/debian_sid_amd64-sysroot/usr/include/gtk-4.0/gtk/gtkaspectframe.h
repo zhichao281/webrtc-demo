@@ -30,59 +30,54 @@
 #error "Only <gtk/gtk.h> can be included directly."
 #endif
 
-#include <gtk/gtkframe.h>
+#include <gtk/gtkwidget.h>
 
 
 G_BEGIN_DECLS
 
 #define GTK_TYPE_ASPECT_FRAME            (gtk_aspect_frame_get_type ())
 #define GTK_ASPECT_FRAME(obj)            (G_TYPE_CHECK_INSTANCE_CAST ((obj), GTK_TYPE_ASPECT_FRAME, GtkAspectFrame))
-#define GTK_ASPECT_FRAME_CLASS(klass)    (G_TYPE_CHECK_CLASS_CAST ((klass), GTK_TYPE_ASPECT_FRAME, GtkAspectFrameClass))
 #define GTK_IS_ASPECT_FRAME(obj)         (G_TYPE_CHECK_INSTANCE_TYPE ((obj), GTK_TYPE_ASPECT_FRAME))
-#define GTK_IS_ASPECT_FRAME_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE ((klass), GTK_TYPE_ASPECT_FRAME))
-#define GTK_ASPECT_FRAME_GET_CLASS(obj)  (G_TYPE_INSTANCE_GET_CLASS ((obj), GTK_TYPE_ASPECT_FRAME, GtkAspectFrameClass))
 
-typedef struct _GtkAspectFrame              GtkAspectFrame;
-typedef struct _GtkAspectFrameClass         GtkAspectFrameClass;
-
-struct _GtkAspectFrame
-{
-  GtkFrame parent_instance;
-};
-
-/**
- * GtkAspectFrameClass:
- * @parent_class: The parent class.
- */
-struct _GtkAspectFrameClass
-{
-  GtkFrameClass parent_class;
-
-  /*< private >*/
-
-  /* Padding for future expansion */
-  void (*_gtk_reserved1) (void);
-  void (*_gtk_reserved2) (void);
-  void (*_gtk_reserved3) (void);
-  void (*_gtk_reserved4) (void);
-};
-
+typedef struct _GtkAspectFrame      GtkAspectFrame;
 
 GDK_AVAILABLE_IN_ALL
 GType      gtk_aspect_frame_get_type   (void) G_GNUC_CONST;
 GDK_AVAILABLE_IN_ALL
-GtkWidget* gtk_aspect_frame_new        (const gchar     *label,
-					gfloat           xalign,
-					gfloat           yalign,
-					gfloat           ratio,
-					gboolean         obey_child);
-GDK_AVAILABLE_IN_ALL
-void       gtk_aspect_frame_set        (GtkAspectFrame  *aspect_frame,
-					gfloat           xalign,
-					gfloat           yalign,
-					gfloat           ratio,
-					gboolean         obey_child);
+GtkWidget* gtk_aspect_frame_new        (float            xalign,
+                                        float            yalign,
+                                        float            ratio,
+                                        gboolean         obey_child);
 
+GDK_AVAILABLE_IN_ALL
+void       gtk_aspect_frame_set_xalign (GtkAspectFrame *self,
+                                        float           xalign);
+GDK_AVAILABLE_IN_ALL
+float      gtk_aspect_frame_get_xalign (GtkAspectFrame *self);
+
+GDK_AVAILABLE_IN_ALL
+void       gtk_aspect_frame_set_yalign (GtkAspectFrame *self,
+                                        float           yalign);
+GDK_AVAILABLE_IN_ALL
+float      gtk_aspect_frame_get_yalign (GtkAspectFrame *self);
+
+GDK_AVAILABLE_IN_ALL
+void       gtk_aspect_frame_set_ratio  (GtkAspectFrame *self,
+                                        float           ratio);
+GDK_AVAILABLE_IN_ALL
+float      gtk_aspect_frame_get_ratio  (GtkAspectFrame *self);
+
+GDK_AVAILABLE_IN_ALL
+void       gtk_aspect_frame_set_obey_child (GtkAspectFrame *self,
+                                            gboolean        obey_child);
+GDK_AVAILABLE_IN_ALL
+gboolean   gtk_aspect_frame_get_obey_child (GtkAspectFrame *self);
+
+GDK_AVAILABLE_IN_ALL
+void       gtk_aspect_frame_set_child  (GtkAspectFrame *self,
+                                        GtkWidget      *child);
+GDK_AVAILABLE_IN_ALL
+GtkWidget *gtk_aspect_frame_get_child  (GtkAspectFrame *self);
 
 G_END_DECLS
 

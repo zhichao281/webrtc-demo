@@ -141,6 +141,11 @@ class CORE_EXPORT HTMLCanvasElement final
     return toBlob(callback, mime_type, ScriptValue(), exception_state);
   }
 
+  bool IsPresentationAttribute(const QualifiedName&) const final;
+  void CollectStyleForPresentationAttribute(const QualifiedName&,
+                                            const AtomicString&,
+                                            MutableCSSPropertyValueSet*) final;
+
   // Used for canvas capture.
   void AddListener(CanvasDrawListener*);
   void RemoveListener(CanvasDrawListener*);
@@ -261,7 +266,7 @@ class CORE_EXPORT HTMLCanvasElement final
   ::blink::SurfaceLayerBridge* SurfaceLayerBridge() const {
     return surface_layer_bridge_.get();
   }
-  void CreateLayer();
+  bool CreateLayer();
 
   void DetachContext() override { context_ = nullptr; }
 

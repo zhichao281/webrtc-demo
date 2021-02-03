@@ -25,7 +25,7 @@
 #ifndef __GDK_RGBA_H__
 #define __GDK_RGBA_H__
 
-#if !defined (__GDK_H_INSIDE__) && !defined (GDK_COMPILATION)
+#if !defined (__GDK_H_INSIDE__) && !defined (GTK_COMPILATION)
 #error "Only <gdk/gdk.h> can be included directly."
 #endif
 
@@ -36,10 +36,10 @@ G_BEGIN_DECLS
 
 struct _GdkRGBA
 {
-  gdouble red;
-  gdouble green;
-  gdouble blue;
-  gdouble alpha;
+  float red;
+  float green;
+  float blue;
+  float alpha;
 };
 
 #define GDK_TYPE_RGBA (gdk_rgba_get_type ())
@@ -53,21 +53,21 @@ GDK_AVAILABLE_IN_ALL
 void      gdk_rgba_free      (GdkRGBA       *rgba);
 
 GDK_AVAILABLE_IN_ALL
-gboolean  gdk_rgba_is_clear  (const GdkRGBA *rgba);
+gboolean  gdk_rgba_is_clear  (const GdkRGBA *rgba) G_GNUC_PURE;
 GDK_AVAILABLE_IN_ALL
-gboolean  gdk_rgba_is_opaque (const GdkRGBA *rgba);
+gboolean  gdk_rgba_is_opaque (const GdkRGBA *rgba) G_GNUC_PURE;
 
 GDK_AVAILABLE_IN_ALL
-guint     gdk_rgba_hash      (gconstpointer  p);
+guint     gdk_rgba_hash      (gconstpointer  p) G_GNUC_PURE;
 GDK_AVAILABLE_IN_ALL
 gboolean  gdk_rgba_equal     (gconstpointer  p1,
-                              gconstpointer  p2);
+                              gconstpointer  p2) G_GNUC_PURE;
 
 GDK_AVAILABLE_IN_ALL
 gboolean  gdk_rgba_parse     (GdkRGBA       *rgba,
-                              const gchar   *spec);
+                              const char    *spec);
 GDK_AVAILABLE_IN_ALL
-gchar *   gdk_rgba_to_string (const GdkRGBA *rgba);
+char *   gdk_rgba_to_string (const GdkRGBA *rgba);
 
 
 G_END_DECLS

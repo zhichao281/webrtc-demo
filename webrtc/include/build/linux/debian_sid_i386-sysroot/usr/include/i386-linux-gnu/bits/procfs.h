@@ -1,5 +1,5 @@
 /* Types for registers for sys/procfs.h.  x86 version.
-   Copyright (C) 2001-2019 Free Software Foundation, Inc.
+   Copyright (C) 2001-2020 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -14,7 +14,7 @@
 
    You should have received a copy of the GNU Lesser General Public
    License along with the GNU C Library; if not, see
-   <http://www.gnu.org/licenses/>.  */
+   <https://www.gnu.org/licenses/>.  */
 
 #ifndef _SYS_PROCFS_H
 # error "Never include <bits/procfs.h> directly; use <sys/procfs.h> instead."
@@ -31,7 +31,7 @@ typedef unsigned long elf_greg_t;
    user_regs_struct' directly in the typedef, but tradition says that
    the register set is an array, which does have some peculiar
    semantics, so leave it that way.  */
-#define ELF_NGREG (sizeof (struct user_regs_struct) / sizeof(elf_greg_t))
+#define ELF_NGREG (sizeof (struct user_regs_struct) / sizeof (elf_greg_t))
 typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 
 #ifndef __x86_64__

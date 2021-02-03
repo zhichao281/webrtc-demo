@@ -54,7 +54,6 @@
 #include "third_party/blink/public/mojom/reporting/reporting.mojom-blink.h"
 #include "third_party/blink/public/mojom/web_feature/web_feature.mojom-blink-forward.h"
 #include "third_party/blink/public/platform/task_type.h"
-#include "third_party/blink/public/platform/web_rect.h"
 #include "third_party/blink/public/web/web_history_item.h"
 #include "third_party/blink/renderer/core/clipboard/raw_system_clipboard.h"
 #include "third_party/blink/renderer/core/clipboard/system_clipboard.h"
@@ -65,6 +64,7 @@
 #include "third_party/blink/renderer/core/frame/frame_types.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
 #include "third_party/blink/renderer/core/frame/policy_container.h"
+#include "third_party/blink/renderer/core/geometry/dom_rect.h"
 #include "third_party/blink/renderer/core/loader/frame_loader.h"
 #include "third_party/blink/renderer/platform/graphics/touch_action.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
@@ -206,7 +206,18 @@ class CORE_EXPORT LocalFrame final
       Frame* child) override;
   void DidFocus() override;
 
+  // Triggers eviction of this frame by notifying the browser side.
   void EvictFromBackForwardCache(mojom::blink::RendererEvictionReason reason);
+  // Called when a network request buffered an additional `num_bytes` while the
+  // frame is in back-forward cache. Updates the total amount of bytes buffered
+  // for back-forward cache in the frame and in the process. Note that
+  // `num_bytes` is the amount of additional bytes that are newly buffered, on
+  // top of any previously buffered bytes for this frame.
+  void DidBufferLoadWhileInBackForwardCache(size_t num_bytes);
+  // Returns true if the total amount of bytes buffered while in back-forward
+  // cache in the whole renderer process is still under the per-process limit,
+  // false otherwise.
+  bool CanContinueBufferingWhileInBackForwardCache();
 
   void DidChangeThemeColor();
   void DidChangeBackgroundColor(SkColor background_color, bool color_adjust);
@@ -336,9 +347,9 @@ class CORE_EXPORT LocalFrame final
   // media query value changed.
   void MediaQueryAffectingValueChangedForLocalSubtree(MediaValueChange);
 
-  void WindowSegmentsChanged(const WebVector<WebRect>& window_segments);
+  void WindowSegmentsChanged(const WebVector<gfx::Rect>& window_segments);
   void UpdateCSSFoldEnvironmentVariables(
-      const WebVector<WebRect>& window_segments);
+      const WebVector<gfx::Rect>& window_segments);
 
   String SelectedText() const;
   String SelectedTextForClipboard() const;
@@ -699,6 +710,9 @@ class CORE_EXPORT LocalFrame final
   void UpdateBrowserControlsState(cc::BrowserControlsState constraints,
                                   cc::BrowserControlsState current,
                                   bool animate) override;
+  void UpdateWindowControlsOverlay(
+      const gfx::Rect& window_controls_overlay_rect,
+      const gfx::Insets& insets) override;
 
   // mojom::FullscreenVideoElementHandler implementation:
   void RequestFullscreenVideoElement() final;
@@ -738,6 +752,16 @@ class CORE_EXPORT LocalFrame final
   bool IsLoadDeferred();
 
   bool SwapIn();
+
+  // For PWAs with display_overrides, these getters are information about the
+  // titlebar bounds sent over from the browser via UpdateWindowControlsOverlay
+  // in LocalMainFrame that are needed to persist the lifetime of the frame.
+  bool IsWindowControlsOverlayVisible() const {
+    return is_window_controls_overlay_visible_;
+  }
+  const gfx::Rect& GetWindowControlsOverlayRect() const {
+    return window_controls_overlay_rect_;
+  }
 
  private:
   friend class FrameNavigationDisabler;
@@ -870,6 +894,11 @@ class CORE_EXPORT LocalFrame final
   float page_zoom_factor_;
   float text_zoom_factor_;
 
+  // The total bytes buffered by all network requests in this frame while frozen
+  // due to back-forward cache. This number gets reset when the frame gets out
+  // of the back-forward cache.
+  size_t total_bytes_buffered_while_in_back_forward_cache_ = 0;
+
   Member<CoreProbeSink> probe_sink_;
   scoped_refptr<InspectorTaskRunner> inspector_task_runner_;
   Member<PerformanceMonitor> performance_monitor_;
@@ -977,6 +1006,9 @@ class CORE_EXPORT LocalFrame final
   TransientAllowFullscreen transient_allow_fullscreen_;
 
   std::unique_ptr<PolicyContainer> policy_container_;
+
+  bool is_window_controls_overlay_visible_ = false;
+  gfx::Rect window_controls_overlay_rect_;
 };
 
 inline FrameLoader& LocalFrame::Loader() const {

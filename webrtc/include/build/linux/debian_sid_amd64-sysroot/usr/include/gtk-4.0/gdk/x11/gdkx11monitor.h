@@ -22,8 +22,8 @@
 #ifndef __GDK_X11_MONITOR_H__
 #define __GDK_X11_MONITOR_H__
 
-#if !defined (__GDKX_H_INSIDE__) && !defined (GDK_COMPILATION)
-#error "Only <gdk/gdkx.h> can be included directly."
+#if !defined (__GDKX_H_INSIDE__) && !defined (GTK_COMPILATION)
+#error "Only <gdk/x11/gdkx.h> can be included directly."
 #endif
 
 #include <gdk/gdkmonitor.h>
@@ -42,6 +42,10 @@ GType             gdk_x11_monitor_get_type            (void) G_GNUC_CONST;
 
 GDK_AVAILABLE_IN_ALL
 XID               gdk_x11_monitor_get_output          (GdkMonitor *monitor);
+
+GDK_AVAILABLE_IN_ALL
+void              gdk_x11_monitor_get_workarea        (GdkMonitor   *monitor,
+                                                       GdkRectangle *workarea);
 
 G_END_DECLS
 

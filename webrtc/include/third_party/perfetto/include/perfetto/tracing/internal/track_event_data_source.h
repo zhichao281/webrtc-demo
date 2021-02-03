@@ -233,9 +233,10 @@ class TrackEventDataSource
                                perfetto::protos::pbzero::TrackEvent::Type type,
                                ArgumentFunction arg_function)
       PERFETTO_NO_INLINE {
-    TraceForCategoryImpl<CategoryIndex>(
-        instances, dynamic_category, event_name, type, Track(),
-        TrackEventInternal::GetTimeNs(), std::move(arg_function));
+    TraceForCategoryImpl<CategoryIndex>(instances, dynamic_category, event_name,
+                                        type, TrackEventInternal::kDefaultTrack,
+                                        TrackEventInternal::GetTimeNs(),
+                                        std::move(arg_function));
   }
 
   // Trace point which takes a lambda function argument and an overridden
@@ -257,8 +258,8 @@ class TrackEventDataSource
                                ArgumentFunction arg_function)
       PERFETTO_NO_INLINE {
     TraceForCategoryImpl<CategoryIndex>(instances, dynamic_category, event_name,
-                                        type, Track(), timestamp,
-                                        std::move(arg_function));
+                                        type, TrackEventInternal::kDefaultTrack,
+                                        timestamp, std::move(arg_function));
   }
 
   // This variant of the inner trace point takes a Track argument which can be
@@ -362,7 +363,8 @@ class TrackEventDataSource
                                ArgType&& arg_value) PERFETTO_ALWAYS_INLINE {
     TraceForCategoryWithDebugAnnotations<CategoryIndex, CategoryType, Track,
                                          ArgType>(
-        instances, dynamic_category, event_name, type, Track(), arg_name,
+        instances, dynamic_category, event_name, type,
+        TrackEventInternal::kDefaultTrack, arg_name,
         std::forward<ArgType>(arg_value));
   }
 
@@ -424,7 +426,8 @@ class TrackEventDataSource
                                ArgType2&& arg_value2) PERFETTO_ALWAYS_INLINE {
     TraceForCategoryWithDebugAnnotations<CategoryIndex, CategoryType, Track,
                                          ArgType, ArgType2>(
-        instances, dynamic_category, event_name, type, Track(), arg_name,
+        instances, dynamic_category, event_name, type,
+        TrackEventInternal::kDefaultTrack, arg_name,
         std::forward<ArgType>(arg_value), arg_name2,
         std::forward<ArgType2>(arg_value2));
   }
@@ -462,7 +465,7 @@ class TrackEventDataSource
       const CategoryType& dynamic_category,
       const char* event_name,
       perfetto::protos::pbzero::TrackEvent::Type type,
-      TrackType track,
+      const TrackType& track,
       const char* arg_name,
       typename internal::DebugAnnotationArg<ArgType>::type arg_value,
       const char* arg_name2,
@@ -566,7 +569,7 @@ class TrackEventDataSource
       const CategoryType& dynamic_category,
       const char* event_name,
       perfetto::protos::pbzero::TrackEvent::Type type,
-      const TrackType& track = Track(),
+      const TrackType& track = TrackEventInternal::kDefaultTrack,
       TimestampType timestamp = TrackEventInternal::GetTimeNs(),
       ArgumentFunction arg_function = [](EventContext) {
       }) PERFETTO_ALWAYS_INLINE {
@@ -602,7 +605,7 @@ class TrackEventDataSource
                     return true;
                   });
             }
-            if (track)
+            if (&track != &TrackEventInternal::kDefaultTrack)
               event_ctx.event()->set_track_uuid(track.uuid);
             arg_function(std::move(event_ctx));
           }  // event_ctx

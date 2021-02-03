@@ -195,7 +195,7 @@ class MODULES_EXPORT AXObjectCacheImpl
   AXObject* GetOrCreate(Node*, AXObject* parent_if_known);
   AXObject* GetOrCreate(Node*);
   AXObject* GetOrCreate(const Node*);
-  AXObject* GetOrCreate(AbstractInlineTextBox*, AXObject* parent);
+  AXObject* GetOrCreate(AbstractInlineTextBox*, AXObject* parent_if_known);
 
   AXID GetAXID(Node*) override;
   Element* GetElementFromAXID(AXID) override;
@@ -217,6 +217,7 @@ class MODULES_EXPORT AXObjectCacheImpl
 
   void HandleActiveDescendantChangedWithCleanLayout(Node*);
   void HandleRoleChangeWithCleanLayout(Node*);
+  void HandleAriaHiddenChangedWithCleanLayout(Node*);
   void HandleAriaExpandedChangeWithCleanLayout(Node*);
   void HandleAriaSelectedChangedWithCleanLayout(Node*);
   void HandleNodeLostFocusWithCleanLayout(Node*);
@@ -281,8 +282,9 @@ class MODULES_EXPORT AXObjectCacheImpl
   // granted, it only applies to the next event received.
   void RequestAOMEventListenerPermission();
 
-  // For built-in HTML form validation messages.
-  AXObject* ValidationMessageObjectIfInvalid();
+  // For built-in HTML form validation messages. Set notify_children_changed to
+  // true if not already processing changed children.
+  AXObject* ValidationMessageObjectIfInvalid(bool notify_children_changed);
 
   WebAXAutofillState GetAutofillState(AXID id) const;
   void SetAutofillState(AXID id, WebAXAutofillState state);
@@ -297,6 +299,7 @@ class MODULES_EXPORT AXObjectCacheImpl
   AXObject* GetActiveAriaModalDialog() const;
 
   static bool UseAXMenuList() { return use_ax_menu_list_; }
+  static bool ShouldCreateAXMenuListOptionFor(const Node*);
 
 #if DCHECK_IS_ON()
   bool HasBeenDisposed() { return has_been_disposed_; }

@@ -25,7 +25,7 @@
 #ifndef __GDK_DND_H__
 #define __GDK_DND_H__
 
-#if !defined (__GDK_H_INSIDE__) && !defined (GDK_COMPILATION)
+#if !defined (__GDK_H_INSIDE__) && !defined (GTK_COMPILATION)
 #error "Only <gdk/gdk.h> can be included directly."
 #endif
 
@@ -76,8 +76,8 @@ GdkDrag *        gdk_drag_begin                (GdkSurface         *surface,
                                                 GdkDevice          *device,
                                                 GdkContentProvider *content,
                                                 GdkDragAction       actions,
-                                                gint                dx,
-                                                gint                dy);
+                                                double              dx,
+                                                double              dy);
 
 GDK_AVAILABLE_IN_ALL
 void            gdk_drag_drop_done   (GdkDrag  *drag,
@@ -88,8 +88,15 @@ GdkSurface      *gdk_drag_get_drag_surface (GdkDrag *drag);
 
 GDK_AVAILABLE_IN_ALL
 void            gdk_drag_set_hotspot (GdkDrag *drag,
-                                      gint     hot_x,
-                                      gint     hot_y);
+                                      int      hot_x,
+                                      int      hot_y);
+
+GDK_AVAILABLE_IN_ALL
+GdkContentProvider *
+                gdk_drag_get_content (GdkDrag *drag);
+
+GDK_AVAILABLE_IN_ALL
+GdkSurface *    gdk_drag_get_surface (GdkDrag *drag);
 
 G_END_DECLS
 

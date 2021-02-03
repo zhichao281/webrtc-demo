@@ -35,7 +35,7 @@ License version 3 and version 2.1 along with this program.  If not, see
 #include <glib-object.h>
 
 G_BEGIN_DECLS
-/* Enumerations from file: "/build/libappindicator-W28mEW/libappindicator-0.4.92/./src/app-indicator.h" */
+/* Enumerations from file: "app-indicator.h" */
 GType app_indicator_category_get_type (void) G_GNUC_CONST;
 #define APP_INDICATOR_TYPE_INDICATOR_CATEGORY (app_indicator_category_get_type())
 GType app_indicator_status_get_type (void) G_GNUC_CONST;

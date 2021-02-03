@@ -34,7 +34,7 @@
 
 /**
  * SECTION:gtkenums
- * @Short_description: Public enumerated types used throughout GTK+
+ * @Short_description: Public enumerated types used throughout GTK
  * @Title: Standard Enumerations
  */
 
@@ -51,23 +51,24 @@ G_BEGIN_DECLS
  *     or top
  * @GTK_ALIGN_CENTER: center natural width of widget inside the
  *     allocation
- * @GTK_ALIGN_BASELINE: align the widget according to the baseline
+ * @GTK_ALIGN_BASELINE: align the widget according to the baseline. See
+ *     #GtkWidget
  *
  * Controls how a widget deals with extra space in a single (x or y)
  * dimension.
  *
  * Alignment only matters if the widget receives a “too large” allocation,
- * for example if you packed the widget with the #GtkWidget:expand
- * flag inside a #GtkBox, then the widget might get extra space.  If
- * you have for example a 16x16 icon inside a 32x32 space, the icon
+ * for example if you packed the widget with the #GtkWidget:hexpand
+ * property inside a #GtkBox, then the widget might get extra space.
+ * If you have for example a 16x16 icon inside a 32x32 space, the icon
  * could be scaled and stretched, it could be centered, or it could be
  * positioned to one side of the space.
  *
  * Note that in horizontal context @GTK_ALIGN_START and @GTK_ALIGN_END
  * are interpreted relative to text direction.
  *
- * GTK_ALIGN_BASELINE support for it is optional for containers and widgets, and
- * it is only supported for vertical alignment.  When its not supported by
+ * @GTK_ALIGN_BASELINE support is optional for containers and widgets, and
+ * it is only supported for vertical alignment.  When it's not supported by
  * a child or a container it is treated as @GTK_ALIGN_FILL.
  */
 typedef enum
@@ -106,10 +107,10 @@ typedef enum
  *
  * Whenever a container has some form of natural row it may align
  * children in that row along a common typographical baseline. If
- * the amount of verical space in the row is taller than the total
+ * the amount of vertical space in the row is taller than the total
  * requested height of the baseline-aligned children then it can use a
  * #GtkBaselinePosition to select where to put the baseline inside the
- * extra availible space.
+ * extra available space.
  */
 typedef enum
 {
@@ -125,7 +126,7 @@ typedef enum
  *   left/right of cursor if we’re in the middle of a word.
  * @GTK_DELETE_WORDS: Delete words.
  * @GTK_DELETE_DISPLAY_LINES: Delete display-lines. Display-lines
- *   refers to the visible lines, with respect to to the current line
+ *   refers to the visible lines, with respect to the current line
  *   breaks. As opposed to paragraphs, which are defined by line
  *   breaks in the input.
  * @GTK_DELETE_DISPLAY_LINE_ENDS: Delete only the portion of the
@@ -200,7 +201,7 @@ typedef enum
  * @GTK_SENSITIVITY_ON: The arrow is always sensitive
  * @GTK_SENSITIVITY_OFF: The arrow is always insensitive
  *
- * Determines how GTK+ handles the sensitivity of stepper arrows
+ * Determines how GTK handles the sensitivity of stepper arrows
  * at the end of range widgets.
  */
 typedef enum
@@ -233,8 +234,7 @@ typedef enum
  * @GTK_JUSTIFY_CENTER: The text is placed in the center of the label.
  * @GTK_JUSTIFY_FILL: The text is placed is distributed across the label.
  *
- * Used for justifying the text inside a #GtkLabel widget. (See also
- * #GtkAlignment).
+ * Used for justifying the text inside a #GtkLabel widget.
  */
 typedef enum
 {
@@ -332,7 +332,7 @@ typedef enum
  * @GTK_ORIENTATION_VERTICAL: The element is in vertical orientation.
  *
  * Represents the orientation of widgets and other objects which can be switched
- * between horizontal and vertical orientation on the fly, like #GtkToolbar or
+ * between horizontal and vertical orientation on the fly, like #GtkBox or
  * #GtkGesturePan.
  */
 typedef enum
@@ -378,9 +378,8 @@ typedef enum
  * @GTK_POS_TOP: The feature is at the top edge.
  * @GTK_POS_BOTTOM: The feature is at the bottom edge.
  *
- * Describes which edge of a widget a certain feature is positioned at, e.g. the
- * tabs of a #GtkNotebook, the handle of a #GtkHandleBox or the label of a
- * #GtkScale.
+ * Describes which edge of a widget a certain feature is positioned at, e.g.
+ * the tabs of a #GtkNotebook, or the label of a #GtkScale.
  */
 typedef enum
 {
@@ -389,19 +388,6 @@ typedef enum
   GTK_POS_TOP,
   GTK_POS_BOTTOM
 } GtkPositionType;
-
-/**
- * GtkReliefStyle:
- * @GTK_RELIEF_NORMAL: Draw a normal relief.
- * @GTK_RELIEF_NONE: No relief.
- *
- * Indicated the relief to be drawn around a #GtkButton.
- */
-typedef enum
-{
-  GTK_RELIEF_NORMAL,
-  GTK_RELIEF_NONE
-} GtkReliefStyle;
 
 /**
  * GtkScrollType:
@@ -469,52 +455,7 @@ typedef enum
   GTK_SELECTION_MULTIPLE
 } GtkSelectionMode;
 
-/**
- * GtkShadowType:
- * @GTK_SHADOW_NONE: No outline.
- * @GTK_SHADOW_IN: The outline is bevelled inwards.
- * @GTK_SHADOW_OUT: The outline is bevelled outwards like a button.
- * @GTK_SHADOW_ETCHED_IN: The outline has a sunken 3d appearance.
- * @GTK_SHADOW_ETCHED_OUT: The outline has a raised 3d appearance.
- *
- * Used to change the appearance of an outline typically provided by a #GtkFrame.
- *
- * Note that many themes do not differentiate the appearance of the
- * various shadow types: Either there is no visible shadow (@GTK_SHADOW_NONE),
- * or there is (any other value).
- */
-typedef enum
-{
-  GTK_SHADOW_NONE,
-  GTK_SHADOW_IN,
-  GTK_SHADOW_OUT,
-  GTK_SHADOW_ETCHED_IN,
-  GTK_SHADOW_ETCHED_OUT
-} GtkShadowType;
-
 /* Widget states */
-
-/**
- * GtkToolbarStyle:
- * @GTK_TOOLBAR_ICONS: Buttons display only icons in the toolbar.
- * @GTK_TOOLBAR_TEXT: Buttons display only text labels in the toolbar.
- * @GTK_TOOLBAR_BOTH: Buttons display text and icons in the toolbar.
- * @GTK_TOOLBAR_BOTH_HORIZ: Buttons display icons and text alongside each
- *  other, rather than vertically stacked
- *
- * Used to customize the appearance of a #GtkToolbar. Note that
- * setting the toolbar style overrides the user’s preferences
- * for the default toolbar style.  Note that if the button has only
- * a label set and GTK_TOOLBAR_ICONS is used, the label will be
- * visible, and vice versa.
- */
-typedef enum
-{
-  GTK_TOOLBAR_ICONS,
-  GTK_TOOLBAR_TEXT,
-  GTK_TOOLBAR_BOTH,
-  GTK_TOOLBAR_BOTH_HORIZ
-} GtkToolbarStyle;
 
 /**
  * GtkWrapMode:
@@ -608,6 +549,39 @@ typedef enum
 } GtkNumberUpLayout;
 
 /**
+ * GtkOrdering:
+ * @GTK_ORDERING_SMALLER: the first value is smaller than the second
+ * @GTK_ORDERING_EQUAL: the two values are equal
+ * @GTK_ORDERING_LARGER: the first value is larger than the second
+ *
+ * Describes the way two values can be compared.
+ *
+ * These values can be used with a #GCompareFunc. However, a
+ * #GCompareFunc is allowed to return any integer values.  
+ * For converting such a value to a #GtkOrdering, use
+ * gtk_ordering_from_cmpfunc().
+ */
+typedef enum {
+  GTK_ORDERING_SMALLER = -1,
+  GTK_ORDERING_EQUAL = 0,
+  GTK_ORDERING_LARGER = 1
+} GtkOrdering;
+
+/**
+ * gtk_ordering_from_cmpfunc:
+ * @cmpfunc_result: Result of a comparison function
+ *
+ * Converts the result of a #GCompareFunc like strcmp() to a #GtkOrdering.
+ *
+ * Returns: the corresponding #GtkOrdering
+ **/
+static inline GtkOrdering
+gtk_ordering_from_cmpfunc (int cmpfunc_result)
+{
+  return (GtkOrdering) ((cmpfunc_result > 0) - (cmpfunc_result < 0));
+}
+
+/**
  * GtkPageOrientation:
  * @GTK_PAGE_ORIENTATION_PORTRAIT: Portrait mode.
  * @GTK_PAGE_ORIENTATION_LANDSCAPE: Landscape mode.
@@ -694,31 +668,6 @@ typedef enum
 } GtkTreeViewGridLines;
 
 /**
- * GtkDragResult:
- * @GTK_DRAG_RESULT_SUCCESS: The drag operation was successful.
- * @GTK_DRAG_RESULT_NO_TARGET: No suitable drag target.
- * @GTK_DRAG_RESULT_USER_CANCELLED: The user cancelled the drag operation.
- * @GTK_DRAG_RESULT_TIMEOUT_EXPIRED: The drag operation timed out.
- * @GTK_DRAG_RESULT_GRAB_BROKEN: The pointer or keyboard grab used
- *  for the drag operation was broken.
- * @GTK_DRAG_RESULT_ERROR: The drag operation failed due to some
- *  unspecified error.
- *
- * Gives an indication why a drag operation failed.
- * The value can by obtained by connecting to the
- * #GtkWidget::drag-failed signal.
- */
-typedef enum
-{
-  GTK_DRAG_RESULT_SUCCESS,
-  GTK_DRAG_RESULT_NO_TARGET,
-  GTK_DRAG_RESULT_USER_CANCELLED,
-  GTK_DRAG_RESULT_TIMEOUT_EXPIRED,
-  GTK_DRAG_RESULT_GRAB_BROKEN,
-  GTK_DRAG_RESULT_ERROR
-} GtkDragResult;
-
-/**
  * GtkSizeGroupMode:
  * @GTK_SIZE_GROUP_NONE: group has no effect
  * @GTK_SIZE_GROUP_HORIZONTAL: group affects horizontal requisition
@@ -782,6 +731,7 @@ typedef enum
  * @GTK_STATE_FLAG_CHECKED: Widget is checked
  * @GTK_STATE_FLAG_DROP_ACTIVE: Widget is highlighted as a drop target for DND
  * @GTK_STATE_FLAG_FOCUS_VISIBLE: Widget has the visible focus
+ * @GTK_STATE_FLAG_FOCUS_WITHIN: Widget contains the keyboard focus
  *
  * Describes a widget state. Widget states are used to match the widget
  * against CSS pseudo-classes. Note that GTK extends the regular CSS
@@ -803,16 +753,17 @@ typedef enum
   GTK_STATE_FLAG_VISITED       = 1 << 10,
   GTK_STATE_FLAG_CHECKED       = 1 << 11,
   GTK_STATE_FLAG_DROP_ACTIVE   = 1 << 12,
-  GTK_STATE_FLAG_FOCUS_VISIBLE = 1 << 13
+  GTK_STATE_FLAG_FOCUS_VISIBLE = 1 << 13,
+  GTK_STATE_FLAG_FOCUS_WITHIN  = 1 << 14
 } GtkStateFlags;
 
 /**
  * GtkBorderStyle:
  * @GTK_BORDER_STYLE_NONE: No visible border
+ * @GTK_BORDER_STYLE_HIDDEN: Same as @GTK_BORDER_STYLE_NONE
  * @GTK_BORDER_STYLE_SOLID: A single line segment
  * @GTK_BORDER_STYLE_INSET: Looks as if the content is sunken into the canvas
  * @GTK_BORDER_STYLE_OUTSET: Looks as if the content is coming out of the canvas
- * @GTK_BORDER_STYLE_HIDDEN: Same as @GTK_BORDER_STYLE_NONE
  * @GTK_BORDER_STYLE_DOTTED: A series of round dots
  * @GTK_BORDER_STYLE_DASHED: A series of square-ended dashes
  * @GTK_BORDER_STYLE_DOUBLE: Two parallel lines with some space between them
@@ -823,10 +774,10 @@ typedef enum
  */
 typedef enum {
   GTK_BORDER_STYLE_NONE,
+  GTK_BORDER_STYLE_HIDDEN,
   GTK_BORDER_STYLE_SOLID,
   GTK_BORDER_STYLE_INSET,
   GTK_BORDER_STYLE_OUTSET,
-  GTK_BORDER_STYLE_HIDDEN,
   GTK_BORDER_STYLE_DOTTED,
   GTK_BORDER_STYLE_DASHED,
   GTK_BORDER_STYLE_DOUBLE,
@@ -862,6 +813,7 @@ G_END_DECLS
  * @GTK_INPUT_PURPOSE_NAME: Edited field expects the name of a person
  * @GTK_INPUT_PURPOSE_PASSWORD: Like @GTK_INPUT_PURPOSE_FREE_FORM, but characters are hidden
  * @GTK_INPUT_PURPOSE_PIN: Like @GTK_INPUT_PURPOSE_DIGITS, but characters are hidden
+ * @GTK_INPUT_PURPOSE_TERMINAL: Allow any character, in addition to control codes
  *
  * Describes primary purpose of the input widget. This information is
  * useful for on-screen keyboards and similar input methods to decide
@@ -893,7 +845,8 @@ typedef enum
   GTK_INPUT_PURPOSE_EMAIL,
   GTK_INPUT_PURPOSE_NAME,
   GTK_INPUT_PURPOSE_PASSWORD,
-  GTK_INPUT_PURPOSE_PIN
+  GTK_INPUT_PURPOSE_PIN,
+  GTK_INPUT_PURPOSE_TERMINAL,
 } GtkInputPurpose;
 
 /**
@@ -913,6 +866,8 @@ typedef enum
  * @GTK_INPUT_HINT_VERTICAL_WRITING: The text is vertical
  * @GTK_INPUT_HINT_EMOJI: Suggest offering Emoji support
  * @GTK_INPUT_HINT_NO_EMOJI: Suggest not offering Emoji support
+ * @GTK_INPUT_HINT_PRIVATE: Request that the input method should not
+ *    update personalized data (like typing history)
  *
  * Describes hints that might be taken into account by input methods
  * or applications. Note that input methods may already tailor their
@@ -937,15 +892,13 @@ typedef enum
   GTK_INPUT_HINT_INHIBIT_OSK         = 1 << 7,
   GTK_INPUT_HINT_VERTICAL_WRITING    = 1 << 8,
   GTK_INPUT_HINT_EMOJI               = 1 << 9,
-  GTK_INPUT_HINT_NO_EMOJI            = 1 << 10
+  GTK_INPUT_HINT_NO_EMOJI            = 1 << 10,
+  GTK_INPUT_HINT_PRIVATE             = 1 << 11,
 } GtkInputHints;
 
 /**
  * GtkPropagationPhase:
- * @GTK_PHASE_NONE: Events are not delivered automatically. Those can be
- *   manually fed through gtk_event_controller_handle_event(). This should
- *   only be used when full control about when, or whether the controller
- *   handles the event is needed.
+ * @GTK_PHASE_NONE: Events are not delivered.
  * @GTK_PHASE_CAPTURE: Events are delivered in the capture phase. The
  *   capture phase happens before the bubble phase, runs from the toplevel down
  *   to the event widget. This option should only be used on containers that
@@ -966,6 +919,23 @@ typedef enum
   GTK_PHASE_BUBBLE,
   GTK_PHASE_TARGET
 } GtkPropagationPhase;
+
+/**
+ * GtkPropagationLimit:
+ * @GTK_LIMIT_NONE: Events are handled regardless of what their
+ *   target is.
+ * @GTK_LIMIT_SAME_NATIVE: Events are only handled if their target
+ *   is in the same #GtkNative as the event controllers widget. Note
+ *   that some event types have two targets (origin and destination).
+ *
+ * Describes limits of a #GtkEventController for handling events
+ * targeting other widgets.
+ */
+typedef enum
+{
+  GTK_LIMIT_NONE,
+  GTK_LIMIT_SAME_NATIVE
+} GtkPropagationLimit;
 
 /**
  * GtkEventSequenceState:
@@ -1000,6 +970,25 @@ typedef enum
 } GtkPanDirection;
 
 /**
+ * GtkShortcutScope:
+ * @GTK_SHORTCUT_SCOPE_LOCAL: Shortcuts are handled inside
+ *     the widget the controller belongs to.
+ * @GTK_SHORTCUT_SCOPE_MANAGED: Shortcuts are handled by
+ *     the first ancestor that is a #GtkShortcutManager
+ * @GTK_SHORTCUT_SCOPE_GLOBAL: Shortcuts are handled by
+ *     the root widget.
+ *
+ * Describes where #GtkShortcuts added to a
+ * #GtkShortcutController get handled.
+ */
+typedef enum
+{
+  GTK_SHORTCUT_SCOPE_LOCAL,
+  GTK_SHORTCUT_SCOPE_MANAGED,
+  GTK_SHORTCUT_SCOPE_GLOBAL
+} GtkShortcutScope;
+
+/**
  * GtkPopoverConstraint:
  * @GTK_POPOVER_CONSTRAINT_NONE: Don't constrain the popover position
  *   beyond what is imposed by the implementation
@@ -1026,7 +1015,7 @@ typedef enum {
  * GtkPickFlags:
  * @GTK_PICK_DEFAULT: The default behavior, include widgets that are receiving events
  * @GTK_PICK_INSENSITIVE: Include widgets that are insensitive
- * @GTK_PICK_NON_TARGETABLE: Include widgets that are marked as non-targetable. See #GtkWidget::can-target 
+ * @GTK_PICK_NON_TARGETABLE: Include widgets that are marked as non-targetable. See #GtkWidget:can-target 
  * 
  * Flags that influence the behavior of gtk_widget_pick()
  */
@@ -1035,5 +1024,587 @@ typedef enum {
   GTK_PICK_INSENSITIVE    = 1 << 0,
   GTK_PICK_NON_TARGETABLE = 1 << 1
 } GtkPickFlags;
+
+/**
+ * GtkConstraintRelation:
+ * @GTK_CONSTRAINT_RELATION_EQ: Equal
+ * @GTK_CONSTRAINT_RELATION_LE: Less than, or equal
+ * @GTK_CONSTRAINT_RELATION_GE: Greater than, or equal
+ *
+ * The relation between two terms of a constraint.
+ */
+typedef enum {
+  GTK_CONSTRAINT_RELATION_LE = -1,
+  GTK_CONSTRAINT_RELATION_EQ = 0,
+  GTK_CONSTRAINT_RELATION_GE = 1
+} GtkConstraintRelation;
+
+/**
+ * GtkConstraintStrength:
+ * @GTK_CONSTRAINT_STRENGTH_REQUIRED: The constraint is required towards solving the layout
+ * @GTK_CONSTRAINT_STRENGTH_STRONG: A strong constraint
+ * @GTK_CONSTRAINT_STRENGTH_MEDIUM: A medium constraint
+ * @GTK_CONSTRAINT_STRENGTH_WEAK: A weak constraint
+ *
+ * The strength of a constraint, expressed as a symbolic constant.
+ *
+ * The strength of a #GtkConstraint can be expressed with any positive
+ * integer; the values of this enumeration can be used for readability.
+ */
+typedef enum {
+  GTK_CONSTRAINT_STRENGTH_REQUIRED = 1001001000,
+  GTK_CONSTRAINT_STRENGTH_STRONG   = 1000000000,
+  GTK_CONSTRAINT_STRENGTH_MEDIUM   = 1000,
+  GTK_CONSTRAINT_STRENGTH_WEAK     = 1
+} GtkConstraintStrength;
+
+/**
+ * GtkConstraintAttribute:
+ * @GTK_CONSTRAINT_ATTRIBUTE_NONE: No attribute, used for constant
+ *   relations
+ * @GTK_CONSTRAINT_ATTRIBUTE_LEFT: The left edge of a widget, regardless of
+ *   text direction
+ * @GTK_CONSTRAINT_ATTRIBUTE_RIGHT: The right edge of a widget, regardless
+ *   of text direction
+ * @GTK_CONSTRAINT_ATTRIBUTE_TOP: The top edge of a widget
+ * @GTK_CONSTRAINT_ATTRIBUTE_BOTTOM: The bottom edge of a widget
+ * @GTK_CONSTRAINT_ATTRIBUTE_START: The leading edge of a widget, depending
+ *   on text direction; equivalent to %GTK_CONSTRAINT_ATTRIBUTE_LEFT for LTR
+ *   languages, and %GTK_CONSTRAINT_ATTRIBUTE_RIGHT for RTL ones
+ * @GTK_CONSTRAINT_ATTRIBUTE_END: The trailing edge of a widget, depending
+ *   on text direction; equivalent to %GTK_CONSTRAINT_ATTRIBUTE_RIGHT for LTR
+ *   languages, and %GTK_CONSTRAINT_ATTRIBUTE_LEFT for RTL ones
+ * @GTK_CONSTRAINT_ATTRIBUTE_WIDTH: The width of a widget
+ * @GTK_CONSTRAINT_ATTRIBUTE_HEIGHT: The height of a widget
+ * @GTK_CONSTRAINT_ATTRIBUTE_CENTER_X: The center of a widget, on the
+ *   horizontal axis
+ * @GTK_CONSTRAINT_ATTRIBUTE_CENTER_Y: The center of a widget, on the
+ *   vertical axis
+ * @GTK_CONSTRAINT_ATTRIBUTE_BASELINE: The baseline of a widget
+ *
+ * The widget attributes that can be used when creating a #GtkConstraint.
+ */
+typedef enum {
+  GTK_CONSTRAINT_ATTRIBUTE_NONE,
+  GTK_CONSTRAINT_ATTRIBUTE_LEFT,
+  GTK_CONSTRAINT_ATTRIBUTE_RIGHT,
+  GTK_CONSTRAINT_ATTRIBUTE_TOP,
+  GTK_CONSTRAINT_ATTRIBUTE_BOTTOM,
+  GTK_CONSTRAINT_ATTRIBUTE_START,
+  GTK_CONSTRAINT_ATTRIBUTE_END,
+  GTK_CONSTRAINT_ATTRIBUTE_WIDTH,
+  GTK_CONSTRAINT_ATTRIBUTE_HEIGHT,
+  GTK_CONSTRAINT_ATTRIBUTE_CENTER_X,
+  GTK_CONSTRAINT_ATTRIBUTE_CENTER_Y,
+  GTK_CONSTRAINT_ATTRIBUTE_BASELINE
+} GtkConstraintAttribute;
+
+/**
+ * GtkConstraintVflParserError:
+ * @GTK_CONSTRAINT_VFL_PARSER_ERROR_INVALID_SYMBOL: Invalid or unknown symbol
+ * @GTK_CONSTRAINT_VFL_PARSER_ERROR_INVALID_ATTRIBUTE: Invalid or unknown attribute
+ * @GTK_CONSTRAINT_VFL_PARSER_ERROR_INVALID_VIEW: Invalid or unknown view
+ * @GTK_CONSTRAINT_VFL_PARSER_ERROR_INVALID_METRIC: Invalid or unknown metric
+ * @GTK_CONSTRAINT_VFL_PARSER_ERROR_INVALID_PRIORITY: Invalid or unknown priority
+ * @GTK_CONSTRAINT_VFL_PARSER_ERROR_INVALID_RELATION: Invalid or unknown relation
+ *
+ * Domain for VFL parsing errors.
+ */
+typedef enum {
+  GTK_CONSTRAINT_VFL_PARSER_ERROR_INVALID_SYMBOL,
+  GTK_CONSTRAINT_VFL_PARSER_ERROR_INVALID_ATTRIBUTE,
+  GTK_CONSTRAINT_VFL_PARSER_ERROR_INVALID_VIEW,
+  GTK_CONSTRAINT_VFL_PARSER_ERROR_INVALID_METRIC,
+  GTK_CONSTRAINT_VFL_PARSER_ERROR_INVALID_PRIORITY,
+  GTK_CONSTRAINT_VFL_PARSER_ERROR_INVALID_RELATION
+} GtkConstraintVflParserError;
+
+/**
+ * GtkSystemSetting:
+ * @GTK_SYSTEM_SETTING_DPI: the #GtkSettings:gtk-xft-dpi setting has changed
+ * @GTK_SYSTEM_SETTING_FONT_NAME: The #GtkSettings:gtk-font-name setting has changed
+ * @GTK_SYSTEM_SETTING_FONT_CONFIG: The font configuration has changed in a way that
+ *     requires text to be redrawn. This can be any of the
+ *     #GtkSettings:gtk-xft-antialias, #GtkSettings:gtk-xft-hinting,
+ *     #GtkSettings:gtk-xft-hintstyle, #GtkSettings:gtk-xft-rgba or
+ *     #GtkSettings:gtk-fontconfig-timestamp settings
+ * @GTK_SYSTEM_SETTING_DISPLAY: The display has changed
+ * @GTK_SYSTEM_SETTING_ICON_THEME: The icon theme has changed in a way that requires
+ *     icons to be looked up again
+ *
+ * Values that can be passed to the GtkWidgetClass.system_setting_changed
+ * vfunc to indicate that a system setting has changed and widgets may
+ * need to drop caches, or react otherwise.
+ *
+ * Most of the values correspond to #GtkSettings properties.
+ *
+ * More values may be added over time.
+ */
+typedef enum {
+  GTK_SYSTEM_SETTING_DPI,
+  GTK_SYSTEM_SETTING_FONT_NAME,
+  GTK_SYSTEM_SETTING_FONT_CONFIG,
+  GTK_SYSTEM_SETTING_DISPLAY,
+  GTK_SYSTEM_SETTING_ICON_THEME
+} GtkSystemSetting;
+
+/**
+ * GtkAccessibleRole:
+ * @GTK_ACCESSIBLE_ROLE_ALERT: An element with important, and usually
+ *   time-sensitive, information
+ * @GTK_ACCESSIBLE_ROLE_ALERT_DIALOG: A type of dialog that contains an
+ *   alert message
+ * @GTK_ACCESSIBLE_ROLE_BANNER: Unused
+ * @GTK_ACCESSIBLE_ROLE_BUTTON: An input element that allows for
+ *   user-triggered actions when clicked or pressed
+ * @GTK_ACCESSIBLE_ROLE_CAPTION: Unused
+ * @GTK_ACCESSIBLE_ROLE_CELL: Unused
+ * @GTK_ACCESSIBLE_ROLE_CHECKBOX: A checkable input element that has
+ *   three possible values: `true`, `false`, or `mixed`
+ * @GTK_ACCESSIBLE_ROLE_COLUMN_HEADER: A header in a columned list.
+ * @GTK_ACCESSIBLE_ROLE_COMBO_BOX: An input that controls another element,
+ *   such as a list or a grid, that can dynamically pop up to help the user
+ *   set the value of the input
+ * @GTK_ACCESSIBLE_ROLE_COMMAND: Abstract role.
+ * @GTK_ACCESSIBLE_ROLE_COMPOSITE: Abstract role.
+ * @GTK_ACCESSIBLE_ROLE_DIALOG: A dialog is a window that is designed to interrupt
+ *    the current processing of an application in order to prompt the user to enter
+ *    information or require a response.
+ * @GTK_ACCESSIBLE_ROLE_DOCUMENT: Unused
+ * @GTK_ACCESSIBLE_ROLE_FEED: Unused
+ * @GTK_ACCESSIBLE_ROLE_FORM: Unused
+ * @GTK_ACCESSIBLE_ROLE_GENERIC: Unused
+ * @GTK_ACCESSIBLE_ROLE_GRID: A grid of items.
+ * @GTK_ACCESSIBLE_ROLE_GRID_CELL: An item in a grid or tree grid.
+ * @GTK_ACCESSIBLE_ROLE_GROUP: Unused
+ * @GTK_ACCESSIBLE_ROLE_HEADING: Unused
+ * @GTK_ACCESSIBLE_ROLE_IMG: An image.
+ * @GTK_ACCESSIBLE_ROLE_INPUT: Abstract role.
+ * @GTK_ACCESSIBLE_ROLE_LABEL: A visible name or caption for a user interface component.
+ * @GTK_ACCESSIBLE_ROLE_LANDMARK: Abstract role.
+ * @GTK_ACCESSIBLE_ROLE_LEGEND: Unused
+ * @GTK_ACCESSIBLE_ROLE_LINK: A clickable link.
+ * @GTK_ACCESSIBLE_ROLE_LIST: A list of items.
+ * @GTK_ACCESSIBLE_ROLE_LIST_BOX: Unused.
+ * @GTK_ACCESSIBLE_ROLE_LIST_ITEM: An item in a list.
+ * @GTK_ACCESSIBLE_ROLE_LOG: Unused
+ * @GTK_ACCESSIBLE_ROLE_MAIN: Unused
+ * @GTK_ACCESSIBLE_ROLE_MARQUEE: Unused
+ * @GTK_ACCESSIBLE_ROLE_MATH: Unused
+ * @GTK_ACCESSIBLE_ROLE_METER: An element that represents a value within a known range.
+ * @GTK_ACCESSIBLE_ROLE_MENU: A menu.
+ * @GTK_ACCESSIBLE_ROLE_MENU_BAR: A menubar.
+ * @GTK_ACCESSIBLE_ROLE_MENU_ITEM: An item in a menu.
+ * @GTK_ACCESSIBLE_ROLE_MENU_ITEM_CHECKBOX: A check item in a menu.
+ * @GTK_ACCESSIBLE_ROLE_MENU_ITEM_RADIO: A radio item in a menu.
+ * @GTK_ACCESSIBLE_ROLE_NAVIGATION: Unused
+ * @GTK_ACCESSIBLE_ROLE_NONE: An element that is not represented to accessibility technologies.
+ * @GTK_ACCESSIBLE_ROLE_NOTE: Unused
+ * @GTK_ACCESSIBLE_ROLE_OPTION: Unused
+ * @GTK_ACCESSIBLE_ROLE_PRESENTATION: An element that is not represented to accessibility technologies.
+ * @GTK_ACCESSIBLE_ROLE_PROGRESS_BAR: An element that displays the progress
+ *    status for tasks that take a long time.
+ * @GTK_ACCESSIBLE_ROLE_RADIO: A checkable input in a group of radio roles,
+ *    only one of which can be checked at a time.
+ * @GTK_ACCESSIBLE_ROLE_RADIO_GROUP: Unused
+ * @GTK_ACCESSIBLE_ROLE_RANGE: Abstract role.
+ * @GTK_ACCESSIBLE_ROLE_REGION: Unused
+ * @GTK_ACCESSIBLE_ROLE_ROW: A row in a columned list.
+ * @GTK_ACCESSIBLE_ROLE_ROW_GROUP: Unused
+ * @GTK_ACCESSIBLE_ROLE_ROW_HEADER: Unused
+ * @GTK_ACCESSIBLE_ROLE_SCROLLBAR: A graphical object that controls the scrolling
+ *    of content within a viewing area, regardless of whether the content is fully
+ *    displayed within the viewing area.
+ * @GTK_ACCESSIBLE_ROLE_SEARCH: Unused
+ * @GTK_ACCESSIBLE_ROLE_SEARCH_BOX: A type of textbox intended for specifying
+ *    search criteria.
+ * @GTK_ACCESSIBLE_ROLE_SECTION: Abstract role.
+ * @GTK_ACCESSIBLE_ROLE_SECTION_HEAD: Abstract role.
+ * @GTK_ACCESSIBLE_ROLE_SELECT: Abstract role.
+ * @GTK_ACCESSIBLE_ROLE_SEPARATOR: A divider that separates and distinguishes
+ *    sections of content or groups of menuitems.
+ * @GTK_ACCESSIBLE_ROLE_SLIDER: A user input where the user selects a value
+ *    from within a given range.
+ * @GTK_ACCESSIBLE_ROLE_SPIN_BUTTON: A form of range that expects the user to
+ *    select from among discrete choices.
+ * @GTK_ACCESSIBLE_ROLE_STATUS: Unused
+ * @GTK_ACCESSIBLE_ROLE_STRUCTURE: Abstract role.
+ * @GTK_ACCESSIBLE_ROLE_SWITCH: A type of checkbox that represents on/off values,
+ *    as opposed to checked/unchecked values.
+ * @GTK_ACCESSIBLE_ROLE_TAB: An item in a list of tab used for switching pages.
+ * @GTK_ACCESSIBLE_ROLE_TABLE: Unused
+ * @GTK_ACCESSIBLE_ROLE_TAB_LIST: A list of tabs for switching pages.
+ * @GTK_ACCESSIBLE_ROLE_TAB_PANEL: A page in a notebook or stack.
+ * @GTK_ACCESSIBLE_ROLE_TEXT_BOX: A type of input that allows free-form text
+ *    as its value.
+ * @GTK_ACCESSIBLE_ROLE_TIME: Unused
+ * @GTK_ACCESSIBLE_ROLE_TIMER: Unused
+ * @GTK_ACCESSIBLE_ROLE_TOOLBAR: Unused
+ * @GTK_ACCESSIBLE_ROLE_TOOLTIP: Unused
+ * @GTK_ACCESSIBLE_ROLE_TREE: Unused
+ * @GTK_ACCESSIBLE_ROLE_TREE_GRID: A treeview-like, columned list.
+ * @GTK_ACCESSIBLE_ROLE_TREE_ITEM: Unused
+ * @GTK_ACCESSIBLE_ROLE_WIDGET: An interactive component of a graphical user
+ *    interface. This is the role that GTK uses by default for widgets.
+ * @GTK_ACCESSIBLE_ROLE_WINDOW: An application window.
+ *
+ * The accessible role for a #GtkAccessible implementation.
+ *
+ * Abstract roles are only used as part of the ontology; application
+ * developers must not use abstract roles in their code.
+ */
+typedef enum {
+  GTK_ACCESSIBLE_ROLE_ALERT,
+  GTK_ACCESSIBLE_ROLE_ALERT_DIALOG,
+  GTK_ACCESSIBLE_ROLE_BANNER,
+  GTK_ACCESSIBLE_ROLE_BUTTON,
+  GTK_ACCESSIBLE_ROLE_CAPTION,
+  GTK_ACCESSIBLE_ROLE_CELL,
+  GTK_ACCESSIBLE_ROLE_CHECKBOX,
+  GTK_ACCESSIBLE_ROLE_COLUMN_HEADER,
+  GTK_ACCESSIBLE_ROLE_COMBO_BOX,
+  GTK_ACCESSIBLE_ROLE_COMMAND,
+  GTK_ACCESSIBLE_ROLE_COMPOSITE,
+  GTK_ACCESSIBLE_ROLE_DIALOG,
+  GTK_ACCESSIBLE_ROLE_DOCUMENT,
+  GTK_ACCESSIBLE_ROLE_FEED,
+  GTK_ACCESSIBLE_ROLE_FORM,
+  GTK_ACCESSIBLE_ROLE_GENERIC,
+  GTK_ACCESSIBLE_ROLE_GRID,
+  GTK_ACCESSIBLE_ROLE_GRID_CELL,
+  GTK_ACCESSIBLE_ROLE_GROUP,
+  GTK_ACCESSIBLE_ROLE_HEADING,
+  GTK_ACCESSIBLE_ROLE_IMG,
+  GTK_ACCESSIBLE_ROLE_INPUT,
+  GTK_ACCESSIBLE_ROLE_LABEL,
+  GTK_ACCESSIBLE_ROLE_LANDMARK,
+  GTK_ACCESSIBLE_ROLE_LEGEND,
+  GTK_ACCESSIBLE_ROLE_LINK,
+  GTK_ACCESSIBLE_ROLE_LIST,
+  GTK_ACCESSIBLE_ROLE_LIST_BOX,
+  GTK_ACCESSIBLE_ROLE_LIST_ITEM,
+  GTK_ACCESSIBLE_ROLE_LOG,
+  GTK_ACCESSIBLE_ROLE_MAIN,
+  GTK_ACCESSIBLE_ROLE_MARQUEE,
+  GTK_ACCESSIBLE_ROLE_MATH,
+  GTK_ACCESSIBLE_ROLE_METER,
+  GTK_ACCESSIBLE_ROLE_MENU,
+  GTK_ACCESSIBLE_ROLE_MENU_BAR,
+  GTK_ACCESSIBLE_ROLE_MENU_ITEM,
+  GTK_ACCESSIBLE_ROLE_MENU_ITEM_CHECKBOX,
+  GTK_ACCESSIBLE_ROLE_MENU_ITEM_RADIO,
+  GTK_ACCESSIBLE_ROLE_NAVIGATION,
+  GTK_ACCESSIBLE_ROLE_NONE,
+  GTK_ACCESSIBLE_ROLE_NOTE,
+  GTK_ACCESSIBLE_ROLE_OPTION,
+  GTK_ACCESSIBLE_ROLE_PRESENTATION,
+  GTK_ACCESSIBLE_ROLE_PROGRESS_BAR,
+  GTK_ACCESSIBLE_ROLE_RADIO,
+  GTK_ACCESSIBLE_ROLE_RADIO_GROUP,
+  GTK_ACCESSIBLE_ROLE_RANGE,
+  GTK_ACCESSIBLE_ROLE_REGION,
+  GTK_ACCESSIBLE_ROLE_ROW,
+  GTK_ACCESSIBLE_ROLE_ROW_GROUP,
+  GTK_ACCESSIBLE_ROLE_ROW_HEADER,
+  GTK_ACCESSIBLE_ROLE_SCROLLBAR,
+  GTK_ACCESSIBLE_ROLE_SEARCH,
+  GTK_ACCESSIBLE_ROLE_SEARCH_BOX,
+  GTK_ACCESSIBLE_ROLE_SECTION,
+  GTK_ACCESSIBLE_ROLE_SECTION_HEAD,
+  GTK_ACCESSIBLE_ROLE_SELECT,
+  GTK_ACCESSIBLE_ROLE_SEPARATOR,
+  GTK_ACCESSIBLE_ROLE_SLIDER,
+  GTK_ACCESSIBLE_ROLE_SPIN_BUTTON,
+  GTK_ACCESSIBLE_ROLE_STATUS,
+  GTK_ACCESSIBLE_ROLE_STRUCTURE,
+  GTK_ACCESSIBLE_ROLE_SWITCH,
+  GTK_ACCESSIBLE_ROLE_TAB,
+  GTK_ACCESSIBLE_ROLE_TABLE,
+  GTK_ACCESSIBLE_ROLE_TAB_LIST,
+  GTK_ACCESSIBLE_ROLE_TAB_PANEL,
+  GTK_ACCESSIBLE_ROLE_TEXT_BOX,
+  GTK_ACCESSIBLE_ROLE_TIME,
+  GTK_ACCESSIBLE_ROLE_TIMER,
+  GTK_ACCESSIBLE_ROLE_TOOLBAR,
+  GTK_ACCESSIBLE_ROLE_TOOLTIP,
+  GTK_ACCESSIBLE_ROLE_TREE,
+  GTK_ACCESSIBLE_ROLE_TREE_GRID,
+  GTK_ACCESSIBLE_ROLE_TREE_ITEM,
+  GTK_ACCESSIBLE_ROLE_WIDGET,
+  GTK_ACCESSIBLE_ROLE_WINDOW
+} GtkAccessibleRole;
+
+/**
+ * GtkAccessibleState:
+ * @GTK_ACCESSIBLE_STATE_BUSY: A “busy” state. This state has boolean values
+ * @GTK_ACCESSIBLE_STATE_CHECKED: A “checked” state; indicates the current
+ *   state of a #GtkCheckButton. Value type: #GtkAccessibleTristate
+ * @GTK_ACCESSIBLE_STATE_DISABLED: A “disabled” state; corresponds to the
+ *   #GtkWidget:sensitive property on #GtkWidget. It indicates a UI element
+ *   that is perceivable, but not editable or operable. Value type: boolean
+ * @GTK_ACCESSIBLE_STATE_EXPANDED: An “expanded” state; corresponds to the
+ *   #GtkExpander:expanded property on #GtkExpander. Value type: boolean
+ *   or undefined
+ * @GTK_ACCESSIBLE_STATE_HIDDEN: A “hidden” state; corresponds to the
+ *   #GtkWidget:visible property on #GtkWidget. You can use this state
+ *   explicitly on UI elements that should not be exposed to an assistive
+ *   technology. Value type: boolean
+ *   See also: %GTK_ACCESSIBLE_STATE_DISABLED
+ * @GTK_ACCESSIBLE_STATE_INVALID: An “invalid” state; set when a widget
+ *   is showing an error. Value type: #GtkAccessibleInvalidState
+ * @GTK_ACCESSIBLE_STATE_PRESSED: A “pressed” state; indicates the current
+ *   state of a #GtkToggleButton. Value type: #GtkAccessibleTristate
+ *   enumeration
+ * @GTK_ACCESSIBLE_STATE_SELECTED: A “selected” state; set when a widget
+ *   is selected. Value type: boolean or undefined
+ *
+ * The possible accessible states of a #GtkAccessible.
+ */
+typedef enum {
+  GTK_ACCESSIBLE_STATE_BUSY,
+  GTK_ACCESSIBLE_STATE_CHECKED,
+  GTK_ACCESSIBLE_STATE_DISABLED,
+  GTK_ACCESSIBLE_STATE_EXPANDED,
+  GTK_ACCESSIBLE_STATE_HIDDEN,
+  GTK_ACCESSIBLE_STATE_INVALID,
+  GTK_ACCESSIBLE_STATE_PRESSED,
+  GTK_ACCESSIBLE_STATE_SELECTED
+} GtkAccessibleState;
+
+/**
+ * GTK_ACCESSIBLE_VALUE_UNDEFINED:
+ *
+ * An undefined value. The accessible attribute is either unset, or its
+ * value is undefined.
+ */
+#define GTK_ACCESSIBLE_VALUE_UNDEFINED  (-1)
+
+/**
+ * GtkAccessibleProperty:
+ * @GTK_ACCESSIBLE_PROPERTY_AUTOCOMPLETE: Indicates whether inputting text
+ *    could trigger display of one or more predictions of the user's intended
+ *    value for a combobox, searchbox, or textbox and specifies how predictions
+ *    would be presented if they were made. Value type: #GtkAccessibleAutocomplete
+ * @GTK_ACCESSIBLE_PROPERTY_DESCRIPTION: Defines a string value that describes
+ *    or annotates the current element. Value type: string
+ * @GTK_ACCESSIBLE_PROPERTY_HAS_POPUP: Indicates the availability and type of
+ *    interactive popup element, such as menu or dialog, that can be triggered
+ *    by an element.
+ * @GTK_ACCESSIBLE_PROPERTY_KEY_SHORTCUTS: Indicates keyboard shortcuts that an
+ *    author has implemented to activate or give focus to an element. Value type:
+ *    string
+ * @GTK_ACCESSIBLE_PROPERTY_LABEL: Defines a string value that labels the current
+ *    element. Value type: string
+ * @GTK_ACCESSIBLE_PROPERTY_LEVEL: Defines the hierarchical level of an element
+ *    within a structure. Value type: integer
+ * @GTK_ACCESSIBLE_PROPERTY_MODAL: Indicates whether an element is modal when
+ *    displayed. Value type: boolean
+ * @GTK_ACCESSIBLE_PROPERTY_MULTI_LINE: Indicates whether a text box accepts
+ *    multiple lines of input or only a single line. Value type: boolean
+ * @GTK_ACCESSIBLE_PROPERTY_MULTI_SELECTABLE: Indicates that the user may select
+ *    more than one item from the current selectable descendants. Value type:
+ *    boolean
+ * @GTK_ACCESSIBLE_PROPERTY_ORIENTATION: Indicates whether the element's
+ *    orientation is horizontal, vertical, or unknown/ambiguous. Value type:
+ *    #GtkOrientation
+ * @GTK_ACCESSIBLE_PROPERTY_PLACEHOLDER: Defines a short hint (a word or short
+ *    phrase) intended to aid the user with data entry when the control has no
+ *    value. A hint could be a sample value or a brief description of the expected
+ *    format. Value type: string
+ * @GTK_ACCESSIBLE_PROPERTY_READ_ONLY: Indicates that the element is not editable,
+ *    but is otherwise operable. Value type: boolean
+ * @GTK_ACCESSIBLE_PROPERTY_REQUIRED: Indicates that user input is required on
+ *    the element before a form may be submitted. Value type: boolean
+ * @GTK_ACCESSIBLE_PROPERTY_ROLE_DESCRIPTION: Defines a human-readable,
+ *    author-localized description for the role of an element. Value type: string
+ * @GTK_ACCESSIBLE_PROPERTY_SORT: Indicates if items in a table or grid are
+ *    sorted in ascending or descending order. Possible property values are in
+ *    the #GtkAccessibleSort enumeration. Value type: #GtkAccessibleSort
+ * @GTK_ACCESSIBLE_PROPERTY_VALUE_MAX: Defines the maximum allowed value for a
+ *    range widget. Value type: double
+ * @GTK_ACCESSIBLE_PROPERTY_VALUE_MIN: Defines the minimum allowed value for a
+ *    range widget. Value type: double
+ * @GTK_ACCESSIBLE_PROPERTY_VALUE_NOW: Defines the current value for a range widget.
+ *    Value type: double
+ * @GTK_ACCESSIBLE_PROPERTY_VALUE_TEXT: Defines the human readable text alternative
+ *    of aria-valuenow for a range widget. Value type: string
+ *
+ * The possible accessible properties of a #GtkAccessible.
+ */
+typedef enum {
+  GTK_ACCESSIBLE_PROPERTY_AUTOCOMPLETE,
+  GTK_ACCESSIBLE_PROPERTY_DESCRIPTION,
+  GTK_ACCESSIBLE_PROPERTY_HAS_POPUP,
+  GTK_ACCESSIBLE_PROPERTY_KEY_SHORTCUTS,
+  GTK_ACCESSIBLE_PROPERTY_LABEL,
+  GTK_ACCESSIBLE_PROPERTY_LEVEL,
+  GTK_ACCESSIBLE_PROPERTY_MODAL,
+  GTK_ACCESSIBLE_PROPERTY_MULTI_LINE,
+  GTK_ACCESSIBLE_PROPERTY_MULTI_SELECTABLE,
+  GTK_ACCESSIBLE_PROPERTY_ORIENTATION,
+  GTK_ACCESSIBLE_PROPERTY_PLACEHOLDER,
+  GTK_ACCESSIBLE_PROPERTY_READ_ONLY,
+  GTK_ACCESSIBLE_PROPERTY_REQUIRED,
+  GTK_ACCESSIBLE_PROPERTY_ROLE_DESCRIPTION,
+  GTK_ACCESSIBLE_PROPERTY_SORT,
+  GTK_ACCESSIBLE_PROPERTY_VALUE_MAX,
+  GTK_ACCESSIBLE_PROPERTY_VALUE_MIN,
+  GTK_ACCESSIBLE_PROPERTY_VALUE_NOW,
+  GTK_ACCESSIBLE_PROPERTY_VALUE_TEXT
+} GtkAccessibleProperty;
+
+/**
+ * GtkAccessibleRelation:
+ * @GTK_ACCESSIBLE_RELATION_ACTIVE_DESCENDANT: Identifies the currently active
+ *    element when focus is on a composite widget, combobox, textbox, group,
+ *    or application. Value type: reference
+ * @GTK_ACCESSIBLE_RELATION_COL_COUNT: Defines the total number of columns
+ *    in a table, grid, or treegrid. Value type: integer
+ * @GTK_ACCESSIBLE_RELATION_COL_INDEX: Defines an element's column index or
+ *    position with respect to the total number of columns within a table,
+ *    grid, or treegrid. Value type: integer
+ * @GTK_ACCESSIBLE_RELATION_COL_INDEX_TEXT: Defines a human readable text
+ *   alternative of @GTK_ACCESSIBLE_RELATION_COL_INDEX. Value type: string
+ * @GTK_ACCESSIBLE_RELATION_COL_SPAN: Defines the number of columns spanned
+ *   by a cell or gridcell within a table, grid, or treegrid. Value type: integer
+ * @GTK_ACCESSIBLE_RELATION_CONTROLS: Identifies the element (or elements) whose
+ *    contents or presence are controlled by the current element. Value type: reference
+ * @GTK_ACCESSIBLE_RELATION_DESCRIBED_BY: Identifies the element (or elements)
+ *    that describes the object. Value type: reference
+ * @GTK_ACCESSIBLE_RELATION_DETAILS: Identifies the element (or elements) that
+ *    provide additional information related to the object. Value type: reference
+ * @GTK_ACCESSIBLE_RELATION_ERROR_MESSAGE: Identifies the element that provides
+ *    an error message for an object. Value type: reference
+ * @GTK_ACCESSIBLE_RELATION_FLOW_TO: Identifies the next element (or elements)
+ *    in an alternate reading order of content which, at the user's discretion,
+ *    allows assistive technology to override the general default of reading in
+ *    document source order. Value type: reference
+ * @GTK_ACCESSIBLE_RELATION_LABELLED_BY: Identifies the element (or elements)
+ *    that labels the current element. Value type: reference
+ * @GTK_ACCESSIBLE_RELATION_OWNS: Identifies an element (or elements) in order
+ *    to define a visual, functional, or contextual parent/child relationship
+ *    between elements where the widget hierarchy cannot be used to represent
+ *    the relationship. Value type: reference
+ * @GTK_ACCESSIBLE_RELATION_POS_IN_SET: Defines an element's number or position
+ *    in the current set of listitems or treeitems. Value type: integer
+ * @GTK_ACCESSIBLE_RELATION_ROW_COUNT: Defines the total number of rows in a table,
+ *    grid, or treegrid. Value type: integer
+ * @GTK_ACCESSIBLE_RELATION_ROW_INDEX: Defines an element's row index or position
+ *    with respect to the total number of rows within a table, grid, or treegrid.
+ *    Value type: integer
+ * @GTK_ACCESSIBLE_RELATION_ROW_INDEX_TEXT: Defines a human readable text
+ *    alternative of aria-rowindex. Value type: string
+ * @GTK_ACCESSIBLE_RELATION_ROW_SPAN: Defines the number of rows spanned by a
+ *    cell or gridcell within a table, grid, or treegrid. Value type: integer
+ * @GTK_ACCESSIBLE_RELATION_SET_SIZE: Defines the number of items in the current
+ *    set of listitems or treeitems. Value type: integer
+ *
+ * The possible accessible relations of a #GtkAccessible.
+ * Accessible relations can be references to other widgets,
+ * integers or strings.
+ */
+typedef enum {
+  GTK_ACCESSIBLE_RELATION_ACTIVE_DESCENDANT,
+  GTK_ACCESSIBLE_RELATION_COL_COUNT,
+  GTK_ACCESSIBLE_RELATION_COL_INDEX,
+  GTK_ACCESSIBLE_RELATION_COL_INDEX_TEXT,
+  GTK_ACCESSIBLE_RELATION_COL_SPAN,
+  GTK_ACCESSIBLE_RELATION_CONTROLS,
+  GTK_ACCESSIBLE_RELATION_DESCRIBED_BY,
+  GTK_ACCESSIBLE_RELATION_DETAILS,
+  GTK_ACCESSIBLE_RELATION_ERROR_MESSAGE,
+  GTK_ACCESSIBLE_RELATION_FLOW_TO,
+  GTK_ACCESSIBLE_RELATION_LABELLED_BY,
+  GTK_ACCESSIBLE_RELATION_OWNS,
+  GTK_ACCESSIBLE_RELATION_POS_IN_SET,
+  GTK_ACCESSIBLE_RELATION_ROW_COUNT,
+  GTK_ACCESSIBLE_RELATION_ROW_INDEX,
+  GTK_ACCESSIBLE_RELATION_ROW_INDEX_TEXT,
+  GTK_ACCESSIBLE_RELATION_ROW_SPAN,
+  GTK_ACCESSIBLE_RELATION_SET_SIZE
+} GtkAccessibleRelation;
+
+/**
+ * GtkAccessibleTristate:
+ * @GTK_ACCESSIBLE_TRISTATE_FALSE: The state is `false`
+ * @GTK_ACCESSIBLE_TRISTATE_TRUE: The state is `true`
+ * @GTK_ACCESSIBLE_TRISTATE_MIXED: The state is `mixed`
+ *
+ * The possible values for the %GTK_ACCESSIBLE_STATE_PRESSED
+ * accessible state.
+ *
+ * Note that the %GTK_ACCESSIBLE_TRISTATE_FALSE and
+ * %GTK_ACCESSIBLE_TRISTATE_TRUE have the same values
+ * as %FALSE and %TRUE.
+ */
+typedef enum {
+  GTK_ACCESSIBLE_TRISTATE_FALSE,
+  GTK_ACCESSIBLE_TRISTATE_TRUE,
+  GTK_ACCESSIBLE_TRISTATE_MIXED
+} GtkAccessibleTristate;
+
+/**
+ * GtkAccessibleInvalidState:
+ * @GTK_ACCESSIBLE_INVALID_FALSE: There are no detected errors in the value
+ * @GTK_ACCESSIBLE_INVALID_TRUE: The value entered by the user has failed validation
+ * @GTK_ACCESSIBLE_INVALID_GRAMMAR: A grammatical error was detected
+ * @GTK_ACCESSIBLE_INVALID_SPELLING: A spelling error was detected
+ *
+ * The possible values for the %GTK_ACCESSIBLE_STATE_INVALID
+ * accessible state.
+ *
+ * Note that the %GTK_ACCESSIBLE_INVALID_FALSE and
+ * %GTK_ACCESSIBLE_INVALID_TRUE have the same values
+ * as %FALSE and %TRUE.
+ */
+typedef enum { /*< prefix=GTK_ACCESSIBLE_INVALID >*/
+  GTK_ACCESSIBLE_INVALID_FALSE,
+  GTK_ACCESSIBLE_INVALID_TRUE,
+  GTK_ACCESSIBLE_INVALID_GRAMMAR,
+  GTK_ACCESSIBLE_INVALID_SPELLING,
+} GtkAccessibleInvalidState;
+
+/**
+ * GtkAccessibleAutocomplete:
+ * @GTK_ACCESSIBLE_AUTOCOMPLETE_NONE: Automatic suggestions are not displayed.
+ * @GTK_ACCESSIBLE_AUTOCOMPLETE_INLINE: When a user is providing input, text
+ *    suggesting one way to complete the provided input may be dynamically
+ *    inserted after the caret.
+ * @GTK_ACCESSIBLE_AUTOCOMPLETE_LIST: When a user is providing input, an element
+ *    containing a collection of values that could complete the provided input
+ *    may be displayed.
+ * @GTK_ACCESSIBLE_AUTOCOMPLETE_BOTH: When a user is providing input, an element
+ *    containing a collection of values that could complete the provided input
+ *    may be displayed. If displayed, one value in the collection is automatically
+ *    selected, and the text needed to complete the automatically selected value
+ *    appears after the caret in the input.
+ *
+ * The possible values for the %GTK_ACCESSIBLE_PROPERTY_AUTOCOMPLETE
+ * accessible property.
+ */
+typedef enum { /*< prefix=GTK_ACCESSIBLE_AUTOCOMPLETE >*/
+  GTK_ACCESSIBLE_AUTOCOMPLETE_NONE,
+  GTK_ACCESSIBLE_AUTOCOMPLETE_INLINE,
+  GTK_ACCESSIBLE_AUTOCOMPLETE_LIST,
+  GTK_ACCESSIBLE_AUTOCOMPLETE_BOTH
+} GtkAccessibleAutocomplete;
+
+/**
+ * GtkAccessibleSort:
+ * @GTK_ACCESSIBLE_SORT_NONE: There is no defined sort applied to the column.
+ * @GTK_ACCESSIBLE_SORT_ASCENDING: Items are sorted in ascending order by this column.
+ * @GTK_ACCESSIBLE_SORT_DESCENDING: Items are sorted in descending order by this column.
+ * @GTK_ACCESSIBLE_SORT_OTHER: A sort algorithm other than ascending or
+ *    descending has been applied.
+ *
+ * The possible values for the %GTK_ACCESSIBLE_PROPERTY_SORT
+ * accessible property.
+ */
+typedef enum { /*< prefix=GTK_ACCESSIBLE_SORT >*/
+  GTK_ACCESSIBLE_SORT_NONE,
+  GTK_ACCESSIBLE_SORT_ASCENDING,
+  GTK_ACCESSIBLE_SORT_DESCENDING,
+  GTK_ACCESSIBLE_SORT_OTHER
+} GtkAccessibleSort;
 
 #endif /* __GTK_ENUMS_H__ */

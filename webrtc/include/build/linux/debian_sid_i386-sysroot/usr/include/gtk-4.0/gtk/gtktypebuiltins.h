@@ -17,10 +17,6 @@ G_BEGIN_DECLS
 GDK_AVAILABLE_IN_ALL GType gtk_license_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_LICENSE (gtk_license_get_type ())
 
-/* enumerations from "gtkaccelgroup.h" */
-GDK_AVAILABLE_IN_ALL GType gtk_accel_flags_get_type (void) G_GNUC_CONST;
-#define GTK_TYPE_ACCEL_FLAGS (gtk_accel_flags_get_type ())
-
 /* enumerations from "gtkapplication.h" */
 GDK_AVAILABLE_IN_ALL GType gtk_application_inhibit_flags_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_APPLICATION_INHIBIT_FLAGS (gtk_application_inhibit_flags_get_type ())
@@ -33,9 +29,9 @@ GDK_AVAILABLE_IN_ALL GType gtk_assistant_page_type_get_type (void) G_GNUC_CONST;
 GDK_AVAILABLE_IN_ALL GType gtk_builder_error_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_BUILDER_ERROR (gtk_builder_error_get_type ())
 
-/* enumerations from "gtkcalendar.h" */
-GDK_AVAILABLE_IN_ALL GType gtk_calendar_display_options_get_type (void) G_GNUC_CONST;
-#define GTK_TYPE_CALENDAR_DISPLAY_OPTIONS (gtk_calendar_display_options_get_type ())
+/* enumerations from "gtkbuilderscope.h" */
+GDK_AVAILABLE_IN_ALL GType gtk_builder_closure_flags_get_type (void) G_GNUC_CONST;
+#define GTK_TYPE_BUILDER_CLOSURE_FLAGS (gtk_builder_closure_flags_get_type ())
 
 /* enumerations from "gtkcellrenderer.h" */
 GDK_AVAILABLE_IN_ALL GType gtk_cell_renderer_state_get_type (void) G_GNUC_CONST;
@@ -48,18 +44,14 @@ GDK_AVAILABLE_IN_ALL GType gtk_cell_renderer_accel_mode_get_type (void) G_GNUC_C
 #define GTK_TYPE_CELL_RENDERER_ACCEL_MODE (gtk_cell_renderer_accel_mode_get_type ())
 
 /* enumerations from "gtkdebug.h" */
-GDK_AVAILABLE_IN_ALL GType gtk_debug_flag_get_type (void) G_GNUC_CONST;
-#define GTK_TYPE_DEBUG_FLAG (gtk_debug_flag_get_type ())
+GDK_AVAILABLE_IN_ALL GType gtk_debug_flags_get_type (void) G_GNUC_CONST;
+#define GTK_TYPE_DEBUG_FLAGS (gtk_debug_flags_get_type ())
 
 /* enumerations from "gtkdialog.h" */
 GDK_AVAILABLE_IN_ALL GType gtk_dialog_flags_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_DIALOG_FLAGS (gtk_dialog_flags_get_type ())
 GDK_AVAILABLE_IN_ALL GType gtk_response_type_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_RESPONSE_TYPE (gtk_response_type_get_type ())
-
-/* enumerations from "gtkdragdest.h" */
-GDK_AVAILABLE_IN_ALL GType gtk_dest_defaults_get_type (void) G_GNUC_CONST;
-#define GTK_TYPE_DEST_DEFAULTS (gtk_dest_defaults_get_type ())
 
 /* enumerations from "gtkeditable.h" */
 GDK_AVAILABLE_IN_ALL GType gtk_editable_properties_get_type (void) G_GNUC_CONST;
@@ -104,16 +96,10 @@ GDK_AVAILABLE_IN_ALL GType gtk_pack_type_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_PACK_TYPE (gtk_pack_type_get_type ())
 GDK_AVAILABLE_IN_ALL GType gtk_position_type_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_POSITION_TYPE (gtk_position_type_get_type ())
-GDK_AVAILABLE_IN_ALL GType gtk_relief_style_get_type (void) G_GNUC_CONST;
-#define GTK_TYPE_RELIEF_STYLE (gtk_relief_style_get_type ())
 GDK_AVAILABLE_IN_ALL GType gtk_scroll_type_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_SCROLL_TYPE (gtk_scroll_type_get_type ())
 GDK_AVAILABLE_IN_ALL GType gtk_selection_mode_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_SELECTION_MODE (gtk_selection_mode_get_type ())
-GDK_AVAILABLE_IN_ALL GType gtk_shadow_type_get_type (void) G_GNUC_CONST;
-#define GTK_TYPE_SHADOW_TYPE (gtk_shadow_type_get_type ())
-GDK_AVAILABLE_IN_ALL GType gtk_toolbar_style_get_type (void) G_GNUC_CONST;
-#define GTK_TYPE_TOOLBAR_STYLE (gtk_toolbar_style_get_type ())
 GDK_AVAILABLE_IN_ALL GType gtk_wrap_mode_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_WRAP_MODE (gtk_wrap_mode_get_type ())
 GDK_AVAILABLE_IN_ALL GType gtk_sort_type_get_type (void) G_GNUC_CONST;
@@ -124,6 +110,8 @@ GDK_AVAILABLE_IN_ALL GType gtk_page_set_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_PAGE_SET (gtk_page_set_get_type ())
 GDK_AVAILABLE_IN_ALL GType gtk_number_up_layout_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_NUMBER_UP_LAYOUT (gtk_number_up_layout_get_type ())
+GDK_AVAILABLE_IN_ALL GType gtk_ordering_get_type (void) G_GNUC_CONST;
+#define GTK_TYPE_ORDERING (gtk_ordering_get_type ())
 GDK_AVAILABLE_IN_ALL GType gtk_page_orientation_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_PAGE_ORIENTATION (gtk_page_orientation_get_type ())
 GDK_AVAILABLE_IN_ALL GType gtk_print_quality_get_type (void) G_GNUC_CONST;
@@ -134,8 +122,6 @@ GDK_AVAILABLE_IN_ALL GType gtk_unit_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_UNIT (gtk_unit_get_type ())
 GDK_AVAILABLE_IN_ALL GType gtk_tree_view_grid_lines_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_TREE_VIEW_GRID_LINES (gtk_tree_view_grid_lines_get_type ())
-GDK_AVAILABLE_IN_ALL GType gtk_drag_result_get_type (void) G_GNUC_CONST;
-#define GTK_TYPE_DRAG_RESULT (gtk_drag_result_get_type ())
 GDK_AVAILABLE_IN_ALL GType gtk_size_group_mode_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_SIZE_GROUP_MODE (gtk_size_group_mode_get_type ())
 GDK_AVAILABLE_IN_ALL GType gtk_size_request_mode_get_type (void) G_GNUC_CONST;
@@ -154,16 +140,46 @@ GDK_AVAILABLE_IN_ALL GType gtk_input_hints_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_INPUT_HINTS (gtk_input_hints_get_type ())
 GDK_AVAILABLE_IN_ALL GType gtk_propagation_phase_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_PROPAGATION_PHASE (gtk_propagation_phase_get_type ())
+GDK_AVAILABLE_IN_ALL GType gtk_propagation_limit_get_type (void) G_GNUC_CONST;
+#define GTK_TYPE_PROPAGATION_LIMIT (gtk_propagation_limit_get_type ())
 GDK_AVAILABLE_IN_ALL GType gtk_event_sequence_state_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_EVENT_SEQUENCE_STATE (gtk_event_sequence_state_get_type ())
 GDK_AVAILABLE_IN_ALL GType gtk_pan_direction_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_PAN_DIRECTION (gtk_pan_direction_get_type ())
+GDK_AVAILABLE_IN_ALL GType gtk_shortcut_scope_get_type (void) G_GNUC_CONST;
+#define GTK_TYPE_SHORTCUT_SCOPE (gtk_shortcut_scope_get_type ())
 GDK_AVAILABLE_IN_ALL GType gtk_popover_constraint_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_POPOVER_CONSTRAINT (gtk_popover_constraint_get_type ())
 GDK_AVAILABLE_IN_ALL GType gtk_places_open_flags_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_PLACES_OPEN_FLAGS (gtk_places_open_flags_get_type ())
 GDK_AVAILABLE_IN_ALL GType gtk_pick_flags_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_PICK_FLAGS (gtk_pick_flags_get_type ())
+GDK_AVAILABLE_IN_ALL GType gtk_constraint_relation_get_type (void) G_GNUC_CONST;
+#define GTK_TYPE_CONSTRAINT_RELATION (gtk_constraint_relation_get_type ())
+GDK_AVAILABLE_IN_ALL GType gtk_constraint_strength_get_type (void) G_GNUC_CONST;
+#define GTK_TYPE_CONSTRAINT_STRENGTH (gtk_constraint_strength_get_type ())
+GDK_AVAILABLE_IN_ALL GType gtk_constraint_attribute_get_type (void) G_GNUC_CONST;
+#define GTK_TYPE_CONSTRAINT_ATTRIBUTE (gtk_constraint_attribute_get_type ())
+GDK_AVAILABLE_IN_ALL GType gtk_constraint_vfl_parser_error_get_type (void) G_GNUC_CONST;
+#define GTK_TYPE_CONSTRAINT_VFL_PARSER_ERROR (gtk_constraint_vfl_parser_error_get_type ())
+GDK_AVAILABLE_IN_ALL GType gtk_system_setting_get_type (void) G_GNUC_CONST;
+#define GTK_TYPE_SYSTEM_SETTING (gtk_system_setting_get_type ())
+GDK_AVAILABLE_IN_ALL GType gtk_accessible_role_get_type (void) G_GNUC_CONST;
+#define GTK_TYPE_ACCESSIBLE_ROLE (gtk_accessible_role_get_type ())
+GDK_AVAILABLE_IN_ALL GType gtk_accessible_state_get_type (void) G_GNUC_CONST;
+#define GTK_TYPE_ACCESSIBLE_STATE (gtk_accessible_state_get_type ())
+GDK_AVAILABLE_IN_ALL GType gtk_accessible_property_get_type (void) G_GNUC_CONST;
+#define GTK_TYPE_ACCESSIBLE_PROPERTY (gtk_accessible_property_get_type ())
+GDK_AVAILABLE_IN_ALL GType gtk_accessible_relation_get_type (void) G_GNUC_CONST;
+#define GTK_TYPE_ACCESSIBLE_RELATION (gtk_accessible_relation_get_type ())
+GDK_AVAILABLE_IN_ALL GType gtk_accessible_tristate_get_type (void) G_GNUC_CONST;
+#define GTK_TYPE_ACCESSIBLE_TRISTATE (gtk_accessible_tristate_get_type ())
+GDK_AVAILABLE_IN_ALL GType gtk_accessible_invalid_state_get_type (void) G_GNUC_CONST;
+#define GTK_TYPE_ACCESSIBLE_INVALID_STATE (gtk_accessible_invalid_state_get_type ())
+GDK_AVAILABLE_IN_ALL GType gtk_accessible_autocomplete_get_type (void) G_GNUC_CONST;
+#define GTK_TYPE_ACCESSIBLE_AUTOCOMPLETE (gtk_accessible_autocomplete_get_type ())
+GDK_AVAILABLE_IN_ALL GType gtk_accessible_sort_get_type (void) G_GNUC_CONST;
+#define GTK_TYPE_ACCESSIBLE_SORT (gtk_accessible_sort_get_type ())
 
 /* enumerations from "gtkeventcontrollerscroll.h" */
 GDK_AVAILABLE_IN_ALL GType gtk_event_controller_scroll_flags_get_type (void) G_GNUC_CONST;
@@ -172,14 +188,14 @@ GDK_AVAILABLE_IN_ALL GType gtk_event_controller_scroll_flags_get_type (void) G_G
 /* enumerations from "gtkfilechooser.h" */
 GDK_AVAILABLE_IN_ALL GType gtk_file_chooser_action_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_FILE_CHOOSER_ACTION (gtk_file_chooser_action_get_type ())
-GDK_AVAILABLE_IN_ALL GType gtk_file_chooser_confirmation_get_type (void) G_GNUC_CONST;
-#define GTK_TYPE_FILE_CHOOSER_CONFIRMATION (gtk_file_chooser_confirmation_get_type ())
 GDK_AVAILABLE_IN_ALL GType gtk_file_chooser_error_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_FILE_CHOOSER_ERROR (gtk_file_chooser_error_get_type ())
 
-/* enumerations from "gtkfilefilter.h" */
-GDK_AVAILABLE_IN_ALL GType gtk_file_filter_flags_get_type (void) G_GNUC_CONST;
-#define GTK_TYPE_FILE_FILTER_FLAGS (gtk_file_filter_flags_get_type ())
+/* enumerations from "gtkfilter.h" */
+GDK_AVAILABLE_IN_ALL GType gtk_filter_match_get_type (void) G_GNUC_CONST;
+#define GTK_TYPE_FILTER_MATCH (gtk_filter_match_get_type ())
+GDK_AVAILABLE_IN_ALL GType gtk_filter_change_get_type (void) G_GNUC_CONST;
+#define GTK_TYPE_FILTER_CHANGE (gtk_filter_change_get_type ())
 
 /* enumerations from "gtkfontchooser.h" */
 GDK_AVAILABLE_IN_ALL GType gtk_font_chooser_level_get_type (void) G_GNUC_CONST;
@@ -199,17 +215,9 @@ GDK_AVAILABLE_IN_ALL GType gtk_icon_view_drop_position_get_type (void) G_GNUC_CO
 GDK_AVAILABLE_IN_ALL GType gtk_image_type_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_IMAGE_TYPE (gtk_image_type_get_type ())
 
-/* enumerations from "gtkmenu.h" */
-GDK_AVAILABLE_IN_ALL GType gtk_arrow_placement_get_type (void) G_GNUC_CONST;
-#define GTK_TYPE_ARROW_PLACEMENT (gtk_arrow_placement_get_type ())
-
 /* enumerations from "gtkmessagedialog.h" */
 GDK_AVAILABLE_IN_ALL GType gtk_buttons_type_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_BUTTONS_TYPE (gtk_buttons_type_get_type ())
-
-/* enumerations from "gtkmodelbutton.h" */
-GDK_AVAILABLE_IN_ALL GType gtk_button_role_get_type (void) G_GNUC_CONST;
-#define GTK_TYPE_BUTTON_ROLE (gtk_button_role_get_type ())
 
 /* enumerations from "gtknotebook.h" */
 GDK_AVAILABLE_IN_ALL GType gtk_notebook_tab_get_type (void) G_GNUC_CONST;
@@ -218,6 +226,10 @@ GDK_AVAILABLE_IN_ALL GType gtk_notebook_tab_get_type (void) G_GNUC_CONST;
 /* enumerations from "gtkpadcontroller.h" */
 GDK_AVAILABLE_IN_ALL GType gtk_pad_action_type_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_PAD_ACTION_TYPE (gtk_pad_action_type_get_type ())
+
+/* enumerations from "gtkpopovermenu.h" */
+GDK_AVAILABLE_IN_ALL GType gtk_popover_menu_flags_get_type (void) G_GNUC_CONST;
+#define GTK_TYPE_POPOVER_MENU_FLAGS (gtk_popover_menu_flags_get_type ())
 
 /* enumerations from "gtkprintoperation.h" */
 GDK_AVAILABLE_IN_ALL GType gtk_print_status_get_type (void) G_GNUC_CONST;
@@ -243,9 +255,19 @@ GDK_AVAILABLE_IN_ALL GType gtk_corner_type_get_type (void) G_GNUC_CONST;
 GDK_AVAILABLE_IN_ALL GType gtk_policy_type_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_POLICY_TYPE (gtk_policy_type_get_type ())
 
+/* enumerations from "gtkshortcutaction.h" */
+GDK_AVAILABLE_IN_ALL GType gtk_shortcut_action_flags_get_type (void) G_GNUC_CONST;
+#define GTK_TYPE_SHORTCUT_ACTION_FLAGS (gtk_shortcut_action_flags_get_type ())
+
 /* enumerations from "gtkshortcutsshortcut.h" */
 GDK_AVAILABLE_IN_ALL GType gtk_shortcut_type_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_SHORTCUT_TYPE (gtk_shortcut_type_get_type ())
+
+/* enumerations from "gtksorter.h" */
+GDK_AVAILABLE_IN_ALL GType gtk_sorter_order_get_type (void) G_GNUC_CONST;
+#define GTK_TYPE_SORTER_ORDER (gtk_sorter_order_get_type ())
+GDK_AVAILABLE_IN_ALL GType gtk_sorter_change_get_type (void) G_GNUC_CONST;
+#define GTK_TYPE_SORTER_CHANGE (gtk_sorter_change_get_type ())
 
 /* enumerations from "gtkspinbutton.h" */
 GDK_AVAILABLE_IN_ALL GType gtk_spin_button_update_policy_get_type (void) G_GNUC_CONST;
@@ -256,6 +278,10 @@ GDK_AVAILABLE_IN_ALL GType gtk_spin_type_get_type (void) G_GNUC_CONST;
 /* enumerations from "gtkstack.h" */
 GDK_AVAILABLE_IN_ALL GType gtk_stack_transition_type_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_STACK_TRANSITION_TYPE (gtk_stack_transition_type_get_type ())
+
+/* enumerations from "gtkstringfilter.h" */
+GDK_AVAILABLE_IN_ALL GType gtk_string_filter_match_mode_get_type (void) G_GNUC_CONST;
+#define GTK_TYPE_STRING_FILTER_MATCH_MODE (gtk_string_filter_match_mode_get_type ())
 
 /* enumerations from "gtkstylecontext.h" */
 GDK_AVAILABLE_IN_ALL GType gtk_style_context_print_flags_get_type (void) G_GNUC_CONST;
@@ -288,12 +314,6 @@ GDK_AVAILABLE_IN_ALL GType gtk_tree_view_drop_position_get_type (void) G_GNUC_CO
 /* enumerations from "gtktreeviewcolumn.h" */
 GDK_AVAILABLE_IN_ALL GType gtk_tree_view_column_sizing_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_TREE_VIEW_COLUMN_SIZING (gtk_tree_view_column_sizing_get_type ())
-
-/* enumerations from "gtkwindow.h" */
-GDK_AVAILABLE_IN_ALL GType gtk_window_type_get_type (void) G_GNUC_CONST;
-#define GTK_TYPE_WINDOW_TYPE (gtk_window_type_get_type ())
-GDK_AVAILABLE_IN_ALL GType gtk_window_position_get_type (void) G_GNUC_CONST;
-#define GTK_TYPE_WINDOW_POSITION (gtk_window_position_get_type ())
 G_END_DECLS
 
 #endif /* __GTK_TYPE_BUILTINS_H__ */

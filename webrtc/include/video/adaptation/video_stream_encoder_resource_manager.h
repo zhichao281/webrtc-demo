@@ -92,7 +92,7 @@ class VideoStreamEncoderResourceManager
   void SetDegradationPreferences(DegradationPreference degradation_preference);
   DegradationPreference degradation_preference() const;
 
-  void EnsureEncodeUsageResourceStarted();
+  void ConfigureEncodeUsageResource();
   // Initializes the pixel limit resource if the "WebRTC-PixelLimitResource"
   // field trial is enabled. This can be used for testing.
   void MaybeInitializePixelLimitResource();
@@ -145,6 +145,10 @@ class VideoStreamEncoderResourceManager
 
   // QualityRampUpExperimentListener implementation.
   void OnQualityRampUp() override;
+
+  static absl::optional<uint32_t> GetSingleActiveLayerPixels(
+      const VideoCodec& codec);
+  static bool IsSimulcast(const VideoEncoderConfig& encoder_config);
 
  private:
   class InitialFrameDropper;

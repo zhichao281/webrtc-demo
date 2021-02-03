@@ -28,7 +28,6 @@ class RemoteFrameClientImpl;
 enum class WebFrameLoadType;
 class WebFrameWidget;
 class WebView;
-struct WebRect;
 class WindowAgentFactory;
 
 class CORE_EXPORT WebRemoteFrameImpl final
@@ -93,10 +92,8 @@ class CORE_EXPORT WebRemoteFrameImpl final
                          const WebString& unique_name) override;
   void SetReplicatedFeaturePolicyHeader(
       const ParsedFeaturePolicy& parsed_header) override;
-  void AddReplicatedContentSecurityPolicyHeader(
-      const WebString& header_value,
-      network::mojom::ContentSecurityPolicyType,
-      network::mojom::ContentSecurityPolicySource) override;
+  void AddReplicatedContentSecurityPolicies(
+      const WebVector<WebContentSecurityPolicy>& csps) override;
   void ResetReplicatedContentSecurityPolicy() override;
   void SetReplicatedInsecureRequestPolicy(
       mojom::blink::InsecureRequestPolicy) override;
@@ -109,11 +106,7 @@ class CORE_EXPORT WebRemoteFrameImpl final
       mojom::blink::UserActivationUpdateType update_type,
       mojom::blink::UserActivationNotificationType notification_type) override;
   void SetHadStickyUserActivationBeforeNavigation(bool value) override;
-  void EnableAutoResize(const gfx::Size& min_size,
-                        const gfx::Size& max_size) override;
-  void DisableAutoResize() override;
   v8::Local<v8::Object> GlobalProxy() const override;
-  WebRect GetCompositingRect() override;
   void SynchronizeVisualProperties() override;
   void ResendVisualProperties() override;
   float GetCompositingScaleFactor() override;
@@ -134,6 +127,8 @@ class CORE_EXPORT WebRemoteFrameImpl final
   static WebRemoteFrameImpl* FromFrame(RemoteFrame&);
 
   void Trace(Visitor*) const;
+
+  gfx::Rect GetCompositingRect();
 
  private:
   friend class RemoteFrameClientImpl;

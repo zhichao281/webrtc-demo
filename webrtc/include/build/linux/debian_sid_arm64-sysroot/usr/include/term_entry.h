@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2017,2018 Free Software Foundation, Inc.              *
+ * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 1998-2015,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +33,7 @@
  *     and: Thomas E. Dickey                        1998-on                 *
  ****************************************************************************/
 
-/* $Id: term_entry.h,v 1.57 2018/05/26 13:50:53 tom Exp $ */
+/* $Id: term_entry.h,v 1.60 2020/02/29 15:46:00 anonymous.maarten Exp $ */
 
 /*
  *	term_entry.h -- interface to entry-manipulation code
@@ -199,8 +200,8 @@ extern NCURSES_EXPORT(bool) _nc_entry_match (char *, char *);
 extern NCURSES_EXPORT(int) _nc_resolve_uses (bool); /* obs 20040705 */
 extern NCURSES_EXPORT(int) _nc_resolve_uses2 (bool, bool);
 extern NCURSES_EXPORT(void) _nc_free_entries (ENTRY *);
-extern NCURSES_IMPEXP void NCURSES_API (*_nc_check_termtype)(TERMTYPE *); /* obs 20040705 */
-extern NCURSES_IMPEXP void NCURSES_API (*_nc_check_termtype2)(TERMTYPE2 *, bool);
+extern NCURSES_IMPEXP void (NCURSES_API *_nc_check_termtype)(TERMTYPE *); /* obs 20040705 */
+extern NCURSES_IMPEXP void (NCURSES_API *_nc_check_termtype2)(TERMTYPE2 *, bool);
 
 /* trace_xnames.c */
 extern NCURSES_EXPORT(void) _nc_trace_xnames (TERMTYPE *);
@@ -208,7 +209,7 @@ extern NCURSES_EXPORT(void) _nc_trace_xnames (TERMTYPE *);
 #endif /* NCURSES_INTERNALS */
 
 /*
- * These entrypoints are used by tack.
+ * These entrypoints were used by tack before 1.08.
  */
 
 #undef  NCURSES_TACK_1_08

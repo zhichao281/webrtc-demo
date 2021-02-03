@@ -43,6 +43,7 @@
 #include "third_party/blink/renderer/platform/loader/fetch/resource_load_scheduler.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
+#include "third_party/blink/renderer/platform/mojo_binding_context.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/timer.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
@@ -180,7 +181,7 @@ class PLATFORM_EXPORT ResourceFetcher
     return cached_resources_map_;
   }
 
-  enum class LoadBlockingPolicy {
+  enum class ImageLoadBlockingPolicy {
     kDefault,
     kForceNonBlockingLoad,
   };
@@ -191,7 +192,10 @@ class PLATFORM_EXPORT ResourceFetcher
   // call this method explicitly on cases such as ResourceNeedsLoad() returning
   // false.
   bool StartLoad(Resource*);
-  bool StartLoad(Resource*, ResourceRequestBody, LoadBlockingPolicy);
+  bool StartLoad(Resource*,
+                 ResourceRequestBody,
+                 ImageLoadBlockingPolicy,
+                 RenderBlockingBehavior);
 
   void SetAutoLoadImages(bool);
   void SetImagesEnabled(bool);
@@ -311,6 +315,8 @@ class PLATFORM_EXPORT ResourceFetcher
   bool ShouldBeLoadedFromWebBundle(const KURL&) const;
 
   void EvictFromBackForwardCache(mojom::RendererEvictionReason reason);
+  void DidBufferLoadWhileInBackForwardCache(size_t num_bytes);
+  bool CanContinueBufferingWhileInBackForwardCache();
 
  private:
   friend class ResourceCacheValidationSuppressor;
@@ -398,7 +404,8 @@ class PLATFORM_EXPORT ResourceFetcher
 
   void DidLoadResourceFromMemoryCache(Resource*,
                                       const ResourceRequest&,
-                                      bool is_static_data);
+                                      bool is_static_data,
+                                      RenderBlockingBehavior);
 
   bool ResourceNeedsLoad(Resource*, const FetchParameters&, RevalidationPolicy);
 
@@ -443,7 +450,7 @@ class PLATFORM_EXPORT ResourceFetcher
   HeapVector<Member<Resource>> matched_preloads_;
   Member<MHTMLArchive> archive_;
 
-  TaskRunnerTimer<ResourceFetcher> resource_timing_report_timer_;
+  HeapTaskRunnerTimer<ResourceFetcher> resource_timing_report_timer_;
 
   TaskHandle unused_preloads_timer_;
 

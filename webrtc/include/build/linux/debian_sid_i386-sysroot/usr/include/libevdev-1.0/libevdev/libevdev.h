@@ -53,15 +53,15 @@ extern "C" {
  * ===============================
  *
  * libevdev provides an interface for handling events, including most notably
- * SYN_DROPPED events. SYN_DROPPED events are sent by the kernel when the
+ * `SYN_DROPPED` events. `SYN_DROPPED` events are sent by the kernel when the
  * process does not read events fast enough and the kernel is forced to drop
  * some events. This causes the device to get out of sync with the process'
- * view of it. libevdev handles this by telling the caller that a SYN_DROPPED
+ * view of it. libevdev handles this by telling the caller that a * `SYN_DROPPED`
  * has been received and that the state of the device is different to what is
  * to be expected. It then provides the delta between the previous state and
  * the actual state of the device as a set of events. See
  * libevdev_next_event() and @ref syn_dropped for more information on how
- * SYN_DROPPED is handled.
+ * `SYN_DROPPED` is handled.
  *
  * Signal safety
  * =============
@@ -84,7 +84,7 @@ extern "C" {
  *
  * libevdev does not handle the file descriptors directly, it merely uses
  * them. The caller is responsible for opening the file descriptors, setting
- * them to O_NONBLOCK and handling permissions. A caller should drain any
+ * them to `O_NONBLOCK` and handling permissions. A caller should drain any
  * events pending on the file descriptor before passing it to libevdev.
  *
  * Where does libevdev sit?
@@ -142,8 +142,8 @@ extern "C" {
  *              rc = libevdev_next_event(dev, LIBEVDEV_READ_FLAG_NORMAL, &ev);
  *              if (rc == 0)
  *                      printf("Event: %s %s %d\n",
- *                             libevdev_get_event_type_name(ev.type),
- *                             libevdev_get_event_code_name(ev.type, ev.code),
+ *                             libevdev_event_type_get_name(ev.type),
+ *                             libevdev_event_code_get_name(ev.type, ev.code),
  *                             ev.value);
  *      } while (rc == 1 || rc == 0 || rc == -EAGAIN);
  * @endcode
@@ -165,6 +165,8 @@ extern "C" {
  * Bindings
  * ===================
  * - Python: https://gitlab.freedesktop.org/libevdev/python-libevdev
+ * - Haskell: http://hackage.haskell.org/package/evdev
+ * - Rust: https://crates.io/crates/evdev-rs
  *
  * Reporting bugs
  * ==============
@@ -175,14 +177,14 @@ extern "C" {
 /**
  * @page syn_dropped SYN_DROPPED handling
  *
- * This page describes how libevdev handles SYN_DROPPED events.
+ * This page describes how libevdev handles `SYN_DROPPED` events.
  *
- * Receiving SYN_DROPPED events
- * ============================
+ * Receiving `SYN_DROPPED` events
+ * ==============================
  *
- * The kernel sends evdev events separated by an event of type EV_SYN and
- * code SYN_REPORT. Such an event marks the end of a frame of hardware
- * events. The number of events between SYN_REPORT events is arbitrary and
+ * The kernel sends evdev events separated by an event of type `EV_SYN` and
+ * code `SYN_REPORT`. Such an event marks the end of a frame of hardware
+ * events. The number of events between `SYN_REPORT` events is arbitrary and
  * depends on the hardware. An example event sequence may look like this:
  * @code
  *  EV_ABS   ABS_X        9
@@ -202,7 +204,7 @@ extern "C" {
  * the buffer size to handle at least one full event. In the normal case,
  * the client reads the event and the kernel can place the next event in the
  * buffer. If the client is not fast enough, the kernel places an event of
- * type EV_SYN and code SYN_DROPPED into the buffer, effectively notifying
+ * type `EV_SYN` and code `SYN_DROPPED` into the buffer, effectively notifying
  * the client that some events were lost. The above example event sequence
  * may look like this (note the missing/repeated events):
  * @code
@@ -221,19 +223,19 @@ extern "C" {
  *  EV_SYN   SYN_REPORT   0
  * @endcode
  *
- * A SYN_DROPPED event may be recieved at any time in the event sequence.
- * When a SYN_DROPPED event is received, the client must:
- * * discard all events since the last SYN_REPORT
- * * discard all events until including the next SYN_REPORT
+ * A `SYN_DROPPED` event may be recieved at any time in the event sequence.
+ * When a `SYN_DROPPED` event is received, the client must:
+ * * discard all events since the last `SYN_REPORT`
+ * * discard all events until including the next `SYN_REPORT`
  * These event are part of incomplete event frames.
  *
  * Synchronizing the state of the device
  * =====================================
  *
- * The handling of the device after a SYN_DROPPED depends on the available
- * event codes. For all event codes of type EV_REL, no handling is
+ * The handling of the device after a `SYN_DROPPED` depends on the available
+ * event codes. For all event codes of type `EV_REL`, no handling is
  * necessary, there is no state attached. For all event codes of type
- * EV_KEY, EV_SW, EV_LED and EV_SND, the matching @ref ioctls retrieve the
+ * `EV_KEY`, `EV_SW`, `EV_LED` and `EV_SND`, the matching @ref ioctls retrieve the
  * current state. The caller must then compare the last-known state to the
  * retrieved state and handle the deltas accordingly.
  * libevdev simplifies this approach: if the state of the device has
@@ -241,12 +243,12 @@ extern "C" {
  * passes it to the caller during libevdev_next_event() if
  * @ref LIBEVDEV_READ_FLAG_SYNC is set.
  *
- * For events of type EV_ABS and an event code less than ABS_MT_SLOT, the
+ * For events of type `EV_ABS` and an event code less than `ABS_MT_SLOT`, the
  * handling of state changes is as described above. For events between
- * ABS_MT_SLOT and ABS_MAX, the event handling differs.
+ * `ABS_MT_SLOT` and `ABS_MAX`, the event handling differs.
  * Slots are the vehicles to transport information for multiple simultaneous
  * touchpoints on a device. Slots are re-used once a touchpoint has ended.
- * The kernel sends an ABS_MT_SLOT event whenever the current slot
+ * The kernel sends an `ABS_MT_SLOT` event whenever the current slot
  * changes; any event in the above axis range applies only to the currently
  * active slot.
  * Thus, an event sequence from a slot-capable device may look like this:
@@ -257,24 +259,24 @@ extern "C" {
  *  EV_ABS   ABS_MT_POSITION_Y   80
  *  EV_SYN   SYN_REPORT          0
  * @endcode
- * Note the lack of ABS_MT_SLOT: the first ABS_MT_POSITION_Y applies to
+ * Note the lack of `ABS_MT_SLOT`: the first `ABS_MT_POSITION_Y` applies to
  * a slot opened previously, and is the only axis that changed for that
- * slot. The touchpoint in slot 1 now has position 100/80.
+ * slot. The touchpoint in slot 1 now has position `100/80`.
  * The kernel does not provide events if a value does not change, and does
- * not send ABS_MT_SLOT events if the slot does not change, or none of the
+ * not send `ABS_MT_SLOT` events if the slot does not change, or none of the
  * values within a slot changes. A client must thus keep the state for each
  * slot.
  *
- * If a SYN_DROPPED is received,  the client must sync all slots
+ * If a `SYN_DROPPED` is received,  the client must sync all slots
  * individually and update its internal state. libevdev simplifies this by
  * generating multiple events:
  * * for each slot on the device, libevdev generates an
- *   ABS_MT_SLOT event with the value set to the slot number
- * * for each event code between ABS_MT_SLOT + 1 and ABS_MAX that changed
+ *   `ABS_MT_SLOT` event with the value set to the slot number
+ * * for each event code between `ABS_MT_SLOT + 1` and `ABS_MAX` that changed
  *   state for this slot, libevdev generates an event for the new state
- * * libevdev sends a final ABS_MT_SLOT event for the current slot as
+ * * libevdev sends a final `ABS_MT_SLOT` event for the current slot as
  *   seen by the kernel
- * * libevdev terminates this sequence with an EV_SYN SYN_REPORT event
+ * * libevdev terminates this sequence with an `EV_SYN SYN_REPORT` event
  *
  * An example event sequence for such a sync may look like this:
  * @code
@@ -289,26 +291,26 @@ extern "C" {
  *  EV_ABS   ABS_MT_SLOT         1
  *  EV_SYN   SYN_REPORT          0
  * @endcode
- * Note the terminating ABS_MT_SLOT event, this indicates that the kernel
+ * Note the terminating `ABS_MT_SLOT` event, this indicates that the kernel
  * currently has slot 1 active.
  *
  * Synchronizing ABS_MT_TRACKING_ID
  * ================================
  *
- * The event code ABS_MT_TRACKING_ID is used to denote the start and end of
- * a touch point within a slot. An ABS_MT_TRACKING_ID of zero or greater
- * denotes the start of a touchpoint, an ABS_MT_TRACKING_ID of -1 denotes
- * the end of a touchpoint within this slot. During SYN_DROPPED, a touch
+ * The event code `ABS_MT_TRACKING_ID` is used to denote the start and end of
+ * a touch point within a slot. An `ABS_MT_TRACKING_ID` of zero or greater
+ * denotes the start of a touchpoint, an `ABS_MT_TRACKING_ID` of -1 denotes
+ * the end of a touchpoint within this slot. During `SYN_DROPPED`, a touch
  * point may have ended and re-started within a slot - a client must check
- * the ABS_MT_TRACKING_ID. libevdev simplifies this by emulating extra
- * events if the ABS_MT_TRACKING_ID has changed:
- * * if the ABS_MT_TRACKING_ID was valid and is -1, libevdev enqueues an
- *   ABS_MT_TRACKING_ID event with value -1.
- * * if the ABS_MT_TRACKING_ID was -1 and is now a valid ID, libevdev
- *   enqueues an ABS_MT_TRACKING_ID event with the current value.
- * * if the ABS_MT_TRACKING_ID was a valid ID and is now a different valid
- *   ID, libevev enqueues an ABS_MT_TRACKING_ID event with value -1 and
- *   another ABS_MT_TRACKING_ID event with the new value.
+ * the `ABS_MT_TRACKING_ID`. libevdev simplifies this by emulating extra
+ * events if the `ABS_MT_TRACKING_ID` has changed:
+ * * if the `ABS_MT_TRACKING_ID` was valid and is -1, libevdev enqueues an
+ *   `ABS_MT_TRACKING_ID` event with value -1.
+ * * if the `ABS_MT_TRACKING_ID` was -1 and is now a valid ID, libevdev
+ *   enqueues an `ABS_MT_TRACKING_ID` event with the current value.
+ * * if the `ABS_MT_TRACKING_ID` was a valid ID and is now a different valid
+ *   ID, libevev enqueues an `ABS_MT_TRACKING_ID` event with value -1 and
+ *   another `ABS_MT_TRACKING_ID` event with the new value.
  *
  * An example event sequence for such a sync may look like this:
  * @code
@@ -329,14 +331,14 @@ extern "C" {
  *  EV_SYN   SYN_REPORT          0
  * @endcode
  * Note how the touchpoint in slot 0 was terminated, the touchpoint in slot
- * 2 was terminated and then started with a new ABS_MT_TRACKING_ID. The touchpoint
- * in slot 1 maintained the same ABS_MT_TRACKING_ID and only updated the
+ * 2 was terminated and then started with a new `ABS_MT_TRACKING_ID`. The touchpoint
+ * in slot 1 maintained the same `ABS_MT_TRACKING_ID` and only updated the
  * coordinates. Slot 1 is the currently active slot.
  *
- * In the case of a SYN_DROPPED event, a touch point may be invisible to a
- * client if it started after SYN_DROPPED and finished before the client
+ * In the case of a `SYN_DROPPED` event, a touch point may be invisible to a
+ * client if it started after `SYN_DROPPED` and finished before the client
  * handles events again. The below example shows an example event sequence
- * and what libevdev sees in the case of a SYN_DROPPED event:
+ * and what libevdev sees in the case of a `SYN_DROPPED` event:
  * @code
  *
  *            kernel                  |              userspace
@@ -360,7 +362,7 @@ extern "C" {
  * @endcode
  * If such an event sequence occurs, libevdev will send all updated axes
  * during the sync process. Axis events may thus be generated for devices
- * without a currently valid ABS_MT_TRACKING_ID. Specifically for the above
+ * without a currently valid `ABS_MT_TRACKING_ID`. Specifically for the above
  * example, the client would receive the following event sequence:
  * @code
  *  EV_ABS   ABS_MT_SLOT         0       ← LIBEVDEV_READ_FLAG_NORMAL
@@ -386,15 +388,15 @@ extern "C" {
  * Discarding events before synchronizing
  * =====================================
  *
- * The kernel implements the client buffer as a ring buffer. SYN_DROPPED
+ * The kernel implements the client buffer as a ring buffer. `SYN_DROPPED`
  * events are handled when the buffer is full and a new event is received
- * from a device. All existing events are discarded, a SYN_DROPPED is added
+ * from a device. All existing events are discarded, a `SYN_DROPPED` is added
  * to the buffer followed by the actual device event. Further events will be
  * appended to the buffer until it is either read by the client, or filled
  * again, at which point the sequence repeats.
  *
  * When the client reads the buffer, the buffer will thus always consist of
- * exactly one SYN_DROPPED event followed by an unspecified number of real
+ * exactly one `SYN_DROPPED` event followed by an unspecified number of real
  * events. The data the ioctls return is the current state of the device,
  * i.e. the state after all these events have been processed. For example,
  * assume the buffer contains the following sequence:
@@ -416,10 +418,10 @@ extern "C" {
  * @endcode
  * An ioctl at any time in this sequence will return a value of 6 for ABS_X.
  *
- * libevdev discards all events after a SYN_DROPPED to ensure the events
+ * libevdev discards all events after a `SYN_DROPPED` to ensure the events
  * during @ref LIBEVDEV_READ_FLAG_SYNC represent the last known state of the
  * device. This loses some granularity of the events especially as the time
- * between the SYN_DROPPED and the sync process increases. It does however
+ * between the `SYN_DROPPED` and the sync process increases. It does however
  * avoid spurious cursor movements. In the above example, the event sequence
  * by libevdev is:
  * @code
@@ -444,7 +446,7 @@ extern "C" {
  * Minimum requirements
  * ====================
  * libevdev requires a 2.6.36 kernel as minimum. Specifically, it requires
- * kernel-support for ABS_MT_SLOT.
+ * kernel-support for `ABS_MT_SLOT`.
  *
  * Event and input property names
  * ==============================
@@ -453,28 +455,28 @@ extern "C" {
  * The list of event names is compiled at build-time, any events not defined
  * at build time will not resolve. Specifically,
  * libevdev_event_code_get_name() for an undefined type or code will
- * always return NULL. Likewise, libevdev_property_get_name() will return NULL
+ * always return `NULL`. Likewise, libevdev_property_get_name() will return NULL
  * for properties undefined at build-time.
  *
  * Input properties
  * ================
  * If the kernel does not support input properties, specifically the
- * EVIOCGPROPS ioctl, libevdev does not expose input properties to the caller.
+ * `EVIOCGPROPS` ioctl, libevdev does not expose input properties to the caller.
  * Specifically, libevdev_has_property() will always return 0 unless the
  * property has been manually set with libevdev_enable_property().
  *
  * This also applies to the libevdev-uinput code. If uinput does not honor
- * UI_SET_PROPBIT, libevdev will continue without setting the properties on
+ * `UI_SET_PROPBIT`, libevdev will continue without setting the properties on
  * the device.
  *
  * MT slot behavior
  * =================
- * If the kernel does not support the EVIOCGMTSLOTS ioctl, libevdev
+ * If the kernel does not support the `EVIOCGMTSLOTS` ioctl, libevdev
  * assumes all values in all slots are 0 and continues without an error.
  *
  * SYN_DROPPED behavior
  * ====================
- * A kernel without SYN_DROPPED won't send such an event. libevdev_next_event()
+ * A kernel without `SYN_DROPPED` won't send such an event. libevdev_next_event()
  * will never require the switch to sync mode.
  */
 
@@ -573,7 +575,7 @@ extern "C" {
  * [Check unit testing framework](http://check.sourceforge.net/). Tests are
  * divided into test suites and test cases. Most tests create a uinput device,
  * so you'll need to run as root, and your kernel must have
- * CONFIG_INPUT_UINPUT enabled.
+ * `CONFIG_INPUT_UINPUT` enabled.
  *
  * To run a specific suite only:
  *
@@ -680,11 +682,11 @@ extern "C" {
 /**
  * @defgroup mt Multi-touch related functions
  * Functions for querying multi-touch-related capabilities. MT devices
- * following the kernel protocol B (using ABS_MT_SLOT) provide multiple touch
+ * following the kernel protocol B (using `ABS_MT_SLOT`) provide multiple touch
  * points through so-called slots on the same axis. The slots are enumerated,
  * a client reading from the device will first get an ABS_MT_SLOT event, then
  * the values of axes changed in this slot. Multiple slots may be provided in
- * before an EV_SYN event.
+ * before an `EV_SYN` event.
  *
  * As with @ref bits, the logical state of the device as seen by the library
  * depends on the caller using libevdev_next_event().
@@ -693,16 +695,16 @@ extern "C" {
  * meaning, matching the axis names in linux/input.h. Some devices merely
  * export a number of axes beyond the available axis list. For those
  * devices, the multitouch information is invalid. Specifically, if a device
- * provides the ABS_MT_SLOT axis AND also the ABS_RESERVED axis, the
+ * provides the `ABS_MT_SLOT` axis AND also the `ABS_RESERVED` axis, the
  * device is not treated as multitouch device. No slot information is
- * available and the ABS_MT axis range for these devices is treated as all
- * other EV_ABS axes.
+ * available and the `ABS_MT` axis range for these devices is treated as all
+ * other `EV_ABS` axes.
  *
  * Note that because of limitations in the kernel API, such fake multitouch
- * devices can not be reliably synced after a SYN_DROPPED event. libevdev
- * ignores all ABS_MT axis values during the sync process and instead
+ * devices can not be reliably synced after a `SYN_DROPPED` event. libevdev
+ * ignores all `ABS_MT` axis values during the sync process and instead
  * relies on the device to send the current axis value with the first event
- * after SYN_DROPPED.
+ * after `SYN_DROPPED`.
  */
 
 /**
@@ -1387,6 +1389,16 @@ int libevdev_has_property(const struct libevdev *dev, unsigned int prop);
 int libevdev_enable_property(struct libevdev *dev, unsigned int prop);
 
 /**
+ * @ingroup kernel
+ *
+ * @param dev The evdev device
+ * @param prop The input property to disable, one of INPUT_PROP_...
+ *
+ * @return 0 on success or -1 on failure
+ */
+int libevdev_disable_property(struct libevdev *dev, unsigned int prop);
+
+/**
  * @ingroup bits
  *
  * @param dev The evdev device, already initialized with libevdev_set_fd()
@@ -1503,8 +1515,7 @@ const struct input_absinfo* libevdev_get_abs_info(const struct libevdev *dev, un
  * the event.
  *
  * If the device supports ABS_MT_SLOT, the value returned for any ABS_MT_*
- * event code is the value of the currently active slot. You should use
- * libevdev_get_slot_value() instead.
+ * event code is undefined. Use libevdev_get_slot_value() instead.
  *
  * @param dev The evdev device, already initialized with libevdev_set_fd()
  * @param type The event type for the code to query (EV_SYN, EV_REL, etc.)
@@ -1703,9 +1714,9 @@ int libevdev_get_current_slot(const struct libevdev *dev);
  *
  * @param dev The evdev device, already initialized with libevdev_set_fd()
  * @param code One of ABS_X, ABS_Y, ...
- * @param min The new minimum for this axis
+ * @param val The new minimum for this axis
  */
-void libevdev_set_abs_minimum(struct libevdev *dev, unsigned int code, int min);
+void libevdev_set_abs_minimum(struct libevdev *dev, unsigned int code, int val);
 
 /**
  * @ingroup kernel
@@ -1716,9 +1727,9 @@ void libevdev_set_abs_minimum(struct libevdev *dev, unsigned int code, int min);
  *
  * @param dev The evdev device, already initialized with libevdev_set_fd()
  * @param code One of ABS_X, ABS_Y, ...
- * @param max The new maxium for this axis
+ * @param val The new maxium for this axis
  */
-void libevdev_set_abs_maximum(struct libevdev *dev, unsigned int code, int max);
+void libevdev_set_abs_maximum(struct libevdev *dev, unsigned int code, int val);
 
 /**
  * @ingroup kernel
@@ -1729,9 +1740,9 @@ void libevdev_set_abs_maximum(struct libevdev *dev, unsigned int code, int max);
  *
  * @param dev The evdev device, already initialized with libevdev_set_fd()
  * @param code One of ABS_X, ABS_Y, ...
- * @param fuzz The new fuzz for this axis
+ * @param val The new fuzz for this axis
  */
-void libevdev_set_abs_fuzz(struct libevdev *dev, unsigned int code, int fuzz);
+void libevdev_set_abs_fuzz(struct libevdev *dev, unsigned int code, int val);
 
 /**
  * @ingroup kernel
@@ -1742,9 +1753,9 @@ void libevdev_set_abs_fuzz(struct libevdev *dev, unsigned int code, int fuzz);
  *
  * @param dev The evdev device, already initialized with libevdev_set_fd()
  * @param code One of ABS_X, ABS_Y, ...
- * @param flat The new flat for this axis
+ * @param val The new flat for this axis
  */
-void libevdev_set_abs_flat(struct libevdev *dev, unsigned int code, int flat);
+void libevdev_set_abs_flat(struct libevdev *dev, unsigned int code, int val);
 
 /**
  * @ingroup kernel
@@ -1755,9 +1766,9 @@ void libevdev_set_abs_flat(struct libevdev *dev, unsigned int code, int flat);
  *
  * @param dev The evdev device, already initialized with libevdev_set_fd()
  * @param code One of ABS_X, ABS_Y, ...
- * @param resolution The new axis resolution
+ * @param val The new axis resolution
  */
-void libevdev_set_abs_resolution(struct libevdev *dev, unsigned int code, int resolution);
+void libevdev_set_abs_resolution(struct libevdev *dev, unsigned int code, int val);
 
 /**
  * @ingroup kernel

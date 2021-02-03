@@ -18,8 +18,8 @@
 #ifndef __GDK_WAYLAND_DISPLAY_H__
 #define __GDK_WAYLAND_DISPLAY_H__
 
-#if !defined (__GDKWAYLAND_H_INSIDE__) && !defined (GDK_COMPILATION)
-#error "Only <gdk/gdkwayland.h> can be included directly."
+#if !defined (__GDKWAYLAND_H_INSIDE__) && !defined (GTK_COMPILATION)
+#error "Only <gdk/wayland/gdkwayland.h> can be included directly."
 #endif
 
 #include <gdk/gdk.h>
@@ -28,7 +28,7 @@
 
 G_BEGIN_DECLS
 
-#ifdef GDK_COMPILATION
+#ifdef GTK_COMPILATION
 typedef struct _GdkWaylandDisplay GdkWaylandDisplay;
 #else
 typedef GdkDisplay GdkWaylandDisplay;
@@ -51,19 +51,17 @@ GDK_AVAILABLE_IN_ALL
 struct wl_compositor   *gdk_wayland_display_get_wl_compositor   (GdkDisplay *display);
 GDK_AVAILABLE_IN_ALL
 void                    gdk_wayland_display_set_cursor_theme    (GdkDisplay  *display,
-                                                                 const gchar *theme,
-                                                                 gint         size);
+                                                                 const char *theme,
+                                                                 int          size);
 GDK_AVAILABLE_IN_ALL
-const gchar *           gdk_wayland_display_get_startup_notification_id (GdkDisplay *display);
+const char *           gdk_wayland_display_get_startup_notification_id (GdkDisplay *display);
 GDK_AVAILABLE_IN_ALL
 void                    gdk_wayland_display_set_startup_notification_id (GdkDisplay *display,
                                                                          const char *startup_id);
 
-gboolean                gdk_wayland_display_prefers_ssd         (GdkDisplay *display);
-
 GDK_AVAILABLE_IN_ALL
 gboolean                gdk_wayland_display_query_registry      (GdkDisplay  *display,
-								 const gchar *global);
+								 const char *global);
 
 G_END_DECLS
 

@@ -25,8 +25,8 @@
 #ifndef __GDK_X11_SCREEN_H__
 #define __GDK_X11_SCREEN_H__
 
-#if !defined (__GDKX_H_INSIDE__) && !defined (GDK_COMPILATION)
-#error "Only <gdk/gdkx.h> can be included directly."
+#if !defined (__GDKX_H_INSIDE__) && !defined (GTK_COMPILATION)
+#error "Only <gdk/x11/gdkx.h> can be included directly."
 #endif
 
 #include <gdk/gdk.h>
@@ -59,11 +59,11 @@ const char* gdk_x11_screen_get_window_manager_name (GdkX11Screen *screen);
 
 GDK_AVAILABLE_IN_ALL
 gboolean gdk_x11_screen_supports_net_wm_hint (GdkX11Screen *screen,
-                                              GdkAtom       property);
+                                              const char   *property_name);
 
 GDK_AVAILABLE_IN_ALL
 XID      gdk_x11_screen_get_monitor_output   (GdkX11Screen *screen,
-                                              gint          monitor_num);
+                                              int           monitor_num);
 
 GDK_AVAILABLE_IN_ALL
 guint32  gdk_x11_screen_get_number_of_desktops (GdkX11Screen *screen);

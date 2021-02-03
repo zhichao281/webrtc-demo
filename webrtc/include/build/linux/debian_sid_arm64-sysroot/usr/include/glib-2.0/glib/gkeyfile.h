@@ -298,7 +298,6 @@ gboolean  g_key_file_remove_group           (GKeyFile             *key_file,
 
 /* Defines for handling freedesktop.org Desktop files */
 #define G_KEY_FILE_DESKTOP_GROUP                "Desktop Entry"
-#define G_KEY_FILE_DESKTOP_ACTION_GROUP_PREFIX  "Desktop Action"
 
 #define G_KEY_FILE_DESKTOP_KEY_TYPE             "Type"
 #define G_KEY_FILE_DESKTOP_KEY_VERSION          "Version"
@@ -321,9 +320,6 @@ gboolean  g_key_file_remove_group           (GKeyFile             *key_file,
 #define G_KEY_FILE_DESKTOP_KEY_URL              "URL"
 #define G_KEY_FILE_DESKTOP_KEY_DBUS_ACTIVATABLE "DBusActivatable"
 #define G_KEY_FILE_DESKTOP_KEY_ACTIONS          "Actions"
-#define G_KEY_FILE_DESKTOP_KEY_GETTEXT_DOMAIN   "X-GNOME-Gettext-Domain"
-#define G_KEY_FILE_DESKTOP_KEY_FULLNAME         "X-GNOME-FullName"
-#define G_KEY_FILE_DESKTOP_KEY_KEYWORDS         "Keywords"
 
 #define G_KEY_FILE_DESKTOP_TYPE_APPLICATION     "Application"
 #define G_KEY_FILE_DESKTOP_TYPE_LINK            "Link"

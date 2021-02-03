@@ -30,7 +30,7 @@
 #error "Only <gtk/gtk.h> can be included directly."
 #endif
 
-#include <gtk/gtkbin.h>
+#include <gtk/gtkwidget.h>
 
 
 G_BEGIN_DECLS
@@ -38,51 +38,29 @@ G_BEGIN_DECLS
 
 #define GTK_TYPE_VIEWPORT            (gtk_viewport_get_type ())
 #define GTK_VIEWPORT(obj)            (G_TYPE_CHECK_INSTANCE_CAST ((obj), GTK_TYPE_VIEWPORT, GtkViewport))
-#define GTK_VIEWPORT_CLASS(klass)    (G_TYPE_CHECK_CLASS_CAST ((klass), GTK_TYPE_VIEWPORT, GtkViewportClass))
 #define GTK_IS_VIEWPORT(obj)         (G_TYPE_CHECK_INSTANCE_TYPE ((obj), GTK_TYPE_VIEWPORT))
-#define GTK_IS_VIEWPORT_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE ((klass), GTK_TYPE_VIEWPORT))
-#define GTK_VIEWPORT_GET_CLASS(obj)  (G_TYPE_INSTANCE_GET_CLASS ((obj), GTK_TYPE_VIEWPORT, GtkViewportClass))
 
 
 typedef struct _GtkViewport              GtkViewport;
-typedef struct _GtkViewportPrivate       GtkViewportPrivate;
-typedef struct _GtkViewportClass         GtkViewportClass;
-
-struct _GtkViewport
-{
-  GtkBin parent_instance;
-};
-
-/**
- * GtkViewportClass:
- * @parent_class: The parent class.
- */
-struct _GtkViewportClass
-{
-  GtkBinClass parent_class;
-
-  /*< private >*/
-
-  /* Padding for future expansion */
-  void (*_gtk_reserved1) (void);
-  void (*_gtk_reserved2) (void);
-  void (*_gtk_reserved3) (void);
-  void (*_gtk_reserved4) (void);
-};
 
 
 GDK_AVAILABLE_IN_ALL
 GType          gtk_viewport_get_type        (void) G_GNUC_CONST;
 GDK_AVAILABLE_IN_ALL
 GtkWidget*     gtk_viewport_new             (GtkAdjustment *hadjustment,
-					     GtkAdjustment *vadjustment);
+                                             GtkAdjustment *vadjustment);
 
 GDK_AVAILABLE_IN_ALL
-void           gtk_viewport_set_shadow_type (GtkViewport   *viewport,
-					     GtkShadowType  type);
+gboolean       gtk_viewport_get_scroll_to_focus (GtkViewport *viewport);
 GDK_AVAILABLE_IN_ALL
-GtkShadowType  gtk_viewport_get_shadow_type (GtkViewport   *viewport);
+void           gtk_viewport_set_scroll_to_focus (GtkViewport *viewport,
+                                                 gboolean     scroll_to_focus);
 
+GDK_AVAILABLE_IN_ALL
+void           gtk_viewport_set_child           (GtkViewport *viewport,
+                                                 GtkWidget   *child);
+GDK_AVAILABLE_IN_ALL
+GtkWidget *    gtk_viewport_get_child           (GtkViewport *viewport);
 
 G_END_DECLS
 

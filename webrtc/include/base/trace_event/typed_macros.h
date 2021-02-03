@@ -8,6 +8,7 @@
 #include "base/base_export.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/typed_macros_internal.h"
+#include "base/tracing_buildflags.h"
 #include "build/build_config.h"
 
 // Needed not for this file, but for every user of the TRACE_EVENT macros for
@@ -25,6 +26,18 @@
 // implementation of trace macros.
 // [1] https://perfetto.dev/docs/instrumentation/track-events
 // TODO(crbug/1006541): Replace this file with the Perfetto client library.
+
+namespace perfetto {
+
+// A wrapper for marking strings that can't be determined to be static at build
+// time, but are in fact static.
+class BASE_EXPORT StaticString final {
+ public:
+  const char* value;
+  explicit operator const char*() const { return value; }
+};
+
+}  // namespace perfetto
 
 // Begin a thread-scoped slice under |category| with the title |name|. Both
 // strings must be static constants. The track event is only recorded if
@@ -45,13 +58,13 @@
 //       });
 #define TRACE_EVENT_BEGIN(category, name, ...)                              \
   TRACING_INTERNAL_ADD_TRACE_EVENT(TRACE_EVENT_PHASE_BEGIN, category, name, \
-                                   TRACE_EVENT_FLAG_NONE, ##__VA_ARGS__)
+                                   ##__VA_ARGS__)
 
 // End a thread-scoped slice under |category|.
 #define TRACE_EVENT_END(category, ...)                                       \
   TRACING_INTERNAL_ADD_TRACE_EVENT(TRACE_EVENT_PHASE_END, category,          \
                                    trace_event_internal::kTraceEventEndName, \
-                                   TRACE_EVENT_FLAG_NONE, ##__VA_ARGS__)
+                                   ##__VA_ARGS__)
 
 // Begin a thread-scoped slice which gets automatically closed when going out
 // of scope.
@@ -67,8 +80,8 @@
   TRACING_INTERNAL_SCOPED_ADD_TRACE_EVENT(category, name, ##__VA_ARGS__)
 
 // Emit a single event called "name" immediately, with zero duration.
-#define TRACE_EVENT_INSTANT(category, name, scope, ...)                       \
+#define TRACE_EVENT_INSTANT(category, name, ...)                              \
   TRACING_INTERNAL_ADD_TRACE_EVENT(TRACE_EVENT_PHASE_INSTANT, category, name, \
-                                   scope, ##__VA_ARGS__)
+                                   ##__VA_ARGS__)
 
 #endif  // BASE_TRACE_EVENT_TYPED_MACROS_H_

@@ -11,6 +11,9 @@
 #ifndef PC_CHANNEL_H_
 #define PC_CHANNEL_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <map>
 #include <memory>
 #include <set>
@@ -18,30 +21,50 @@
 #include <utility>
 #include <vector>
 
+#include "absl/types/optional.h"
 #include "api/call/audio_sink.h"
+#include "api/crypto/crypto_options.h"
 #include "api/function_view.h"
 #include "api/jsep.h"
+#include "api/media_types.h"
 #include "api/rtp_receiver_interface.h"
+#include "api/rtp_transceiver_direction.h"
+#include "api/scoped_refptr.h"
 #include "api/video/video_sink_interface.h"
 #include "api/video/video_source_interface.h"
+#include "call/rtp_demuxer.h"
 #include "call/rtp_packet_sink_interface.h"
 #include "media/base/media_channel.h"
 #include "media/base/media_engine.h"
 #include "media/base/stream_params.h"
+#include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "p2p/base/dtls_transport_internal.h"
 #include "p2p/base/packet_transport_internal.h"
 #include "pc/channel_interface.h"
 #include "pc/dtls_srtp_transport.h"
 #include "pc/media_session.h"
 #include "pc/rtp_transport.h"
+#include "pc/rtp_transport_internal.h"
+#include "pc/session_description.h"
 #include "pc/srtp_filter.h"
 #include "pc/srtp_transport.h"
+#include "rtc_base/async_packet_socket.h"
 #include "rtc_base/async_udp_socket.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/copy_on_write_buffer.h"
+#include "rtc_base/location.h"
+#include "rtc_base/message_handler.h"
 #include "rtc_base/network.h"
+#include "rtc_base/network/sent_packet.h"
+#include "rtc_base/network_route.h"
+#include "rtc_base/socket.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/synchronization/sequence_checker.h"
 #include "rtc_base/task_utils/pending_task_safety_flag.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
+#include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
+#include "rtc_base/thread_message.h"
 #include "rtc_base/unique_id_generator.h"
 
 namespace webrtc {
@@ -119,6 +142,9 @@ class BaseChannel : public ChannelInterface,
     RTC_DCHECK_RUN_ON(network_thread());
     return srtp_active();
   }
+
+  bool writable() const { return writable_; }
+
   // Set an RTP level transport which could be an RtpTransport without
   // encryption, an SrtpTransport for SDES or a DtlsSrtpTransport for DTLS-SRTP.
   // This can be called from any thread and it hops to the network thread
@@ -140,8 +166,7 @@ class BaseChannel : public ChannelInterface,
     return rtp_transport();
   }
 
-  // Channel control. Must call UpdateRtpTransport afterwards to apply any
-  // changes to the RtpTransport on the network thread.
+  // Channel control
   bool SetLocalContent(const MediaContentDescription* content,
                        webrtc::SdpType type,
                        std::string* error_desc) override;
@@ -156,11 +181,7 @@ class BaseChannel : public ChannelInterface,
   // This method will also remove any existing streams that were bound to this
   // channel on the basis of payload type, since one of these streams might
   // actually belong to a new channel. See: crbug.com/webrtc/11477
-  //
-  // As with SetLocalContent/SetRemoteContent, must call UpdateRtpTransport
-  // afterwards to apply changes to the RtpTransport on the network thread.
-  void SetPayloadTypeDemuxingEnabled(bool enabled) override;
-  bool UpdateRtpTransport(std::string* error_desc) override;
+  bool SetPayloadTypeDemuxingEnabled(bool enabled) override;
 
   bool Enable(bool enable) override;
 
@@ -200,7 +221,7 @@ class BaseChannel : public ChannelInterface,
 
  protected:
   bool was_ever_writable() const {
-    RTC_DCHECK_RUN_ON(worker_thread());
+    RTC_DCHECK_RUN_ON(network_thread());
     return was_ever_writable_;
   }
   void set_local_content_direction(webrtc::RtpTransceiverDirection direction) {
@@ -258,7 +279,7 @@ class BaseChannel : public ChannelInterface,
   bool AddRecvStream_w(const StreamParams& sp) RTC_RUN_ON(worker_thread());
   bool RemoveRecvStream_w(uint32_t ssrc) RTC_RUN_ON(worker_thread());
   void ResetUnsignaledRecvStream_w() RTC_RUN_ON(worker_thread());
-  void SetPayloadTypeDemuxingEnabled_w(bool enabled)
+  bool SetPayloadTypeDemuxingEnabled_w(bool enabled)
       RTC_RUN_ON(worker_thread());
   bool AddSendStream_w(const StreamParams& sp) RTC_RUN_ON(worker_thread());
   bool RemoveSendStream_w(uint32_t ssrc) RTC_RUN_ON(worker_thread());
@@ -266,6 +287,7 @@ class BaseChannel : public ChannelInterface,
   // Should be called whenever the conditions for
   // IsReadyToReceiveMedia/IsReadyToSendMedia are satisfied (or unsatisfied).
   // Updates the send/recv state of the media channel.
+  void UpdateMediaSendRecvState();
   virtual void UpdateMediaSendRecvState_w() = 0;
 
   bool UpdateLocalStreams_w(const std::vector<StreamParams>& streams,
@@ -287,9 +309,6 @@ class BaseChannel : public ChannelInterface,
   // non-encrypted and encrypted extension is present for the same URI.
   RtpHeaderExtensions GetFilteredRtpHeaderExtensions(
       const RtpHeaderExtensions& extensions);
-  // Set a list of RTP extensions we should prepare to receive on the next
-  // UpdateRtpTransport call.
-  void SetReceiveExtensions(const RtpHeaderExtensions& extensions);
 
   // From MessageHandler
   void OnMessage(rtc::Message* pmsg) override;
@@ -306,6 +325,13 @@ class BaseChannel : public ChannelInterface,
   void MaybeAddHandledPayloadType(int payload_type) RTC_RUN_ON(worker_thread());
 
   void ClearHandledPayloadTypes() RTC_RUN_ON(worker_thread());
+
+  void UpdateRtpHeaderExtensionMap(
+      const RtpHeaderExtensions& header_extensions);
+
+  bool RegisterRtpDemuxerSink_w() RTC_RUN_ON(worker_thread());
+  bool RegisterRtpDemuxerSink_n() RTC_RUN_ON(network_thread());
+
   // Return description of media channel to facilitate logging
   std::string ToString() const;
 
@@ -314,13 +340,12 @@ class BaseChannel : public ChannelInterface,
   // ChannelInterface overrides
   RtpHeaderExtensions GetNegotiatedRtpHeaderExtensions() const override;
 
-  bool has_received_packet_ = false;
-
  private:
   bool ConnectToRtpTransport();
   void DisconnectFromRtpTransport();
   void SignalSentPacket_n(const rtc::SentPacket& sent_packet)
       RTC_RUN_ON(network_thread());
+  bool IsReadyToSendMedia_n() const RTC_RUN_ON(network_thread());
 
   rtc::Thread* const worker_thread_;
   rtc::Thread* const network_thread_;
@@ -332,6 +357,8 @@ class BaseChannel : public ChannelInterface,
       RTC_GUARDED_BY(worker_thread_);
 
   const std::string content_name_;
+
+  bool has_received_packet_ = false;
 
   // Won't be set when using raw packet transports. SDP-specific thing.
   // TODO(bugs.webrtc.org/12230): Written on network thread, read on
@@ -345,9 +372,10 @@ class BaseChannel : public ChannelInterface,
       RTC_GUARDED_BY(network_thread());
   std::vector<std::pair<rtc::Socket::Option, int> > rtcp_socket_options_
       RTC_GUARDED_BY(network_thread());
-  bool writable_ RTC_GUARDED_BY(network_thread()) = false;
-  bool was_ever_writable_n_ RTC_GUARDED_BY(network_thread()) = false;
-  bool was_ever_writable_ RTC_GUARDED_BY(worker_thread()) = false;
+  // TODO(bugs.webrtc.org/12230): writable_ is accessed in tests
+  // outside of the network thread.
+  bool writable_ = false;
+  bool was_ever_writable_ RTC_GUARDED_BY(network_thread()) = false;
   const bool srtp_required_ = true;
   const webrtc::CryptoOptions crypto_options_;
 
@@ -371,10 +399,9 @@ class BaseChannel : public ChannelInterface,
 
   // Cached list of payload types, used if payload type demuxing is re-enabled.
   std::set<uint8_t> payload_types_ RTC_GUARDED_BY(worker_thread());
-  // TODO(bugs.webrtc.org/12239): These two variables are modified on the worker
-  // thread, accessed on the network thread in UpdateRtpTransport.
+  // TODO(bugs.webrtc.org/12239): Modified on worker thread, accessed
+  // on network thread in RegisterRtpDemuxerSink_n (called from Init_w)
   webrtc::RtpDemuxerCriteria demuxer_criteria_;
-  RtpHeaderExtensions receive_rtp_header_extensions_;
   // This generator is used to generate SSRCs for local streams.
   // This is needed in cases where SSRCs are not negotiated or set explicitly
   // like in Simulcast.

@@ -29,15 +29,9 @@
 #ifndef __GTK_VERSION_H__
 #define __GTK_VERSION_H__
 
-/**
- * SECTION:gtkfeatures
- * @Short_description: Variables and functions to check the GTK+ version
- * @Title: Version Information
- *
- * GTK+ provides version information, primarily useful in configure checks
- * for builds that have a configure script. Applications will not typically
- * use the features described here.
- */
+#include <gdk/gdk.h>
+
+G_BEGIN_DECLS
 
 /**
  * GTK_MAJOR_VERSION:
@@ -55,7 +49,7 @@
  * application compile time, rather than from the library linked
  * against at application run time.
  */
-#define GTK_MINOR_VERSION (96)
+#define GTK_MINOR_VERSION (99)
 
 /**
  * GTK_MICRO_VERSION:
@@ -64,7 +58,7 @@
  * application compile time, rather than from the library linked
  * against at application run time.
  */
-#define GTK_MICRO_VERSION (0)
+#define GTK_MICRO_VERSION (4)
 
 /**
  * GTK_BINARY_AGE:
@@ -73,7 +67,7 @@
  * application compile time, rather than from the library linked
  * against at application run time.
  */
-#define GTK_BINARY_AGE    (9600)
+#define GTK_BINARY_AGE    (9904)
 
 /**
  * GTK_INTERFACE_AGE:
@@ -90,15 +84,33 @@
  * @minor: minor version (e.g. 2 for version 1.2.5)
  * @micro: micro version (e.g. 5 for version 1.2.5)
  *
- * Returns %TRUE if the version of the GTK+ header files
+ * Returns %TRUE if the version of the GTK header files
  * is the same as or newer than the passed-in version.
  *
- * Returns: %TRUE if GTK+ headers are new enough
+ * Returns: %TRUE if GTK headers are new enough
  */
 #define GTK_CHECK_VERSION(major,minor,micro)                          \
     (GTK_MAJOR_VERSION > (major) ||                                   \
      (GTK_MAJOR_VERSION == (major) && GTK_MINOR_VERSION > (minor)) || \
      (GTK_MAJOR_VERSION == (major) && GTK_MINOR_VERSION == (minor) && \
       GTK_MICRO_VERSION >= (micro)))
+
+GDK_AVAILABLE_IN_ALL
+guint gtk_get_major_version (void) G_GNUC_CONST;
+GDK_AVAILABLE_IN_ALL
+guint gtk_get_minor_version (void) G_GNUC_CONST;
+GDK_AVAILABLE_IN_ALL
+guint gtk_get_micro_version (void) G_GNUC_CONST;
+GDK_AVAILABLE_IN_ALL
+guint gtk_get_binary_age    (void) G_GNUC_CONST;
+GDK_AVAILABLE_IN_ALL
+guint gtk_get_interface_age (void) G_GNUC_CONST;
+
+GDK_AVAILABLE_IN_ALL
+const char * gtk_check_version (guint   required_major,
+                                guint   required_minor,
+                                guint   required_micro);
+
+G_END_DECLS
 
 #endif /* __GTK_VERSION_H__ */

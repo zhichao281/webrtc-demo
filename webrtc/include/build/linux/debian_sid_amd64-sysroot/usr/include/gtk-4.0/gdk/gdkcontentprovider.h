@@ -19,7 +19,7 @@
 #ifndef __GDK_CONTENT_PROVIDER_H__
 #define __GDK_CONTENT_PROVIDER_H__
 
-#if !defined (__GDK_H_INSIDE__) && !defined (GDK_COMPILATION)
+#if !defined (__GDK_H_INSIDE__) && !defined (GTK_COMPILATION)
 #error "Only <gdk/gdk.h> can be included directly."
 #endif
 
@@ -79,15 +79,7 @@ struct _GdkContentProviderClass
                                                                          GError                **error);
 
   /*< private >*/
-  /* Padding for future expansion */
-  void (*_gdk_reserved1) (void);
-  void (*_gdk_reserved2) (void);
-  void (*_gdk_reserved3) (void);
-  void (*_gdk_reserved4) (void);
-  void (*_gdk_reserved5) (void);
-  void (*_gdk_reserved6) (void);
-  void (*_gdk_reserved7) (void);
-  void (*_gdk_reserved8) (void);
+  gpointer padding[8];
 };
 
 

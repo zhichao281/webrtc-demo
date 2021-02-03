@@ -61,8 +61,7 @@ class AXInlineTextBox final : public AXObject {
   Node* GetNode() const override;
   AXObject* NextOnLine() const override;
   AXObject* PreviousOnLine() const override;
-  void GetDocumentMarkers(Vector<DocumentMarker::MarkerType>* marker_types,
-                          Vector<AXRange>* marker_ranges) const override;
+  void SerializeMarkerAttributes(ui::AXNodeData* node_data) const override;
 
  protected:
   void Init(AXObject* parent) override;
@@ -71,6 +70,10 @@ class AXInlineTextBox final : public AXObject {
   bool IsAXInlineTextBox() const override;
   bool IsLineBreakingObject() const override;
   int TextLength() const override;
+
+  // Always a leaf.
+  bool CanHaveChildren() const override { return false; }
+  void AddChildren() override {}
 
  private:
   bool ComputeAccessibilityIsIgnored(IgnoredReasons* = nullptr) const override;

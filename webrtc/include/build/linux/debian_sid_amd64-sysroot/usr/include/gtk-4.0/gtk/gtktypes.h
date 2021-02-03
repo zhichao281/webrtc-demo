@@ -34,34 +34,40 @@
 G_BEGIN_DECLS
 
 typedef struct _GtkAdjustment          GtkAdjustment;
+typedef struct _GtkBitset              GtkBitset;
 typedef struct _GtkBuilder             GtkBuilder;
+typedef struct _GtkBuilderScope        GtkBuilderScope;
 typedef struct _GtkClipboard	       GtkClipboard;
+typedef struct _GtkCssStyleChange      GtkCssStyleChange;
 typedef struct _GtkEventController     GtkEventController;
 typedef struct _GtkGesture             GtkGesture;
 typedef struct _GtkLayoutManager       GtkLayoutManager;
+typedef struct _GtkListItem            GtkListItem;
+typedef struct _GtkListItemFactory     GtkListItemFactory;
+typedef struct _GtkNative              GtkNative;
 typedef struct _GtkRequisition	       GtkRequisition;
 typedef struct _GtkRoot  	       GtkRoot;
-typedef struct _GtkSelectionData       GtkSelectionData;
 typedef struct _GtkSettings            GtkSettings;
+typedef struct _GtkShortcut            GtkShortcut;
+typedef struct _GtkShortcutAction      GtkShortcutAction;
+typedef struct _GtkShortcutTrigger     GtkShortcutTrigger;
 typedef GdkSnapshot                    GtkSnapshot;
 typedef struct _GtkStyleContext        GtkStyleContext;
 typedef struct _GtkTooltip             GtkTooltip;
 typedef struct _GtkWidget              GtkWidget;
-typedef struct _GtkWidgetPath          GtkWidgetPath;
 typedef struct _GtkWindow              GtkWindow;
 
-
-typedef gboolean (*GtkRcPropertyParser) (const GParamSpec *pspec,
-                                         const GString    *rc_string,
-                                         GValue           *property_value);
-
-typedef void (*GtkBuilderConnectFunc) (GtkBuilder    *builder,
-				       GObject       *object,
-				       const gchar   *signal_name,
-				       const gchar   *handler_name,
-				       GObject       *connect_object,
-				       GConnectFlags  flags,
-				       gpointer       user_data);
+/**
+ * GTK_INVALID_LIST_POSITION:
+ *
+ * The value used to refer to a guaranteed invalid position in a #GListModel. This
+ * value may be returned from some functions, others may accept it as input.
+ * Its interpretation may differ for different functions.
+ *
+ * Refer to each function's documentation for if this value is allowed and what it
+ * does.
+ */
+#define GTK_INVALID_LIST_POSITION (G_MAXUINT)
 
 G_END_DECLS
 

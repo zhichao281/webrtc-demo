@@ -23,7 +23,7 @@
 #error "Only <gtk/gtk.h> can be included directly."
 #endif
 
-#include <gtk/gtkapplication.h>
+#include <gtk/gtkbuilderscope.h>
 #include <gtk/gtkwidget.h>
 
 G_BEGIN_DECLS
@@ -56,14 +56,17 @@ typedef struct _GtkBuilderClass   GtkBuilderClass;
  * @GTK_BUILDER_ERROR_INVALID_VALUE: #GtkBuilder couldn’t parse
  *  some attribute value.
  * @GTK_BUILDER_ERROR_VERSION_MISMATCH: The input file requires a newer version
- *  of GTK+.
+ *  of GTK.
  * @GTK_BUILDER_ERROR_DUPLICATE_ID: An object id occurred twice.
  * @GTK_BUILDER_ERROR_OBJECT_TYPE_REFUSED: A specified object type is of the same type or
  *  derived from the type of the composite class being extended with builder XML.
  * @GTK_BUILDER_ERROR_TEMPLATE_MISMATCH: The wrong type was specified in a composite class’s template XML
  * @GTK_BUILDER_ERROR_INVALID_PROPERTY: The specified property is unknown for the object class.
  * @GTK_BUILDER_ERROR_INVALID_SIGNAL: The specified signal is unknown for the object class.
- * @GTK_BUILDER_ERROR_INVALID_ID: An object id is unknown
+ * @GTK_BUILDER_ERROR_INVALID_ID: An object id is unknown.
+ * @GTK_BUILDER_ERROR_INVALID_FUNCTION: A function could not be found. This often happens
+ *     when symbols are set to be kept private. Compiling code with -rdynamic or using the
+ *     `gmodule-export-2.0` pkgconfig module can fix this problem.
  *
  * Error codes that identify various errors that can occur while using
  * #GtkBuilder.
@@ -83,34 +86,12 @@ typedef enum
   GTK_BUILDER_ERROR_TEMPLATE_MISMATCH,
   GTK_BUILDER_ERROR_INVALID_PROPERTY,
   GTK_BUILDER_ERROR_INVALID_SIGNAL,
-  GTK_BUILDER_ERROR_INVALID_ID
+  GTK_BUILDER_ERROR_INVALID_ID,
+  GTK_BUILDER_ERROR_INVALID_FUNCTION
 } GtkBuilderError;
 
 GDK_AVAILABLE_IN_ALL
 GQuark gtk_builder_error_quark (void);
-
-struct _GtkBuilder
-{
-  GObject parent_instance;
-};
-
-struct _GtkBuilderClass
-{
-  GObjectClass parent_class;
-
-  GType (* get_type_from_name) (GtkBuilder *builder,
-                                const char *type_name);
-
-  /* Padding for future expansion */
-  void (*_gtk_reserved1) (void);
-  void (*_gtk_reserved2) (void);
-  void (*_gtk_reserved3) (void);
-  void (*_gtk_reserved4) (void);
-  void (*_gtk_reserved5) (void);
-  void (*_gtk_reserved6) (void);
-  void (*_gtk_reserved7) (void);
-  void (*_gtk_reserved8) (void);
-};
 
 GDK_AVAILABLE_IN_ALL
 GType        gtk_builder_get_type                (void) G_GNUC_CONST;
@@ -119,54 +100,57 @@ GtkBuilder*  gtk_builder_new                     (void);
 
 GDK_AVAILABLE_IN_ALL
 gboolean     gtk_builder_add_from_file           (GtkBuilder    *builder,
-                                                  const gchar   *filename,
+                                                  const char    *filename,
                                                   GError       **error);
 GDK_AVAILABLE_IN_ALL
 gboolean     gtk_builder_add_from_resource       (GtkBuilder    *builder,
-                                                  const gchar   *resource_path,
+                                                  const char    *resource_path,
                                                   GError       **error);
 GDK_AVAILABLE_IN_ALL
 gboolean     gtk_builder_add_from_string         (GtkBuilder    *builder,
-                                                  const gchar   *buffer,
+                                                  const char    *buffer,
                                                   gssize         length,
                                                   GError       **error);
 GDK_AVAILABLE_IN_ALL
 gboolean     gtk_builder_add_objects_from_file   (GtkBuilder    *builder,
-                                                  const gchar   *filename,
-                                                  gchar        **object_ids,
+                                                  const char    *filename,
+                                                  const char   **object_ids,
                                                   GError       **error);
 GDK_AVAILABLE_IN_ALL
 gboolean     gtk_builder_add_objects_from_resource(GtkBuilder    *builder,
-                                                  const gchar   *resource_path,
-                                                  gchar        **object_ids,
+                                                  const char    *resource_path,
+                                                  const char   **object_ids,
                                                   GError       **error);
 GDK_AVAILABLE_IN_ALL
 gboolean     gtk_builder_add_objects_from_string (GtkBuilder    *builder,
-                                                  const gchar   *buffer,
+                                                  const char    *buffer,
                                                   gssize         length,
-                                                  gchar        **object_ids,
+                                                  const char   **object_ids,
                                                   GError       **error);
 GDK_AVAILABLE_IN_ALL
 GObject*     gtk_builder_get_object              (GtkBuilder    *builder,
-                                                  const gchar   *name);
+                                                  const char    *name);
 GDK_AVAILABLE_IN_ALL
 GSList*      gtk_builder_get_objects             (GtkBuilder    *builder);
 GDK_AVAILABLE_IN_ALL
 void         gtk_builder_expose_object           (GtkBuilder    *builder,
-                                                  const gchar   *name,
+                                                  const char    *name,
                                                   GObject       *object);
 GDK_AVAILABLE_IN_ALL
-void         gtk_builder_connect_signals         (GtkBuilder    *builder,
-						  gpointer       user_data);
+GObject *    gtk_builder_get_current_object      (GtkBuilder    *builder);
 GDK_AVAILABLE_IN_ALL
-void         gtk_builder_connect_signals_full    (GtkBuilder    *builder,
-                                                  GtkBuilderConnectFunc func,
-						  gpointer       user_data);
+void         gtk_builder_set_current_object      (GtkBuilder    *builder,
+                                                  GObject       *current_object);
 GDK_AVAILABLE_IN_ALL
 void         gtk_builder_set_translation_domain  (GtkBuilder   	*builder,
-                                                  const gchar  	*domain);
+                                                  const char   	*domain);
 GDK_AVAILABLE_IN_ALL
-const gchar* gtk_builder_get_translation_domain  (GtkBuilder   	*builder);
+const char * gtk_builder_get_translation_domain  (GtkBuilder   	*builder);
+GDK_AVAILABLE_IN_ALL
+GtkBuilderScope *gtk_builder_get_scope           (GtkBuilder    *builder);
+GDK_AVAILABLE_IN_ALL
+void         gtk_builder_set_scope               (GtkBuilder    *builder,
+                                                  GtkBuilderScope *scope);
 GDK_AVAILABLE_IN_ALL
 GType        gtk_builder_get_type_from_name      (GtkBuilder   	*builder,
                                                   const char   	*type_name);
@@ -174,47 +158,35 @@ GType        gtk_builder_get_type_from_name      (GtkBuilder   	*builder,
 GDK_AVAILABLE_IN_ALL
 gboolean     gtk_builder_value_from_string       (GtkBuilder    *builder,
 						  GParamSpec   	*pspec,
-                                                  const gchar  	*string,
+                                                  const char   	*string,
                                                   GValue       	*value,
 						  GError       **error);
 GDK_AVAILABLE_IN_ALL
 gboolean     gtk_builder_value_from_string_type  (GtkBuilder    *builder,
 						  GType        	 type,
-                                                  const gchar  	*string,
+                                                  const char   	*string,
                                                   GValue       	*value,
 						  GError       **error);
 GDK_AVAILABLE_IN_ALL
-GtkBuilder * gtk_builder_new_from_file           (const gchar   *filename);
+GtkBuilder * gtk_builder_new_from_file           (const char    *filename);
 GDK_AVAILABLE_IN_ALL
-GtkBuilder * gtk_builder_new_from_resource       (const gchar   *resource_path);
+GtkBuilder * gtk_builder_new_from_resource       (const char    *resource_path);
 GDK_AVAILABLE_IN_ALL
-GtkBuilder * gtk_builder_new_from_string         (const gchar   *string,
+GtkBuilder * gtk_builder_new_from_string         (const char    *string,
                                                   gssize         length);
 
 GDK_AVAILABLE_IN_ALL
-void         gtk_builder_add_callback_symbol     (GtkBuilder    *builder,
-						  const gchar   *callback_name,
-						  GCallback      callback_symbol);
-GDK_AVAILABLE_IN_ALL
-void         gtk_builder_add_callback_symbols    (GtkBuilder    *builder,
-						  const gchar   *first_callback_name,
-						  GCallback      first_callback_symbol,
-						  ...) G_GNUC_NULL_TERMINATED;
-GDK_AVAILABLE_IN_ALL
-GCallback    gtk_builder_lookup_callback_symbol  (GtkBuilder    *builder,
-						  const gchar   *callback_name);
+GClosure *   gtk_builder_create_closure          (GtkBuilder    *builder,
+                                                  const char    *function_name,
+                                                  GtkBuilderClosureFlags flags,
+                                                  GObject       *object,
+                                                  GError       **error);
 
-GDK_AVAILABLE_IN_ALL
-void         gtk_builder_set_application         (GtkBuilder     *builder,
-                                                  GtkApplication *application);
-
-GDK_AVAILABLE_IN_ALL
-GtkApplication * gtk_builder_get_application     (GtkBuilder     *builder);
 
 
 /**
  * GTK_BUILDER_WARN_INVALID_CHILD_TYPE:
- * @object: the #GtkBuildable on which the warning ocurred
+ * @object: the #GtkBuildable on which the warning occurred
  * @type: the unexpected type value
  *
  * This macro should be used to emit a warning about and unexpected @type value
@@ -225,9 +197,9 @@ GtkApplication * gtk_builder_get_application     (GtkBuilder     *builder);
 
 GDK_AVAILABLE_IN_ALL
 gboolean  gtk_builder_extend_with_template  (GtkBuilder    *builder,
-                                             GtkWidget     *widget,
+                                             GObject       *object,
                                              GType          template_type,
-                                             const gchar   *buffer,
+                                             const char    *buffer,
                                              gssize         length,
                                              GError       **error);
 

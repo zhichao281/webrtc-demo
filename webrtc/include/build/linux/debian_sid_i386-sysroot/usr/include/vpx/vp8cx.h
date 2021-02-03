@@ -231,10 +231,10 @@ enum vp8e_enc_control_id {
    */
   VP8E_SET_TUNING,
 
-  /*!\brief Codec control function to set constrained quality level.
+  /*!\brief Codec control function to set constrained / constant quality level.
    *
    * \attention For this value to be used vpx_codec_enc_cfg_t::rc_end_usage must
-   *            be set to #VPX_CQ
+   *            be set to #VPX_CQ or #VPX_Q
    * \note Valid range: 0..63
    *
    * Supported in codecs: VP8, VP9
@@ -676,6 +676,14 @@ enum vp8e_enc_control_id {
    * Supported in codecs: VP9
    */
   VP9E_SET_POSTENCODE_DROP,
+
+  /*!\brief Codec control function to set delta q for uv.
+   *
+   * Cap it at +/-15.
+   *
+   * Supported in codecs: VP9
+   */
+  VP9E_SET_DELTA_Q_UV,
 };
 
 /*!\brief vpx 1-D scaling mode
@@ -839,6 +847,8 @@ typedef enum {
   /**< Upper layers are constrained to drop if current layer drops. */
   LAYER_DROP,           /**< Any spatial layer can drop. */
   FULL_SUPERFRAME_DROP, /**< Only full superframe can drop. */
+  CONSTRAINED_FROM_ABOVE_DROP,
+  /**< Lower layers are constrained to drop if current layer drops. */
 } SVC_LAYER_DROP_MODE;
 
 /*!\brief vp9 svc frame dropping parameters.
@@ -1020,6 +1030,9 @@ VPX_CTRL_USE_TYPE(VP9E_SET_SVC_SPATIAL_LAYER_SYNC,
 
 VPX_CTRL_USE_TYPE(VP9E_SET_POSTENCODE_DROP, unsigned int)
 #define VPX_CTRL_VP9E_SET_POSTENCODE_DROP
+
+VPX_CTRL_USE_TYPE(VP9E_SET_DELTA_Q_UV, int)
+#define VPX_CTRL_VP9E_SET_DELTA_Q_UV
 
 /*!\endcond */
 /*! @} - end defgroup vp8_encoder */

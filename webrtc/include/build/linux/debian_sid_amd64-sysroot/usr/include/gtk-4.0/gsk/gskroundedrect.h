@@ -19,7 +19,7 @@
 #ifndef __GSK_ROUNDED_RECT_H__
 #define __GSK_ROUNDED_RECT_H__
 
-#if !defined (__GSK_H_INSIDE__) && !defined (GSK_COMPILATION)
+#if !defined (__GSK_H_INSIDE__) && !defined (GTK_COMPILATION)
 #error "Only <gsk/gsk.h> can be included directly."
 #endif
 
@@ -53,7 +53,7 @@ G_BEGIN_DECLS
  * A rectangular region with rounded corners.
  *
  * Application code should normalize rectangles using gsk_rounded_rect_normalize();
- * this function will ensure that the bounds of the rectanlge are normalized
+ * this function will ensure that the bounds of the rectangle are normalized
  * and ensure that the corner values are positive and the corners do not overlap.
  * All functions taking a #GskRoundedRect as an argument will internally operate on
  * a normalized copy; all functions returning a #GskRoundedRect will always return
@@ -98,16 +98,16 @@ GskRoundedRect *        gsk_rounded_rect_shrink                 (GskRoundedRect 
                                                                  float                     left);
 
 GDK_AVAILABLE_IN_ALL
-gboolean                gsk_rounded_rect_is_rectilinear         (const GskRoundedRect     *self);
+gboolean                gsk_rounded_rect_is_rectilinear         (const GskRoundedRect     *self) G_GNUC_PURE;
 GDK_AVAILABLE_IN_ALL
 gboolean                gsk_rounded_rect_contains_point         (const GskRoundedRect     *self,
-                                                                 const graphene_point_t   *point);
+                                                                 const graphene_point_t   *point) G_GNUC_PURE;
 GDK_AVAILABLE_IN_ALL
 gboolean                gsk_rounded_rect_contains_rect          (const GskRoundedRect     *self,
-                                                                 const graphene_rect_t    *rect);
+                                                                 const graphene_rect_t    *rect) G_GNUC_PURE;
 GDK_AVAILABLE_IN_ALL
 gboolean                gsk_rounded_rect_intersects_rect        (const GskRoundedRect     *self,
-                                                                 const graphene_rect_t    *rect);
+                                                                 const graphene_rect_t    *rect) G_GNUC_PURE;
 
 G_END_DECLS
 

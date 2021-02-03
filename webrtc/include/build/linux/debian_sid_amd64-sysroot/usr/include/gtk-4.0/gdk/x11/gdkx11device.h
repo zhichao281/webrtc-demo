@@ -18,8 +18,8 @@
 #ifndef __GDK_X11_DEVICE_H__
 #define __GDK_X11_DEVICE_H__
 
-#if !defined (__GDKX_H_INSIDE__) && !defined (GDK_COMPILATION)
-#error "Only <gdk/gdkx.h> can be included directly."
+#if !defined (__GDKX_H_INSIDE__) && !defined (GTK_COMPILATION)
+#error "Only <gdk/x11/gdkx.h> can be included directly."
 #endif
 
 #include <gdk/gdk.h>
@@ -27,7 +27,7 @@
 G_BEGIN_DECLS
 
 GDK_AVAILABLE_IN_ALL
-gint  gdk_x11_device_get_id  (GdkDevice *device);
+int   gdk_x11_device_get_id  (GdkDevice *device);
 
 G_END_DECLS
 

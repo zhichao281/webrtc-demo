@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
+ * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 1998-2013,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +33,7 @@
 /*    and: Thomas E. Dickey                        1995-on                  */
 /****************************************************************************/
 
-/* $Id: MKterm.h.awk.in,v 1.71 2019/04/13 22:34:42 tom Exp $ */
+/* $Id: MKterm.h.awk.in,v 1.78 2020/10/31 23:14:24 tom Exp $ */
 
 /*
 **	term.h -- Definition of struct term
@@ -42,7 +43,7 @@
 #define NCURSES_TERM_H_incl 1
 
 #undef  NCURSES_VERSION
-#define NCURSES_VERSION "6.1"
+#define NCURSES_VERSION "6.2"
 
 #include <ncurses_dll.h>
 
@@ -53,6 +54,24 @@ extern "C" {
 /* Make this file self-contained by providing defaults for the HAVE_TERMIO[S]_H
  * definition (based on the system for which this was configured).
  */
+
+#ifndef __NCURSES_H
+
+typedef struct screen  SCREEN;
+
+#if 1
+#undef  NCURSES_SP_FUNCS
+#define NCURSES_SP_FUNCS 20201114
+#undef  NCURSES_SP_NAME
+#define NCURSES_SP_NAME(name) name##_sp
+
+/* Define the sp-funcs helper function */
+#undef  NCURSES_SP_OUTC
+#define NCURSES_SP_OUTC NCURSES_SP_NAME(NCURSES_OUTC)
+typedef int (*NCURSES_SP_OUTC)(SCREEN*, int);
+#endif
+
+#endif /* __NCURSES_H */
 
 #undef  NCURSES_CONST
 #define NCURSES_CONST const
@@ -99,9 +118,14 @@ extern "C" {
 
 #else /* !HAVE_TERMIO_H */
 
-#if _WIN32
-#  include <ncurses_mingw.h>
-#  define TTY struct termios
+#if (defined(_WIN32) || defined(_WIN64))
+#if 0
+#include <win32_curses.h>
+#define TTY struct winconmode
+#else
+#include <ncurses_mingw.h>
+#define TTY struct termios
+#endif
 #else
 #undef TERMIOS
 #include <sgtty.h>
@@ -115,9 +139,16 @@ extern "C" {
 #ifdef TERMIOS
 #define GET_TTY(fd, buf) tcgetattr(fd, buf)
 #define SET_TTY(fd, buf) tcsetattr(fd, TCSADRAIN, buf)
+#elif 0 && (defined(_WIN32) || defined(_WIN64))
+#define GET_TTY(fd, buf) _nc_console_getmode(_nc_console_fd2handle(fd),buf)
+#define SET_TTY(fd, buf) _nc_console_setmode(_nc_console_fd2handle(fd),buf)
 #else
 #define GET_TTY(fd, buf) gtty(fd, buf)
 #define SET_TTY(fd, buf) stty(fd, buf)
+#endif
+
+#ifndef	GCC_NORETURN
+#define	GCC_NORETURN /* nothing */
 #endif
 
 #define NAMESIZE 256
@@ -770,17 +801,20 @@ extern NCURSES_EXPORT(int) _nc_read_file_entry (const char *const, TERMTYPE2 *);
 extern NCURSES_EXPORT(int) _nc_read_termtype (TERMTYPE2 *, char *, int);
 extern NCURSES_EXPORT(char *) _nc_first_name (const char *const);
 extern NCURSES_EXPORT(int) _nc_name_match (const char *const, const char *const, const char *const);
+extern NCURSES_EXPORT(char *) _nc_tiparm(int, const char *, ...);
 
 #endif /* NCURSES_INTERNALS */
 
 
 /*
- * These entrypoints are used by tack.
+ * These entrypoints are used by tack 1.07.
  */
 extern NCURSES_EXPORT(const TERMTYPE *) _nc_fallback (const char *);
 extern NCURSES_EXPORT(int) _nc_read_entry (const char * const, char * const, TERMTYPE *const);
 
-/* Normal entry points */
+/*
+ * Normal entry points
+ */
 extern NCURSES_EXPORT(TERMINAL *) set_curterm (TERMINAL *);
 extern NCURSES_EXPORT(int) del_curterm (TERMINAL *);
 
@@ -800,7 +834,6 @@ extern NCURSES_EXPORT(int) tigetnum (const char *);
 extern NCURSES_EXPORT(char *) tparm (const char *, ...);	/* special */
 #else
 extern NCURSES_EXPORT(char *) tparm (const char *, long,long,long,long,long,long,long,long,long);	/* special */
-extern NCURSES_EXPORT(char *) tparm_varargs (const char *, ...);	/* special */
 #endif
 
 extern NCURSES_EXPORT(char *) tiparm (const char *, ...);		/* special */
@@ -831,7 +864,6 @@ extern NCURSES_EXPORT(int)     NCURSES_SP_NAME(tigetnum) (SCREEN*, const char *)
 extern NCURSES_EXPORT(char *)  NCURSES_SP_NAME(tparm) (SCREEN*, const char *, ...);	/* special */
 #else
 extern NCURSES_EXPORT(char *)  NCURSES_SP_NAME(tparm) (SCREEN*, const char *, long,long,long,long,long,long,long,long,long);	/* special */
-extern NCURSES_EXPORT(char *)  NCURSES_SP_NAME(tparm_varargs) (SCREEN*, const char *, ...);	/* special */
 #endif
 
 /* termcap database emulation (XPG4 uses const only for 2nd param of tgetent) */
@@ -847,6 +879,11 @@ extern NCURSES_EXPORT(int)     NCURSES_SP_NAME(del_curterm) (SCREEN*, TERMINAL *
 
 extern NCURSES_EXPORT(int)     NCURSES_SP_NAME(restartterm) (SCREEN*, NCURSES_CONST char *, int, int *);
 #endif /* NCURSES_SP_FUNCS */
+
+/*
+ * Debugging features.
+ */
+extern NCURSES_EXPORT(void)    exit_terminfo(int) GCC_NORETURN;
 
 #ifdef __cplusplus
 }

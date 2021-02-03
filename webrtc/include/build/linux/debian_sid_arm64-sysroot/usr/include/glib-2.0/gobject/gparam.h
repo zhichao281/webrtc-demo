@@ -307,7 +307,7 @@ void		g_param_value_set_default	(GParamSpec    *pspec,
 						 GValue	       *value);
 GLIB_AVAILABLE_IN_ALL
 gboolean	g_param_value_defaults		(GParamSpec    *pspec,
-						 GValue	       *value);
+						 const GValue  *value);
 GLIB_AVAILABLE_IN_ALL
 gboolean	g_param_value_validate		(GParamSpec    *pspec,
 						 GValue	       *value);
@@ -394,6 +394,9 @@ struct _GParamSpecTypeInfo
 GLIB_AVAILABLE_IN_ALL
 GType	g_param_type_register_static	(const gchar		  *name,
 					 const GParamSpecTypeInfo *pspec_info);
+
+GLIB_AVAILABLE_IN_2_66
+gboolean g_param_spec_is_valid_name    (const gchar              *name);
 
 /* For registering builting types */
 GType  _g_param_type_register_static_constant (const gchar              *name,

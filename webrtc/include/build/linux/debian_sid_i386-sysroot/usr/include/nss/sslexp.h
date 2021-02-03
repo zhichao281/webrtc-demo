@@ -254,7 +254,8 @@ typedef struct SSLAntiReplayContextStr SSLAntiReplayContext;
  *
  * This function will fail unless the socket has an active TLS 1.3 session.
  * Earlier versions of TLS do not support the spontaneous sending of the
- * NewSessionTicket message.
+ * NewSessionTicket message. It will also fail when external PSK
+ * authentication has been negotiated.
  */
 #define SSL_SendSessionTicket(fd, appToken, appTokenLen)              \
     SSL_EXPERIMENTAL_API("SSL_SendSessionTicket",                     \
@@ -380,6 +381,10 @@ typedef SSLHelloRetryRequestAction(PR_CALLBACK *SSLHelloRetryRequestCallback)(
  * a server.  This can be called once at a time, and is not allowed
  * until an answer is received.
  *
+ * This function is not allowed for use with DTLS or when external
+ * PSK authentication has been negotiated. SECFailure is returned
+ * in both cases.
+ *
  * The AuthCertificateCallback is called when the answer is received.
  * If the answer is accepted by the server, the value returned by
  * SSL_PeerCertificate() is replaced.  If you need to remember all the
@@ -497,63 +502,86 @@ typedef SECStatus(PR_CALLBACK *SSLResumptionTokenCallback)(
                          (PRFileDesc * _fd, PRUint32 _size), \
                          (fd, size))
 
-/* Set the ESNI key pair on a socket (server side)
+/* If |enabled|, a GREASE ECH extension will be sent in every ClientHello,
+ * unless a valid and supported ECHConfig is configured to the socket
+ * (in which case real ECH takes precedence). If |!enabled|, it is not sent.*/
+#define SSL_EnableTls13GreaseEch(fd, enabled)        \
+    SSL_EXPERIMENTAL_API("SSL_EnableTls13GreaseEch", \
+                         (PRFileDesc * _fd, PRBool _enabled), (fd, enabled))
+
+/* Called by the client after an initial ECH connection fails with
+ * SSL_ERROR_ECH_RETRY_WITH_ECH. Returns compatible ECHConfigs, which
+ * are configured via SetClientEchConfigs for an ECH retry attempt.
+ * These configs MUST NOT be used for more than the single retry
+ * attempt. Subsequent connections MUST use advertised ECHConfigs. */
+#define SSL_GetEchRetryConfigs(fd, out)            \
+    SSL_EXPERIMENTAL_API("SSL_GetEchRetryConfigs", \
+                         (PRFileDesc * _fd,        \
+                          SECItem * _out),         \
+                         (fd, out))
+
+/* Called to remove all ECHConfigs from a socket (fd). */
+#define SSL_RemoveEchConfigs(fd)                 \
+    SSL_EXPERIMENTAL_API("SSL_RemoveEchConfigs", \
+                         (PRFileDesc * _fd),     \
+                         (fd))
+
+/* Set the ECHConfig and key pair on a socket (server side)
  *
  * fd -- the socket
+ * pubKey -- the server's SECKEYPublicKey for HPKE/ECH.
+ * privateKey -- the server's SECKEYPrivateKey for HPKE/ECH.
  * record/recordLen -- the encoded DNS record (not base64)
- *
- * Important: the suites that are advertised in the record must
- * be configured on, or this call will fail.
  */
-#define SSL_SetESNIKeyPair(fd,                                              \
-                           privKey, record, recordLen)                      \
-    SSL_EXPERIMENTAL_API("SSL_SetESNIKeyPair",                              \
+#define SSL_SetServerEchConfigs(fd, pubKey,                                 \
+                                privKey, record, recordLen)                 \
+    SSL_EXPERIMENTAL_API("SSL_SetServerEchConfigs",                         \
                          (PRFileDesc * _fd,                                 \
-                          SECKEYPrivateKey * _privKey,                      \
+                          const SECKEYPublicKey *_pubKey,                   \
+                          const SECKEYPrivateKey *_privKey,                 \
                           const PRUint8 *_record, unsigned int _recordLen), \
-                         (fd, privKey,                                      \
+                         (fd, pubKey, privKey,                              \
                           record, recordLen))
 
-/* Set the ESNI keys on a client
+/* Set ECHConfig(s) on a client. The first supported ECHConfig will be used.
  *
  * fd -- the socket
- * ensikeys/esniKeysLen -- the ESNI key structure (not base64)
- * dummyESNI -- the dummy ESNI to use (if any)
+ * echConfigs/echConfigsLen -- the ECHConfigs structure (not base64)
  */
-#define SSL_EnableESNI(fd, esniKeys, esniKeysLen, dummySNI) \
-    SSL_EXPERIMENTAL_API("SSL_EnableESNI",                  \
-                         (PRFileDesc * _fd,                 \
-                          const PRUint8 *_esniKeys,         \
-                          unsigned int _esniKeysLen,        \
-                          const char *_dummySNI),           \
-                         (fd, esniKeys, esniKeysLen, dummySNI))
+#define SSL_SetClientEchConfigs(fd, echConfigs, echConfigsLen) \
+    SSL_EXPERIMENTAL_API("SSL_SetClientEchConfigs",            \
+                         (PRFileDesc * _fd,                    \
+                          const PRUint8 *_echConfigs,          \
+                          unsigned int _echConfigsLen),        \
+                         (fd, echConfigs, echConfigsLen))
 
 /*
- * Generate an encoded ESNIKeys structure (presumably server side).
+ * Generate an encoded ECHConfig structure (presumably server side).
  *
- * cipherSuites -- the cipher suites that can be used
- * cipherSuitesCount -- the number of suites in cipherSuites
+ * publicName -- the public_name value to be placed in SNI.
+ * hpkeSuites -- the HPKE cipher suites that can be used
+ * hpkeSuitesCount -- the number of suites in hpkeSuites
+ * kemId -- the HKPE KEM ID value
  * group -- the named group this key corresponds to
  * pubKey -- the public key for the key pair
- * pad -- the length to pad to
- * notBefore/notAfter -- validity range
+ * pad -- the maximum length to pad to
  * out/outlen/maxlen -- where to output the data
  */
-#define SSL_EncodeESNIKeys(cipherSuites, cipherSuiteCount,          \
-                           group, pubKey, pad, notBefore, notAfter, \
-                           out, outlen, maxlen)                     \
-    SSL_EXPERIMENTAL_API("SSL_EncodeESNIKeys",                      \
-                         (PRUint16 * _cipherSuites,                 \
-                          unsigned int _cipherSuiteCount,           \
-                          SSLNamedGroup _group,                     \
-                          SECKEYPublicKey *_pubKey,                 \
-                          PRUint16 _pad,                            \
-                          PRUint64 _notBefore, PRUint64 _notAfter,  \
-                          PRUint8 *_out, unsigned int *_outlen,     \
-                          unsigned int _maxlen),                    \
-                         (cipherSuites, cipherSuiteCount,           \
-                          group, pubKey, pad, notBefore, notAfter,  \
-                          out, outlen, maxlen))
+#define SSL_EncodeEchConfig(publicName, hpkeSuites, hpkeSuitesCount, \
+                            kemId, pubKey, maxNameLen, out, outlen,  \
+                            maxlen)                                  \
+    SSL_EXPERIMENTAL_API("SSL_EncodeEchConfig",                      \
+                         (const char *_publicName,                   \
+                          const PRUint32 *_hpkeSuites,               \
+                          unsigned int _hpkeSuitesCount,             \
+                          HpkeKemId _kemId,                          \
+                          const SECKEYPublicKey *_pubKey,            \
+                          PRUint16 _maxNameLen,                      \
+                          PRUint8 *_out, unsigned int *_outlen,      \
+                          unsigned int _maxlen),                     \
+                         (publicName, hpkeSuites, hpkeSuitesCount,   \
+                          kemId, pubKey, maxNameLen, out, outlen,    \
+                          maxlen))
 
 /* SSL_SetSecretCallback installs a callback that TLS calls when it installs new
  * traffic secrets.
@@ -662,7 +690,11 @@ typedef SECStatus(PR_CALLBACK *SSLRecordWriteCallback)(
  * used in TLS.  The lower bits of the IV are XORed with the 64-bit counter to
  * produce the nonce.  Otherwise, this is an AEAD interface similar to that
  * described in RFC 5116.
- */
+ *
+ * Note: SSL_MakeAead internally calls SSL_MakeVariantAead with a variant of
+ * "stream", behaving as noted above. If "datagram" variant is passed instead,
+ * the Label prefix used in HKDF-Expand is "dtls13" instead of "tls13 ". See
+ * 7.1 of RFC 8446 and draft-ietf-tls-dtls13-34. */
 typedef struct SSLAeadContextStr SSLAeadContext;
 
 #define SSL_MakeAead(version, cipherSuite, secret,                  \
@@ -674,6 +706,18 @@ typedef struct SSLAeadContextStr SSLAeadContext;
                           unsigned int _labelPrefixLen,             \
                           SSLAeadContext **_ctx),                   \
                          (version, cipherSuite, secret,             \
+                          labelPrefix, labelPrefixLen, ctx))
+
+#define SSL_MakeVariantAead(version, cipherSuite, variant, secret,  \
+                            labelPrefix, labelPrefixLen, ctx)       \
+    SSL_EXPERIMENTAL_API("SSL_MakeVariantAead",                     \
+                         (PRUint16 _version, PRUint16 _cipherSuite, \
+                          SSLProtocolVariant _variant,              \
+                          PK11SymKey * _secret,                     \
+                          const char *_labelPrefix,                 \
+                          unsigned int _labelPrefixLen,             \
+                          SSLAeadContext **_ctx),                   \
+                         (version, cipherSuite, variant, secret,    \
                           labelPrefix, labelPrefixLen, ctx))
 
 #define SSL_AeadEncrypt(ctx, counter, aad, aadLen, in, inLen,            \
@@ -716,8 +760,13 @@ typedef struct SSLAeadContextStr SSLAeadContext;
                           PK11SymKey * *_keyp),                     \
                          (version, cipherSuite, salt, ikm, keyp))
 
-/* SSL_HkdfExpandLabel produces a key with a mechanism that is suitable for
- * input to SSL_HkdfExpandLabel or SSL_MakeAead. */
+/* SSL_HkdfExpandLabel and SSL_HkdfVariantExpandLabel produce a key with a
+ * mechanism that is suitable for input to SSL_HkdfExpandLabel or SSL_MakeAead.
+ *
+ * Note: SSL_HkdfVariantExpandLabel internally calls SSL_HkdfExpandLabel with
+ * a default "stream" variant. If "datagram" variant is passed instead, the
+ * Label prefix used in HKDF-Expand is "dtls13" instead of "tls13 ". See 7.1 of
+ * RFC 8446 and draft-ietf-tls-dtls13-34. */
 #define SSL_HkdfExpandLabel(version, cipherSuite, prk,                     \
                             hsHash, hsHashLen, label, labelLen, keyp)      \
     SSL_EXPERIMENTAL_API("SSL_HkdfExpandLabel",                            \
@@ -729,9 +778,28 @@ typedef struct SSLAeadContextStr SSLAeadContext;
                          (version, cipherSuite, prk,                       \
                           hsHash, hsHashLen, label, labelLen, keyp))
 
-/* SSL_HkdfExpandLabelWithMech uses the KDF from the selected TLS version and
- * cipher suite, as with the other calls, but the provided mechanism and key
- * size. This allows the key to be used more widely. */
+#define SSL_HkdfVariantExpandLabel(version, cipherSuite, prk,                   \
+                                   hsHash, hsHashLen, label, labelLen, variant, \
+                                   keyp)                                        \
+    SSL_EXPERIMENTAL_API("SSL_HkdfVariantExpandLabel",                          \
+                         (PRUint16 _version, PRUint16 _cipherSuite,             \
+                          PK11SymKey * _prk,                                    \
+                          const PRUint8 *_hsHash, unsigned int _hsHashLen,      \
+                          const char *_label, unsigned int _labelLen,           \
+                          SSLProtocolVariant _variant,                          \
+                          PK11SymKey **_keyp),                                  \
+                         (version, cipherSuite, prk,                            \
+                          hsHash, hsHashLen, label, labelLen, variant,          \
+                          keyp))
+
+/* SSL_HkdfExpandLabelWithMech and SSL_HkdfVariantExpandLabelWithMech use the KDF
+ * from the selected TLS version and cipher suite, as with the other calls, but
+ * the provided mechanism and key size. This allows the key to be used more widely.
+ *
+ * Note: SSL_HkdfExpandLabelWithMech internally calls SSL_HkdfVariantExpandLabelWithMech
+ * with a default "stream" variant. If "datagram" variant is passed instead, the
+ * Label prefix used in HKDF-Expand is "dtls13" instead of "tls13 ". See 7.1 of
+ * RFC 8446 and draft-ietf-tls-dtls13-34. */
 #define SSL_HkdfExpandLabelWithMech(version, cipherSuite, prk,             \
                                     hsHash, hsHashLen, label, labelLen,    \
                                     mech, keySize, keyp)                   \
@@ -745,6 +813,21 @@ typedef struct SSLAeadContextStr SSLAeadContext;
                          (version, cipherSuite, prk,                       \
                           hsHash, hsHashLen, label, labelLen,              \
                           mech, keySize, keyp))
+
+#define SSL_HkdfVariantExpandLabelWithMech(version, cipherSuite, prk,          \
+                                           hsHash, hsHashLen, label, labelLen, \
+                                           mech, keySize, variant, keyp)       \
+    SSL_EXPERIMENTAL_API("SSL_HkdfVariantExpandLabelWithMech",                 \
+                         (PRUint16 _version, PRUint16 _cipherSuite,            \
+                          PK11SymKey * _prk,                                   \
+                          const PRUint8 *_hsHash, unsigned int _hsHashLen,     \
+                          const char *_label, unsigned int _labelLen,          \
+                          CK_MECHANISM_TYPE _mech, unsigned int _keySize,      \
+                          SSLProtocolVariant _variant,                         \
+                          PK11SymKey **_keyp),                                 \
+                         (version, cipherSuite, prk,                           \
+                          hsHash, hsHashLen, label, labelLen,                  \
+                          mech, keySize, variant, keyp))
 
 /* SSL_SetTimeFunc overrides the default time function (PR_Now()) and provides
  * an alternative source of time for the socket. This is used in testing, and in
@@ -791,12 +874,12 @@ typedef PRTime(PR_CALLBACK *SSLTimeFunc)(void *arg);
  * handshake (Client Hello).
  *
  * The *Get function puts the current set of active (enabled and policy set as
- * PR_TRUE) cipher suites in the cipherOrder outparam. Cipher suites that 
+ * PR_TRUE) cipher suites in the cipherOrder outparam. Cipher suites that
  * aren't active aren't included. The paramenters are:
  *   - PRFileDesc *fd = FileDescriptor to get information.
  *   - PRUint16 *cipherOrder = The memory allocated for cipherOrder needs to be
  *     SSL_GetNumImplementedCiphers() * sizeof(PRUint16) or more.
- *   - PRUint16 numCiphers = The number of active ciphersuites listed in 
+ *   - PRUint16 numCiphers = The number of active ciphersuites listed in
  *     *cipherOrder is written here.
  *
  * The *Set function permits reorder the CipherSuites list for the Handshake
@@ -812,7 +895,7 @@ typedef PRTime(PR_CALLBACK *SSLTimeFunc)(void *arg);
  *   - const PRUint16 *cipherOrder = Must receive all ciphers to be ordered, in
  *     the desired order. They will be set in the begin of the list. Only
  *     suites listed by SSL_ImplementedCiphers() can be included.
- *   - PRUint16 numCiphers = Must receive the number of items in *cipherOrder. 
+ *   - PRUint16 numCiphers = Must receive the number of items in *cipherOrder.
  * */
 #define SSL_CipherSuiteOrderGet(fd, cipherOrder, numCiphers)         \
     SSL_EXPERIMENTAL_API("SSL_CipherSuiteOrderGet",                  \
@@ -826,10 +909,124 @@ typedef PRTime(PR_CALLBACK *SSLTimeFunc)(void *arg);
                           PRUint16 _numCiphers),                          \
                          (fd, cipherOrder, numCiphers))
 
+/*
+ * The following functions expose a masking primitive that uses ciphersuite and
+ * version information to set paramaters for the masking key and mask generation
+ * logic. This is only supported for TLS 1.3.
+ *
+ * The key and IV are generated using the TLS KDF with a custom label.  That is
+ * HKDF-Expand-Label(secret, label, "", L), where |label| is an input to
+ * SSL_CreateMaskingContext.
+ *
+ * The mask generation logic in SSL_CreateMask is determined by the underlying
+ * symmetric cipher:
+ *  - For AES-ECB, mask = AES-ECB(mask_key, sample). |len| must be <= 16 as
+ *    the output is limited to a single block.
+ *  - For CHACHA20, mask = ChaCha20(mask_key, sample[0..3], sample[4..15], {0}.len)
+ *    That is, the low 4 bytes of |sample| used as the counter, the remaining 12 bytes
+ *    the nonce. We encrypt |len| bytes of zeros, returning the raw key stream.
+ *
+ *  The caller must pre-allocate at least |len| bytes for output. If the underlying
+ *  cipher cannot produce the requested amount of data, SECFailure is returned.
+ */
+
+typedef struct SSLMaskingContextStr {
+    CK_MECHANISM_TYPE mech;
+    PRUint16 version;
+    PRUint16 cipherSuite;
+    PK11SymKey *secret;
+} SSLMaskingContext;
+
+#define SSL_CreateMaskingContext(version, cipherSuite, secret,      \
+                                 label, labelLen, ctx)              \
+    SSL_EXPERIMENTAL_API("SSL_CreateMaskingContext",                \
+                         (PRUint16 _version, PRUint16 _cipherSuite, \
+                          PK11SymKey * _secret,                     \
+                          const char *_label,                       \
+                          unsigned int _labelLen,                   \
+                          SSLMaskingContext **_ctx),                \
+                         (version, cipherSuite, secret, label, labelLen, ctx))
+
+#define SSL_CreateVariantMaskingContext(version, cipherSuite, variant, \
+                                        secret, label, labelLen, ctx)  \
+    SSL_EXPERIMENTAL_API("SSL_CreateVariantMaskingContext",            \
+                         (PRUint16 _version, PRUint16 _cipherSuite,    \
+                          SSLProtocolVariant _variant,                 \
+                          PK11SymKey * _secret,                        \
+                          const char *_label,                          \
+                          unsigned int _labelLen,                      \
+                          SSLMaskingContext **_ctx),                   \
+                         (version, cipherSuite, variant, secret,       \
+                          label, labelLen, ctx))
+
+#define SSL_DestroyMaskingContext(ctx)                \
+    SSL_EXPERIMENTAL_API("SSL_DestroyMaskingContext", \
+                         (SSLMaskingContext * _ctx),  \
+                         (ctx))
+
+#define SSL_CreateMask(ctx, sample, sampleLen, mask, maskLen)               \
+    SSL_EXPERIMENTAL_API("SSL_CreateMask",                                  \
+                         (SSLMaskingContext * _ctx, const PRUint8 *_sample, \
+                          unsigned int _sampleLen, PRUint8 *_mask,          \
+                          unsigned int _maskLen),                           \
+                         (ctx, sample, sampleLen, mask, maskLen))
+
+#define SSL_SetDtls13VersionWorkaround(fd, enabled)        \
+    SSL_EXPERIMENTAL_API("SSL_SetDtls13VersionWorkaround", \
+                         (PRFileDesc * _fd, PRBool _enabled), (fd, enabled))
+
+/* SSL_AddExternalPsk() and SSL_AddExternalPsk0Rtt() can be used to
+ * set an external PSK on a socket. If successful, this PSK will
+ * be used in all subsequent connection attempts for this socket.
+ * This has no effect if the maximum TLS version is < 1.3.
+ *
+ * This API currently only accepts a single PSK, so multiple calls to
+ * either function will fail. An EPSK can be replaced by calling
+ * SSL_RemoveExternalPsk followed by SSL_AddExternalPsk.
+ * For both functions, the label is expected to be a unique identifier
+ * for the external PSK. Should en external PSK have the same label
+ * as a configured resumption PSK identity, the external PSK will
+ * take precedence.
+ *
+ * If you want to enable early data, you need to also provide a
+ * cipher suite for 0-RTT and a limit for the early data using
+ * SSL_AddExternalPsk0Rtt(). If you want to explicitly disallow
+ * certificate authentication, use SSL_AuthCertificateHook to set
+ * a callback that rejects all certificate chains.
+ */
+#define SSL_AddExternalPsk(fd, psk, identity, identityLen, hash)               \
+    SSL_EXPERIMENTAL_API("SSL_AddExternalPsk",                                 \
+                         (PRFileDesc * _fd, PK11SymKey * _psk,                 \
+                          const PRUint8 *_identity, unsigned int _identityLen, \
+                          SSLHashType _hash),                                  \
+                         (fd, psk, identity, identityLen, hash))
+
+#define SSL_AddExternalPsk0Rtt(fd, psk, identity, identityLen, hash,           \
+                               zeroRttSuite, maxEarlyData)                     \
+    SSL_EXPERIMENTAL_API("SSL_AddExternalPsk0Rtt",                             \
+                         (PRFileDesc * _fd, PK11SymKey * _psk,                 \
+                          const PRUint8 *_identity, unsigned int _identityLen, \
+                          SSLHashType _hash, PRUint16 _zeroRttSuite,           \
+                          PRUint32 _maxEarlyData),                             \
+                         (fd, psk, identity, identityLen, hash,                \
+                          zeroRttSuite, maxEarlyData))
+
+/* SSLExp_RemoveExternalPsk() removes an external PSK from socket
+ * configuration. Returns SECSuccess if the PSK was removed
+ * successfully, and SECFailure otherwise. */
+#define SSL_RemoveExternalPsk(fd, identity, identityLen)              \
+    SSL_EXPERIMENTAL_API("SSL_RemoveExternalPsk",                     \
+                         (PRFileDesc * _fd, const PRUint8 *_identity, \
+                          unsigned int _identityLen),                 \
+                         (fd, identity, identityLen))
+
 /* Deprecated experimental APIs */
 #define SSL_UseAltServerHelloType(fd, enable) SSL_DEPRECATED_EXPERIMENTAL_API
 #define SSL_SetupAntiReplay(a, b, c) SSL_DEPRECATED_EXPERIMENTAL_API
 #define SSL_InitAntiReplay(a, b, c) SSL_DEPRECATED_EXPERIMENTAL_API
+#define SSL_EnableESNI(a, b, c, d) SSL_DEPRECATED_EXPERIMENTAL_API
+#define SSL_EncodeESNIKeys(a, b, c, d, e, f, g, h, i, j) SSL_DEPRECATED_EXPERIMENTAL_API
+#define SSL_SetESNIKeyPair(a, b, c, d) SSL_DEPRECATED_EXPERIMENTAL_API
 
 SEC_END_PROTOS
 

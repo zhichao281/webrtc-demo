@@ -150,6 +150,7 @@ class CORE_EXPORT LayoutShiftTracker final
   void ReportShift(double score_delta, double weighted_score_delta);
   void TimerFired(TimerBase*) {}
   std::unique_ptr<TracedValue> PerFrameTraceData(double score_delta,
+                                                 double weighted_score_delta,
                                                  bool input_detected) const;
   void AttributionsToTracedValue(TracedValue&) const;
   double SubframeWeightingFactor() const;
@@ -157,6 +158,7 @@ class CORE_EXPORT LayoutShiftTracker final
   void UpdateInputTimestamp(base::TimeTicks timestamp);
   LayoutShift::AttributionList CreateAttributionList() const;
   void SubmitPerformanceEntry(double score_delta, bool input_detected) const;
+  void NotifyPrePaintFinishedInternal();
 
   Member<LocalFrameView> frame_view_;
   bool is_active_;
@@ -193,7 +195,7 @@ class CORE_EXPORT LayoutShiftTracker final
   // Tracks the short period after an input event during which we ignore shifts
   // for the purpose of cumulative scoring, and report them to the web perf API
   // with hadRecentInput == true.
-  TaskRunnerTimer<LayoutShiftTracker> timer_;
+  HeapTaskRunnerTimer<LayoutShiftTracker> timer_;
 
   // The maximum distance any layout object has moved in the current animation
   // frame.

@@ -109,8 +109,8 @@ typedef unsigned long guintptr;
 #define G_GUINTPTR_FORMAT       "lu"
 
 #define GLIB_MAJOR_VERSION 2
-#define GLIB_MINOR_VERSION 62
-#define GLIB_MICRO_VERSION 3
+#define GLIB_MINOR_VERSION 66
+#define GLIB_MICRO_VERSION 4
 
 #define G_OS_UNIX
 
@@ -154,7 +154,6 @@ typedef unsigned long guintptr;
 #define G_THREADS_ENABLED
 #define G_THREADS_IMPL_POSIX
 
-#undef G_ATOMIC_OP_MEMORY_BARRIER_NEEDED
 #define G_ATOMIC_LOCK_FREE
 
 #define GINT16_TO_LE(val)	((gint16) (val))

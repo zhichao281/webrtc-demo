@@ -22,7 +22,7 @@
 #error "Only <gtk/gtk.h> can be included directly."
 #endif
 
-#include <gtk/gtkbin.h>
+#include <gtk/gtkwidget.h>
 #include <gtk/gtktreemodel.h>
 #include <gtk/gtktreeview.h>
 
@@ -40,7 +40,7 @@ typedef struct _GtkComboBoxClass   GtkComboBoxClass;
 
 struct _GtkComboBox
 {
-  GtkBin parent_instance;
+  GtkWidget parent_instance;
 };
 
 /**
@@ -52,21 +52,18 @@ struct _GtkComboBox
  */
 struct _GtkComboBoxClass
 {
-  GtkBinClass parent_class;
+  GtkWidgetClass parent_class;
 
   /*< public >*/
 
   /* signals */
   void     (* changed)           (GtkComboBox *combo_box);
-  gchar   *(* format_entry_text) (GtkComboBox *combo_box,
-                                  const gchar *path);
+  char    *(* format_entry_text) (GtkComboBox *combo_box,
+                                  const char *path);
 
   /*< private >*/
 
-  /* Padding for future expansion */
-  void (*_gtk_reserved1) (void);
-  void (*_gtk_reserved2) (void);
-  void (*_gtk_reserved3) (void);
+  gpointer padding[8];
 };
 
 
@@ -84,10 +81,10 @@ GtkWidget    *gtk_combo_box_new_with_model_and_entry (GtkTreeModel *model);
 
 /* get/set active item */
 GDK_AVAILABLE_IN_ALL
-gint          gtk_combo_box_get_active       (GtkComboBox     *combo_box);
+int           gtk_combo_box_get_active       (GtkComboBox     *combo_box);
 GDK_AVAILABLE_IN_ALL
 void          gtk_combo_box_set_active       (GtkComboBox     *combo_box,
-                                              gint             index_);
+                                              int              index_);
 GDK_AVAILABLE_IN_ALL
 gboolean      gtk_combo_box_get_active_iter  (GtkComboBox     *combo_box,
                                               GtkTreeIter     *iter);
@@ -120,9 +117,9 @@ GDK_AVAILABLE_IN_ALL
 gboolean           gtk_combo_box_get_has_entry          (GtkComboBox        *combo_box);
 GDK_AVAILABLE_IN_ALL
 void               gtk_combo_box_set_entry_text_column  (GtkComboBox        *combo_box,
-                                                         gint                text_column);
+                                                         int                 text_column);
 GDK_AVAILABLE_IN_ALL
-gint               gtk_combo_box_get_entry_text_column  (GtkComboBox        *combo_box);
+int                gtk_combo_box_get_entry_text_column  (GtkComboBox        *combo_box);
 
 GDK_AVAILABLE_IN_ALL
 void               gtk_combo_box_set_popup_fixed_width  (GtkComboBox      *combo_box,
@@ -138,19 +135,24 @@ void          gtk_combo_box_popup_for_device (GtkComboBox     *combo_box,
                                               GdkDevice       *device);
 GDK_AVAILABLE_IN_ALL
 void          gtk_combo_box_popdown          (GtkComboBox     *combo_box);
-GDK_AVAILABLE_IN_ALL
-AtkObject*    gtk_combo_box_get_popup_accessible (GtkComboBox *combo_box);
 
 GDK_AVAILABLE_IN_ALL
-gint          gtk_combo_box_get_id_column        (GtkComboBox *combo_box);
+int           gtk_combo_box_get_id_column        (GtkComboBox *combo_box);
 GDK_AVAILABLE_IN_ALL
 void          gtk_combo_box_set_id_column        (GtkComboBox *combo_box,
-                                                  gint         id_column);
+                                                  int          id_column);
 GDK_AVAILABLE_IN_ALL
-const gchar * gtk_combo_box_get_active_id        (GtkComboBox *combo_box);
+const char * gtk_combo_box_get_active_id        (GtkComboBox *combo_box);
 GDK_AVAILABLE_IN_ALL
 gboolean      gtk_combo_box_set_active_id        (GtkComboBox *combo_box,
-                                                  const gchar *active_id);
+                                                  const char *active_id);
+
+GDK_AVAILABLE_IN_ALL
+void          gtk_combo_box_set_child            (GtkComboBox *combo_box,
+                                                  GtkWidget   *child);
+GDK_AVAILABLE_IN_ALL
+GtkWidget *   gtk_combo_box_get_child            (GtkComboBox *combo_box);
+
 
 G_END_DECLS
 

@@ -25,7 +25,7 @@
 #ifndef __GTK_CSS_ENUMS_H__
 #define __GTK_CSS_ENUMS_H__
 
-#if !defined (__GTK_CSS_H_INSIDE__) && !defined (GTK_CSS_COMPILATION)
+#if !defined (__GTK_CSS_H_INSIDE__) && !defined (GTK_COMPILATION)
 #error "Only <gtk/css/gtkcss.h> can be included directly."
 #endif
 
@@ -62,6 +62,8 @@ typedef enum
  *     deprecated and will be removed in a future version
  * @GTK_CSS_PARSER_WARNING_SYNTAX: A syntax construct was used
  *     that should be avoided
+ * @GTK_CSS_PARSER_WARNING_UNIMPLEMENTED: A feature is not
+ *     implemented
  *
  * Warnings that can occur while parsing CSS.
  *
@@ -71,7 +73,8 @@ typedef enum
 typedef enum
 {
   GTK_CSS_PARSER_WARNING_DEPRECATED,
-  GTK_CSS_PARSER_WARNING_SYNTAX
+  GTK_CSS_PARSER_WARNING_SYNTAX,
+  GTK_CSS_PARSER_WARNING_UNIMPLEMENTED
 } GtkCssParserWarning;
 
 #endif /* __GTK_CSS_ENUMS_H__ */

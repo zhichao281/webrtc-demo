@@ -44,7 +44,6 @@ G_BEGIN_DECLS
 
 
 typedef struct _GtkScale              GtkScale;
-typedef struct _GtkScalePrivate       GtkScalePrivate;
 typedef struct _GtkScaleClass         GtkScaleClass;
 
 struct _GtkScale
@@ -56,19 +55,29 @@ struct _GtkScaleClass
 {
   GtkRangeClass parent_class;
 
-  gchar* (* format_value) (GtkScale *scale,
-                           gdouble   value);
-
   void (* get_layout_offsets) (GtkScale *scale,
-                               gint     *x,
-                               gint     *y);
+                               int      *x,
+                               int      *y);
 
-  /* Padding for future expansion */
-  void (*_gtk_reserved1) (void);
-  void (*_gtk_reserved2) (void);
-  void (*_gtk_reserved3) (void);
-  void (*_gtk_reserved4) (void);
+  /*< private >*/
+
+  gpointer padding[8];
 };
+
+
+/**
+ * GtkScaleFormatValueFunc:
+ * @scale: The #GtkScale
+ * @value: The numeric value to format
+ * @user_data: (closure): user data
+ *
+ * Returns: (not nullable): A newly allocated string describing a textual representation
+ *   of the given numerical value.
+ */
+typedef char * (*GtkScaleFormatValueFunc) (GtkScale *scale,
+                                           double    value,
+                                           gpointer  user_data);
+
 
 GDK_AVAILABLE_IN_ALL
 GType             gtk_scale_get_type           (void) G_GNUC_CONST;
@@ -77,14 +86,14 @@ GtkWidget       * gtk_scale_new                (GtkOrientation   orientation,
                                                 GtkAdjustment   *adjustment);
 GDK_AVAILABLE_IN_ALL
 GtkWidget       * gtk_scale_new_with_range     (GtkOrientation   orientation,
-                                                gdouble          min,
-                                                gdouble          max,
-                                                gdouble          step);
+                                                double           min,
+                                                double           max,
+                                                double           step);
 GDK_AVAILABLE_IN_ALL
 void              gtk_scale_set_digits         (GtkScale        *scale,
-                                                gint             digits);
+                                                int              digits);
 GDK_AVAILABLE_IN_ALL
-gint              gtk_scale_get_digits         (GtkScale        *scale);
+int               gtk_scale_get_digits         (GtkScale        *scale);
 GDK_AVAILABLE_IN_ALL
 void              gtk_scale_set_draw_value     (GtkScale        *scale,
                                                 gboolean         draw_value);
@@ -105,17 +114,22 @@ GDK_AVAILABLE_IN_ALL
 PangoLayout     * gtk_scale_get_layout         (GtkScale        *scale);
 GDK_AVAILABLE_IN_ALL
 void              gtk_scale_get_layout_offsets (GtkScale        *scale,
-                                                gint            *x,
-                                                gint            *y);
+                                                int             *x,
+                                                int             *y);
 
 GDK_AVAILABLE_IN_ALL
 void              gtk_scale_add_mark           (GtkScale        *scale,
-                                                gdouble          value,
+                                                double           value,
                                                 GtkPositionType  position,
-                                                const gchar     *markup);
+                                                const char      *markup);
 GDK_AVAILABLE_IN_ALL
 void              gtk_scale_clear_marks        (GtkScale        *scale);
 
+GDK_AVAILABLE_IN_ALL
+void              gtk_scale_set_format_value_func (GtkScale                *scale,
+                                                   GtkScaleFormatValueFunc  func,
+                                                   gpointer                 user_data,
+                                                   GDestroyNotify           destroy_notify);
 
 G_END_DECLS
 

@@ -66,22 +66,23 @@ GDK_AVAILABLE_IN_ALL
 gboolean    gtk_gesture_handles_sequence     (GtkGesture       *gesture,
                                               GdkEventSequence *sequence);
 GDK_AVAILABLE_IN_ALL
-const GdkEvent *
+GdkEvent *
             gtk_gesture_get_last_event       (GtkGesture       *gesture,
                                               GdkEventSequence *sequence);
+
 GDK_AVAILABLE_IN_ALL
 gboolean    gtk_gesture_get_point            (GtkGesture       *gesture,
                                               GdkEventSequence *sequence,
-                                              gdouble          *x,
-                                              gdouble          *y);
+                                              double           *x,
+                                              double           *y);
 GDK_AVAILABLE_IN_ALL
 gboolean    gtk_gesture_get_bounding_box     (GtkGesture       *gesture,
                                               GdkRectangle     *rect);
 GDK_AVAILABLE_IN_ALL
 gboolean    gtk_gesture_get_bounding_box_center
                                              (GtkGesture       *gesture,
-                                              gdouble          *x,
-                                              gdouble          *y);
+                                              double           *x,
+                                              double           *y);
 GDK_AVAILABLE_IN_ALL
 gboolean    gtk_gesture_is_active            (GtkGesture       *gesture);
 

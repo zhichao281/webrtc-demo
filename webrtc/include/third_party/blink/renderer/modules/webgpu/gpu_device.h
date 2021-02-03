@@ -60,7 +60,6 @@ class GPUDevice final : public EventTargetWithInlineData,
                      GPUAdapter* adapter,
                      uint64_t client_id,
                      const GPUDeviceDescriptor* descriptor);
-  ~GPUDevice() override;
 
   void Trace(Visitor* visitor) const override;
 
@@ -69,6 +68,7 @@ class GPUDevice final : public EventTargetWithInlineData,
   Vector<String> extensions() const;
   ScriptPromise lost(ScriptState* script_state);
 
+  GPUQueue* queue();
   GPUQueue* defaultQueue();
 
   GPUBuffer* createBuffer(const GPUBufferDescriptor* descriptor);

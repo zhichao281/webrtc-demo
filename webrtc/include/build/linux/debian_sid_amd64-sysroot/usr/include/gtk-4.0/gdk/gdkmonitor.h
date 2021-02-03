@@ -22,7 +22,7 @@
 #ifndef __GDK_MONITOR_H__
 #define __GDK_MONITOR_H__
 
-#if !defined (__GDK_H_INSIDE__) && !defined (GDK_COMPILATION)
+#if !defined (__GDK_H_INSIDE__) && !defined (GTK_COMPILATION)
 #error "Only <gdk/gdk.h> can be included directly."
 #endif
 
@@ -69,9 +69,6 @@ GDK_AVAILABLE_IN_ALL
 void              gdk_monitor_get_geometry        (GdkMonitor   *monitor,
                                                    GdkRectangle *geometry);
 GDK_AVAILABLE_IN_ALL
-void              gdk_monitor_get_workarea        (GdkMonitor   *monitor,
-                                                   GdkRectangle *workarea);
-GDK_AVAILABLE_IN_ALL
 int               gdk_monitor_get_width_mm        (GdkMonitor   *monitor);
 GDK_AVAILABLE_IN_ALL
 int               gdk_monitor_get_height_mm       (GdkMonitor   *monitor);
@@ -80,13 +77,13 @@ const char *      gdk_monitor_get_manufacturer    (GdkMonitor   *monitor);
 GDK_AVAILABLE_IN_ALL
 const char *      gdk_monitor_get_model           (GdkMonitor   *monitor);
 GDK_AVAILABLE_IN_ALL
+const char *      gdk_monitor_get_connector       (GdkMonitor   *monitor);
+GDK_AVAILABLE_IN_ALL
 int               gdk_monitor_get_scale_factor    (GdkMonitor   *monitor);
 GDK_AVAILABLE_IN_ALL
 int               gdk_monitor_get_refresh_rate    (GdkMonitor   *monitor);
 GDK_AVAILABLE_IN_ALL
 GdkSubpixelLayout gdk_monitor_get_subpixel_layout (GdkMonitor   *monitor);
-GDK_AVAILABLE_IN_ALL
-gboolean          gdk_monitor_is_primary          (GdkMonitor   *monitor);
 GDK_AVAILABLE_IN_ALL
 gboolean          gdk_monitor_is_valid            (GdkMonitor   *monitor);
 

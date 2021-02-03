@@ -50,25 +50,6 @@ G_BEGIN_DECLS
  */
 #define GTK_PRIORITY_RESIZE (G_PRIORITY_HIGH_IDLE + 10)
 
-/* GTK+ version
- */
-GDK_AVAILABLE_IN_ALL
-guint gtk_get_major_version (void) G_GNUC_CONST;
-GDK_AVAILABLE_IN_ALL
-guint gtk_get_minor_version (void) G_GNUC_CONST;
-GDK_AVAILABLE_IN_ALL
-guint gtk_get_micro_version (void) G_GNUC_CONST;
-GDK_AVAILABLE_IN_ALL
-guint gtk_get_binary_age    (void) G_GNUC_CONST;
-GDK_AVAILABLE_IN_ALL
-guint gtk_get_interface_age (void) G_GNUC_CONST;
-
-GDK_AVAILABLE_IN_ALL
-const gchar* gtk_check_version (guint   required_major,
-                                guint   required_minor,
-                                guint   required_micro);
-
-
 /* Initialization, exit, mainloop and miscellaneous routines
  */
 
@@ -80,9 +61,6 @@ gboolean gtk_init_check           (void);
 
 GDK_AVAILABLE_IN_ALL
 gboolean gtk_is_initialized       (void);
-
-GDK_AVAILABLE_IN_ALL
-GThread * gtk_get_main_thread     (void);
 
 #ifdef G_OS_WIN32
 
@@ -104,64 +82,11 @@ gboolean gtk_init_check_abi_check (int     num_checks,
 #endif
 
 GDK_AVAILABLE_IN_ALL
-void           gtk_disable_setlocale    (void);
+void              gtk_disable_setlocale    (void);
 GDK_AVAILABLE_IN_ALL
-PangoLanguage *gtk_get_default_language (void);
+PangoLanguage *   gtk_get_default_language (void);
 GDK_AVAILABLE_IN_ALL
-GtkTextDirection gtk_get_locale_direction (void);
-GDK_AVAILABLE_IN_ALL
-gboolean       gtk_events_pending       (void);
-
-GDK_AVAILABLE_IN_ALL
-void       gtk_main_do_event       (GdkEvent           *event);
-GDK_AVAILABLE_IN_ALL
-void       gtk_main                (void);
-GDK_AVAILABLE_IN_ALL
-guint      gtk_main_level          (void);
-GDK_AVAILABLE_IN_ALL
-void       gtk_main_quit           (void);
-GDK_AVAILABLE_IN_ALL
-gboolean   gtk_main_iteration      (void);
-GDK_AVAILABLE_IN_ALL
-gboolean   gtk_main_iteration_do   (gboolean            blocking);
-
-GDK_AVAILABLE_IN_ALL
-void       gtk_grab_add            (GtkWidget          *widget);
-GDK_AVAILABLE_IN_ALL
-GtkWidget* gtk_grab_get_current    (void);
-GDK_AVAILABLE_IN_ALL
-void       gtk_grab_remove         (GtkWidget          *widget);
-
-GDK_AVAILABLE_IN_ALL
-void       gtk_device_grab_add     (GtkWidget          *widget,
-                                    GdkDevice          *device,
-                                    gboolean            block_others);
-GDK_AVAILABLE_IN_ALL
-void       gtk_device_grab_remove  (GtkWidget          *widget,
-                                    GdkDevice          *device);
-
-GDK_AVAILABLE_IN_ALL
-GdkEvent * gtk_get_current_event        (void);
-GDK_AVAILABLE_IN_ALL
-guint32    gtk_get_current_event_time   (void);
-GDK_AVAILABLE_IN_ALL
-gboolean   gtk_get_current_event_state  (GdkModifierType *state);
-GDK_AVAILABLE_IN_ALL
-GdkDevice *gtk_get_current_event_device (void);
-
-GDK_AVAILABLE_IN_ALL
-GtkWidget *gtk_get_event_widget         (const GdkEvent  *event);
-
-GDK_AVAILABLE_IN_ALL
-GtkWidget *gtk_get_event_target         (const GdkEvent  *event);
-
-GDK_AVAILABLE_IN_ALL
-GtkWidget *gtk_get_event_target_with_type (GdkEvent *event,
-                                           GType     type);
-
-GDK_AVAILABLE_IN_ALL
-void       gtk_propagate_event          (GtkWidget       *widget,
-                                         GdkEvent        *event);
+GtkTextDirection  gtk_get_locale_direction (void);
 
 
 G_END_DECLS

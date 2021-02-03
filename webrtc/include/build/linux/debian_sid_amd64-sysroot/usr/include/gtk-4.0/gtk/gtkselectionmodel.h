@@ -24,18 +24,21 @@
 #error "Only <gtk/gtk.h> can be included directly."
 #endif
 
-#include <gdk/gdk.h>
+#include <gtk/gtktypes.h>
 
 G_BEGIN_DECLS
 
 #define GTK_TYPE_SELECTION_MODEL       (gtk_selection_model_get_type ())
-                                                      
+
 GDK_AVAILABLE_IN_ALL
 G_DECLARE_INTERFACE (GtkSelectionModel, gtk_selection_model, GTK, SELECTION_MODEL, GListModel)
 
 /**
  * GtkSelectionModelInterface:
  * @is_selected: Return if the item at the given position is selected.
+ * @get_selection_in_range: Return a bitset with all currently selected
+ *     items in the given range. By default, this function will call
+ *     #GtkSelectionModel::is_selected() on all items in the given range.
  * @select_item: Select the item in the given position. If the operation
  *     is known to fail, return %FALSE.
  * @unselect_item: Unselect the item in the given position. If the
@@ -49,12 +52,22 @@ G_DECLARE_INTERFACE (GtkSelectionModel, gtk_selection_model, GTK, SELECTION_MODE
  *     unsupported or known to fail for all items, return %FALSE.
  * @unselect_all: Unselect all items in the model. If the operation is
  *     unsupported or known to fail for all items, return %FALSE.
+ * @set_selection: Set selection state of all items in mask to selected.
+ *     See gtk_selection_model_set_selection() for a detailed explanation
+ *     of this function.
  *
  * The list of virtual functions for the #GtkSelectionModel interface.
- * All getter functions are mandatory to implement, but the model does
- * not need to implement any functions to support selecting or unselecting
- * items. Of course, if the model does not do that, it means that users
- * cannot select or unselect items in a list widgets using the model.
+ * No function must be implemented, but unless #GtkSelectionModel::is_selected()
+ * is implemented, it will not be possible to select items in the set.
+ * 
+ * The model does not need to implement any functions to support either
+ * selecting or unselecting items. Of course, if the model does not do that,
+ * it means that users cannot select or unselect items in a list widget
+ * using the model.
+ *
+ * All selection functions fall back to #GtkSelectionModel::set_selection()
+ * so it is sufficient to implement just that function for full selection
+ * support.
  */
 struct _GtkSelectionModelInterface
 {
@@ -64,36 +77,44 @@ struct _GtkSelectionModelInterface
   /*< public >*/
   gboolean              (* is_selected)                         (GtkSelectionModel      *model,
                                                                  guint                   position);
+  GtkBitset *           (* get_selection_in_range)              (GtkSelectionModel      *model,
+                                                                 guint                   position,
+                                                                 guint                   n_items);
 
   gboolean              (* select_item)                         (GtkSelectionModel      *model,
                                                                  guint                   position,
-                                                                 gboolean                exclusive);
+                                                                 gboolean                unselect_rest);
   gboolean              (* unselect_item)                       (GtkSelectionModel      *model,
                                                                  guint                   position);
   gboolean              (* select_range)                        (GtkSelectionModel      *model,
                                                                  guint                   position,
                                                                  guint                   n_items,
-                                                                 gboolean                exclusive);
+                                                                 gboolean                unselect_rest);
   gboolean              (* unselect_range)                      (GtkSelectionModel      *model,
                                                                  guint                   position,
                                                                  guint                   n_items);
   gboolean              (* select_all)                          (GtkSelectionModel      *model);
   gboolean              (* unselect_all)                        (GtkSelectionModel      *model);
-  void                  (* query_range)                         (GtkSelectionModel      *model,
-                                                                 guint                   position,
-                                                                 guint                  *start_range,
-                                                                 guint                  *n_items,
-                                                                 gboolean               *selected);
+  gboolean              (* set_selection)                       (GtkSelectionModel      *model,
+                                                                 GtkBitset              *selected,
+                                                                 GtkBitset              *mask);
 };
 
 GDK_AVAILABLE_IN_ALL
 gboolean                gtk_selection_model_is_selected         (GtkSelectionModel      *model,
                                                                  guint                   position);
+GDK_AVAILABLE_IN_ALL
+GtkBitset *             gtk_selection_model_get_selection       (GtkSelectionModel      *model);
+GDK_AVAILABLE_IN_ALL
+GtkBitset *             gtk_selection_model_get_selection_in_range
+                                                                (GtkSelectionModel      *model,
+                                                                 guint                   position,
+                                                                 guint                   n_items);
 
 GDK_AVAILABLE_IN_ALL
 gboolean                gtk_selection_model_select_item         (GtkSelectionModel      *model,
                                                                  guint                   position,
-                                                                 gboolean                exclusive);
+                                                                 gboolean                unselect_rest);
 GDK_AVAILABLE_IN_ALL
 gboolean                gtk_selection_model_unselect_item       (GtkSelectionModel      *model,
                                                                  guint                   position);
@@ -101,7 +122,7 @@ GDK_AVAILABLE_IN_ALL
 gboolean                gtk_selection_model_select_range        (GtkSelectionModel      *model,
                                                                  guint                   position,
                                                                  guint                   n_items,
-                                                                 gboolean                exclusive);
+                                                                 gboolean                unselect_rest);
 GDK_AVAILABLE_IN_ALL
 gboolean                gtk_selection_model_unselect_range      (GtkSelectionModel      *model,
                                                                  guint                   position,
@@ -110,13 +131,10 @@ GDK_AVAILABLE_IN_ALL
 gboolean                gtk_selection_model_select_all          (GtkSelectionModel      *model);
 GDK_AVAILABLE_IN_ALL
 gboolean                gtk_selection_model_unselect_all        (GtkSelectionModel      *model);
-
 GDK_AVAILABLE_IN_ALL
-void                    gtk_selection_model_query_range         (GtkSelectionModel      *model,
-                                                                 guint                   position,
-                                                                 guint                  *start_range,
-                                                                 guint                  *n_items,
-                                                                 gboolean               *selected);
+gboolean                gtk_selection_model_set_selection       (GtkSelectionModel      *model,
+                                                                 GtkBitset              *selected,
+                                                                 GtkBitset              *mask);
 
 /* for implementations only */
 GDK_AVAILABLE_IN_ALL

@@ -86,22 +86,20 @@ struct _GtkTextTagClass
 {
   GObjectClass parent_class;
 
-  /* Padding for future expansion */
-  void (*_gtk_reserved1) (void);
-  void (*_gtk_reserved2) (void);
-  void (*_gtk_reserved3) (void);
-  void (*_gtk_reserved4) (void);
+  /*< private >*/
+
+  gpointer padding[8];
 };
 
 GDK_AVAILABLE_IN_ALL
 GType        gtk_text_tag_get_type     (void) G_GNUC_CONST;
 GDK_AVAILABLE_IN_ALL
-GtkTextTag  *gtk_text_tag_new          (const gchar       *name);
+GtkTextTag  *gtk_text_tag_new          (const char        *name);
 GDK_AVAILABLE_IN_ALL
-gint         gtk_text_tag_get_priority (GtkTextTag        *tag);
+int          gtk_text_tag_get_priority (GtkTextTag        *tag);
 GDK_AVAILABLE_IN_ALL
 void         gtk_text_tag_set_priority (GtkTextTag        *tag,
-                                        gint               priority);
+                                        int                priority);
 GDK_AVAILABLE_IN_ALL
 void         gtk_text_tag_changed      (GtkTextTag        *tag,
                                         gboolean           size_changed);

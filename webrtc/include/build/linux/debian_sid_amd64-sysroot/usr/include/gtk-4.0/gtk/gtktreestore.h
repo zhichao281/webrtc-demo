@@ -53,25 +53,22 @@ struct _GtkTreeStoreClass
 {
   GObjectClass parent_class;
 
-  /* Padding for future expansion */
-  void (*_gtk_reserved1) (void);
-  void (*_gtk_reserved2) (void);
-  void (*_gtk_reserved3) (void);
-  void (*_gtk_reserved4) (void);
+  /*< private >*/
+  gpointer padding[8];
 };
 
 
 GDK_AVAILABLE_IN_ALL
 GType         gtk_tree_store_get_type         (void) G_GNUC_CONST;
 GDK_AVAILABLE_IN_ALL
-GtkTreeStore *gtk_tree_store_new              (gint          n_columns,
+GtkTreeStore *gtk_tree_store_new              (int           n_columns,
 					       ...);
 GDK_AVAILABLE_IN_ALL
-GtkTreeStore *gtk_tree_store_newv             (gint          n_columns,
+GtkTreeStore *gtk_tree_store_newv             (int           n_columns,
 					       GType        *types);
 GDK_AVAILABLE_IN_ALL
 void          gtk_tree_store_set_column_types (GtkTreeStore *tree_store,
-					       gint          n_columns,
+					       int           n_columns,
 					       GType        *types);
 
 /* NOTE: use gtk_tree_model_get to get values from a GtkTreeStore */
@@ -79,7 +76,7 @@ void          gtk_tree_store_set_column_types (GtkTreeStore *tree_store,
 GDK_AVAILABLE_IN_ALL
 void          gtk_tree_store_set_value        (GtkTreeStore *tree_store,
 					       GtkTreeIter  *iter,
-					       gint          column,
+					       int           column,
 					       GValue       *value);
 GDK_AVAILABLE_IN_ALL
 void          gtk_tree_store_set              (GtkTreeStore *tree_store,
@@ -88,9 +85,9 @@ void          gtk_tree_store_set              (GtkTreeStore *tree_store,
 GDK_AVAILABLE_IN_ALL
 void          gtk_tree_store_set_valuesv      (GtkTreeStore *tree_store,
 					       GtkTreeIter  *iter,
-					       gint         *columns,
+					       int          *columns,
 					       GValue       *values,
-					       gint          n_values);
+					       int           n_values);
 GDK_AVAILABLE_IN_ALL
 void          gtk_tree_store_set_valist       (GtkTreeStore *tree_store,
 					       GtkTreeIter  *iter,
@@ -102,7 +99,7 @@ GDK_AVAILABLE_IN_ALL
 void          gtk_tree_store_insert           (GtkTreeStore *tree_store,
 					       GtkTreeIter  *iter,
 					       GtkTreeIter  *parent,
-					       gint          position);
+					       int           position);
 GDK_AVAILABLE_IN_ALL
 void          gtk_tree_store_insert_before    (GtkTreeStore *tree_store,
 					       GtkTreeIter  *iter,
@@ -117,16 +114,16 @@ GDK_AVAILABLE_IN_ALL
 void          gtk_tree_store_insert_with_values (GtkTreeStore *tree_store,
 						 GtkTreeIter  *iter,
 						 GtkTreeIter  *parent,
-						 gint          position,
+						 int           position,
 						 ...);
 GDK_AVAILABLE_IN_ALL
 void          gtk_tree_store_insert_with_valuesv (GtkTreeStore *tree_store,
 						  GtkTreeIter  *iter,
 						  GtkTreeIter  *parent,
-						  gint          position,
-						  gint         *columns,
+						  int           position,
+						  int          *columns,
 						  GValue       *values,
-						  gint          n_values);
+						  int           n_values);
 GDK_AVAILABLE_IN_ALL
 void          gtk_tree_store_prepend          (GtkTreeStore *tree_store,
 					       GtkTreeIter  *iter,
@@ -140,7 +137,7 @@ gboolean      gtk_tree_store_is_ancestor      (GtkTreeStore *tree_store,
 					       GtkTreeIter  *iter,
 					       GtkTreeIter  *descendant);
 GDK_AVAILABLE_IN_ALL
-gint          gtk_tree_store_iter_depth       (GtkTreeStore *tree_store,
+int           gtk_tree_store_iter_depth       (GtkTreeStore *tree_store,
 					       GtkTreeIter  *iter);
 GDK_AVAILABLE_IN_ALL
 void          gtk_tree_store_clear            (GtkTreeStore *tree_store);
@@ -150,7 +147,7 @@ gboolean      gtk_tree_store_iter_is_valid    (GtkTreeStore *tree_store,
 GDK_AVAILABLE_IN_ALL
 void          gtk_tree_store_reorder          (GtkTreeStore *tree_store,
                                                GtkTreeIter  *parent,
-                                               gint         *new_order);
+                                               int          *new_order);
 GDK_AVAILABLE_IN_ALL
 void          gtk_tree_store_swap             (GtkTreeStore *tree_store,
                                                GtkTreeIter  *a,

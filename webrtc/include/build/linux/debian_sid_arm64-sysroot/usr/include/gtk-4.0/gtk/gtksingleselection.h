@@ -26,41 +26,34 @@ G_BEGIN_DECLS
 
 #define GTK_TYPE_SINGLE_SELECTION (gtk_single_selection_get_type ())
 
-/**
- * GTK_INVALID_LIST_POSITION:
- *
- * The value used to refer to a guaranteed invalid position in a #GListModel. This
- * value may be returned from some functions, others may accept it as input.
- * Its interpretion may differ for different functions.
- *
- * Refer to each function's documentation for if this value is allowed and what it
- * does.
- */
-#define GTK_INVALID_LIST_POSITION (G_MAXUINT)
-
 GDK_AVAILABLE_IN_ALL
 G_DECLARE_FINAL_TYPE (GtkSingleSelection, gtk_single_selection, GTK, SINGLE_SELECTION, GObject)
 
 GDK_AVAILABLE_IN_ALL
-GtkSingleSelection * gtk_single_selection_new                (GListModel             *model);
+GtkSingleSelection *    gtk_single_selection_new                (GListModel             *model);
 
 GDK_AVAILABLE_IN_ALL
-guint           gtk_single_selection_get_selected       (GtkSingleSelection     *self);
+GListModel *            gtk_single_selection_get_model          (GtkSingleSelection     *self);
 GDK_AVAILABLE_IN_ALL
-void            gtk_single_selection_set_selected       (GtkSingleSelection     *self,
-                                                         guint                   position);
+void                    gtk_single_selection_set_model          (GtkSingleSelection     *self,
+                                                                 GListModel             *model);
 GDK_AVAILABLE_IN_ALL
-gpointer        gtk_single_selection_get_selected_item  (GtkSingleSelection     *self);
+guint                   gtk_single_selection_get_selected       (GtkSingleSelection     *self);
 GDK_AVAILABLE_IN_ALL
-gboolean        gtk_single_selection_get_autoselect     (GtkSingleSelection     *self);
+void                    gtk_single_selection_set_selected       (GtkSingleSelection     *self,
+                                                                 guint                   position);
 GDK_AVAILABLE_IN_ALL
-void            gtk_single_selection_set_autoselect     (GtkSingleSelection     *self,
-                                                         gboolean                autoselect);
+gpointer                gtk_single_selection_get_selected_item  (GtkSingleSelection     *self);
 GDK_AVAILABLE_IN_ALL
-gboolean        gtk_single_selection_get_can_unselect   (GtkSingleSelection     *self);
+gboolean                gtk_single_selection_get_autoselect     (GtkSingleSelection     *self);
 GDK_AVAILABLE_IN_ALL
-void            gtk_single_selection_set_can_unselect   (GtkSingleSelection     *self,
-                                                         gboolean                can_unselect);
+void                    gtk_single_selection_set_autoselect     (GtkSingleSelection     *self,
+                                                                 gboolean                autoselect);
+GDK_AVAILABLE_IN_ALL
+gboolean                gtk_single_selection_get_can_unselect   (GtkSingleSelection     *self);
+GDK_AVAILABLE_IN_ALL
+void                    gtk_single_selection_set_can_unselect   (GtkSingleSelection     *self,
+                                                                 gboolean                can_unselect);
 
 G_END_DECLS
 

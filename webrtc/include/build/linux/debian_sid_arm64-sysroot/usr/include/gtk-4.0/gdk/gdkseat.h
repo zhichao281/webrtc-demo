@@ -20,7 +20,7 @@
 #ifndef __GDK_SEAT_H__
 #define __GDK_SEAT_H__
 
-#if !defined (__GDK_H_INSIDE__) && !defined (GDK_COMPILATION)
+#if !defined (__GDK_H_INSIDE__) && !defined (GTK_COMPILATION)
 #error "Only <gdk/gdk.h> can be included directly."
 #endif
 
@@ -59,21 +59,6 @@ typedef enum {
   GDK_SEAT_CAPABILITY_ALL           = (GDK_SEAT_CAPABILITY_ALL_POINTING | GDK_SEAT_CAPABILITY_KEYBOARD)
 } GdkSeatCapabilities;
 
-/**
- * GdkSeatGrabPrepareFunc:
- * @seat: the #GdkSeat being grabbed
- * @surface: the #GdkSurface being grabbed
- * @user_data: user data passed in gdk_seat_grab()
- *
- * Type of the callback used to set up @surface so it can be
- * grabbed. A typical action would be ensuring the surface is
- * visible, although there's room for other initialization
- * actions.
- */
-typedef void (* GdkSeatGrabPrepareFunc) (GdkSeat   *seat,
-                                         GdkSurface *surface,
-                                         gpointer   user_data);
-
 struct _GdkSeat
 {
   GObject parent_instance;
@@ -83,36 +68,23 @@ GDK_AVAILABLE_IN_ALL
 GType          gdk_seat_get_type         (void) G_GNUC_CONST;
 
 GDK_AVAILABLE_IN_ALL
-GdkGrabStatus  gdk_seat_grab             (GdkSeat                *seat,
-                                          GdkSurface              *surface,
-                                          GdkSeatCapabilities     capabilities,
-                                          gboolean                owner_events,
-                                          GdkCursor              *cursor,
-                                          const GdkEvent         *event,
-                                          GdkSeatGrabPrepareFunc  prepare_func,
-                                          gpointer                prepare_func_data);
-GDK_AVAILABLE_IN_ALL
-void           gdk_seat_ungrab           (GdkSeat                *seat);
-
-GDK_AVAILABLE_IN_ALL
-GdkDisplay *   gdk_seat_get_display      (GdkSeat             *seat);
+GdkDisplay *   gdk_seat_get_display             (GdkSeat             *seat);
 
 GDK_AVAILABLE_IN_ALL
 GdkSeatCapabilities
-               gdk_seat_get_capabilities (GdkSeat             *seat);
+               gdk_seat_get_capabilities        (GdkSeat             *seat);
 
 GDK_AVAILABLE_IN_ALL
-GList *        gdk_seat_get_slaves       (GdkSeat             *seat,
-                                          GdkSeatCapabilities  capabilities);
+GList *        gdk_seat_get_devices             (GdkSeat             *seat,
+                                                 GdkSeatCapabilities  capabilities);
 
 GDK_AVAILABLE_IN_ALL
-GdkDevice *    gdk_seat_get_pointer      (GdkSeat             *seat);
-GDK_AVAILABLE_IN_ALL
-GdkDevice *    gdk_seat_get_keyboard     (GdkSeat             *seat);
+GList *        gdk_seat_get_tools               (GdkSeat *seat);
 
 GDK_AVAILABLE_IN_ALL
-GList *        gdk_seat_get_master_pointers (GdkSeat             *seat,
-                                             GdkSeatCapabilities  capabilities);
+GdkDevice *    gdk_seat_get_pointer             (GdkSeat             *seat);
+GDK_AVAILABLE_IN_ALL
+GdkDevice *    gdk_seat_get_keyboard            (GdkSeat             *seat);
 
 G_END_DECLS
 

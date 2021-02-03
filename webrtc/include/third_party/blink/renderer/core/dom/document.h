@@ -153,6 +153,7 @@ class HTMLHeadElement;
 class HTMLImportLoader;
 class HTMLImportsController;
 class HTMLLinkElement;
+class HTMLPopupElement;
 class HTMLScriptElementOrSVGScriptElement;
 class HitTestRequest;
 class HttpRefreshScheduler;
@@ -694,6 +695,7 @@ class CORE_EXPORT Document : public ContainerNode,
                                  bool& did_allow_navigation);
 
   struct UnloadEventTiming {
+    bool can_request;
     base::TimeTicks unload_event_start;
     base::TimeTicks unload_event_end;
   };
@@ -1361,7 +1363,14 @@ class CORE_EXPORT Document : public ContainerNode,
   const HeapVector<Member<Element>>& TopLayerElements() const {
     return top_layer_elements_;
   }
+  const HeapVector<Member<HTMLPopupElement>>& PopupElementStack() const {
+    return popup_element_stack_;
+  }
   HTMLDialogElement* ActiveModalDialog() const;
+
+  void PushNewPopupElement(HTMLPopupElement*);
+  void PopPopupElement(HTMLPopupElement*);
+  HTMLPopupElement* TopmostPopupElement();
 
   // A non-null template_document_host_ implies that |this| was created by
   // EnsureTemplateDocument().
@@ -1886,7 +1895,7 @@ class CORE_EXPORT Document : public ContainerNode,
   bool autofocus_processed_flag_ = false;
   mojom::blink::FocusType last_focus_type_;
   bool had_keyboard_event_;
-  TaskRunnerTimer<Document> clear_focused_element_timer_;
+  HeapTaskRunnerTimer<Document> clear_focused_element_timer_;
   // https://html.spec.whatwg.org/C/#autofocus-candidates
   // We implement this as a Vector because its maximum size is typically 1.
   HeapVector<Member<Element>> autofocus_candidates_;
@@ -2019,9 +2028,13 @@ class CORE_EXPORT Document : public ContainerNode,
   // stack and is thus the one that will be visually on top.
   HeapVector<Member<Element>> top_layer_elements_;
 
+  // The stack of currently-displayed popup elements. Elements in the stack
+  // go from earliest (bottom-most) to latest (top-most).
+  HeapVector<Member<HTMLPopupElement>> popup_element_stack_;
+
   int load_event_delay_count_;
-  TaskRunnerTimer<Document> load_event_delay_timer_;
-  TaskRunnerTimer<Document> plugin_loading_timer_;
+  HeapTaskRunnerTimer<Document> load_event_delay_timer_;
+  HeapTaskRunnerTimer<Document> plugin_loading_timer_;
 
   DocumentTiming document_timing_;
   Member<MediaQueryMatcher> media_query_matcher_;
@@ -2033,7 +2046,7 @@ class CORE_EXPORT Document : public ContainerNode,
   Member<TextAutosizer> text_autosizer_;
 
   void ElementDataCacheClearTimerFired(TimerBase*);
-  TaskRunnerTimer<Document> element_data_cache_clear_timer_;
+  HeapTaskRunnerTimer<Document> element_data_cache_clear_timer_;
 
   Member<ElementDataCache> element_data_cache_;
 
@@ -2049,7 +2062,7 @@ class CORE_EXPORT Document : public ContainerNode,
   Member<Document> template_document_;
   Member<Document> template_document_host_;
 
-  TaskRunnerTimer<Document> did_associate_form_controls_timer_;
+  HeapTaskRunnerTimer<Document> did_associate_form_controls_timer_;
 
   HeapHashSet<Member<SVGUseElement>> use_elements_needing_update_;
 

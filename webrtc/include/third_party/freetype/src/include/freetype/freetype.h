@@ -4,7 +4,7 @@
  *
  *   FreeType high-level API and common types (specification only).
  *
- * Copyright (C) 1996-2020 by
+ * Copyright (C) 1996-2021 by
  * David Turner, Robert Wilhelm, and Werner Lemberg.
  *
  * This file is part of the FreeType project, and may only be used,
@@ -2902,7 +2902,7 @@ FT_BEGIN_HEADER
    *
    *     If the font is 'tricky' (see @FT_FACE_FLAG_TRICKY for more), using
    *     `FT_LOAD_NO_SCALE` usually yields meaningless outlines because the
-   *     subglyphs must be scaled and positioned with hinting instructions. 
+   *     subglyphs must be scaled and positioned with hinting instructions.
    *     This can be solved by loading the font without `FT_LOAD_NO_SCALE`
    *     and setting the character size to `font->units_per_EM`.
    *
@@ -4217,6 +4217,825 @@ FT_BEGIN_HEADER
                             FT_UInt           *aglyph_index,
                             FT_UInt           *acolor_index,
                             FT_LayerIterator*  iterator );
+
+
+  /**************************************************************************
+   *
+   * @enum:
+   *   FT_PaintFormat
+   *
+   * @description:
+   *   Enumeration describing the different gradient types of the v1
+   *   extensions to the 'COLR' table, see
+   *   'https://github.com/googlefonts/colr-gradients-spec'.
+   */
+  typedef enum  FT_PaintFormat_
+  {
+    FT_COLR_PAINTFORMAT_COLR_LAYERS     = 1,
+    FT_COLR_PAINTFORMAT_SOLID           = 2,
+    FT_COLR_PAINTFORMAT_LINEAR_GRADIENT = 3,
+    FT_COLR_PAINTFORMAT_RADIAL_GRADIENT = 4,
+    FT_COLR_PAINTFORMAT_GLYPH           = 5,
+    FT_COLR_PAINTFORMAT_COLR_GLYPH      = 6,
+    FT_COLR_PAINTFORMAT_TRANSFORMED     = 7,
+    FT_COLR_PAINTFORMAT_TRANSLATE       = 8,
+    FT_COLR_PAINTFORMAT_ROTATE          = 9,
+    FT_COLR_PAINTFORMAT_SKEW            = 10,
+    FT_COLR_PAINTFORMAT_COMPOSITE       = 11,
+    FT_COLR_PAINT_FORMAT_MAX            = 12,
+    FT_COLR_PAINTFORMAT_UNSUPPORTED     = 255
+
+  } FT_PaintFormat;
+
+
+  /**************************************************************************
+   *
+   * @struct:
+   *   FT_ColorStopIterator
+   *
+   * @description:
+   *   This iterator object is needed for @FT_Get_Colorline_Stops.  It keeps
+   *   state while iterating over the stops of an @FT_ColorLine,
+   *   representing the `ColorLine` struct of the v1 extensions to 'COLR',
+   *   see 'https://github.com/googlefonts/colr-gradients-spec'.
+   *
+   * @fields:
+   *   num_color_stops ::
+   *     The number of color stops for the requested glyph index.  Set by
+   *     @FT_Get_Colorline_Stops.
+   *
+   *   current_color_stop ::
+   *     The current color stop.  Set by @FT_Get_Colorline_Stops.
+   *
+   *   p ::
+   *     An opaque pointer into 'COLR' table data.  The caller must set this
+   *     to `NULL` before the first call of @FT_Get_Colorline_Stops.
+   */
+  typedef struct  FT_ColorStopIterator_
+  {
+    FT_UInt  num_color_stops;
+    FT_UInt  current_color_stop;
+
+    FT_Byte*  p;
+
+  } FT_ColorStopIterator;
+
+
+  /**************************************************************************
+   *
+   * @struct:
+   *   FT_ColorIndex
+   *
+   * @description:
+   *   A structure representing a `ColorIndex` value of the 'COLR' v1
+   *   extensions, see 'https://github.com/googlefonts/colr-gradients-spec'.
+   *
+   * @fields:
+   *   palette_index ::
+   *     The palette index into a 'CPAL' palette.
+   *
+   *   alpha ::
+   *     Alpha transparency value multiplied with the value from 'CPAL'.
+   */
+  typedef struct  FT_ColorIndex_
+  {
+    FT_UInt16   palette_index;
+    FT_F2Dot14  alpha;
+
+  } FT_ColorIndex;
+
+
+  /**************************************************************************
+   *
+   * @struct:
+   *   FT_ColorStop
+   *
+   * @description:
+   *   A structure representing a `ColorStop` value of the 'COLR' v1
+   *   extensions, see 'https://github.com/googlefonts/colr-gradients-spec'.
+   *
+   * @fields:
+   *   stop_offset ::
+   *     The stop offset between 0 and 1 along the gradient.
+   *
+   *   color ::
+   *     The color information for this stop, see @FT_ColorIndex.
+   */
+  typedef struct  FT_ColorStop_
+  {
+    FT_F2Dot14     stop_offset;
+    FT_ColorIndex  color;
+
+  } FT_ColorStop;
+
+
+  /**************************************************************************
+   *
+   * @enum:
+   *   FT_PaintExtend
+   *
+   * @description:
+   *   An enumeration representing the 'Extend' mode of the 'COLR' v1
+   *   extensions, see 'https://github.com/googlefonts/colr-gradients-spec'.
+   *   It describes how the gradient fill continues at the other boundaries.
+   */
+  typedef enum  FT_PaintExtend_
+  {
+    FT_COLR_PAINT_EXTEND_PAD     = 0,
+    FT_COLR_PAINT_EXTEND_REPEAT  = 1,
+    FT_COLR_PAINT_EXTEND_REFLECT = 2
+
+  } FT_PaintExtend;
+
+
+  /**************************************************************************
+   *
+   * @struct:
+   *   FT_ColorLine
+   *
+   * @description:
+   *   A structure representing a `ColorLine` value of the 'COLR' v1
+   *   extensions, see 'https://github.com/googlefonts/colr-gradients-spec'.
+   *   It describes a list of color stops along the defined gradient.
+   *
+   * @fields:
+   *   extend ::
+   *     The extend mode at the outer boundaries, see @FT_PaintExtend.
+   *
+   *   color_stop_iterator ::
+   *     The @FT_ColorStopIterator used to enumerate and retrieve the
+   *     actual @FT_ColorStop's.
+   */
+  typedef struct  FT_ColorLine_
+  {
+    FT_PaintExtend        extend;
+    FT_ColorStopIterator  color_stop_iterator;
+
+  } FT_ColorLine;
+
+
+  /**************************************************************************
+   *
+   * @struct:
+   *   FT_Affine23
+   *
+   * @description:
+   *   A structure used to store a 2x3 matrix.  Coefficients are in
+   *   16.16 fixed-point format.  The computation performed is
+   *
+   *   ```
+   *     x' = x*xx + y*xy + dx
+   *     y' = x*yx + y*yy + dy
+   *   ```
+   *
+   * @fields:
+   *   xx ::
+   *     Matrix coefficient.
+   *
+   *   xy ::
+   *     Matrix coefficient.
+   *
+   *   dx ::
+   *     x translation.
+   *
+   *   yx ::
+   *     Matrix coefficient.
+   *
+   *   yy ::
+   *     Matrix coefficient.
+   *
+   *   dy ::
+   *     y translation.
+   *
+   */
+  typedef struct  FT_Affine_23_
+  {
+    FT_Fixed  xx, xy, dx;
+    FT_Fixed  yx, yy, dy;
+
+  } FT_Affine23;
+
+
+  /**************************************************************************
+   *
+   * @enum:
+   *   FT_Composite_Mode
+   *
+   * @description:
+   *   An enumeration listing the 'COLR' v1 composite modes used in
+   *   @FT_PaintComposite.  For more details on each paint mode, see
+   *   'https://www.w3.org/TR/compositing-1/#porterduffcompositingoperators'.
+   */
+  typedef enum  FT_Composite_Mode_
+  {
+    FT_COLR_COMPOSITE_CLEAR          = 0,
+    FT_COLR_COMPOSITE_SRC            = 1,
+    FT_COLR_COMPOSITE_DEST           = 2,
+    FT_COLR_COMPOSITE_SRC_OVER       = 3,
+    FT_COLR_COMPOSITE_DEST_OVER      = 4,
+    FT_COLR_COMPOSITE_SRC_IN         = 5,
+    FT_COLR_COMPOSITE_DEST_IN        = 6,
+    FT_COLR_COMPOSITE_SRC_OUT        = 7,
+    FT_COLR_COMPOSITE_DEST_OUT       = 8,
+    FT_COLR_COMPOSITE_SRC_ATOP       = 9,
+    FT_COLR_COMPOSITE_DEST_ATOP      = 10,
+    FT_COLR_COMPOSITE_XOR            = 11,
+    FT_COLR_COMPOSITE_SCREEN         = 12,
+    FT_COLR_COMPOSITE_OVERLAY        = 13,
+    FT_COLR_COMPOSITE_DARKEN         = 14,
+    FT_COLR_COMPOSITE_LIGHTEN        = 15,
+    FT_COLR_COMPOSITE_COLOR_DODGE    = 16,
+    FT_COLR_COMPOSITE_COLOR_BURN     = 17,
+    FT_COLR_COMPOSITE_HARD_LIGHT     = 18,
+    FT_COLR_COMPOSITE_SOFT_LIGHT     = 19,
+    FT_COLR_COMPOSITE_DIFFERENCE     = 20,
+    FT_COLR_COMPOSITE_EXCLUSION      = 21,
+    FT_COLR_COMPOSITE_MULTIPLY       = 22,
+    FT_COLR_COMPOSITE_HSL_HUE        = 23,
+    FT_COLR_COMPOSITE_HSL_SATURATION = 24,
+    FT_COLR_COMPOSITE_HSL_COLOR      = 25,
+    FT_COLR_COMPOSITE_HSL_LUMINOSITY = 26,
+    FT_COLR_COMPOSITE_MAX            = 27
+
+  } FT_Composite_Mode;
+
+
+  /**************************************************************************
+   *
+   * @struct:
+   *   FT_OpaquePaint
+   *
+   * @description:
+   *   A structure representing an offset to a `Paint` value stored in any
+   *   of the paint tables of a 'COLR' v1 font.  Compare Offset<24> there.
+   *   When 'COLR' v1 paint tables represented by FreeType objects such as
+   *   @FT_PaintColrLayers, @FT_PaintComposite, or @FT_PaintTransformed
+   *   reference downstream nested paint tables, we do not immediately
+   *   retrieve them but encapsulate their location in this type.  Use
+   *   @FT_Get_Paint to retrieve the actual @FT_COLR_Paint object that
+   *   describes the details of the respective paint table.
+   *
+   * @fields:
+   *   p ::
+   *     An internal offset to a Paint table, needs to be set to NULL before
+   *     passing this struct as an argument to @FT_Get_Paint.
+   */
+  typedef struct  FT_Opaque_Paint_
+  {
+    FT_Byte*  p;
+
+  } FT_OpaquePaint;
+
+
+  /**************************************************************************
+   *
+   * @struct:
+   *   FT_PaintColrLayers
+   *
+   * @description:
+   *   A structure representing a `PaintColrLayers` table of a 'COLR' v1
+   *   font.  This table describes a set of layers that are to be composited
+   *   with composite mode `FT_COLR_COMPOSITE_SRC_OVER`.  The return value
+   *   of this function is an @FT_LayerIterator initialized so that it can
+   *   be used with @FT_Get_Paint_Layers to retrieve the @FT_OpaquePaint
+   *   objects as references to each layer.
+   *
+   * @fields:
+   *   layer_iterator ::
+   *     The layer iterator that describes the layers of this paint.
+   */
+  typedef struct  FT_PaintColrLayers_
+  {
+    FT_LayerIterator  layer_iterator;
+
+  } FT_PaintColrLayers;
+
+
+  /**************************************************************************
+   *
+   * @struct:
+   *   FT_PaintSolid
+   *
+   * @description:
+   *   A structure representing a `PaintSolid` value of the 'COLR' v1
+   *   extensions, see 'https://github.com/googlefonts/colr-gradients-spec'.
+   *   Using a `PaintSolid` value means that the glyph layer filled with
+   *   this paint is solid-colored and does not contain a gradient.
+   *
+   * @fields:
+   *   color ::
+   *     The color information for this solid paint, see @FT_ColorIndex.
+   */
+  typedef struct  FT_PaintSolid_
+  {
+    FT_ColorIndex  color;
+
+  } FT_PaintSolid;
+
+
+  /**************************************************************************
+   *
+   * @struct:
+   *   FT_PaintLinearGradient
+   *
+   * @description:
+   *   A structure representing a `PaintLinearGradient` value of the 'COLR'
+   *   v1 extensions, see
+   *   'https://github.com/googlefonts/colr-gradients-spec'.  The glyph
+   *   layer filled with this paint is drawn filled with a linear gradient.
+   *
+   * @fields:
+   *   colorline ::
+   *     The @FT_ColorLine information for this paint, i.e., the list of
+   *     color stops along the gradient.
+   *
+   *   p0 ::
+   *     The starting point of the gradient definition (in font units).
+   *
+   *   p1 ::
+   *     The end point of the gradient definition (in font units).
+   *
+   *   p2 ::
+   *     Optional point~p2 to rotate the gradient (in font units).
+   *     Otherwise equal to~p0.
+   */
+  typedef struct  FT_PaintLinearGradient_
+  {
+    FT_ColorLine  colorline;
+
+    /* TODO: Potentially expose those as x0, y0 etc. */
+    FT_Vector  p0;
+    FT_Vector  p1;
+    FT_Vector  p2;
+
+  } FT_PaintLinearGradient;
+
+
+  /**************************************************************************
+   *
+   * @struct:
+   *   FT_PaintRadialGradient
+   *
+   * @description:
+   *   A structure representing a `PaintRadialGradient` value of the 'COLR'
+   *   v1 extensions, see
+   *   'https://github.com/googlefonts/colr-gradients-spec'.  The glyph
+   *   layer filled with this paint is drawn filled filled with a radial
+   *   gradient.
+   *
+   * @fields:
+   *   colorline ::
+   *     The @FT_ColorLine information for this paint, i.e., the list of
+   *     color stops along the gradient.
+   *
+   *   c0 ::
+   *     The center of the starting point of the radial gradient (in font
+   *     units).
+   *
+   *   r0 ::
+   *     The radius of the starting circle of the radial gradient (in font
+   *     units).
+   *
+   *   c1 ::
+   *     The center of the end point of the radial gradient (in font units).
+   *
+   *   r1 ::
+   *     The radius of the end circle of the radial gradient (in font
+   *     units).
+   */
+  typedef struct  FT_PaintRadialGradient_
+  {
+    FT_ColorLine  colorline;
+
+    /* TODO: Potentially expose those as x0, y0 etc. */
+    FT_Vector  c0;
+    FT_UShort  r0;
+    FT_Vector  c1;
+    FT_UShort  r1;
+
+  } FT_PaintRadialGradient;
+
+
+  /**************************************************************************
+   *
+   * @struct:
+   *   FT_PaintGlyph
+   *
+   * @description:
+   *   A structure representing a 'COLR' v1 `PaintGlyph` paint table.
+   *
+   * @fields:
+   *   paint ::
+   *     An opaque paint object pointing to a `Paint` table that serves as
+   *     the fill for the glyph ID.
+   *
+   *   glyphID ::
+   *     The glyph ID from the 'glyf' table, which serves as the contour
+   *     information that is filled with paint.
+   *
+   */
+  typedef struct  FT_PaintGlyph_
+  {
+    FT_OpaquePaint  paint;
+    FT_UInt         glyphID;
+
+  } FT_PaintGlyph;
+
+
+  /**************************************************************************
+   *
+   * @struct:
+   *   FT_PaintColrGlyph
+   *
+   * @description:
+   *   A structure representing a 'COLR' v1 `PaintColorGlyph` paint table.
+   *
+   * @fields:
+   *   glyphID ::
+   *     The glyph ID from the `BaseGlyphV1List` table that is drawn for
+   *     this paint.
+   */
+  typedef struct  FT_PaintColrGlyph_
+  {
+    FT_UInt  glyphID;
+
+  } FT_PaintColrGlyph;
+
+
+  /**************************************************************************
+   *
+   * @struct:
+   *   FT_PaintTransformed
+   *
+   * @description:
+   *   A structure representing a 'COLR' v1 `PaintTransformed` paint table.
+   *
+   * @fields:
+   *   paint ::
+   *     An opaque paint that is subject to being transformed.
+   *
+   *   affine ::
+   *     A 2x3 transformation matrix in @FT_Affine23 format.
+   */
+  typedef struct  FT_PaintTransformed_
+  {
+    FT_OpaquePaint  paint;
+    FT_Affine23     affine;
+
+  } FT_PaintTransformed;
+
+
+  /**************************************************************************
+   *
+   * @struct:
+   *   FT_PaintTranslate
+   *
+   * @description:
+   *   A structure representing a 'COLR' v1 `PaintTranslate` paint table.
+   *   Used for translating downstream paints by a given x and y~delta.
+   *
+   * @fields:
+   *   paint ::
+   *     An @FT_OpaquePaint object referencing the paint that is to be
+   *     rotated.
+   *
+   *   dx ::
+   *     Translation in x~direction (in font units).
+   *
+   *   dy ::
+   *     Translation in y~direction (in font units).
+   */
+  typedef struct  FT_PaintTranslate_
+  {
+    FT_OpaquePaint  paint;
+
+    FT_Fixed  dx;
+    FT_Fixed  dy;
+
+  } FT_PaintTranslate;
+
+
+  /**************************************************************************
+   *
+   * @struct:
+   *   FT_PaintRotate
+   *
+   * @description:
+   *   A structure representing a 'COLR' v1 `PaintRotate` paint table.  Used
+   *   for rotating downstream paints with a given center and angle.
+   *
+   * @fields:
+   *   paint ::
+   *     An @FT_OpaquePaint object referencing the paint that is to be
+   *     rotated.
+   *
+   *   angle ::
+   *     The rotation angle that is to be applied.
+   *
+   *   center_x ::
+   *     The x~coordinate of the pivot point of the rotation (in font
+   *     units).
+   *
+   *   center_y ::
+   *     The y~coordinate of the pivot point of the rotation (in font
+   *     units).
+   */
+
+  typedef struct  FT_PaintRotate_
+  {
+    FT_OpaquePaint  paint;
+
+    FT_Fixed  angle;
+
+    FT_Fixed  center_x;
+    FT_Fixed  center_y;
+
+  } FT_PaintRotate;
+
+
+  /**************************************************************************
+   *
+   * @struct:
+   *   FT_PaintSkew
+   *
+   * @description:
+   *   A structure representing a 'COLR' v1 `PaintSkew` paint table.  Used
+   *   for skewing or shearing downstream paints by a given center and
+   *   angle.
+   *
+   * @fields:
+   *   paint ::
+   *     An @FT_OpaquePaint object referencing the paint that is to be
+   *     skewed.
+   *
+   *   x_skew_angle ::
+   *     The skewing angle in x~direction.
+   *
+   *   y_skew_angle ::
+   *     The skewing angle in y~direction.
+   *
+   *   center_x ::
+   *     The x~coordinate of the pivot point of the skew (in font units).
+   *
+   *   center_y ::
+   *     The y~coordinate of the pivot point of the skew (in font units).
+   */
+  typedef struct  FT_PaintSkew_
+  {
+    FT_OpaquePaint  paint;
+
+    FT_Fixed  x_skew_angle;
+    FT_Fixed  y_skew_angle;
+
+    FT_Fixed  center_x;
+    FT_Fixed  center_y;
+
+  } FT_PaintSkew;
+
+
+  /**************************************************************************
+   *
+   * @struct:
+   *   FT_PaintComposite
+   *
+   * @description:
+   *   A structure representing a 'COLR'v1 `PaintComposite` paint table.
+   *   Used for compositing two paints in a 'COLR' v1 directed acycling
+   *   graph.
+   *
+   * @fields:
+   *   source_paint ::
+   *     An @FT_OpaquePaint object referencing the source that is to be
+   *     composited.
+   *
+   *   composite_mode ::
+   *     An @FT_Composite_Mode enum value determining the composition
+   *     operation.
+   *
+   *   backdrop_paint ::
+   *     An @FT_OpaquePaint object referencing the backdrop paint that
+   *     `source_paint` is composited onto.
+   */
+  typedef struct  FT_PaintComposite_
+  {
+    FT_OpaquePaint     source_paint;
+    FT_Composite_Mode  composite_mode;
+    FT_OpaquePaint     backdrop_paint;
+
+  } FT_PaintComposite;
+
+
+  /**************************************************************************
+   *
+   * @union:
+   *   FT_COLR_Paint
+   *
+   * @description:
+   *   A union object representing format and details of a paint table of a
+   *   'COLR' v1 font, see
+   *   'https://github.com/googlefonts/colr-gradients-spec'.  Use
+   *   @FT_Get_Paint to retrieve a @FT_COLR_Paint for an @FT_OpaquePaint
+   *   object.
+   *
+   * @fields:
+   *   format ::
+   *     The gradient format for this Paint structure.
+   *
+   *   u ::
+   *     Union of all paint table types:
+   *
+   *       * @FT_PaintColrLayers
+   *       * @FT_PaintGlyph
+   *       * @FT_PaintSolid
+   *       * @FT_PaintLinearGradient
+   *       * @FT_PaintRadialGradient
+   *       * @FT_PaintTransformed
+   *       * @FT_PaintTranslate
+   *       * @FT_PaintRotate
+   *       * @FT_PaintSkew
+   *       * @FT_PaintComposite
+   *       * @FT_PaintColrGlyph
+   */
+  typedef struct  FT_COLR_Paint_
+  {
+    FT_PaintFormat format;
+
+    union
+    {
+      FT_PaintColrLayers      colr_layers;
+      FT_PaintGlyph           glyph;
+      FT_PaintSolid           solid;
+      FT_PaintLinearGradient  linear_gradient;
+      FT_PaintRadialGradient  radial_gradient;
+      FT_PaintTransformed     transformed;
+      FT_PaintTranslate       translate;
+      FT_PaintRotate          rotate;
+      FT_PaintSkew            skew;
+      FT_PaintComposite       composite;
+      FT_PaintColrGlyph       colr_glyph;
+
+    } u;
+
+  } FT_COLR_Paint;
+
+
+  /**************************************************************************
+   *
+   * @function:
+   *   FT_Get_Color_Glyph_Paint
+   *
+   * @description:
+   *   This is the starting point and interface to color gradient
+   *   information in a 'COLR' v1 table in OpenType fonts to recursively
+   *   retrieve the paint tables for the directed acyclic graph of a colored
+   *   glyph, given a glyph ID.
+   *
+   *     https://github.com/googlefonts/colr-gradients-spec
+   *
+   *   In a 'COLR' v1 font, each color glyph defines a directed acyclic
+   *   graph of nested paint tables, such as `PaintGlyph`, `PaintSolid`,
+   *   `PaintLinearGradient`, `PaintRadialGradient`, and so on.  Using this
+   *   function and specifying a glyph ID, one retrieves the root paint
+   *   table for this glyph ID.
+   *
+   * @input:
+   *   face ::
+   *     A handle to the parent face object.
+   *
+   *   base_glyph ::
+   *     The glyph index for which to retrieve the root paint table.
+   *
+   * @output:
+   *   paint ::
+   *     The @FT_OpaquePaint object that references the actual paint table.
+   *
+   *     The respective actual @FT_COLR_Paint object is retrieved via
+   *     @FT_Get_Paint.
+   *
+   * @return:
+   *   Value~1 if everything is OK.  If no color glyph is found, or the root
+   *   paint could not be retrieved, value~0 gets returned.  In case of an
+   *   error, value~0 is returned also.
+   */
+  FT_EXPORT( FT_Bool )
+  FT_Get_Color_Glyph_Paint( FT_Face          face,
+                            FT_UInt          base_glyph,
+                            FT_OpaquePaint*  paint );
+
+
+  /**************************************************************************
+   *
+   * @function:
+   *   FT_Get_Paint_Layers
+   *
+   * @description:
+   *   Access the layers of a `PaintColrLayers` table.
+   *
+   *   If the root paint of a color glyph, or a nested paint of a 'COLR'
+   *   glyph is a `PaintColrLayers` table, this function retrieves the
+   *   layers of the `PaintColrLayers` table.
+   *
+   *   The @FT_PaintColrLayers object contains an @FT_LayerIterator, which
+   *   is used here to iterate over the layers.  Each layer is returned as
+   *   an @FT_OpaquePaint object, which then can be used with @FT_Get_Paint
+   *   to retrieve the actual paint object.
+   *
+   * @input:
+   *   face ::
+   *     A handle to the parent face object.
+   *
+   * @inout:
+   *   iterator ::
+   *     The @FT_LayerIterator from an @FT_PaintColrLayers object, for which
+   *     the layers are to be retrieved.  The internal state of the iterator
+   *     is incremented after one call to this function for retrieving one
+   *     layer.
+   *
+   * @output:
+   *   paint ::
+   *     The @FT_OpaquePaint object that references the actual paint table.
+   *     The respective actual @FT_COLR_Paint object is retrieved via
+   *     @FT_Get_Paint.
+   *
+   * @return:
+   *   Value~1 if everything is OK.  Value~0 gets returned when the paint
+   *   object can not be retrieved or any other error occurs.
+   */
+  FT_EXPORT( FT_Bool )
+  FT_Get_Paint_Layers( FT_Face            face,
+                       FT_LayerIterator*  iterator,
+                       FT_OpaquePaint*    paint );
+
+
+  /**************************************************************************
+   *
+   * @function:
+   *   FT_Get_Colorline_Stops
+   *
+   * @description:
+   *   This is an interface to color gradient information in a 'COLR' v1
+   *   table in OpenType fonts to iteratively retrieve the gradient and
+   *   solid fill information for colored glyph layers for a specified glyph
+   *   ID.
+   *
+   *     https://github.com/googlefonts/colr-gradients-spec
+   *
+   * @input:
+   *   face ::
+   *     A handle to the parent face object.
+   *
+   * @inout:
+   *   iterator ::
+   *     The retrieved @FT_ColorStopIterator, configured on an @FT_ColorLine,
+   *     which in turn got retrieved via paint information in
+   *     @FT_PaintLinearGradient or @FT_PaintRadialGradient.
+   *
+   * @output:
+   *   color_stop ::
+   *     Color index and alpha value for the retrieved color stop.
+   *
+   * @return:
+   *   Value~1 if everything is OK.  If there are no more color stops,
+   *   value~0 gets returned.  In case of an error, value~0 is returned
+   *   also.
+   */
+  FT_EXPORT( FT_Bool )
+  FT_Get_Colorline_Stops( FT_Face                face,
+                          FT_ColorStop*          color_stop,
+                          FT_ColorStopIterator*  iterator );
+
+
+  /**************************************************************************
+   *
+   * @function:
+   *  FT_Get_Paint
+   *
+   * @description:
+   *   Access the details of a paint using an @FT_OpaquePaint opaque paint
+   *   object, which internally stores the offset to the respective `Paint`
+   *   object in the 'COLR' table.
+   *
+   * @input:
+   *   face ::
+   *     A handle to the parent face object.
+   *
+   *   opaque_paint ::
+   *     The opaque paint object for which the underlying @FT_COLR_Paint
+   *     data is to be retrieved.
+   *
+   * @output:
+   *   paint ::
+   *     The specific @FT_COLR_Paint object containing information coming
+   *     from one of the font's `Paint*` tables.
+   *
+   * @return:
+   *   Value~1 if everything is OK.  Value~0 if no details can be found for
+   *   this paint or any other error occured.
+   */
+  FT_EXPORT( FT_Bool )
+  FT_Get_Paint( FT_Face         face,
+                FT_OpaquePaint  opaque_paint,
+                FT_COLR_Paint*  paint );
 
 
   /**************************************************************************

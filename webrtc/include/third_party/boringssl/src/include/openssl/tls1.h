@@ -206,10 +206,25 @@ extern "C" {
 // ExtensionType value from draft-ietf-tokbind-negotiation-10
 #define TLSEXT_TYPE_token_binding 24
 
-// ExtensionType value from draft-ietf-quic-tls. Note that this collides with
-// TLS-LTS and, based on scans, something else too. Since it's QUIC-only, that
-// shouldn't be a problem in practice.
-#define TLSEXT_TYPE_quic_transport_parameters 0xffa5
+// ExtensionType value from draft-ietf-quic-tls. Drafts 00 through 32 use
+// 0xffa5 which is part of the Private Use section of the registry, and it
+// collides with TLS-LTS and, based on scans, something else too (though this
+// hasn't been a problem in practice since it's QUIC-only). Drafts 33 onward
+// use the value 57 which was officially registered with IANA.
+#define TLSEXT_TYPE_quic_transport_parameters_legacy 0xffa5
+#define TLSEXT_TYPE_quic_transport_parameters_standard 57
+
+// TLSEXT_TYPE_quic_transport_parameters is an alias for
+// |TLSEXT_TYPE_quic_transport_parameters_legacy|. It will switch to
+// |TLSEXT_TYPE_quic_transport_parameters_standard| at a later date.
+//
+// Callers using |SSL_set_quic_use_legacy_codepoint| should use
+// |TLSEXT_TYPE_quic_transport_parameters_legacy| or
+// |TLSEXT_TYPE_quic_transport_parameters_standard| rather than this constant.
+// When the default code point is switched to the standard one, this value will
+// be updated and we will transition callers back to the unsuffixed constant.
+#define TLSEXT_TYPE_quic_transport_parameters \
+  TLSEXT_TYPE_quic_transport_parameters_legacy
 
 // ExtensionType value from RFC8879
 #define TLSEXT_TYPE_cert_compression 27

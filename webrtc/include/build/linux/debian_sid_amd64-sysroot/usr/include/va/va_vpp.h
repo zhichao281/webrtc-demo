@@ -687,12 +687,53 @@ typedef struct _VAProcColorProperties {
      *
      * See ISO/IEC 23001-8 or ITU H.273, section 8.1 and table 2.
      * Only used if the color standard in use is \c VAColorStandardExplicit.
+     * Below list the typical colour primaries for the reference.
+     * ---------------------------------------------------------------------------------
+     * | Value | Primaries                  | Informative Remark                       |
+     * --------------------------------------------------------------------------------
+     * | 1     |primary  x        y         |Rec.ITU-R BT.709-5                        |
+     * |       |green    0.300    0.600     |IEC 61966-2-1(sRGB or sYCC)               |
+     * |       |blue     0.150    0.060     |                                          |
+     * |       |red      0.640    0.330     |                                          |
+     * |       |whiteD65 0.3127   0.3290    |                                          |
+     * ---------------------------------------------------------------------------------
+     * | 6     |primary  x        y         |Rec.ITU-R BT.601-6 525                    |
+     * |       |green    0.310    0.595     |                                          |
+     * |       |blue     0.155    0.070     |                                          |
+     * |       |red      0.630    0.340     |                                          |
+     * |       |whiteD65 0.3127   0.3290    |                                          |
+     * ---------------------------------------------------------------------------------
+     * | 9     |primary  x        y         |Rec.ITU-R BT.2020                         |
+     * |       |green    0.170    0.797     |                                          |
+     * |       |blue     0.131    0.046     |                                          |
+     * |       |red      0.708    0.292     |                                          |
+     * |       |whiteD65 0.3127   0.3290    |                                          |
+     * ---------------------------------------------------------------------------------
      */
     uint8_t colour_primaries;
     /** Transfer characteristics.
      *
      * See ISO/IEC 23001-8 or ITU H.273, section 8.2 and table 3.
      * Only used if the color standard in use is \c VAColorStandardExplicit.
+     * Below list the typical transfer characteristics for the reference.
+     * -----------------------------------------------------------
+     * | Value | Informative Remark                              |
+     * -----------------------------------------------------------
+     * | 1     |Rec.ITU-R BT.709-5                               |
+     * |       |colour gamut system                              |
+     * -----------------------------------------------------------
+     * | 4     |Assumed display gamma 2.2                        |
+     * -----------------------------------------------------------
+     * | 6     |Rec.ITU-R BT.601-6 525 or 625                    |
+     * -----------------------------------------------------------
+     * | 8     |Linear transfer characteristics                  |
+     * -----------------------------------------------------------
+     * | 13    |IEC 61966-2-1(sRGB or sYCC)                      |
+     * -----------------------------------------------------------
+     * | 14,15 |Rec.ITU-R BT.2020                                |
+     * -----------------------------------------------------------
+     * | 16    |SMPTE ST 2084 for 10,12,14 and 16bit system      |
+     * -----------------------------------------------------------
      */
     uint8_t transfer_characteristics;
     /** Matrix coefficients.
@@ -764,15 +805,15 @@ typedef struct _VAHdrMetaDataHDR10
      */
     uint32_t    min_display_mastering_luminance;
     /**
-     * \brief The maximum content light level.
+     * \brief The maximum content light level (MaxCLL).
      *
-     * The value is in units of 0.0001 candelas per square metre.
+     * The value is in units of 1 candelas per square metre.
      */
     uint16_t    max_content_light_level;
     /**
-     * \brief The maximum picture average light level.
+     * \brief The maximum picture average light level (MaxFALL).
      *
-     * The value is in units of 0.0001 candelas per square metre.
+     * The value is in units of 1 candelas per square metre.
      */
     uint16_t    max_pic_average_light_level;
     /** Resevered */
@@ -928,6 +969,9 @@ typedef struct _VAProcPipelineParameterBuffer {
      *   \c VA_SRC_SMPTE_240.
      * - Scaling: \c VA_FILTER_SCALING_DEFAULT, \c VA_FILTER_SCALING_FAST,
      *   \c VA_FILTER_SCALING_HQ, \c VA_FILTER_SCALING_NL_ANAMORPHIC.
+     * - Interpolation Method: \c VA_FILTER_INTERPOLATION_DEFAULT,
+     *   \c VA_FILTER_INTERPOLATION_NEAREST_NEIGHBOR,
+     *   \c VA_FILTER_INTERPOLATION_BILINEAR, \c VA_FILTER_INTERPOLATION_ADVANCED.
      */
     uint32_t        filter_flags;
     /**
@@ -945,11 +989,11 @@ typedef struct _VAProcPipelineParameterBuffer {
     VABufferID         *filters;
     /** \brief Actual number of filters. */
     uint32_t           num_filters;
-    /** \brief Array of forward reference frames. */
+    /** \brief Array of forward reference frames (past frames). */
     VASurfaceID        *forward_references;
     /** \brief Number of forward reference frames that were supplied. */
     uint32_t           num_forward_references;
-    /** \brief Array of backward reference frames. */
+    /** \brief Array of backward reference frames (future frames). */
     VASurfaceID        *backward_references;
     /** \brief Number of backward reference frames that were supplied. */
     uint32_t           num_backward_references;

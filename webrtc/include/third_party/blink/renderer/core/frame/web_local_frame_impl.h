@@ -193,7 +193,7 @@ class CORE_EXPORT WebLocalFrameImpl final
   WebRange MarkedRange() const override;
   bool FirstRectForCharacterRange(unsigned location,
                                   unsigned length,
-                                  WebRect&) const override;
+                                  gfx::Rect&) const override;
   bool ExecuteCommand(const WebString&) override;
   bool ExecuteCommand(const WebString&, const WebString& value) override;
   bool IsCommandEnabled(const WebString&) const override;
@@ -236,10 +236,10 @@ class CORE_EXPORT WebLocalFrameImpl final
   void ReplaceSelection(const WebString&) override;
   void DeleteSurroundingText(int before, int after) override;
   void DeleteSurroundingTextInCodePoints(int before, int after) override;
-  void ExtractSmartClipData(WebRect rect_in_viewport,
+  void ExtractSmartClipData(const gfx::Rect& rect_in_viewport,
                             WebString& clip_text,
                             WebString& clip_html,
-                            WebRect& clip_rect) override;
+                            gfx::Rect& clip_rect) override;
   void SetTextCheckClient(WebTextCheckClient*) override;
   void SetSpellCheckPanelHostClient(WebSpellCheckPanelHostClient*) override;
   WebSpellCheckPanelHostClient* SpellCheckPanelHostClient() const override {
@@ -261,7 +261,7 @@ class CORE_EXPORT WebLocalFrameImpl final
                       bool wrap_within_frame,
                       bool async) override;
   void SetTickmarks(const WebElement& target,
-                    const WebVector<WebRect>& tickmarks) override;
+                    const WebVector<gfx::Rect>& tickmarks) override;
   WebNode ContextMenuNode() const override;
   void CopyImageAtForTesting(const gfx::Point&) override;
   void UsageCountChromeLoadTimes(const WebString& metric) override;
@@ -277,7 +277,7 @@ class CORE_EXPORT WebLocalFrameImpl final
   void SetScrollOffset(const WebSize&) override;
   WebSize DocumentSize() const override;
   bool HasVisibleContent() const override;
-  WebRect VisibleContentRect() const override;
+  gfx::Rect VisibleContentRect() const override;
   void DispatchBeforePrintEvent(
       base::WeakPtr<WebPrintClient> print_client) override;
   WebPlugin* GetPluginToPrint(const WebNode& constrain_to_node) override;
@@ -289,19 +289,19 @@ class CORE_EXPORT WebLocalFrameImpl final
   void DispatchAfterPrintEvent() override;
   bool GetPrintPresetOptionsForPlugin(const WebNode&,
                                       WebPrintPresetOptions*) override;
-  bool CapturePaintPreview(const WebRect& bounds,
+  bool CapturePaintPreview(const gfx::Rect& bounds,
                            cc::PaintCanvas* canvas,
                            bool include_linked_destinations) override;
   bool ShouldSuppressKeyboardForFocusedElement() override;
   WebPerformance Performance() const override;
   bool IsAdSubframe() const override;
   void SetIsAdSubframe(blink::mojom::AdFrameType ad_frame_type) override;
-  WebSize SpoolSizeInPixelsForTesting(const WebSize& page_size_in_pixels,
-                                      uint32_t page_count) override;
+  gfx::Size SpoolSizeInPixelsForTesting(const gfx::Size& page_size_in_pixels,
+                                        uint32_t page_count) override;
   void PrintPagesForTesting(cc::PaintCanvas*,
-                            const WebSize& page_size_in_pixels,
-                            const WebSize& spool_size_in_pixels) override;
-  WebRect GetSelectionBoundsRectForTesting() const override;
+                            const gfx::Size& page_size_in_pixels,
+                            const gfx::Size& spool_size_in_pixels) override;
+  gfx::Rect GetSelectionBoundsRectForTesting() const override;
   gfx::Point GetPositionInViewportForTesting() const override;
   void WasHidden() override;
   void WasShown() override;

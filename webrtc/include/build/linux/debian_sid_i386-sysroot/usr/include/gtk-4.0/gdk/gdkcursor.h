@@ -25,7 +25,7 @@
 #ifndef __GDK_CURSOR_H__
 #define __GDK_CURSOR_H__
 
-#if !defined (__GDK_H_INSIDE__) && !defined (GDK_COMPILATION)
+#if !defined (__GDK_H_INSIDE__) && !defined (GTK_COMPILATION)
 #error "Only <gdk/gdk.h> can be included directly."
 #endif
 
@@ -46,15 +46,15 @@ GType      gdk_cursor_get_type           (void) G_GNUC_CONST;
 
 GDK_AVAILABLE_IN_ALL
 GdkCursor* gdk_cursor_new_from_texture   (GdkTexture      *texture,
-					  int              hotspot_x,
-					  int              hotspot_y,
+                                          int              hotspot_x,
+                                          int              hotspot_y,
                                           GdkCursor       *fallback);
 GDK_AVAILABLE_IN_ALL
-GdkCursor*  gdk_cursor_new_from_name	 (const gchar     *name,
+GdkCursor*  gdk_cursor_new_from_name     (const char      *name,
                                           GdkCursor       *fallback);
 
 GDK_AVAILABLE_IN_ALL
-GdkCursor * gdk_cursor_get_fallback      (GdkCursor	  *cursor);
+GdkCursor * gdk_cursor_get_fallback      (GdkCursor       *cursor);
 GDK_AVAILABLE_IN_ALL
 const char *gdk_cursor_get_name          (GdkCursor       *cursor);
 GDK_AVAILABLE_IN_ALL

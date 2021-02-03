@@ -45,7 +45,7 @@ using CreateSurfaceLayerBridgeCB =
         cc::UpdateSubmissionStateCB)>;
 
 class MediaStreamInternalFrameWrapper;
-template <typename TimerFiredClass, bool>
+template <typename TimerFiredClass>
 class TaskRunnerTimer;
 class TimerBase;
 class WebLocalFrame;
@@ -126,7 +126,7 @@ class BLINK_MODULES_EXPORT WebMediaPlayerMS
 
   // Methods for painting.
   void Paint(cc::PaintCanvas* canvas,
-             const WebRect& rect,
+             const gfx::Rect& rect,
              cc::PaintFlags& flags,
              int already_uploaded_id,
              VideoFrameUploadMetadata* out_metadata) override;
@@ -368,7 +368,7 @@ class BLINK_MODULES_EXPORT WebMediaPlayerMS
 
   // Resets the ForceBeginFrames flag once we stop receiving calls to
   // requestVideoFrameCallback().
-  std::unique_ptr<TaskRunnerTimer<WebMediaPlayerMS, false>>
+  std::unique_ptr<TaskRunnerTimer<WebMediaPlayerMS>>
       stop_force_begin_frames_timer_;
 
   std::unique_ptr<WebVideoFrameSubmitter> submitter_;

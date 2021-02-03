@@ -41,14 +41,15 @@ G_BEGIN_DECLS
 
 
 GDK_AVAILABLE_IN_ALL
+GType               gtk_crossing_data_get_type (void) G_GNUC_CONST;
+
+
+GDK_AVAILABLE_IN_ALL
 GType        gtk_event_controller_get_type       (void) G_GNUC_CONST;
 
 GDK_AVAILABLE_IN_ALL
 GtkWidget  * gtk_event_controller_get_widget     (GtkEventController *controller);
 
-GDK_AVAILABLE_IN_ALL
-gboolean     gtk_event_controller_handle_event   (GtkEventController *controller,
-                                                  const GdkEvent     *event);
 GDK_AVAILABLE_IN_ALL
 void         gtk_event_controller_reset          (GtkEventController *controller);
 
@@ -58,6 +59,27 @@ GtkPropagationPhase gtk_event_controller_get_propagation_phase (GtkEventControll
 GDK_AVAILABLE_IN_ALL
 void                gtk_event_controller_set_propagation_phase (GtkEventController  *controller,
                                                                 GtkPropagationPhase  phase);
+
+GDK_AVAILABLE_IN_ALL
+GtkPropagationLimit gtk_event_controller_get_propagation_limit (GtkEventController *controller);
+
+GDK_AVAILABLE_IN_ALL
+void                gtk_event_controller_set_propagation_limit (GtkEventController  *controller,
+                                                                GtkPropagationLimit  limit);
+GDK_AVAILABLE_IN_ALL
+const char *        gtk_event_controller_get_name              (GtkEventController *controller);
+GDK_AVAILABLE_IN_ALL
+void                gtk_event_controller_set_name              (GtkEventController *controller,
+                                                                const char         *name);
+
+GDK_AVAILABLE_IN_ALL
+GdkEvent *          gtk_event_controller_get_current_event    (GtkEventController *controller);
+GDK_AVAILABLE_IN_ALL
+guint32             gtk_event_controller_get_current_event_time   (GtkEventController *controller);
+GDK_AVAILABLE_IN_ALL
+GdkDevice *         gtk_event_controller_get_current_event_device (GtkEventController *controller);
+GDK_AVAILABLE_IN_ALL
+GdkModifierType     gtk_event_controller_get_current_event_state (GtkEventController *controller);
 
 G_END_DECLS
 

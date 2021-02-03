@@ -33,56 +33,26 @@ G_BEGIN_DECLS
 
 #define GTK_TYPE_APP_CHOOSER_BUTTON            (gtk_app_chooser_button_get_type ())
 #define GTK_APP_CHOOSER_BUTTON(obj)            (G_TYPE_CHECK_INSTANCE_CAST ((obj), GTK_TYPE_APP_CHOOSER_BUTTON, GtkAppChooserButton))
-#define GTK_APP_CHOOSER_BUTTON_CLASS(klass)    (G_TYPE_CHECK_CLASS_CAST ((klass), GTK_TYPE_APP_CHOOSER_BUTTON, GtkAppChooserButtonClass))
 #define GTK_IS_APP_CHOOSER_BUTTON(obj)         (G_TYPE_CHECK_INSTANCE_TYPE ((obj), GTK_TYPE_APP_CHOOSER_BUTTON))
-#define GTK_IS_APP_CHOOSER_BUTTON_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE ((klass), GTK_TYPE_APP_CHOOSER_BUTTON))
-#define GTK_APP_CHOOSER_BUTTON_GET_CLASS(obj)  (G_TYPE_INSTANCE_GET_CLASS ((obj), GTK_TYPE_APP_CHOOSER_BUTTON, GtkAppChooserButtonClass))
 
 typedef struct _GtkAppChooserButton        GtkAppChooserButton;
-typedef struct _GtkAppChooserButtonClass   GtkAppChooserButtonClass;
-
-struct _GtkAppChooserButton {
-  GtkWidget parent_instance;
-};
-
-/**
- * GtkAppChooserButtonClass:
- * @parent_class: The parent class.
- * @custom_item_activated: Signal emitted when a custom item,
- *    previously added with gtk_app_chooser_button_append_custom_item(),
- *    is activated from the dropdown menu.
- */
-struct _GtkAppChooserButtonClass {
-  GtkWidgetClass parent_class;
-
-  /*< public >*/
-
-  void (* changed)               (GtkAppChooserButton *self);
-  void (* custom_item_activated) (GtkAppChooserButton *self,
-                                  const gchar *item_name);
-
-  /*< private >*/
-
-  /* padding for future class expansion */
-  gpointer padding[16];
-};
 
 GDK_AVAILABLE_IN_ALL
 GType       gtk_app_chooser_button_get_type           (void) G_GNUC_CONST;
 
 GDK_AVAILABLE_IN_ALL
-GtkWidget * gtk_app_chooser_button_new                (const gchar         *content_type);
+GtkWidget * gtk_app_chooser_button_new                (const char          *content_type);
 
 GDK_AVAILABLE_IN_ALL
 void        gtk_app_chooser_button_append_separator   (GtkAppChooserButton *self);
 GDK_AVAILABLE_IN_ALL
 void        gtk_app_chooser_button_append_custom_item (GtkAppChooserButton *self,
-                                                       const gchar         *name,
-                                                       const gchar         *label,
+                                                       const char          *name,
+                                                       const char          *label,
                                                        GIcon               *icon);
 GDK_AVAILABLE_IN_ALL
 void     gtk_app_chooser_button_set_active_custom_item (GtkAppChooserButton *self,
-                                                        const gchar         *name);
+                                                        const char          *name);
 
 GDK_AVAILABLE_IN_ALL
 void     gtk_app_chooser_button_set_show_dialog_item  (GtkAppChooserButton *self,
@@ -91,15 +61,21 @@ GDK_AVAILABLE_IN_ALL
 gboolean gtk_app_chooser_button_get_show_dialog_item  (GtkAppChooserButton *self);
 GDK_AVAILABLE_IN_ALL
 void     gtk_app_chooser_button_set_heading           (GtkAppChooserButton *self,
-                                                       const gchar         *heading);
+                                                       const char          *heading);
 GDK_AVAILABLE_IN_ALL
-const gchar *
+const char *
          gtk_app_chooser_button_get_heading           (GtkAppChooserButton *self);
 GDK_AVAILABLE_IN_ALL
 void     gtk_app_chooser_button_set_show_default_item (GtkAppChooserButton *self,
                                                        gboolean             setting);
 GDK_AVAILABLE_IN_ALL
 gboolean gtk_app_chooser_button_get_show_default_item (GtkAppChooserButton *self);
+
+GDK_AVAILABLE_IN_ALL
+gboolean gtk_app_chooser_button_get_modal             (GtkAppChooserButton *self);
+GDK_AVAILABLE_IN_ALL
+void     gtk_app_chooser_button_set_modal             (GtkAppChooserButton *self,
+                                                       gboolean             modal);
 
 G_END_DECLS
 

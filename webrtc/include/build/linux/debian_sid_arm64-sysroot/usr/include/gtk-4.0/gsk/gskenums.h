@@ -18,7 +18,7 @@
 #ifndef __GSK_ENUMS_H__
 #define __GSK_ENUMS_H__
 
-#if !defined (__GSK_H_INSIDE__) && !defined (GSK_COMPILATION)
+#if !defined (__GSK_H_INSIDE__) && !defined (GTK_COMPILATION)
 #error "Only <gsk/gsk.h> can be included directly."
 #endif
 
@@ -30,6 +30,8 @@
  * @GSK_COLOR_NODE: A node drawing a single color rectangle
  * @GSK_LINEAR_GRADIENT_NODE: A node drawing a linear gradient
  * @GSK_REPEATING_LINEAR_GRADIENT_NODE: A node drawing a repeating linear gradient
+ * @GSK_RADIAL_GRADIENT_NODE: A node drawing a radial gradient
+ * @GSK_REPEATING_RADIAL_GRADIENT_NODE: A node drawing a repeating radial gradient
  * @GSK_BORDER_NODE: A node stroking a border around an area
  * @GSK_TEXTURE_NODE: A node drawing a #GdkTexture
  * @GSK_INSET_SHADOW_NODE: A node drawing an inset shadow
@@ -45,9 +47,11 @@
  * @GSK_CROSS_FADE_NODE: A node that cross-fades between two children
  * @GSK_TEXT_NODE: A node containing a glyph string
  * @GSK_BLUR_NODE: A node that applies a blur
- *
+ * @GSK_DEBUG_NODE: Debug information that does not affect the rendering
+ * @GSK_GL_SHADER_NODE: A node that uses OpenGL fragment shaders to render
+ 
  * The type of a node determines what the node is rendering.
- **/
+ */
 typedef enum {
   GSK_NOT_A_RENDER_NODE = 0,
   GSK_CONTAINER_NODE,
@@ -55,6 +59,8 @@ typedef enum {
   GSK_COLOR_NODE,
   GSK_LINEAR_GRADIENT_NODE,
   GSK_REPEATING_LINEAR_GRADIENT_NODE,
+  GSK_RADIAL_GRADIENT_NODE,
+  GSK_REPEATING_RADIAL_GRADIENT_NODE,
   GSK_BORDER_NODE,
   GSK_TEXTURE_NODE,
   GSK_INSET_SHADOW_NODE,
@@ -70,7 +76,8 @@ typedef enum {
   GSK_CROSS_FADE_NODE,
   GSK_TEXT_NODE,
   GSK_BLUR_NODE,
-  GSK_DEBUG_NODE
+  GSK_DEBUG_NODE,
+  GSK_GL_SHADER_NODE
 } GskRenderNodeType;
 
 /**
@@ -97,25 +104,30 @@ typedef enum {
  * @GSK_BLEND_MODE_DEFAULT: The default blend mode, which specifies no blending
  * @GSK_BLEND_MODE_MULTIPLY: The source color is multiplied by the destination
  *   and replaces the destination
- * @GSK_BLEND_MODE_SCREEN: ...
- * @GSK_BLEND_MODE_OVERLAY: ...
- * @GSK_BLEND_MODE_DARKEN: ...
- * @GSK_BLEND_MODE_LIGHTEN: ...
- * @GSK_BLEND_MODE_COLOR_DODGE: ...
- * @GSK_BLEND_MODE_COLOR_BURN: ...
- * @GSK_BLEND_MODE_HARD_LIGHT: ...
- * @GSK_BLEND_MODE_SOFT_LIGHT: ...
- * @GSK_BLEND_MODE_DIFFERENCE: ...
- * @GSK_BLEND_MODE_EXCLUSION: ...
- * @GSK_BLEND_MODE_COLOR: ...
- * @GSK_BLEND_MODE_HUE: ...
- * @GSK_BLEND_MODE_SATURATION: ...
- * @GSK_BLEND_MODE_LUMINOSITY: ...
+ * @GSK_BLEND_MODE_SCREEN: Multiplies the complements of the destination and source
+ *   color values, then complements the result.
+ * @GSK_BLEND_MODE_OVERLAY: Multiplies or screens the colors, depending on the
+ *   destination color value. This is the inverse of hard-list
+ * @GSK_BLEND_MODE_DARKEN: Selects the darker of the destination and source colors
+ * @GSK_BLEND_MODE_LIGHTEN: Selects the lighter of the destination and source colors
+ * @GSK_BLEND_MODE_COLOR_DODGE: Brightens the destination color to reflect the source color
+ * @GSK_BLEND_MODE_COLOR_BURN: Darkens the destination color to reflect the source color
+ * @GSK_BLEND_MODE_HARD_LIGHT: Multiplies or screens the colors, depending on the source color value
+ * @GSK_BLEND_MODE_SOFT_LIGHT: Darkens or lightens the colors, depending on the source color value
+ * @GSK_BLEND_MODE_DIFFERENCE: Subtracts the darker of the two constituent colors from the lighter color
+ * @GSK_BLEND_MODE_EXCLUSION: Produces an effect similar to that of the difference mode but lower in contrast
+ * @GSK_BLEND_MODE_COLOR: Creates a color with the hue and saturation of the source color and the luminosity of the destination color
+ * @GSK_BLEND_MODE_HUE: Creates a color with the hue of the source color and the saturation and luminosity of the destination color
+ * @GSK_BLEND_MODE_SATURATION: Creates a color with the saturation of the source color and the hue and luminosity of the destination color
+ * @GSK_BLEND_MODE_LUMINOSITY: Creates a color with the luminosity of the source color and the hue and saturation of the destination color
  *
  * The blend modes available for render nodes.
  *
  * The implementation of each blend mode is deferred to the
  * rendering pipeline.
+ *
+ * See https://www.w3.org/TR/compositing-1/#blending for more information
+ * on blending and blend modes.
  */
 typedef enum {
   GSK_BLEND_MODE_DEFAULT = 0,
@@ -207,5 +219,33 @@ typedef enum
   GSK_TRANSFORM_CATEGORY_2D_TRANSLATE,
   GSK_TRANSFORM_CATEGORY_IDENTITY
 } GskTransformCategory;
+
+/**
+ * GskGLUniformType:
+ * @GSK_GL_UNIFORM_TYPE_NONE: No type, used for uninitialized or unspecified values.
+ * @GSK_GL_UNIFORM_TYPE_FLOAT: A float uniform
+ * @GSK_GL_UNIFORM_TYPE_INT: A GLSL int / gint32 uniform
+ * @GSK_GL_UNIFORM_TYPE_UINT: A GLSL uint / guint32 uniform
+ * @GSK_GL_UNIFORM_TYPE_BOOL: A GLSL bool / gboolean uniform
+ * @GSK_GL_UNIFORM_TYPE_VEC2: A GLSL vec2 / graphene_vec2_t uniform
+ * @GSK_GL_UNIFORM_TYPE_VEC3: A GLSL vec3 / graphene_vec3_t uniform
+ * @GSK_GL_UNIFORM_TYPE_VEC4: A GLSL vec4 / graphene_vec4_t uniform
+ *
+ * This defines the types of the uniforms that #GskGLShaders
+ * declare. It defines both what the type is called in the GLSL shader
+ * code, and what the corresponding C type is on the Gtk side.
+ */
+typedef enum
+{
+  GSK_GL_UNIFORM_TYPE_NONE,
+  GSK_GL_UNIFORM_TYPE_FLOAT,
+  GSK_GL_UNIFORM_TYPE_INT,
+  GSK_GL_UNIFORM_TYPE_UINT,
+  GSK_GL_UNIFORM_TYPE_BOOL,
+  GSK_GL_UNIFORM_TYPE_VEC2,
+  GSK_GL_UNIFORM_TYPE_VEC3,
+  GSK_GL_UNIFORM_TYPE_VEC4,
+} GskGLUniformType;
+
 
 #endif /* __GSK_TYPES_H__ */

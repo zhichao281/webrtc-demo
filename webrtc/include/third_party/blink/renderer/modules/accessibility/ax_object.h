@@ -65,7 +65,6 @@ namespace blink {
 class AccessibleNodeList;
 class AXObject;
 class AXObjectCacheImpl;
-class AXRange;
 class IntPoint;
 class LayoutObject;
 class LocalFrameView;
@@ -155,6 +154,10 @@ class DescriptionSource {
 
   void Trace(Visitor* visitor) const { visitor->Trace(related_objects); }
 };
+
+// Returns a ax::mojom::blink::MarkerType cast to an int, suitable
+// for serializing into AXNodeData.
+int32_t ToAXMarkerType(DocumentMarker::MarkerType marker_type);
 
 }  // namespace blink
 
@@ -521,7 +524,6 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   virtual bool ComputeAccessibilityIsIgnored(IgnoredReasons* = nullptr) const {
     return true;
   }
-  virtual bool CanIgnoreTextAsEmpty() const { return false; }
   bool AccessibilityIsIgnoredByDefault(IgnoredReasons* = nullptr) const;
   virtual AXObjectInclusion DefaultObjectInclusion(
       IgnoredReasons* = nullptr) const;
@@ -706,13 +708,6 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   base::Optional<const DocumentMarker::MarkerType>
   GetAriaSpellingOrGrammarMarker() const;
 
-  // For all node and inline text box objects. The start and end character
-  // offset of each document marker, such as spelling or grammar error expressed
-  // as an AXRange.
-  virtual void GetDocumentMarkers(
-      Vector<DocumentMarker::MarkerType>* marker_types,
-      Vector<AXRange>* marker_ranges) const;
-
   // For all inline text objects: Returns the horizontal pixel offset of each
   // character in the object's text, rounded to the nearest integer. Negative
   // values are returned for RTL text.
@@ -865,7 +860,7 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   }
   // Called on the AX object after the layout tree determines which is the right
   // AXLayoutObject.
-  virtual AXObject* ElementAccessibilityHitTest(const IntPoint&) const;
+  AXObject* ElementAccessibilityHitTest(const IntPoint&) const;
 
   //
   // High-level accessibility tree access. Other modules should only use these
@@ -913,9 +908,6 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   // accessibility tree.
   const AXObjectVector& ChildrenIncludingIgnored() const;
   const AXObjectVector& ChildrenIncludingIgnored();
-  const AXObjectVector& CachedChildrenIncludingIgnored() const {
-    return children_;
-  }
 
   // Returns the node's unignored descendants that are one level deeper than
   // this node, after removing all accessibility ignored nodes from the tree.
@@ -1080,22 +1072,19 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   AXObject* ContainerWidget() const;
   bool IsContainerWidget() const;
 
-  virtual void AddChildren() {}
   // There are two types of traversal for obtaining children:
   // 1. LayoutTreeBuilderTraversal. Despite the name, this traverses a flattened
   // DOM tree that includes pseudo element children such as ::before, and where
   // shadow DOM slotting has been run.
   // 2. LayoutObject traversal. This is necessary if there is no parent node,
-  // or if the parent node is a pseudo element.
+  // or in a pseudo element subtree.
   bool ShouldUseLayoutObjectTraversalForChildren() const;
   virtual bool CanHaveChildren() const { return true; }
-  bool HasChildren() const { return have_children_; }
-  virtual void UpdateChildrenIfNecessary();
-  virtual bool NeedsToUpdateChildren() const { return false; }
-  virtual void SetNeedsToUpdateChildren() {}
+  void UpdateChildrenIfNecessary();
+  bool NeedsToUpdateChildren() const { return children_dirty_; }
+  void SetNeedsToUpdateChildren() { children_dirty_ = true; }
   virtual void ClearChildren();
   void DetachFromParent() { parent_ = nullptr; }
-  void AddAccessibleNodeChildren();
   virtual void SelectedOptions(AXObjectVector&) const {}
 
   // Properties of the object's owning document or page.
@@ -1249,13 +1238,17 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
 
  protected:
   AXID id_;
+  // Any parent, regardless of whether it's ignored or not included in the tree.
+  mutable Member<AXObject> parent_;
   // Only children that are included in tree, maybe rename to children_in_tree_.
   AXObjectVector children_;
-  mutable bool have_children_;
+  bool children_dirty_;
   ax::mojom::blink::Role role_;
   ax::mojom::blink::Role aria_role_;
   LayoutRect explicit_element_rect_;
   AXID explicit_container_id_;
+
+  virtual void AddChildren() = 0;
 
   // Used only inside textAlternative():
   static String CollapseWhitespace(const String&);
@@ -1310,15 +1303,15 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   const AXObject* TableRowParent() const;
   const AXObject* TableParent() const;
 
-  // Any parent, regardless of whether it's ignored or not included in the tree.
-  mutable Member<AXObject> parent_;
-
   // Helpers for serialization.
   void SerializeStyleAttributes(ui::AXNodeData* node_data);
   void SerializeSparseAttributes(ui::AXNodeData* node_data);
   void SerializeTableAttributes(ui::AXNodeData* node_data);
   void SerializeListAttributes(ui::AXNodeData* node_data);
   void SerializeScrollAttributes(ui::AXNodeData* node_data);
+
+  // Serialization implemented in specific subclasses.
+  virtual void SerializeMarkerAttributes(ui::AXNodeData* node_data) const;
 
  private:
   mutable int last_modification_count_;

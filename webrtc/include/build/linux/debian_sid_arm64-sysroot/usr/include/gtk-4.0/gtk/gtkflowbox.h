@@ -29,52 +29,18 @@
 #error "Only <gtk/gtk.h> can be included directly."
 #endif
 
-#include <gtk/gtkbin.h>
+#include <gtk/gtkwidget.h>
 
 G_BEGIN_DECLS
 
 
 #define GTK_TYPE_FLOW_BOX                  (gtk_flow_box_get_type ())
 #define GTK_FLOW_BOX(obj)                  (G_TYPE_CHECK_INSTANCE_CAST ((obj), GTK_TYPE_FLOW_BOX, GtkFlowBox))
-#define GTK_FLOW_BOX_CLASS(klass)          (G_TYPE_CHECK_CLASS_CAST ((klass), GTK_TYPE_FLOW_BOX, GtkFlowBoxClass))
 #define GTK_IS_FLOW_BOX(obj)               (G_TYPE_CHECK_INSTANCE_TYPE ((obj), GTK_TYPE_FLOW_BOX))
-#define GTK_IS_FLOW_BOX_CLASS(klass)       (G_TYPE_CHECK_CLASS_TYPE ((klass), GTK_TYPE_FLOW_BOX))
-#define GTK_FLOW_BOX_GET_CLASS(obj)        (G_TYPE_INSTANCE_GET_CLASS ((obj), GTK_TYPE_FLOW_BOX, GtkFlowBoxClass))
 
 typedef struct _GtkFlowBox            GtkFlowBox;
-typedef struct _GtkFlowBoxClass       GtkFlowBoxClass;
-
 typedef struct _GtkFlowBoxChild       GtkFlowBoxChild;
 typedef struct _GtkFlowBoxChildClass  GtkFlowBoxChildClass;
-
-struct _GtkFlowBox
-{
-  GtkContainer container;
-};
-
-struct _GtkFlowBoxClass
-{
-  GtkContainerClass parent_class;
-
-  void (*child_activated)            (GtkFlowBox        *box,
-                                      GtkFlowBoxChild   *child);
-  void (*selected_children_changed)  (GtkFlowBox        *box);
-  void (*activate_cursor_child)      (GtkFlowBox        *box);
-  void (*toggle_cursor_child)        (GtkFlowBox        *box);
-  gboolean (*move_cursor)            (GtkFlowBox        *box,
-                                      GtkMovementStep    step,
-                                      gint               count);
-  void (*select_all)                 (GtkFlowBox        *box);
-  void (*unselect_all)               (GtkFlowBox        *box);
-
-  /* Padding for future expansion */
-  void (*_gtk_reserved1) (void);
-  void (*_gtk_reserved2) (void);
-  void (*_gtk_reserved3) (void);
-  void (*_gtk_reserved4) (void);
-  void (*_gtk_reserved5) (void);
-  void (*_gtk_reserved6) (void);
-};
 
 #define GTK_TYPE_FLOW_BOX_CHILD            (gtk_flow_box_child_get_type ())
 #define GTK_FLOW_BOX_CHILD(obj)            (G_TYPE_CHECK_INSTANCE_CAST ((obj), GTK_TYPE_FLOW_BOX_CHILD, GtkFlowBoxChild))
@@ -85,18 +51,16 @@ struct _GtkFlowBoxClass
 
 struct _GtkFlowBoxChild
 {
-  GtkBin parent_instance;
+  GtkWidget parent_instance;
 };
 
 struct _GtkFlowBoxChildClass
 {
-  GtkBinClass parent_class;
+  GtkWidgetClass parent_class;
 
   void (* activate) (GtkFlowBoxChild *child);
 
-  /* Padding for future expansion */
-  void (*_gtk_reserved1) (void);
-  void (*_gtk_reserved2) (void);
+  gpointer padding[8];
 };
 
 /**
@@ -116,8 +80,15 @@ GDK_AVAILABLE_IN_ALL
 GType                 gtk_flow_box_child_get_type            (void) G_GNUC_CONST;
 GDK_AVAILABLE_IN_ALL
 GtkWidget*            gtk_flow_box_child_new                 (void);
+
 GDK_AVAILABLE_IN_ALL
-gint                  gtk_flow_box_child_get_index           (GtkFlowBoxChild *child);
+void                  gtk_flow_box_child_set_child          (GtkFlowBoxChild *self,
+                                                             GtkWidget       *child);
+GDK_AVAILABLE_IN_ALL
+GtkWidget *           gtk_flow_box_child_get_child          (GtkFlowBoxChild *self);
+
+GDK_AVAILABLE_IN_ALL
+int                   gtk_flow_box_child_get_index           (GtkFlowBoxChild *child);
 GDK_AVAILABLE_IN_ALL
 gboolean              gtk_flow_box_child_is_selected         (GtkFlowBoxChild *child);
 GDK_AVAILABLE_IN_ALL
@@ -174,15 +145,18 @@ gboolean              gtk_flow_box_get_activate_on_single_click (GtkFlowBox     
 GDK_AVAILABLE_IN_ALL
 void                  gtk_flow_box_insert                       (GtkFlowBox        *box,
                                                                  GtkWidget         *widget,
-                                                                 gint               position);
+                                                                 int                position);
+GDK_AVAILABLE_IN_ALL
+void                  gtk_flow_box_remove                       (GtkFlowBox        *box,
+                                                                 GtkWidget         *widget);
 GDK_AVAILABLE_IN_ALL
 GtkFlowBoxChild      *gtk_flow_box_get_child_at_index           (GtkFlowBox        *box,
-                                                                 gint               idx);
+                                                                 int                idx);
 
 GDK_AVAILABLE_IN_ALL
 GtkFlowBoxChild      *gtk_flow_box_get_child_at_pos             (GtkFlowBox        *box,
-                                                                 gint               x,
-                                                                 gint               y);
+                                                                 int                x,
+                                                                 int                y);
 
 typedef void (* GtkFlowBoxForeachFunc) (GtkFlowBox      *box,
                                         GtkFlowBoxChild *child,
@@ -227,9 +201,9 @@ void                  gtk_flow_box_set_filter_func              (GtkFlowBox     
 GDK_AVAILABLE_IN_ALL
 void                  gtk_flow_box_invalidate_filter            (GtkFlowBox        *box);
 
-typedef gint (*GtkFlowBoxSortFunc) (GtkFlowBoxChild *child1,
-                                    GtkFlowBoxChild *child2,
-                                    gpointer         user_data);
+typedef int (*GtkFlowBoxSortFunc) (GtkFlowBoxChild *child1,
+                                   GtkFlowBoxChild *child2,
+                                   gpointer         user_data);
 
 GDK_AVAILABLE_IN_ALL
 void                  gtk_flow_box_set_sort_func                (GtkFlowBox        *box,

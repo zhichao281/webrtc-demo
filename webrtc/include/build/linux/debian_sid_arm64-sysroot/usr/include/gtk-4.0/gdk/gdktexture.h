@@ -19,7 +19,7 @@
 #ifndef __GDK_TEXTURE_H__
 #define __GDK_TEXTURE_H__
 
-#if !defined (__GDK_H_INSIDE__) && !defined (GDK_COMPILATION)
+#if !defined (__GDK_H_INSIDE__) && !defined (GTK_COMPILATION)
 #error "Only <gdk/gdk.h> can be included directly."
 #endif
 
@@ -51,9 +51,9 @@ GdkTexture *            gdk_texture_new_from_file              (GFile           
                                                                 GError         **error);
 
 GDK_AVAILABLE_IN_ALL
-int                     gdk_texture_get_width                  (GdkTexture      *texture);
+int                     gdk_texture_get_width                  (GdkTexture      *texture) G_GNUC_PURE;
 GDK_AVAILABLE_IN_ALL
-int                     gdk_texture_get_height                 (GdkTexture      *texture);
+int                     gdk_texture_get_height                 (GdkTexture      *texture) G_GNUC_PURE;
 
 GDK_AVAILABLE_IN_ALL
 void                    gdk_texture_download                   (GdkTexture      *texture,

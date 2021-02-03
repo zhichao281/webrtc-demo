@@ -30,7 +30,7 @@
 #error "Only <gtk/gtk.h> can be included directly."
 #endif
 
-#include <gtk/gtkbin.h>
+#include <gtk/gtkwidget.h>
 
 
 G_BEGIN_DECLS
@@ -48,7 +48,7 @@ typedef struct _GtkFrameClass         GtkFrameClass;
 
 struct _GtkFrame
 {
-  GtkBin parent_instance;
+  GtkWidget parent_instance;
 };
 
 /**
@@ -58,7 +58,7 @@ struct _GtkFrame
  */
 struct _GtkFrameClass
 {
-  GtkBinClass parent_class;
+  GtkWidgetClass parent_class;
 
   /*< public >*/
 
@@ -67,40 +67,37 @@ struct _GtkFrameClass
 
   /*< private >*/
 
-  /* Padding for future expansion */
-  void (*_gtk_reserved1) (void);
-  void (*_gtk_reserved2) (void);
-  void (*_gtk_reserved3) (void);
-  void (*_gtk_reserved4) (void);
+  gpointer padding[8];
 };
 
 
 GDK_AVAILABLE_IN_ALL
 GType      gtk_frame_get_type         (void) G_GNUC_CONST;
 GDK_AVAILABLE_IN_ALL
-GtkWidget* gtk_frame_new              (const gchar   *label);
+GtkWidget* gtk_frame_new              (const char    *label);
 
 GDK_AVAILABLE_IN_ALL
 void          gtk_frame_set_label (GtkFrame    *frame,
-                                   const gchar *label);
+                                   const char *label);
 GDK_AVAILABLE_IN_ALL
-const gchar * gtk_frame_get_label (GtkFrame    *frame);
+const char * gtk_frame_get_label (GtkFrame    *frame);
 
 GDK_AVAILABLE_IN_ALL
 void       gtk_frame_set_label_widget (GtkFrame      *frame,
-				       GtkWidget     *label_widget);
+                                       GtkWidget     *label_widget);
 GDK_AVAILABLE_IN_ALL
 GtkWidget *gtk_frame_get_label_widget (GtkFrame      *frame);
 GDK_AVAILABLE_IN_ALL
 void       gtk_frame_set_label_align  (GtkFrame      *frame,
-				       gfloat         xalign);
+                                       float          xalign);
 GDK_AVAILABLE_IN_ALL
-gfloat     gtk_frame_get_label_align  (GtkFrame      *frame);
+float      gtk_frame_get_label_align  (GtkFrame      *frame);
+
 GDK_AVAILABLE_IN_ALL
-void       gtk_frame_set_shadow_type  (GtkFrame      *frame,
-				       GtkShadowType  type);
+void       gtk_frame_set_child        (GtkFrame      *frame,
+                                       GtkWidget     *child);
 GDK_AVAILABLE_IN_ALL
-GtkShadowType gtk_frame_get_shadow_type (GtkFrame    *frame);
+GtkWidget *gtk_frame_get_child        (GtkFrame      *frame);
 
 
 G_END_DECLS

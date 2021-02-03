@@ -1,5 +1,6 @@
 /****************************************************************************
- * Copyright (c) 1998-2018,2019 Free Software Foundation, Inc.              *
+ * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +33,7 @@
  *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
-/* $Id: curses.h.in,v 1.264 2019/03/23 23:06:46 tom Exp $ */
+/* $Id: curses.h.in,v 1.269 2020/08/17 14:14:12 tom Exp $ */
 
 #ifndef __NCURSES_H
 #define __NCURSES_H
@@ -42,12 +43,12 @@
 
 /* These are defined only in curses.h, and are used for conditional compiles */
 #define NCURSES_VERSION_MAJOR 6
-#define NCURSES_VERSION_MINOR 1
-#define NCURSES_VERSION_PATCH 20191019
+#define NCURSES_VERSION_MINOR 2
+#define NCURSES_VERSION_PATCH 20201114
 
 /* This is defined in more than one ncurses header, for identification */
 #undef  NCURSES_VERSION
-#define NCURSES_VERSION "6.1"
+#define NCURSES_VERSION "6.2"
 
 /*
  * Identify the mouse encoding version.
@@ -127,6 +128,14 @@
  */
 #ifndef NCURSES_REENTRANT
 #define NCURSES_REENTRANT 0
+#endif
+
+/*
+ * In certain environments, we must work around linker problems for data
+ */
+#undef NCURSES_BROKEN_LINKER
+#if 0
+#define NCURSES_BROKEN_LINKER 1
 #endif
 
 /*
@@ -421,7 +430,7 @@ typedef struct
     wchar_t	chars[CCHARW_MAX];
 #if 1
 #undef NCURSES_EXT_COLORS
-#define NCURSES_EXT_COLORS 20191019
+#define NCURSES_EXT_COLORS 20201114
     int		ext_color;	/* color pair, must be more than 16-bits */
 #endif
 }
@@ -489,55 +498,6 @@ struct _win_st
 #endif /* NCURSES_OPAQUE */
 
 /*
- * This is an extension to support events...
- */
-#if 1
-#ifdef NCURSES_WGETCH_EVENTS
-#if !defined(__BEOS__) || defined(__HAIKU__)
-   /* Fix _nc_timed_wait() on BEOS... */
-#  define NCURSES_EVENT_VERSION	1
-#endif	/* !defined(__BEOS__) */
-
-/*
- * Bits to set in _nc_event.data.flags
- */
-#  define _NC_EVENT_TIMEOUT_MSEC	1
-#  define _NC_EVENT_FILE		2
-#  define _NC_EVENT_FILE_READABLE	2
-#  if 0					/* Not supported yet... */
-#    define _NC_EVENT_FILE_WRITABLE	4
-#    define _NC_EVENT_FILE_EXCEPTION	8
-#  endif
-
-typedef struct
-{
-    int type;
-    union
-    {
-	long timeout_msec;	/* _NC_EVENT_TIMEOUT_MSEC */
-	struct
-	{
-	    unsigned int flags;
-	    int fd;
-	    unsigned int result;
-	} fev;				/* _NC_EVENT_FILE */
-    } data;
-} _nc_event;
-
-typedef struct
-{
-    int count;
-    int result_flags;	/* _NC_EVENT_TIMEOUT_MSEC or _NC_EVENT_FILE_READABLE */
-    _nc_event *events[1];
-} _nc_eventlist;
-
-extern NCURSES_EXPORT(int) wgetch_events (WINDOW *, _nc_eventlist *);	/* experimental */
-extern NCURSES_EXPORT(int) wgetnstr_events (WINDOW *,char *,int,_nc_eventlist *);/* experimental */
-
-#endif /* NCURSES_WGETCH_EVENTS */
-#endif /* NCURSES_EXT_FUNCS */
-
-/*
  * GCC (and some other compilers) define '__attribute__'; we're using this
  * macro to alert the compiler to flag inconsistencies in printf/scanf-like
  * function calls.  Just in case '__attribute__' isn't defined, make a dummy.
@@ -581,7 +541,7 @@ extern NCURSES_EXPORT(int) wgetnstr_events (WINDOW *,char *,int,_nc_eventlist *)
 #endif
 
 #undef  GCC_DEPRECATED
-#if (__GNUC__ - 0 > 3 || (__GNUC__ - 0 == 3 && __GNUC_MINOR__ - 0 >= 2))
+#if (__GNUC__ - 0 > 3 || (__GNUC__ - 0 == 3 && __GNUC_MINOR__ - 0 >= 2)) && !defined(NCURSES_INTERNALS)
 #define GCC_DEPRECATED(msg) __attribute__((deprecated))
 #else
 #define GCC_DEPRECATED(msg) /* nothing */
@@ -886,7 +846,6 @@ extern NCURSES_EXPORT(int) putp (const char *);				/* implemented */
 extern NCURSES_EXPORT(char *) tparm (const char *, ...);		/* special */
 #else
 extern NCURSES_EXPORT(char *) tparm (const char *, NCURSES_TPARM_ARG,NCURSES_TPARM_ARG,NCURSES_TPARM_ARG,NCURSES_TPARM_ARG,NCURSES_TPARM_ARG,NCURSES_TPARM_ARG,NCURSES_TPARM_ARG,NCURSES_TPARM_ARG,NCURSES_TPARM_ARG);	/* special */
-extern NCURSES_EXPORT(char *) tparm_varargs (const char *, ...);	/* special */
 #endif
 
 extern NCURSES_EXPORT(char *) tiparm (const char *, ...);		/* special */
@@ -916,7 +875,7 @@ extern NCURSES_EXPORT(int) getpary (const WINDOW *);			/* generated */
  */
 #if 1
 #undef  NCURSES_EXT_FUNCS
-#define NCURSES_EXT_FUNCS 20191019
+#define NCURSES_EXT_FUNCS 20201114
 typedef int (*NCURSES_WINDOW_CB)(WINDOW *, void *);
 typedef int (*NCURSES_SCREEN_CB)(SCREEN *, void *);
 extern NCURSES_EXPORT(bool) is_term_resized (int, int);
@@ -978,7 +937,7 @@ extern NCURSES_EXPORT(int) wgetscrreg (const WINDOW *, int *, int *); /* generat
  */
 #if 1
 #undef  NCURSES_SP_FUNCS
-#define NCURSES_SP_FUNCS 20191019
+#define NCURSES_SP_FUNCS 20201114
 #define NCURSES_SP_NAME(name) name##_sp
 
 /* Define the sp-funcs helper function */
@@ -1589,10 +1548,12 @@ extern NCURSES_EXPORT_VAR(int) TABSIZE;
 #define KEY_SUSPEND	0627		/* suspend key */
 #define KEY_UNDO	0630		/* undo key */
 #define KEY_MOUSE	0631		/* Mouse event has occurred */
-#define KEY_RESIZE	0632		/* Terminal resize event */
-#define KEY_EVENT	0633		/* We were interrupted by an event */
 
-#define KEY_MAX		0777		/* Maximum key value is 0633 */
+#ifdef NCURSES_EXT_FUNCS
+#define KEY_RESIZE	0632		/* Terminal resize event */
+#endif
+
+#define KEY_MAX		0777		/* Maximum key value is 0632 */
 /* $Id: curses.wide,v 1.50 2017/03/26 16:05:21 tom Exp $ */
 /*
  * vile:cmode:
@@ -1905,7 +1866,7 @@ extern NCURSES_EXPORT(const char *) _nc_viswibuf(const wint_t *);
 #endif
 
 #endif /* NCURSES_WIDECHAR */
-/* $Id: curses.tail,v 1.23 2016/02/13 16:37:45 tom Exp $ */
+/* $Id: curses.tail,v 1.25 2019/12/14 22:28:39 tom Exp $ */
 /*
  * vile:cmode:
  * This file is part of ncurses, designed to be appended after curses.h.in
@@ -2049,7 +2010,8 @@ extern NCURSES_EXPORT(char *) _tracecchar_t2 (int, const cchar_t *);
 #define _tracech_t		_tracechtype
 #define _tracech_t2		_tracechtype2
 #endif
-extern NCURSES_EXPORT(void) trace (const unsigned int);
+extern NCURSES_EXPORT(void) trace (const unsigned) GCC_DEPRECATED("use curses_trace");
+extern NCURSES_EXPORT(unsigned) curses_trace (const unsigned);
 
 /* trace masks */
 #define TRACE_DISABLE	0x0000	/* turn off tracing */
@@ -2079,6 +2041,8 @@ extern NCURSES_EXPORT(const char *) _nc_visbuf (const char *);
 #define OPTIMIZE_SCROLL		0x04	/* scroll optimization */
 #define OPTIMIZE_ALL		0xff	/* enable all optimizations (dflt) */
 #endif
+
+extern NCURSES_EXPORT(void) exit_curses (int) GCC_NORETURN;
 
 #include <unctrl.h>
 

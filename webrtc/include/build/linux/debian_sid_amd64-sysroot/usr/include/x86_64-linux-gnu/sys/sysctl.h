@@ -1,4 +1,4 @@
-/* Copyright (C) 1996-2019 Free Software Foundation, Inc.
+/* Copyright (C) 1996-2020 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -13,10 +13,12 @@
 
    You should have received a copy of the GNU Lesser General Public
    License along with the GNU C Library; if not, see
-   <http://www.gnu.org/licenses/>.  */
+   <https://www.gnu.org/licenses/>.  */
 
 #ifndef	_SYS_SYSCTL_H
 #define	_SYS_SYSCTL_H	1
+
+#warning "The <sys/sysctl.h> header is deprecated and will be removed."
 
 #include <features.h>
 #define __need_size_t
@@ -66,7 +68,8 @@ __BEGIN_DECLS
 
 /* Read or write system parameters.  */
 extern int sysctl (int *__name, int __nlen, void *__oldval,
-		   size_t *__oldlenp, void *__newval, size_t __newlen) __THROW;
+		   size_t *__oldlenp, void *__newval, size_t __newlen) __THROW
+  __attribute_deprecated__;
 
 __END_DECLS
 

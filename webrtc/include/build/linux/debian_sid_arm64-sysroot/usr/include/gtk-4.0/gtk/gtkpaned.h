@@ -29,79 +29,60 @@
 #error "Only <gtk/gtk.h> can be included directly."
 #endif
 
-#include <gtk/gtkcontainer.h>
+#include <gtk/gtkwidget.h>
 
 G_BEGIN_DECLS
 
 #define GTK_TYPE_PANED                  (gtk_paned_get_type ())
 #define GTK_PANED(obj)                  (G_TYPE_CHECK_INSTANCE_CAST ((obj), GTK_TYPE_PANED, GtkPaned))
-#define GTK_PANED_CLASS(klass)          (G_TYPE_CHECK_CLASS_CAST ((klass), GTK_TYPE_PANED, GtkPanedClass))
 #define GTK_IS_PANED(obj)               (G_TYPE_CHECK_INSTANCE_TYPE ((obj), GTK_TYPE_PANED))
-#define GTK_IS_PANED_CLASS(klass)       (G_TYPE_CHECK_CLASS_TYPE ((klass), GTK_TYPE_PANED))
-#define GTK_PANED_GET_CLASS(obj)        (G_TYPE_INSTANCE_GET_CLASS ((obj), GTK_TYPE_PANED, GtkPanedClass))
 
-
-typedef struct _GtkPaned        GtkPaned;
-typedef struct _GtkPanedClass   GtkPanedClass;
-
-struct _GtkPaned
-{
-  GtkContainer parent_instance;
-};
-
-struct _GtkPanedClass
-{
-  GtkContainerClass parent_class;
-
-  gboolean (* cycle_child_focus)   (GtkPaned      *paned,
-				    gboolean       reverse);
-  gboolean (* toggle_handle_focus) (GtkPaned      *paned);
-  gboolean (* move_handle)         (GtkPaned      *paned,
-				    GtkScrollType  scroll);
-  gboolean (* cycle_handle_focus)  (GtkPaned      *paned,
-				    gboolean       reverse);
-  gboolean (* accept_position)     (GtkPaned	  *paned);
-  gboolean (* cancel_position)     (GtkPaned	  *paned);
-
-  /* Padding for future expansion */
-  void (*_gtk_reserved1) (void);
-  void (*_gtk_reserved2) (void);
-  void (*_gtk_reserved3) (void);
-  void (*_gtk_reserved4) (void);
-};
-
+typedef struct _GtkPaned GtkPaned;
 
 GDK_AVAILABLE_IN_ALL
 GType       gtk_paned_get_type     (void) G_GNUC_CONST;
 GDK_AVAILABLE_IN_ALL
 GtkWidget * gtk_paned_new          (GtkOrientation orientation);
 GDK_AVAILABLE_IN_ALL
-void        gtk_paned_add1         (GtkPaned       *paned,
-                                    GtkWidget      *child);
+void        gtk_paned_set_start_child (GtkPaned       *paned,
+                                       GtkWidget      *child);
 GDK_AVAILABLE_IN_ALL
-void        gtk_paned_add2         (GtkPaned       *paned,
-                                    GtkWidget      *child);
+GtkWidget * gtk_paned_get_start_child (GtkPaned       *paned);
 GDK_AVAILABLE_IN_ALL
-void        gtk_paned_pack1        (GtkPaned       *paned,
-                                    GtkWidget      *child,
-                                    gboolean        resize,
-                                    gboolean        shrink);
+void        gtk_paned_set_resize_start_child (GtkPaned *paned,
+                                              gboolean  resize);
 GDK_AVAILABLE_IN_ALL
-void        gtk_paned_pack2        (GtkPaned       *paned,
-                                    GtkWidget      *child,
-                                    gboolean        resize,
-                                    gboolean        shrink);
+gboolean    gtk_paned_get_resize_start_child (GtkPaned *paned);
 
 GDK_AVAILABLE_IN_ALL
-gint        gtk_paned_get_position (GtkPaned       *paned);
+void        gtk_paned_set_end_child   (GtkPaned       *paned,
+                                       GtkWidget      *child);
+GDK_AVAILABLE_IN_ALL
+GtkWidget * gtk_paned_get_end_child   (GtkPaned       *paned);
+
+GDK_AVAILABLE_IN_ALL
+void        gtk_paned_set_shrink_start_child (GtkPaned *paned,
+                                              gboolean  resize);
+GDK_AVAILABLE_IN_ALL
+gboolean    gtk_paned_get_shrink_start_child (GtkPaned *paned);
+
+GDK_AVAILABLE_IN_ALL
+void        gtk_paned_set_resize_end_child (GtkPaned *paned,
+                                              gboolean  resize);
+GDK_AVAILABLE_IN_ALL
+gboolean    gtk_paned_get_resize_end_child (GtkPaned *paned);
+
+GDK_AVAILABLE_IN_ALL
+void        gtk_paned_set_shrink_end_child (GtkPaned *paned,
+                                              gboolean  resize);
+GDK_AVAILABLE_IN_ALL
+gboolean    gtk_paned_get_shrink_end_child (GtkPaned *paned);
+
+GDK_AVAILABLE_IN_ALL
+int         gtk_paned_get_position (GtkPaned       *paned);
 GDK_AVAILABLE_IN_ALL
 void        gtk_paned_set_position (GtkPaned       *paned,
-                                    gint            position);
-
-GDK_AVAILABLE_IN_ALL
-GtkWidget * gtk_paned_get_child1   (GtkPaned       *paned);
-GDK_AVAILABLE_IN_ALL
-GtkWidget * gtk_paned_get_child2   (GtkPaned       *paned);
+                                    int             position);
 
 GDK_AVAILABLE_IN_ALL
 void        gtk_paned_set_wide_handle (GtkPaned    *paned,

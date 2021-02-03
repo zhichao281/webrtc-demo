@@ -25,7 +25,7 @@
 #ifndef __GDK_EVENTS_H__
 #define __GDK_EVENTS_H__
 
-#if !defined (__GDK_H_INSIDE__) && !defined (GDK_COMPILATION)
+#if !defined (__GDK_H_INSIDE__) && !defined (GTK_COMPILATION)
 #error "Only <gdk/gdk.h> can be included directly."
 #endif
 
@@ -41,9 +41,10 @@ G_BEGIN_DECLS
 #define GDK_TYPE_EVENT          (gdk_event_get_type ())
 #define GDK_TYPE_EVENT_SEQUENCE (gdk_event_sequence_get_type ())
 
-#define GDK_EVENT(object)       (G_TYPE_CHECK_INSTANCE_CAST ((object), GDK_TYPE_EVENT, GdkEvent))
-#define GDK_IS_EVENT(object)    (G_TYPE_CHECK_INSTANCE_TYPE ((object), GDK_TYPE_EVENT))
+#define GDK_IS_EVENT(obj)       (G_TYPE_CHECK_INSTANCE_TYPE ((obj), GDK_TYPE_EVENT))
+#define GDK_EVENT(obj)          (G_TYPE_CHECK_INSTANCE_CAST ((obj), GDK_TYPE_EVENT, GdkEvent))
 
+#define GDK_IS_EVENT_TYPE(event, type)  (gdk_event_get_event_type ((event)) == (type))
 
 /**
  * GDK_PRIORITY_EVENTS:
@@ -101,37 +102,44 @@ G_BEGIN_DECLS
  */
 #define GDK_BUTTON_SECONDARY    (3)
 
+typedef struct _GdkEventSequence        GdkEventSequence;
+typedef struct _GdkEvent                GdkEvent;
 
+#define GDK_TYPE_BUTTON_EVENT (gdk_button_event_get_type())
+#define GDK_TYPE_CONFIGURE_EVENT (gdk_configure_event_get_type())
+#define GDK_TYPE_CROSSING_EVENT (gdk_crossing_event_get_type())
+#define GDK_TYPE_DELETE_EVENT (gdk_delete_event_get_type())
+#define GDK_TYPE_DND_EVENT (gdk_dnd_event_get_type())
+#define GDK_TYPE_FOCUS_EVENT (gdk_focus_event_get_type())
+#define GDK_TYPE_GRAB_BROKEN_EVENT (gdk_grab_broken_event_get_type())
+#define GDK_TYPE_KEY_EVENT (gdk_key_event_get_type())
+#define GDK_TYPE_MOTION_EVENT (gdk_motion_event_get_type())
+#define GDK_TYPE_PAD_EVENT (gdk_pad_event_get_type())
+#define GDK_TYPE_PROXIMITY_EVENT (gdk_proximity_event_get_type())
+#define GDK_TYPE_SCROLL_EVENT (gdk_scroll_event_get_type())
+#define GDK_TYPE_TOUCH_EVENT (gdk_touch_event_get_type())
+#define GDK_TYPE_TOUCHPAD_EVENT (gdk_touchpad_event_get_type())
 
-typedef struct _GdkEventAny	    GdkEventAny;
-typedef struct _GdkEventMotion	    GdkEventMotion;
-typedef struct _GdkEventButton	    GdkEventButton;
-typedef struct _GdkEventTouch       GdkEventTouch;
-typedef struct _GdkEventScroll      GdkEventScroll;  
-typedef struct _GdkEventKey	    GdkEventKey;
-typedef struct _GdkEventFocus	    GdkEventFocus;
-typedef struct _GdkEventCrossing    GdkEventCrossing;
-typedef struct _GdkEventConfigure   GdkEventConfigure;
-typedef struct _GdkEventProximity   GdkEventProximity;
-typedef struct _GdkEventDND         GdkEventDND;
-typedef struct _GdkEventSetting     GdkEventSetting;
-typedef struct _GdkEventGrabBroken  GdkEventGrabBroken;
-typedef struct _GdkEventTouchpadSwipe GdkEventTouchpadSwipe;
-typedef struct _GdkEventTouchpadPinch GdkEventTouchpadPinch;
-typedef struct _GdkEventPadButton   GdkEventPadButton;
-typedef struct _GdkEventPadAxis     GdkEventPadAxis;
-typedef struct _GdkEventPadGroupMode GdkEventPadGroupMode;
-
-typedef struct _GdkEventSequence    GdkEventSequence;
-typedef union  _GdkEvent	    GdkEvent;
+typedef struct _GdkButtonEvent          GdkButtonEvent;
+typedef struct _GdkConfigureEvent       GdkConfigureEvent;
+typedef struct _GdkCrossingEvent        GdkCrossingEvent;
+typedef struct _GdkDeleteEvent          GdkDeleteEvent;
+typedef struct _GdkDNDEvent             GdkDNDEvent;
+typedef struct _GdkFocusEvent           GdkFocusEvent;
+typedef struct _GdkGrabBrokenEvent      GdkGrabBrokenEvent;
+typedef struct _GdkKeyEvent             GdkKeyEvent;
+typedef struct _GdkMotionEvent          GdkMotionEvent;
+typedef struct _GdkPadEvent             GdkPadEvent;
+typedef struct _GdkProximityEvent       GdkProximityEvent;
+typedef struct _GdkScrollEvent          GdkScrollEvent;
+typedef struct _GdkTouchEvent           GdkTouchEvent;
+typedef struct _GdkTouchpadEvent        GdkTouchpadEvent;
 
 /**
  * GdkEventType:
- * @GDK_NOTHING: a special code to indicate a null event.
  * @GDK_DELETE: the window manager has requested that the toplevel surface be
  *   hidden or destroyed, usually when the user clicks on a special icon in the
  *   title bar.
- * @GDK_DESTROY: the surface has been destroyed.
  * @GDK_MOTION_NOTIFY: the pointer (usually a mouse) has moved.
  * @GDK_BUTTON_PRESS: a mouse button has been pressed.
  * @GDK_BUTTON_RELEASE: a mouse button has been released.
@@ -140,8 +148,7 @@ typedef union  _GdkEvent	    GdkEvent;
  * @GDK_ENTER_NOTIFY: the pointer has entered the surface.
  * @GDK_LEAVE_NOTIFY: the pointer has left the surface.
  * @GDK_FOCUS_CHANGE: the keyboard focus has entered or left the surface.
- * @GDK_CONFIGURE: the size, position or stacking order of the surface has changed.
- *   Note that GTK+ discards these events for %GDK_SURFACE_CHILD surfaces.
+ * @GDK_CONFIGURE: the size of the surface has changed.
  * @GDK_PROXIMITY_IN: an input device has moved into contact with a sensing
  *   surface (e.g. a touchscreen or graphics tablet).
  * @GDK_PROXIMITY_OUT: an input device has moved out of contact with a sensing
@@ -152,43 +159,27 @@ typedef union  _GdkEvent	    GdkEvent;
  *   progress.
  * @GDK_DROP_START: a drop operation onto the surface has started.
  * @GDK_SCROLL: the scroll wheel was turned
- * @GDK_GRAB_BROKEN: a pointer or keyboard grab was broken. This event type
- *   was added in 2.8.
- * @GDK_TOUCH_BEGIN: A new touch event sequence has just started. This event
- *   type was added in 3.4.
- * @GDK_TOUCH_UPDATE: A touch event sequence has been updated. This event type
- *   was added in 3.4.
- * @GDK_TOUCH_END: A touch event sequence has finished. This event type
- *   was added in 3.4.
- * @GDK_TOUCH_CANCEL: A touch event sequence has been canceled. This event type
- *   was added in 3.4.
+ * @GDK_GRAB_BROKEN: a pointer or keyboard grab was broken.
+ * @GDK_TOUCH_BEGIN: A new touch event sequence has just started.
+ * @GDK_TOUCH_UPDATE: A touch event sequence has been updated.
+ * @GDK_TOUCH_END: A touch event sequence has finished.
+ * @GDK_TOUCH_CANCEL: A touch event sequence has been canceled.
  * @GDK_TOUCHPAD_SWIPE: A touchpad swipe gesture event, the current state
- *   is determined by its phase field. This event type was added in 3.18.
+ *   is determined by its phase field.
  * @GDK_TOUCHPAD_PINCH: A touchpad pinch gesture event, the current state
- *   is determined by its phase field. This event type was added in 3.18.
- * @GDK_PAD_BUTTON_PRESS: A tablet pad button press event. This event type
- *   was added in 3.22.
- * @GDK_PAD_BUTTON_RELEASE: A tablet pad button release event. This event type
- *   was added in 3.22.
- * @GDK_PAD_RING: A tablet pad axis event from a "ring". This event type was
- *   added in 3.22.
- * @GDK_PAD_STRIP: A tablet pad axis event from a "strip". This event type was
- *   added in 3.22.
- * @GDK_PAD_GROUP_MODE: A tablet pad group mode change. This event type was
- *   added in 3.22.
- * @GDK_EVENT_LAST: marks the end of the GdkEventType enumeration. Added in 2.18
+ *   is determined by its phase field.
+ * @GDK_PAD_BUTTON_PRESS: A tablet pad button press event.
+ * @GDK_PAD_BUTTON_RELEASE: A tablet pad button release event.
+ * @GDK_PAD_RING: A tablet pad axis event from a "ring".
+ * @GDK_PAD_STRIP: A tablet pad axis event from a "strip".
+ * @GDK_PAD_GROUP_MODE: A tablet pad group mode change.
+ * @GDK_EVENT_LAST: marks the end of the GdkEventType enumeration.
  *
  * Specifies the type of the event.
- *
- * Do not confuse these events with the signals that GTK+ widgets emit.
- * Although many of these events result in corresponding signals being emitted,
- * the events are often transformed or filtered along the way.
  */
 typedef enum
 {
-  GDK_NOTHING,
   GDK_DELETE,
-  GDK_DESTROY,
   GDK_MOTION_NOTIFY,
   GDK_BUTTON_PRESS,
   GDK_BUTTON_RELEASE,
@@ -261,7 +252,7 @@ typedef enum
  * @GDK_SCROLL_LEFT: the surface is scrolled to the left.
  * @GDK_SCROLL_RIGHT: the surface is scrolled to the right.
  * @GDK_SCROLL_SMOOTH: the scrolling is determined by the delta values
- *   in scroll events. See gdk_event_get_scroll_deltas()
+ *   in scroll events. See gdk_scroll_event_get_deltas()
  *
  * Specifies the direction for scroll events.
  */
@@ -310,9 +301,9 @@ typedef enum
  * @GDK_CROSSING_NORMAL: crossing because of pointer motion.
  * @GDK_CROSSING_GRAB: crossing because a grab is activated.
  * @GDK_CROSSING_UNGRAB: crossing because a grab is deactivated.
- * @GDK_CROSSING_GTK_GRAB: crossing because a GTK+ grab is activated.
- * @GDK_CROSSING_GTK_UNGRAB: crossing because a GTK+ grab is deactivated.
- * @GDK_CROSSING_STATE_CHANGED: crossing because a GTK+ widget changed
+ * @GDK_CROSSING_GTK_GRAB: crossing because a GTK grab is activated.
+ * @GDK_CROSSING_GTK_UNGRAB: crossing because a GTK grab is deactivated.
+ * @GDK_CROSSING_STATE_CHANGED: crossing because a GTK widget changed
  *   state (e.g. sensitivity).
  * @GDK_CROSSING_TOUCH_BEGIN: crossing because a touch sequence has begun,
  *   this event is synthetic as the pointer might have not left the surface.
@@ -338,190 +329,199 @@ typedef enum
 } GdkCrossingMode;
 
 GDK_AVAILABLE_IN_ALL
-GType     gdk_event_get_type            (void) G_GNUC_CONST;
+GType                   gdk_event_get_type              (void) G_GNUC_CONST;
+GDK_AVAILABLE_IN_ALL
+GType                   gdk_event_sequence_get_type     (void) G_GNUC_CONST;
 
 GDK_AVAILABLE_IN_ALL
-GType     gdk_event_sequence_get_type   (void) G_GNUC_CONST;
+GdkEvent *              gdk_event_ref                   (GdkEvent *event);
+GDK_AVAILABLE_IN_ALL
+void                    gdk_event_unref                 (GdkEvent *event);
 
 GDK_AVAILABLE_IN_ALL
-GdkEvent* gdk_event_new                 (GdkEventType    type);
-GDK_AVAILABLE_IN_ALL
-GdkEvent* gdk_event_copy     		(const GdkEvent *event);
+GdkEventType            gdk_event_get_event_type        (GdkEvent *event);
 
 GDK_AVAILABLE_IN_ALL
-GdkSurface *gdk_event_get_surface       (const GdkEvent *event);
+GdkSurface *            gdk_event_get_surface           (GdkEvent *event);
 
 GDK_AVAILABLE_IN_ALL
-guint32   gdk_event_get_time            (const GdkEvent  *event);
-GDK_AVAILABLE_IN_ALL
-gboolean  gdk_event_get_state           (const GdkEvent  *event,
-                                         GdkModifierType *state);
-GDK_AVAILABLE_IN_ALL
-gboolean  gdk_event_get_coords		(const GdkEvent  *event,
-					 gdouble	 *x_win,
-					 gdouble	 *y_win);
-GDK_AVAILABLE_IN_ALL
-void      gdk_event_set_coords          (GdkEvent *event,
-                                         gdouble   x,
-                                         gdouble   y);
-GDK_AVAILABLE_IN_ALL
-gboolean  gdk_event_get_root_coords	(const GdkEvent *event,
-					 gdouble	*x_root,
-					 gdouble	*y_root);
-GDK_AVAILABLE_IN_ALL
-gboolean  gdk_event_get_button          (const GdkEvent *event,
-                                         guint          *button);
-GDK_AVAILABLE_IN_ALL
-gboolean  gdk_event_get_click_count     (const GdkEvent *event,
-                                         guint          *click_count);
-GDK_AVAILABLE_IN_ALL
-gboolean  gdk_event_get_keyval          (const GdkEvent *event,
-                                         guint          *keyval);
+GdkSeat *               gdk_event_get_seat              (GdkEvent *event);
 
 GDK_AVAILABLE_IN_ALL
-void      gdk_event_set_keyval          (GdkEvent *event,
-                                         guint     keyval);
+GdkDevice *             gdk_event_get_device            (GdkEvent *event);
 
 GDK_AVAILABLE_IN_ALL
-gboolean  gdk_event_get_keycode         (const GdkEvent *event,
-                                         guint16        *keycode);
-GDK_AVAILABLE_IN_ALL
-gboolean  gdk_event_get_key_is_modifier (const GdkEvent *event,
-                                         gboolean       *is_modifier);
-GDK_AVAILABLE_IN_ALL
-gboolean  gdk_event_get_key_group       (const GdkEvent *event,
-                                         guint          *group);
+GdkDeviceTool *         gdk_event_get_device_tool       (GdkEvent *event);
 
 GDK_AVAILABLE_IN_ALL
-gboolean gdk_event_get_scroll_direction (const GdkEvent *event,
-                                         GdkScrollDirection *direction);
-GDK_AVAILABLE_IN_ALL
-gboolean  gdk_event_get_scroll_deltas   (const GdkEvent *event,
-                                         gdouble         *delta_x,
-                                         gdouble         *delta_y);
+guint32                 gdk_event_get_time              (GdkEvent *event);
 
 GDK_AVAILABLE_IN_ALL
-gboolean  gdk_event_is_scroll_stop_event (const GdkEvent *event);
+GdkDisplay *            gdk_event_get_display           (GdkEvent *event);
 
 GDK_AVAILABLE_IN_ALL
-gboolean  gdk_event_get_axis            (const GdkEvent  *event,
-                                         GdkAxisUse       axis_use,
-                                         gdouble         *value);
-GDK_AVAILABLE_IN_ALL
-void       gdk_event_set_device         (GdkEvent        *event,
-                                         GdkDevice       *device);
-GDK_AVAILABLE_IN_ALL
-GdkDevice* gdk_event_get_device         (const GdkEvent  *event);
-GDK_AVAILABLE_IN_ALL
-void       gdk_event_set_source_device  (GdkEvent        *event,
-                                         GdkDevice       *device);
-GDK_AVAILABLE_IN_ALL
-GdkDevice* gdk_event_get_source_device  (const GdkEvent  *event);
-GDK_AVAILABLE_IN_ALL
-gboolean   gdk_event_triggers_context_menu (const GdkEvent *event);
+GdkEventSequence *      gdk_event_get_event_sequence    (GdkEvent *event);
 
 GDK_AVAILABLE_IN_ALL
-gboolean  gdk_events_get_distance       (GdkEvent        *event1,
-                                         GdkEvent        *event2,
-                                         gdouble         *distance);
-GDK_AVAILABLE_IN_ALL
-gboolean  gdk_events_get_angle          (GdkEvent        *event1,
-                                         GdkEvent        *event2,
-                                         gdouble         *angle);
-GDK_AVAILABLE_IN_ALL
-gboolean  gdk_events_get_center         (GdkEvent        *event1,
-                                         GdkEvent        *event2,
-                                         gdouble         *x,
-                                         gdouble         *y);
+GdkModifierType         gdk_event_get_modifier_state    (GdkEvent *event);
 
 GDK_AVAILABLE_IN_ALL
-void       gdk_event_set_display        (GdkEvent        *event,
-                                         GdkDisplay      *display);
+gboolean                gdk_event_get_position          (GdkEvent  *event,
+					                 double	   *x,
+					                 double	   *y);
 GDK_AVAILABLE_IN_ALL
-GdkDisplay *gdk_event_get_display       (const GdkEvent  *event);
+gboolean                gdk_event_get_axes              (GdkEvent  *event,
+                                                         double   **axes,
+                                                         guint     *n_axes);
+GDK_AVAILABLE_IN_ALL
+gboolean                gdk_event_get_axis              (GdkEvent   *event,
+                                                         GdkAxisUse  axis_use,
+                                                         double     *value);
+GDK_AVAILABLE_IN_ALL
+GdkTimeCoord *          gdk_event_get_history           (GdkEvent *event,
+                                                         guint    *out_n_coords);
+GDK_AVAILABLE_IN_ALL
+gboolean                gdk_event_get_pointer_emulated (GdkEvent *event);
 
 GDK_AVAILABLE_IN_ALL
-GdkEventSequence *gdk_event_get_event_sequence (const GdkEvent *event);
+GType                   gdk_button_event_get_type       (void) G_GNUC_CONST;
+GDK_AVAILABLE_IN_ALL
+guint                   gdk_button_event_get_button     (GdkEvent *event);
+GDK_AVAILABLE_IN_ALL
+GType                   gdk_scroll_event_get_type       (void) G_GNUC_CONST;
+GDK_AVAILABLE_IN_ALL
+GdkScrollDirection      gdk_scroll_event_get_direction  (GdkEvent *event);
+GDK_AVAILABLE_IN_ALL
+void                    gdk_scroll_event_get_deltas     (GdkEvent *event,
+                                                         double   *delta_x,
+                                                         double   *delta_y);
 
 GDK_AVAILABLE_IN_ALL
-GdkEventType gdk_event_get_event_type   (const GdkEvent *event);
+gboolean                gdk_scroll_event_is_stop        (GdkEvent *event);
+GDK_AVAILABLE_IN_ALL
+GType                   gdk_key_event_get_type          (void) G_GNUC_CONST;
+GDK_AVAILABLE_IN_ALL
+guint                   gdk_key_event_get_keyval        (GdkEvent *event);
+GDK_AVAILABLE_IN_ALL
+guint                   gdk_key_event_get_keycode       (GdkEvent *event);
+GDK_AVAILABLE_IN_ALL
+GdkModifierType         gdk_key_event_get_consumed_modifiers (GdkEvent *event);
+GDK_AVAILABLE_IN_ALL
+guint                   gdk_key_event_get_layout        (GdkEvent *event);
+GDK_AVAILABLE_IN_ALL
+guint                   gdk_key_event_get_level         (GdkEvent *event);
+GDK_AVAILABLE_IN_ALL
+gboolean                gdk_key_event_is_modifier       (GdkEvent *event);
+GDK_AVAILABLE_IN_ALL
+GType                   gdk_focus_event_get_type        (void) G_GNUC_CONST;
+GDK_AVAILABLE_IN_ALL
+gboolean                gdk_focus_event_get_in          (GdkEvent *event);
+GDK_AVAILABLE_IN_ALL
+GType                   gdk_touch_event_get_type        (void) G_GNUC_CONST;
+GDK_AVAILABLE_IN_ALL
+gboolean                gdk_touch_event_get_emulating_pointer (GdkEvent *event);
+GDK_AVAILABLE_IN_ALL
+GType                   gdk_crossing_event_get_type     (void) G_GNUC_CONST;
+GDK_AVAILABLE_IN_ALL
+GdkCrossingMode         gdk_crossing_event_get_mode     (GdkEvent *event);
+GDK_AVAILABLE_IN_ALL
+GdkNotifyType           gdk_crossing_event_get_detail   (GdkEvent *event);
+GDK_AVAILABLE_IN_ALL
+gboolean                gdk_crossing_event_get_focus    (GdkEvent *event);
+GDK_AVAILABLE_IN_ALL
+GType                   gdk_configure_event_get_type    (void) G_GNUC_CONST;
+GDK_AVAILABLE_IN_ALL
+void                    gdk_configure_event_get_size    (GdkEvent *event,
+                                                         int      *width,
+                                                         int      *height);
+GDK_AVAILABLE_IN_ALL
+GType                   gdk_touchpad_event_get_type     (void) G_GNUC_CONST;
+GDK_AVAILABLE_IN_ALL
+GdkTouchpadGesturePhase
+                        gdk_touchpad_event_get_gesture_phase (GdkEvent *event);
+GDK_AVAILABLE_IN_ALL
+guint                   gdk_touchpad_event_get_n_fingers     (GdkEvent *event);
+GDK_AVAILABLE_IN_ALL
+void                    gdk_touchpad_event_get_deltas        (GdkEvent *event,
+                                                              double   *dx,
+                                                              double   *dy);
+GDK_AVAILABLE_IN_ALL
+double                  gdk_touchpad_event_get_pinch_angle_delta (GdkEvent *event);
+GDK_AVAILABLE_IN_ALL
+double                  gdk_touchpad_event_get_pinch_scale       (GdkEvent *event);
+GDK_AVAILABLE_IN_ALL
+GType                   gdk_pad_event_get_type          (void) G_GNUC_CONST;
+GDK_AVAILABLE_IN_ALL
+guint                   gdk_pad_event_get_button        (GdkEvent *event);
+GDK_AVAILABLE_IN_ALL
+void                    gdk_pad_event_get_axis_value    (GdkEvent *event,
+                                                         guint    *index,
+                                                         double   *value);
+GDK_AVAILABLE_IN_ALL
+void                    gdk_pad_event_get_group_mode    (GdkEvent *event,
+                                                         guint    *group,
+                                                         guint    *mode);
+GDK_AVAILABLE_IN_ALL
+GType                   gdk_dnd_event_get_type          (void) G_GNUC_CONST;
+GDK_AVAILABLE_IN_ALL
+GdkDrop *               gdk_dnd_event_get_drop          (GdkEvent *event);
+GDK_AVAILABLE_IN_ALL
+GType                   gdk_grab_broken_event_get_type  (void) G_GNUC_CONST;
+GDK_AVAILABLE_IN_ALL
+GdkSurface *            gdk_grab_broken_event_get_grab_surface (GdkEvent *event);
+GDK_AVAILABLE_IN_ALL
+gboolean                gdk_grab_broken_event_get_implicit     (GdkEvent *event);
 
 GDK_AVAILABLE_IN_ALL
-GdkSeat  *gdk_event_get_seat            (const GdkEvent *event);
+GType                   gdk_motion_event_get_type       (void) G_GNUC_CONST;
 
 GDK_AVAILABLE_IN_ALL
-void	  gdk_set_show_events		(gboolean	 show_events);
+GType                   gdk_delete_event_get_type       (void) G_GNUC_CONST;
 GDK_AVAILABLE_IN_ALL
-gboolean  gdk_get_show_events		(void);
+GType                   gdk_proximity_event_get_type    (void) G_GNUC_CONST;
 
 GDK_AVAILABLE_IN_ALL
-GdkDeviceTool *gdk_event_get_device_tool (const GdkEvent *event);
+gboolean                gdk_event_triggers_context_menu (GdkEvent *event);
 
 GDK_AVAILABLE_IN_ALL
-void           gdk_event_set_device_tool (GdkEvent       *event,
-                                          GdkDeviceTool  *tool);
+gboolean                gdk_events_get_distance         (GdkEvent *event1,
+                                                         GdkEvent *event2,
+                                                         double   *distance);
+GDK_AVAILABLE_IN_ALL
+gboolean                gdk_events_get_angle            (GdkEvent *event1,
+                                                         GdkEvent *event2,
+                                                         double   *angle);
+GDK_AVAILABLE_IN_ALL
+gboolean                gdk_events_get_center           (GdkEvent *event1,
+                                                         GdkEvent *event2,
+                                                         double   *x,
+                                                         double   *y);
+
+/**
+ * GdkKeyMatch:
+ * @GDK_KEY_MATCH_NONE: The key event does not match
+ * @GDK_KEY_MATCH_PARTIAL: The key event matches if keyboard state
+ *     (specifically, the currently active group) is ignored
+ * @GDK_KEY_MATCH_EXACT: The key event matches
+ *
+ * The possible return values from gdk_key_event_matches()
+ * describe how well an event matches a given keyval and modifiers.
+ */
+typedef enum {
+  GDK_KEY_MATCH_NONE,
+  GDK_KEY_MATCH_PARTIAL,
+  GDK_KEY_MATCH_EXACT
+} GdkKeyMatch;
 
 GDK_AVAILABLE_IN_ALL
-int            gdk_event_get_scancode    (GdkEvent *event);
+GdkKeyMatch            gdk_key_event_matches (GdkEvent        *event,
+                                              guint            keyval,
+                                              GdkModifierType  modifiers);
 
 GDK_AVAILABLE_IN_ALL
-gboolean       gdk_event_get_pointer_emulated (GdkEvent *event);
-
-GDK_AVAILABLE_IN_ALL
-gboolean       gdk_event_is_sent       (const GdkEvent *event);
-
-GDK_AVAILABLE_IN_ALL
-GdkDrop *      gdk_event_get_drop (const GdkEvent  *event);
-
-GDK_AVAILABLE_IN_ALL
-gboolean       gdk_event_get_crossing_mode (const GdkEvent  *event,
-                                            GdkCrossingMode *mode);
-GDK_AVAILABLE_IN_ALL
-gboolean       gdk_event_get_crossing_detail (const GdkEvent *event,
-                                              GdkNotifyType  *detail);
-GDK_AVAILABLE_IN_ALL
-gboolean       gdk_event_get_touchpad_gesture_phase (const GdkEvent          *event,
-                                                     GdkTouchpadGesturePhase *phase);
-GDK_AVAILABLE_IN_ALL
-gboolean       gdk_event_get_touchpad_gesture_n_fingers (const GdkEvent *event,
-                                                         guint          *n_fingers);
-GDK_AVAILABLE_IN_ALL
-gboolean       gdk_event_get_touchpad_deltas (const GdkEvent *event,
-                                              double         *dx,
-                                              double         *dy);
-GDK_AVAILABLE_IN_ALL
-gboolean       gdk_event_get_touchpad_angle_delta (const GdkEvent *event,
-                                                   double         *delta);
-GDK_AVAILABLE_IN_ALL
-gboolean       gdk_event_get_touchpad_scale (const GdkEvent *event,
-                                             double         *scale);
-
-GDK_AVAILABLE_IN_ALL
-gboolean       gdk_event_get_touch_emulating_pointer (const GdkEvent *event,
-                                                      gboolean       *emulating);
-GDK_AVAILABLE_IN_ALL
-gboolean       gdk_event_get_grab_surface (const GdkEvent  *event,
-                                           GdkSurface      **surface);
-GDK_AVAILABLE_IN_ALL
-gboolean       gdk_event_get_focus_in (const GdkEvent *event,
-                                       gboolean       *focus_in);
-GDK_AVAILABLE_IN_ALL
-gboolean       gdk_event_get_pad_group_mode (const GdkEvent *event,
-                                             guint          *group,
-                                             guint          *mode);
-GDK_AVAILABLE_IN_ALL
-gboolean       gdk_event_get_pad_button (const GdkEvent *event,
-                                         guint          *button);
-GDK_AVAILABLE_IN_ALL
-gboolean       gdk_event_get_pad_axis_value (const GdkEvent *event,
-                                             guint          *index,
-                                             gdouble        *value);
-GDK_AVAILABLE_IN_ALL
-gboolean       gdk_event_get_axes      (GdkEvent  *event,
-                                        gdouble  **axes,
-                                        guint     *n_axes);
-GDK_AVAILABLE_IN_ALL
-GList        * gdk_event_get_motion_history (const GdkEvent  *event);
+gboolean               gdk_key_event_get_match (GdkEvent        *event,
+                                                guint           *keyval,
+                                                GdkModifierType *modifiers);
 
 G_END_DECLS
 

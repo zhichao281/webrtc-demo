@@ -32,6 +32,9 @@ class MODULES_EXPORT MediaStreamVideoTrackUnderlyingSource
   ScriptPromise Start(ScriptState*) override;
   ScriptPromise Cancel(ScriptState*, ScriptValue reason) override;
 
+  // ExecutionLifecycleObserver
+  void ContextDestroyed() override;
+
   MediaStreamComponent* Track() const { return track_.Get(); }
   wtf_size_t MaxQueueSize() const { return max_queue_size_; }
 
@@ -45,8 +48,10 @@ class MODULES_EXPORT MediaStreamVideoTrackUnderlyingSource
   void Trace(Visitor*) const override;
 
  private:
-  void OnFrameFromTrack(scoped_refptr<media::VideoFrame> media_frame,
-                        base::TimeTicks estimated_capture_time);
+  void OnFrameFromTrack(
+      scoped_refptr<media::VideoFrame> media_frame,
+      std::vector<scoped_refptr<media::VideoFrame>> scaled_media_frames,
+      base::TimeTicks estimated_capture_time);
   void OnFrameFromTrackOnMainThread(
       scoped_refptr<media::VideoFrame> media_frame,
       base::TimeTicks estimated_capture_time);

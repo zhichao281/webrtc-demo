@@ -1,5 +1,5 @@
 /* This file defines standard ELF types, structures, and macros.
-   Copyright (C) 1995-2019 Free Software Foundation, Inc.
+   Copyright (C) 1995-2020 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -14,7 +14,7 @@
 
    You should have received a copy of the GNU Lesser General Public
    License along with the GNU C Library; if not, see
-   <http://www.gnu.org/licenses/>.  */
+   <https://www.gnu.org/licenses/>.  */
 
 #ifndef _ELF_H
 #define	_ELF_H 1
@@ -360,7 +360,7 @@ typedef struct
 #define EM_RISCV	243	/* RISC-V */
 
 #define EM_BPF		247	/* Linux BPF -- in-kernel virtual machine */
-#define EM_CSKY		252     /* C_SKY */
+#define EM_CSKY		252     /* C-SKY */
 
 #define EM_NUM		253
 
@@ -809,9 +809,16 @@ typedef struct
 #define NT_ARM_SYSTEM_CALL	0x404	/* ARM system call number */
 #define NT_ARM_SVE	0x405		/* ARM Scalable Vector Extension
 					   registers */
+#define NT_ARM_PAC_MASK	0x406		/* ARM pointer authentication
+					   code masks.  */
+#define NT_ARM_PACA_KEYS	0x407	/* ARM pointer authentication
+					   address keys.  */
+#define NT_ARM_PACG_KEYS	0x408	/* ARM pointer authentication
+					   generic key.  */
 #define NT_VMCOREDD	0x700		/* Vmcore Device Dump Note.  */
 #define NT_MIPS_DSP	0x800		/* MIPS DSP ASE registers.  */
 #define NT_MIPS_FP_MODE	0x801		/* MIPS floating-point mode.  */
+#define NT_MIPS_MSA	0x802		/* MIPS SIMD registers.  */
 
 /* Legal values for the note segment descriptor types for object files.  */
 
@@ -987,6 +994,9 @@ typedef struct
 #define	DF_1_SINGLETON	0x02000000	/* Singleton symbols are used.  */
 #define	DF_1_STUB	0x04000000
 #define	DF_1_PIE	0x08000000
+#define	DF_1_KMOD       0x10000000
+#define	DF_1_WEAKFILTER 0x20000000
+#define	DF_1_NOCOMMON   0x40000000
 
 /* Flags for the feature selection in DT_FEATURE_1.  */
 #define DTF_1_PARINIT	0x00000001
@@ -1631,6 +1641,7 @@ typedef struct
 #define SHT_MIPS_EH_REGION	0x70000027
 #define SHT_MIPS_XLATE_OLD	0x70000028
 #define SHT_MIPS_PDR_EXCEPTION	0x70000029
+#define SHT_MIPS_XHASH		0x7000002b
 
 /* Legal values for sh_flags field of Elf32_Shdr.  */
 
@@ -1878,7 +1889,9 @@ typedef struct
    in a PIE as it stores a relative offset from the address of the tag
    rather than an absolute address.  */
 #define DT_MIPS_RLD_MAP_REL  0x70000035
-#define DT_MIPS_NUM	     0x36
+/* GNU-style hash table with xlat.  */
+#define DT_MIPS_XHASH	     0x70000036
+#define DT_MIPS_NUM	     0x37
 
 /* Legal values for DT_MIPS_FLAGS Elf32_Dyn entry.  */
 
@@ -2955,7 +2968,7 @@ enum
 /* Keep this the last entry.  */
 #define R_ARM_NUM		256
 
-/* csky */
+/* C-SKY */
 #define R_CKCORE_NONE               0	/* no reloc */
 #define R_CKCORE_ADDR32             1	/* direct 32 bit (S + A) */
 #define R_CKCORE_PCRELIMM8BY4       2	/* disp ((S + A - P) >> 2) & 0xff   */
@@ -3018,6 +3031,17 @@ enum
 #define R_CKCORE_TLS_DTPMOD32       56
 #define R_CKCORE_TLS_DTPOFF32       57
 #define R_CKCORE_TLS_TPOFF32        58
+
+/* C-SKY elf header definition.  */
+#define EF_CSKY_ABIMASK		    0XF0000000
+#define EF_CSKY_OTHER		    0X0FFF0000
+#define EF_CSKY_PROCESSOR	    0X0000FFFF
+
+#define EF_CSKY_ABIV1		    0X10000000
+#define EF_CSKY_ABIV2		    0X20000000
+
+/* C-SKY attributes section.  */
+#define SHT_CSKY_ATTRIBUTES	    (SHT_LOPROC + 1)
 
 /* IA-64 specific declarations.  */
 

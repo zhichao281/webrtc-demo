@@ -18,7 +18,7 @@
 #ifndef __GDK_PANGO_H__
 #define __GDK_PANGO_H__
 
-#if !defined (__GDK_H_INSIDE__) && !defined (GDK_COMPILATION)
+#if !defined (__GDK_H_INSIDE__) && !defined (GTK_COMPILATION)
 #error "Only <gdk/gdk.h> can be included directly."
 #endif
 
@@ -35,16 +35,16 @@ G_BEGIN_DECLS
 
 GDK_AVAILABLE_IN_ALL
 cairo_region_t    *gdk_pango_layout_line_get_clip_region (PangoLayoutLine *line,
-                                                     gint             x_origin,
-                                                     gint             y_origin,
-                                                     const gint      *index_ranges,
-                                                     gint             n_ranges);
+                                                     int              x_origin,
+                                                     int              y_origin,
+                                                     const int       *index_ranges,
+                                                     int              n_ranges);
 GDK_AVAILABLE_IN_ALL
 cairo_region_t    *gdk_pango_layout_get_clip_region      (PangoLayout     *layout,
-                                                     gint             x_origin,
-                                                     gint             y_origin,
-                                                     const gint      *index_ranges,
-                                                     gint             n_ranges);
+                                                     int              x_origin,
+                                                     int              y_origin,
+                                                     const int       *index_ranges,
+                                                     int              n_ranges);
 
 G_END_DECLS
 

@@ -37,15 +37,11 @@ G_BEGIN_DECLS
 #define GTK_CELL_RENDERER_TEXT_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), GTK_TYPE_CELL_RENDERER_TEXT, GtkCellRendererTextClass))
 
 typedef struct _GtkCellRendererText              GtkCellRendererText;
-typedef struct _GtkCellRendererTextPrivate       GtkCellRendererTextPrivate;
 typedef struct _GtkCellRendererTextClass         GtkCellRendererTextClass;
 
 struct _GtkCellRendererText
 {
   GtkCellRenderer parent;
-
-  /*< private >*/
-  GtkCellRendererTextPrivate *priv;
 };
 
 struct _GtkCellRendererTextClass
@@ -53,14 +49,12 @@ struct _GtkCellRendererTextClass
   GtkCellRendererClass parent_class;
 
   void (* edited) (GtkCellRendererText *cell_renderer_text,
-		   const gchar         *path,
-		   const gchar         *new_text);
+		   const char          *path,
+		   const char          *new_text);
 
-  /* Padding for future expansion */
-  void (*_gtk_reserved1) (void);
-  void (*_gtk_reserved2) (void);
-  void (*_gtk_reserved3) (void);
-  void (*_gtk_reserved4) (void);
+  /*< private >*/
+
+  gpointer padding[8];
 };
 
 GDK_AVAILABLE_IN_ALL
@@ -70,7 +64,7 @@ GtkCellRenderer *gtk_cell_renderer_text_new      (void);
 
 GDK_AVAILABLE_IN_ALL
 void             gtk_cell_renderer_text_set_fixed_height_from_font (GtkCellRendererText *renderer,
-								    gint                 number_of_rows);
+								    int                  number_of_rows);
 
 
 G_END_DECLS

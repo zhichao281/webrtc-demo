@@ -1,6 +1,7 @@
 // * This makes emacs happy -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998-2017,2018 Free Software Foundation, Inc.              *
+ * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 1998-2012,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +32,7 @@
  *   Author: Juergen Pfeifer, 1997                                          *
  ****************************************************************************/
 
-// $Id: etip.h.in,v 1.42 2018/05/26 14:47:47 tom Exp $
+// $Id: etip.h.in,v 1.45 2020/05/24 01:40:20 anonymous.maarten Exp $
 
 #ifndef NCURSES_ETIP_H_incl
 #define NCURSES_ETIP_H_incl 1
@@ -139,11 +140,11 @@ extern "C" {
 #endif
 
 // Forward Declarations
-class NCURSES_IMPEXP NCursesPanel;
-class NCURSES_IMPEXP NCursesMenu;
-class NCURSES_IMPEXP NCursesForm;
+class NCURSES_CXX_IMPEXP NCursesPanel;
+class NCURSES_CXX_IMPEXP NCursesMenu;
+class NCURSES_CXX_IMPEXP NCursesForm;
 
-class NCURSES_IMPEXP NCursesException
+class NCURSES_CXX_IMPEXP NCursesException
 {
 public:
   const char *message;
@@ -177,7 +178,7 @@ public:
   }
 };
 
-class NCURSES_IMPEXP NCursesPanelException : public NCursesException
+class NCURSES_CXX_IMPEXP NCursesPanelException : public NCursesException
 {
 public:
   const NCursesPanel* p;
@@ -228,7 +229,7 @@ public:
   }
 };
 
-class NCURSES_IMPEXP NCursesMenuException : public NCursesException
+class NCURSES_CXX_IMPEXP NCursesMenuException : public NCursesException
 {
 public:
   const NCursesMenu* m;
@@ -279,7 +280,7 @@ public:
   }
 };
 
-class NCURSES_IMPEXP NCursesFormException : public NCursesException
+class NCURSES_CXX_IMPEXP NCursesFormException : public NCursesException
 {
 public:
   const NCursesForm* f;
@@ -340,7 +341,6 @@ using std::endl;
 #  else
 #     include <iostream.h>
 #  endif
-   extern "C" void exit(int);
 #endif
 
 inline void THROW(const NCursesException *e) {

@@ -15,21 +15,18 @@
  * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#if !defined (__GDKX_H_INSIDE__) && !defined (GDK_COMPILATION)
-#error "Only <gdk/gdkx.h> can be included directly."
+#if !defined (__GDKX_H_INSIDE__) && !defined (GTK_COMPILATION)
+#error "Only <gdk/x11/gdkx.h> can be included directly."
 #endif
 
 #ifndef __GI_SCANNER__
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(GdkX11AppLaunchContext, g_object_unref)
-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GdkX11DeviceCore, g_object_unref)
-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GdkX11DeviceManagerCore, g_object_unref)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(GdkX11DeviceManagerXI2, g_object_unref)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(GdkX11DeviceXI2, g_object_unref)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(GdkX11Display, g_object_unref)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(GdkX11Drag, g_object_unref)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(GdkX11GLContext, g_object_unref)
-G_DEFINE_AUTOPTR_CLEANUP_FUNC(GdkX11Keymap, g_object_unref)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(GdkX11Screen, g_object_unref)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(GdkX11Surface, g_object_unref)
 

@@ -50,7 +50,7 @@
  *
  * Since: 2.7.4
  */
-#define ATK_MINOR_VERSION (34)
+#define ATK_MINOR_VERSION (36)
 
 /**
  * ATK_MICRO_VERSION:
@@ -61,7 +61,7 @@
  *
  * Since: 2.7.4
  */
-#define ATK_MICRO_VERSION (1)
+#define ATK_MICRO_VERSION (0)
 
 /**
  * ATK_BINARY_AGE:
@@ -72,7 +72,7 @@
  *
  * Since: 2.7.4
  */
-#define ATK_BINARY_AGE    (23411)
+#define ATK_BINARY_AGE    (23610)
 
 /**
  * ATK_INTERFACE_AGE:
@@ -185,6 +185,16 @@
  * Since: 2.30
  */
 #define ATK_VERSION_2_30       (G_ENCODE_VERSION (2, 30))
+
+/**
+ * ATK_VERSION_2_36:
+ *
+ * A macro that evaluates to the 2.36 version of ATK, in a format
+ * that can be used by the C pre-processor.
+ *
+ * Since: 2.36
+ */
+#define ATK_VERSION_2_36       (G_ENCODE_VERSION (2, 36))
 
 /* evaluates to the current stable version; for development cycles,
  * this means the next stable target
@@ -398,6 +408,20 @@
 # define ATK_AVAILABLE_IN_2_30                 ATK_UNAVAILABLE(2, 30)
 #else
 # define ATK_AVAILABLE_IN_2_30                 _ATK_EXTERN
+#endif
+
+#if ATK_VERSION_MIN_REQUIRED >= ATK_VERSION_2_36
+# define ATK_DEPRECATED_IN_2_36                ATK_DEPRECATED
+# define ATK_DEPRECATED_IN_2_36_FOR(f)         ATK_DEPRECATED_FOR(f)
+#else
+# define ATK_DEPRECATED_IN_2_36                _ATK_EXTERN
+# define ATK_DEPRECATED_IN_2_36_FOR(f)         _ATK_EXTERN
+#endif
+
+#if ATK_VERSION_MAX_ALLOWED < ATK_VERSION_2_36
+# define ATK_AVAILABLE_IN_2_36                 ATK_UNAVAILABLE(2, 36)
+#else
+# define ATK_AVAILABLE_IN_2_36                 _ATK_EXTERN
 #endif
 
 ATK_AVAILABLE_IN_2_8

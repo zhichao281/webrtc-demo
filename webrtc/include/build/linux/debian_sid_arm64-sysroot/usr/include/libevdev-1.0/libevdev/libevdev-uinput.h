@@ -138,6 +138,9 @@ enum libevdev_uinput_open_mode {
  * REP_PERIOD will default to the kernel defaults, not to the ones set in the
  * source device.
  *
+ * @note On FreeBSD, if the UI_GET_SYSNAME ioctl() fails, there is no other way
+ * to get a device, and the function call will fail.
+ *
  * @param dev The device to duplicate
  * @param uinput_fd @ref LIBEVDEV_UINPUT_OPEN_MANAGED or a file descriptor to @c /dev/uinput,
  * @param[out] uinput_dev The newly created libevdev device.
@@ -195,6 +198,9 @@ int libevdev_uinput_get_fd(const struct libevdev_uinput *uinput_dev);
  * To avoid false positives, wait at least wait at least 1.5s between
  * creating devices that have the same name.
  *
+ * @note FreeBSD does not have sysfs, on FreeBSD this function always returns
+ * NULL.
+ *
  * @param uinput_dev A previously created uinput device.
  * @return The syspath for this device, including the preceding /sys
  *
@@ -212,6 +218,11 @@ const char* libevdev_uinput_get_syspath(struct libevdev_uinput *uinput_dev);
  *
  * @note This function may return NULL. libevdev may have to guess the
  * syspath and the device node. See libevdev_uinput_get_syspath() for details.
+ *
+ * @note On FreeBSD, this function can not return NULL.  libudev uses the
+ * UI_GET_SYSNAME ioctl to get the device node on this platform and if that
+ * fails, the call to libevdev_uinput_create_from_device() fails.
+ *
  * @param uinput_dev A previously created uinput device.
  * @return The device node for this device, in the form of /dev/input/eventN
  *

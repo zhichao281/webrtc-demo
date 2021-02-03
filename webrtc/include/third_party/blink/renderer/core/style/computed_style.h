@@ -2083,7 +2083,11 @@ class ComputedStyle : public ComputedStyleBase,
   bool ContainsPaint() const { return Contain() & kContainsPaint; }
   bool ContainsStyle() const { return Contain() & kContainsStyle; }
   bool ContainsLayout() const { return Contain() & kContainsLayout; }
-  bool ContainsSize() const { return Contain() & kContainsSize; }
+  bool ContainsSize() const {
+    return (Contain() & kContainsSize) == kContainsSize;
+  }
+  bool ContainsInlineSize() const { return Contain() & kContainsInlineSize; }
+  bool ContainsBlockSize() const { return Contain() & kContainsBlockSize; }
 
   // Display utility functions.
   bool IsDisplayReplacedType() const {
@@ -2264,8 +2268,10 @@ class ComputedStyle : public ComputedStyleBase,
 
   // Table layout utility functions.
   bool IsFixedTableLayout() const {
+    // https://www.w3.org/TR/css-tables-3/#table-layout-property
     return TableLayout() == ETableLayout::kFixed &&
-           !LogicalWidth().IsAutoOrContentOrIntrinsic();
+           (LogicalWidth().IsSpecified() || LogicalWidth().IsMinContent() ||
+            LogicalWidth().IsFitContent());
   }
 
   LogicalSize TableBorderSpacing() const {
@@ -2916,6 +2922,8 @@ class ComputedStyle : public ComputedStyleBase,
   bool DiffNeedsVisualRectUpdate(const ComputedStyle& other) const;
   CORE_EXPORT void UpdatePropertySpecificDifferences(const ComputedStyle& other,
                                                      StyleDifference&) const;
+  bool PotentialCompositingReasonsFor3DTransformChanged(
+      const ComputedStyle& other) const;
 
   bool PropertiesEqual(const Vector<CSSPropertyID>& properties,
                        const ComputedStyle& other) const;

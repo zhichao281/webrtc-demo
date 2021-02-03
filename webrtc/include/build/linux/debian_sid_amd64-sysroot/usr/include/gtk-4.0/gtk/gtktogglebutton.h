@@ -57,11 +57,9 @@ struct _GtkToggleButtonClass
 
   void (* toggled) (GtkToggleButton *toggle_button);
 
-  /* Padding for future expansion */
-  void (*_gtk_reserved1) (void);
-  void (*_gtk_reserved2) (void);
-  void (*_gtk_reserved3) (void);
-  void (*_gtk_reserved4) (void);
+  /*< private >*/
+
+  gpointer padding[8];
 };
 
 
@@ -71,9 +69,9 @@ GType      gtk_toggle_button_get_type          (void) G_GNUC_CONST;
 GDK_AVAILABLE_IN_ALL
 GtkWidget* gtk_toggle_button_new               (void);
 GDK_AVAILABLE_IN_ALL
-GtkWidget* gtk_toggle_button_new_with_label    (const gchar     *label);
+GtkWidget* gtk_toggle_button_new_with_label    (const char      *label);
 GDK_AVAILABLE_IN_ALL
-GtkWidget* gtk_toggle_button_new_with_mnemonic (const gchar     *label);
+GtkWidget* gtk_toggle_button_new_with_mnemonic (const char      *label);
 GDK_AVAILABLE_IN_ALL
 void       gtk_toggle_button_set_active        (GtkToggleButton *toggle_button,
                                                 gboolean         is_active);
@@ -81,6 +79,10 @@ GDK_AVAILABLE_IN_ALL
 gboolean   gtk_toggle_button_get_active        (GtkToggleButton *toggle_button);
 GDK_AVAILABLE_IN_ALL
 void       gtk_toggle_button_toggled           (GtkToggleButton *toggle_button);
+GDK_AVAILABLE_IN_ALL
+void       gtk_toggle_button_set_group         (GtkToggleButton *toggle_button,
+                                                GtkToggleButton *group);
+
 
 G_END_DECLS
 

@@ -48,7 +48,6 @@ class MODULES_EXPORT AXNodeObject : public AXObject {
   void Trace(Visitor*) const override;
 
  protected:
-  bool children_dirty_;
 #if DCHECK_IS_ON()
   bool initialized_ = false;
 #endif
@@ -59,7 +58,6 @@ class MODULES_EXPORT AXNodeObject : public AXObject {
   AXObjectInclusion ShouldIncludeBasedOnSemantics(
       IgnoredReasons* = nullptr) const;
   bool ComputeAccessibilityIsIgnored(IgnoredReasons* = nullptr) const override;
-  bool CanIgnoreTextAsEmpty() const override;
   const AXObject* InheritsPresentationalRoleFrom() const override;
   ax::mojom::blink::Role DetermineTableSectionRole() const;
   ax::mojom::blink::Role DetermineTableCellRole() const;
@@ -76,7 +74,6 @@ class MODULES_EXPORT AXNodeObject : public AXObject {
   bool IsTextControl() const override;
   Element* MenuItemElementForMenu() const;
   Element* MouseButtonListener() const;
-  void SetNode(Node*);
   AXObject* CorrespondingControlAXObjectForLabelElement() const;
   AXObject* CorrespondingLabelAXObject() const;
   HTMLLabelElement* LabelElementContainer() const;
@@ -118,7 +115,12 @@ class MODULES_EXPORT AXNodeObject : public AXObject {
 
   // Check object state.
   bool IsClickable() const final;
+  bool IsFocused() const override;
+  // aria-grabbed is deprecated in WAI-ARIA 1.1.
+  AccessibilityGrabbedState IsGrabbed() const override;
   AccessibilityExpanded IsExpanded() const override;
+  AccessibilitySelectedState IsSelected() const override;
+  bool IsSelectedFromFocus() const override;
   bool IsRequired() const final;
   bool IsControl() const override;
   AXRestriction Restriction() const override;
@@ -135,8 +137,7 @@ class MODULES_EXPORT AXNodeObject : public AXObject {
   bool CanvasHasFallbackContent() const final;
   int HeadingLevel() const final;
   unsigned HierarchicalLevel() const final;
-  void GetDocumentMarkers(Vector<DocumentMarker::MarkerType>* marker_types,
-                          Vector<AXRange>* marker_ranges) const override;
+  void SerializeMarkerAttributes(ui::AXNodeData* node_data) const override;
   AXObject* InPageLinkTarget() const override;
   AccessibilityOrientation Orientation() const override;
 
@@ -209,20 +210,17 @@ class MODULES_EXPORT AXNodeObject : public AXObject {
                          bool* clips_children = nullptr) const override;
 
   void AddChildren() override;
-
   bool CanHaveChildren() const override;
   // Set is_from_aria_owns to true if the child is being added because it was
   // pointed to from aria-owns.
   void AddChild(AXObject*, bool is_from_aria_owns = false);
+  // Add a child that must be included in tree, enforced via DCHECK.
+  void AddChildAndCheckIncluded(AXObject*, bool is_from_aria_owns = false);
   // If node is non-null, GetOrCreate an AXObject for it and add as a child.
   void AddNodeChild(Node*);
   // Set is_from_aria_owns to true if the child is being insert because it was
   // pointed to from aria-owns.
   void InsertChild(AXObject*, unsigned index, bool is_from_aria_owns = false);
-  void ClearChildren() override;
-  bool NeedsToUpdateChildren() const override { return children_dirty_; }
-  void SetNeedsToUpdateChildren() override { children_dirty_ = true; }
-  void UpdateChildrenIfNecessary() override;
   void SelectedOptions(AXObjectVector&) const override;
 
   // Properties of the object's owning document or page.
@@ -279,9 +277,6 @@ class MODULES_EXPORT AXNodeObject : public AXObject {
     return dom_role;
   }
 
-  FRIEND_TEST_ALL_PREFIXES(AccessibilityTest, SetNeedsToUpdateChildren);
-  FRIEND_TEST_ALL_PREFIXES(AccessibilityTest, UpdateChildrenIfNecessary);
-
  private:
   bool HasInternalsAttribute(Element&, const QualifiedName&) const;
   const AtomicString& GetInternalsAttribute(Element&,
@@ -299,6 +294,8 @@ class MODULES_EXPORT AXNodeObject : public AXObject {
   String PlaceholderFromNativeAttribute() const;
   String GetValueContributionToName() const;
   bool UseNameFromSelectedOption() const;
+  bool SelectionShouldFollowFocus() const;
+  virtual bool IsTabItemSelected() const;
 
   void AddNodeChildren();
   void AddLayoutChildren();
@@ -308,6 +305,7 @@ class MODULES_EXPORT AXNodeObject : public AXObject {
   bool IsHtmlTable() const;
   void AddTableChildren();
   void AddValidationMessageChild();
+  void AddAccessibleNodeChildren();
   void AddOwnedChildren();
 
   ax::mojom::blink::Dropeffect ParseDropeffect(String& dropeffect) const;

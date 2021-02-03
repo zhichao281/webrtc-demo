@@ -18,7 +18,7 @@
 #ifndef __GDK_CAIRO_H__
 #define __GDK_CAIRO_H__
 
-#if !defined (__GDK_H_INSIDE__) && !defined (GDK_COMPILATION)
+#if !defined (__GDK_H_INSIDE__) && !defined (GTK_COMPILATION)
 #error "Only <gdk/gdk.h> can be included directly."
 #endif
 
@@ -30,17 +30,13 @@
 G_BEGIN_DECLS
 
 GDK_AVAILABLE_IN_ALL
-gboolean   gdk_cairo_get_clip_rectangle (cairo_t            *cr,
-                                         GdkRectangle       *rect);
-
-GDK_AVAILABLE_IN_ALL
 void       gdk_cairo_set_source_rgba    (cairo_t              *cr,
                                          const GdkRGBA        *rgba);
 GDK_AVAILABLE_IN_ALL
 void       gdk_cairo_set_source_pixbuf  (cairo_t              *cr,
                                          const GdkPixbuf      *pixbuf,
-                                         gdouble               pixbuf_x,
-                                         gdouble               pixbuf_y);
+                                         double                pixbuf_x,
+                                         double                pixbuf_y);
 
 GDK_AVAILABLE_IN_ALL
 void       gdk_cairo_rectangle          (cairo_t              *cr,
@@ -64,13 +60,6 @@ void       gdk_cairo_draw_from_gl (cairo_t              *cr,
                                    int                   y,
                                    int                   width,
                                    int                   height);
-
-GDK_AVAILABLE_IN_ALL
-void      gdk_cairo_surface_upload_to_gl (cairo_surface_t *surface,
-                                          int              target,
-                                          int              width,
-                                          int              height,
-                                          GdkGLContext    *context);
 
 G_END_DECLS
 

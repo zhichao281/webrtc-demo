@@ -29,28 +29,10 @@ G_BEGIN_DECLS
 
 #define GTK_TYPE_SHORTCUTS_WINDOW            (gtk_shortcuts_window_get_type ())
 #define GTK_SHORTCUTS_WINDOW(obj)            (G_TYPE_CHECK_INSTANCE_CAST ((obj), GTK_TYPE_SHORTCUTS_WINDOW, GtkShortcutsWindow))
-#define GTK_SHORTCUTS_WINDOW_CLASS(klass)    (G_TYPE_CHECK_CLASS_CAST ((klass), GTK_TYPE_SHORTCUTS_WINDOW, GtkShortcutsWindowClass))
 #define GTK_IS_SHORTCUTS_WINDOW(obj)         (G_TYPE_CHECK_INSTANCE_TYPE ((obj), GTK_TYPE_SHORTCUTS_WINDOW))
-#define GTK_IS_SHORTCUTS_WINDOW_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE ((klass), GTK_TYPE_SHORTCUTS_WINDOW))
-#define GTK_SHORTCUTS_WINDOW_GET_CLASS(obj)  (G_TYPE_INSTANCE_GET_CLASS ((obj), GTK_TYPE_SHORTCUTS_WINDOW, GtkShortcutsWindowClass))
 
 
-typedef struct _GtkShortcutsWindow         GtkShortcutsWindow;
-typedef struct _GtkShortcutsWindowClass    GtkShortcutsWindowClass;
-
-
-struct _GtkShortcutsWindow
-{
-  GtkWindow window;
-};
-
-struct _GtkShortcutsWindowClass
-{
-  GtkWindowClass parent_class;
-
-  void (*close)  (GtkShortcutsWindow *self);
-  void (*search) (GtkShortcutsWindow *self);
-};
+typedef struct _GtkShortcutsWindow GtkShortcutsWindow;
 
 GDK_AVAILABLE_IN_ALL
 GType gtk_shortcuts_window_get_type (void) G_GNUC_CONST;

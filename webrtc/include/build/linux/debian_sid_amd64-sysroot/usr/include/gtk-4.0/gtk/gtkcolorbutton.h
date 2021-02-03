@@ -42,30 +42,9 @@ G_BEGIN_DECLS
 
 #define GTK_TYPE_COLOR_BUTTON             (gtk_color_button_get_type ())
 #define GTK_COLOR_BUTTON(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), GTK_TYPE_COLOR_BUTTON, GtkColorButton))
-#define GTK_COLOR_BUTTON_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), GTK_TYPE_COLOR_BUTTON, GtkColorButtonClass))
 #define GTK_IS_COLOR_BUTTON(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), GTK_TYPE_COLOR_BUTTON))
-#define GTK_IS_COLOR_BUTTON_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), GTK_TYPE_COLOR_BUTTON))
-#define GTK_COLOR_BUTTON_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), GTK_TYPE_COLOR_BUTTON, GtkColorButtonClass))
 
-typedef struct _GtkColorButton          GtkColorButton;
-typedef struct _GtkColorButtonClass     GtkColorButtonClass;
-
-struct _GtkColorButton {
-  GtkWidget parent_instance;
-};
-
-struct _GtkColorButtonClass {
-  GtkWidgetClass parent_class;
-
-  void (* color_set) (GtkColorButton *cp);
-
-  /* Padding for future expansion */
-  void (*_gtk_reserved1) (void);
-  void (*_gtk_reserved2) (void);
-  void (*_gtk_reserved3) (void);
-  void (*_gtk_reserved4) (void);
-};
-
+typedef struct _GtkColorButton GtkColorButton;
 
 GDK_AVAILABLE_IN_ALL
 GType        gtk_color_button_get_type      (void) G_GNUC_CONST;
@@ -75,9 +54,15 @@ GDK_AVAILABLE_IN_ALL
 GtkWidget *  gtk_color_button_new_with_rgba (const GdkRGBA  *rgba);
 GDK_AVAILABLE_IN_ALL
 void         gtk_color_button_set_title     (GtkColorButton *button,
-                                             const gchar    *title);
+                                             const char     *title);
 GDK_AVAILABLE_IN_ALL
-const gchar *gtk_color_button_get_title     (GtkColorButton *button);
+const char *gtk_color_button_get_title     (GtkColorButton *button);
+
+GDK_AVAILABLE_IN_ALL
+gboolean     gtk_color_button_get_modal        (GtkColorButton *button);
+GDK_AVAILABLE_IN_ALL
+void         gtk_color_button_set_modal        (GtkColorButton *button,
+                                                gboolean        modal);
 
 G_END_DECLS
 

@@ -21,7 +21,7 @@
 #ifndef __GDK_APP_LAUNCH_CONTEXT_H__
 #define __GDK_APP_LAUNCH_CONTEXT_H__
 
-#if !defined (__GDK_H_INSIDE__) && !defined (GDK_COMPILATION)
+#if !defined (__GDK_H_INSIDE__) && !defined (GTK_COMPILATION)
 #error "Only <gdk/gdk.h> can be included directly."
 #endif
 
@@ -39,8 +39,11 @@ GDK_AVAILABLE_IN_ALL
 GType                gdk_app_launch_context_get_type      (void);
 
 GDK_AVAILABLE_IN_ALL
+GdkDisplay *         gdk_app_launch_context_get_display   (GdkAppLaunchContext *context);
+
+GDK_AVAILABLE_IN_ALL
 void                 gdk_app_launch_context_set_desktop   (GdkAppLaunchContext *context,
-                                                           gint                 desktop);
+                                                           int                  desktop);
 GDK_AVAILABLE_IN_ALL
 void                 gdk_app_launch_context_set_timestamp (GdkAppLaunchContext *context,
                                                            guint32              timestamp);
@@ -50,6 +53,7 @@ void                 gdk_app_launch_context_set_icon      (GdkAppLaunchContext *
 GDK_AVAILABLE_IN_ALL
 void                 gdk_app_launch_context_set_icon_name (GdkAppLaunchContext *context,
                                                            const char          *icon_name);
+
 
 G_END_DECLS
 
