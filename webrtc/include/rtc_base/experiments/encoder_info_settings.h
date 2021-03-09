@@ -41,6 +41,11 @@ class EncoderInfoSettings {
     return resolution_bitrate_limits_;
   }
 
+  static std::vector<VideoEncoder::ResolutionBitrateLimits>
+  GetDefaultSinglecastBitrateLimits();
+  static absl::optional<VideoEncoder::ResolutionBitrateLimits>
+  GetDefaultSinglecastBitrateLimitsForResolution(int frame_size_pixels);
+
  protected:
   explicit EncoderInfoSettings(std::string name);
 
@@ -55,6 +60,13 @@ class SimulcastEncoderAdapterEncoderInfoSettings : public EncoderInfoSettings {
  public:
   SimulcastEncoderAdapterEncoderInfoSettings();
   ~SimulcastEncoderAdapterEncoderInfoSettings() override {}
+};
+
+// EncoderInfo settings for LibvpxVp8Encoder.
+class LibvpxVp8EncoderInfoSettings : public EncoderInfoSettings {
+ public:
+  LibvpxVp8EncoderInfoSettings();
+  ~LibvpxVp8EncoderInfoSettings() override {}
 };
 
 // EncoderInfo settings for LibvpxVp9Encoder.

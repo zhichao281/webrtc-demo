@@ -45,6 +45,12 @@ class XRFrame final : public ScriptWrappable {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
+  static constexpr char kInactiveFrame[] =
+      "XRFrame access outside the callback that produced it is invalid.";
+  static constexpr char kNonAnimationFrame[] =
+      "This method can only be called on XRFrame objects passed to "
+      "XRSession.requestAnimationFrame callbacks.";
+
   explicit XRFrame(XRSession* session, bool is_animation_frame = false);
 
   XRSession* session() const { return session_; }
@@ -98,7 +104,6 @@ class XRFrame final : public ScriptWrappable {
   std::unique_ptr<TransformationMatrix> GetAdjustedPoseMatrix(XRSpace*) const;
   XRPose* GetTargetRayPose(XRInputSource*, XRSpace*) const;
   XRPose* GetGripPose(XRInputSource*, XRSpace*) const;
-
   // Helper that creates an anchor with the assumption that the conversion from
   // passed in space to a stationary space is required.
   // |native_origin_from_anchor| is a transform from |space|'s native origin to

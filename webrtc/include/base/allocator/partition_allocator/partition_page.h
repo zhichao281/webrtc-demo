@@ -19,6 +19,10 @@
 #include "base/check_op.h"
 #include "base/thread_annotations.h"
 
+#if BUILDFLAG(REF_COUNT_AT_END_OF_ALLOCATION)
+#include "base/allocator/partition_allocator/partition_ref_count.h"
+#endif
+
 namespace base {
 namespace internal {
 
@@ -121,16 +125,41 @@ struct __attribute__((packed)) SlotSpanMetadata {
   ALWAYS_INLINE void SetFreelistHead(PartitionFreelistEntry* new_head);
 
   // Returns size of the region used within a slot. The used region comprises
-  // of actual allocated data, extras and possibly empty space.
+  // of actual allocated data, extras and possibly empty space in the middle.
   ALWAYS_INLINE size_t GetUtilizedSlotSize() const {
     // The returned size can be:
     // - The slot size for small buckets.
-    // - Exact needed size to satisfy allocation (incl. extras), for large
+    // - Exact size needed to satisfy allocation (incl. extras), for large
     //   buckets and direct-mapped allocations (see also the comment in
     //   CanStoreRawSize() for more info).
-    if (LIKELY(!CanStoreRawSize()))
+    if (LIKELY(!CanStoreRawSize())) {
       return bucket->slot_size;
+    }
+#if BUILDFLAG(REF_COUNT_AT_END_OF_ALLOCATION)
+    return bits::AlignUp(GetRawSize(), alignof(PartitionRefCount));
+#else
     return GetRawSize();
+#endif
+  }
+
+  // Returns the size available to the app. It can be equal or higher than the
+  // requested size. If higher, the overage won't exceed what's actually usable
+  // by the app without a risk of running out of an allocated region or into
+  // PartitionAlloc's internal data (like extras).
+  ALWAYS_INLINE size_t GetUsableSize(PartitionRoot<thread_safe>* root) const {
+    // The returned size can be:
+    // - The slot size minus extras, for small buckets. This could be more than
+    //   requested size.
+    // - Raw size minus extras, for large buckets and direct-mapped allocations
+    //   (see also the comment in CanStoreRawSize() for more info). This is
+    //   equal to requested size.
+    size_t size_to_ajdust;
+    if (LIKELY(!CanStoreRawSize())) {
+      size_to_ajdust = bucket->slot_size;
+    } else {
+      size_to_ajdust = GetRawSize();
+    }
+    return root->AdjustSizeForExtrasSubtract(size_to_ajdust);
   }
 
   // Returns the total size of the slots that are currently provisioned.
@@ -270,11 +299,11 @@ ALWAYS_INLINE QuarantineBitmap* SuperPageQuarantineBitmaps(
 }
 
 ALWAYS_INLINE char* SuperPagePayloadBegin(char* super_page_base,
-                                          bool with_pcscan) {
+                                          bool with_quarantine) {
   PA_DCHECK(
       !(reinterpret_cast<uintptr_t>(super_page_base) % kSuperPageAlignment));
   return super_page_base + PartitionPageSize() +
-         (with_pcscan ? ReservedQuarantineBitmapsSize() : 0);
+         (with_quarantine ? ReservedQuarantineBitmapsSize() : 0);
 }
 
 ALWAYS_INLINE char* SuperPagePayloadEnd(char* super_page_base) {
@@ -283,11 +312,11 @@ ALWAYS_INLINE char* SuperPagePayloadEnd(char* super_page_base) {
   return super_page_base + kSuperPageSize - PartitionPageSize();
 }
 
-ALWAYS_INLINE bool IsWithinSuperPagePayload(char* ptr, bool with_pcscan) {
+ALWAYS_INLINE bool IsWithinSuperPagePayload(char* ptr, bool with_quarantine) {
   PA_DCHECK(!IsManagedByPartitionAllocDirectMap(ptr));
   char* super_page_base = reinterpret_cast<char*>(
       reinterpret_cast<uintptr_t>(ptr) & kSuperPageBaseMask);
-  char* payload_start = SuperPagePayloadBegin(super_page_base, with_pcscan);
+  char* payload_start = SuperPagePayloadBegin(super_page_base, with_quarantine);
   char* payload_end = SuperPagePayloadEnd(super_page_base);
   return ptr >= payload_start && ptr < payload_end;
 }
@@ -300,6 +329,7 @@ ALWAYS_INLINE bool IsWithinSuperPagePayload(char* ptr, bool with_pcscan) {
 // super page.
 template <bool thread_safe>
 ALWAYS_INLINE char* GetSlotStartInSuperPage(char* maybe_inner_ptr) {
+#if DCHECK_IS_ON()
   PA_DCHECK(!IsManagedByPartitionAllocDirectMap(maybe_inner_ptr));
   char* super_page_ptr = reinterpret_cast<char*>(
       reinterpret_cast<uintptr_t>(maybe_inner_ptr) & kSuperPageBaseMask);
@@ -307,19 +337,24 @@ ALWAYS_INLINE char* GetSlotStartInSuperPage(char* maybe_inner_ptr) {
       PartitionSuperPageToMetadataArea(super_page_ptr));
   PA_DCHECK(
       IsWithinSuperPagePayload(maybe_inner_ptr, extent->root->IsScanEnabled()));
+#endif
   auto* slot_span =
       SlotSpanMetadata<thread_safe>::FromSlotInnerPtr(maybe_inner_ptr);
   // Check if the slot span is actually used and valid.
   if (!slot_span->bucket)
     return nullptr;
+#if DCHECK_IS_ON()
   PA_DCHECK(PartitionRoot<thread_safe>::IsValidSlotSpan(slot_span));
+#endif
   char* const slot_span_begin = static_cast<char*>(
       SlotSpanMetadata<thread_safe>::ToSlotSpanStartPtr(slot_span));
   const ptrdiff_t ptr_offset = maybe_inner_ptr - slot_span_begin;
+#if DCHECK_IS_ON()
   PA_DCHECK(0 <= ptr_offset &&
             ptr_offset < static_cast<ptrdiff_t>(
                              slot_span->bucket->get_pages_per_slot_span() *
                              PartitionPageSize()));
+#endif
   // Slot span size in bytes is not necessarily multiple of partition page.
   if (ptr_offset >=
       static_cast<ptrdiff_t>(slot_span->bucket->get_bytes_per_span()))
@@ -564,11 +599,11 @@ ALWAYS_INLINE QuarantineBitmap* QuarantineBitmapFromPointer(
 // of the visited slot spans.
 template <bool thread_safe, typename Callback>
 size_t IterateActiveAndFullSlotSpans(char* super_page_base,
-                                     bool with_pcscan,
+                                     bool with_quarantine,
                                      Callback callback) {
+#if DCHECK_IS_ON()
   PA_DCHECK(
       !(reinterpret_cast<uintptr_t>(super_page_base) % kSuperPageAlignment));
-#if DCHECK_IS_ON()
   auto* extent_entry =
       reinterpret_cast<PartitionSuperPageExtentEntry<thread_safe>*>(
           PartitionSuperPageToMetadataArea(super_page_base));
@@ -577,7 +612,7 @@ size_t IterateActiveAndFullSlotSpans(char* super_page_base,
 
   using Page = PartitionPage<thread_safe>;
   auto* const first_page = Page::FromSlotStartPtr(
-      SuperPagePayloadBegin(super_page_base, with_pcscan));
+      SuperPagePayloadBegin(super_page_base, with_quarantine));
   // Call FromSlotInnerPtr instead of FromSlotStartPtr, because this slot span
   // doesn't exist, hence its bucket isn't set up to properly assert the slot
   // start.

@@ -16,11 +16,11 @@
 #include <atomic>
 #include <deque>
 
+#include "api/sequence_checker.h"
 #include "api/video_codecs/video_decoder.h"
 #include "common_video/h264/h264_bitstream_parser.h"
 #include "rtc_base/race_checker.h"
 #include "rtc_base/synchronization/mutex.h"
-#include "rtc_base/thread_checker.h"
 #include "sdk/android/src/jni/jni_helpers.h"
 
 namespace webrtc {
@@ -83,7 +83,7 @@ class VideoDecoderWrapper : public VideoDecoder {
   const ScopedJavaGlobalRef<jobject> decoder_;
   const std::string implementation_name_;
 
-  rtc::ThreadChecker decoder_thread_checker_;
+  SequenceChecker decoder_thread_checker_;
   // Callbacks must be executed sequentially on an arbitrary thread. We do not
   // own this thread so a thread checker cannot be used.
   rtc::RaceChecker callback_race_checker_;

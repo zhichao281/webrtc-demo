@@ -17,6 +17,7 @@ namespace features {
 
 BLINK_COMMON_EXPORT extern const base::Feature
     kBlockingDownloadsInAdFrameWithoutUserActivation;
+BLINK_COMMON_EXPORT extern const base::Feature kCOLRV1Fonts;
 BLINK_COMMON_EXPORT extern const base::Feature kPaintHolding;
 BLINK_COMMON_EXPORT extern const base::Feature kPaintHoldingCrossOrigin;
 BLINK_COMMON_EXPORT extern const base::Feature
@@ -48,10 +49,11 @@ BLINK_COMMON_EXPORT extern const base::Feature kPlzDedicatedWorker;
 BLINK_COMMON_EXPORT extern const base::Feature kPortals;
 BLINK_COMMON_EXPORT extern const base::Feature kPortalsCrossOrigin;
 
+// Prerender2:
 BLINK_COMMON_EXPORT extern const base::Feature kPrerender2;
-enum class Prerender2ActivationMode { kEnabled, kDisabled };
-BLINK_COMMON_EXPORT extern const base::FeatureParam<Prerender2ActivationMode>
-    kPrerender2Param;
+enum class Prerender2Implementation { kWebContents, kMPArch };
+BLINK_COMMON_EXPORT extern const base::FeatureParam<Prerender2Implementation>
+    kPrerender2ImplementationParam;
 
 // Returns true when Prerender2 feature is enabled.
 BLINK_COMMON_EXPORT bool IsPrerender2Enabled();
@@ -92,7 +94,8 @@ BLINK_COMMON_EXPORT extern const base::Feature
 BLINK_COMMON_EXPORT extern const base::Feature kStorageAccessAPI;
 BLINK_COMMON_EXPORT extern const base::Feature kTextFragmentAnchor;
 BLINK_COMMON_EXPORT extern const base::Feature kFontAccess;
-BLINK_COMMON_EXPORT extern const base::Feature kFontAccessChooser;
+BLINK_COMMON_EXPORT extern const base::Feature kFontAccessPersistent;
+BLINK_COMMON_EXPORT extern const base::Feature kComputePressure;
 BLINK_COMMON_EXPORT extern const base::Feature kFileHandlingAPI;
 BLINK_COMMON_EXPORT extern const base::Feature kAllowSyncXHRInPageDismissal;
 BLINK_COMMON_EXPORT extern const base::Feature kPrefetchPrivacyChanges;
@@ -144,9 +147,6 @@ BLINK_COMMON_EXPORT extern const base::Feature
 
 BLINK_COMMON_EXPORT extern const base::Feature
     kIgnoreCrossOriginWindowWhenNamedAccessOnWindow;
-
-BLINK_COMMON_EXPORT extern const base::Feature
-    kLowerJavaScriptPriorityWhenForceDeferred;
 
 BLINK_COMMON_EXPORT extern const base::Feature kDisableForceDeferInChildFrames;
 
@@ -292,8 +292,6 @@ extern const char
     kSkipTouchEventFilterFilteringProcessParamValueBrowserAndRenderer[];
 
 BLINK_COMMON_EXPORT extern const base::Feature kWebXrMultiGpu;
-BLINK_COMMON_EXPORT extern const base::Feature
-    kCSSMatchedPropertiesCacheDependencies;
 
 BLINK_COMMON_EXPORT extern const base::Feature kCompressParkableStrings;
 BLINK_COMMON_EXPORT extern const base::Feature kParkableStringsToDisk;
@@ -351,6 +349,8 @@ BLINK_COMMON_EXPORT extern const base::Feature kWebRtcDistinctWorkerThread;
 // for the host of a requested URL.
 BLINK_COMMON_EXPORT extern const base::Feature
     kSendCnameAliasesToSubresourceFilterFromRenderer;
+
+BLINK_COMMON_EXPORT extern const base::Feature kDeclarativeShadowDOM;
 
 BLINK_COMMON_EXPORT extern const base::Feature kInterestCohortAPIOriginTrial;
 

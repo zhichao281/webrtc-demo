@@ -35,6 +35,8 @@ class MODULES_EXPORT AXVirtualObject : public AXObject {
                          ax::mojom::NameFrom&,
                          AXRelatedObjectVector*,
                          NameSources*) const override;
+  Document* GetDocument() const override;
+  ax::mojom::blink::Role DetermineAccessibilityRole() override;
 
  private:
   bool ComputeAccessibilityIsIgnored(IgnoredReasons* = nullptr) const override;

@@ -417,8 +417,6 @@ class RTC_EXPORT RTCInboundRTPStreamStats final : public RTCRTPStreamStats {
   RTCStatsMember<uint64_t> header_bytes_received;
   RTCStatsMember<int32_t> packets_lost;  // Signed per RFC 3550
   RTCStatsMember<double> last_packet_received_timestamp;
-  // TODO(hbos): Collect and populate this value for both "audio" and "video",
-  // currently not collected for "video". https://bugs.webrtc.org/7065
   RTCStatsMember<double> jitter;
   RTCStatsMember<double> jitter_buffer_delay;
   RTCStatsMember<uint64_t> jitter_buffer_emitted_count;
@@ -557,8 +555,9 @@ class RTC_EXPORT RTCRemoteInboundRtpStreamStats final : public RTCStats {
   // RTCRemoteInboundRtpStreamStats
   RTCStatsMember<std::string> local_id;
   RTCStatsMember<double> round_trip_time;
-  // TODO(hbos): The following RTCRemoteInboundRtpStreamStats metric should also
-  // be implemented: fractionLost.
+  RTCStatsMember<double> fraction_lost;
+  RTCStatsMember<double> total_round_trip_time;
+  RTCStatsMember<int32_t> round_trip_time_measurements;
 };
 
 // https://w3c.github.io/webrtc-stats/#dom-rtcmediasourcestats

@@ -82,8 +82,16 @@ class MODULES_EXPORT BaseRenderingContext2D : public GarbageCollectedMixin,
   void reset();
 
   void scale(double sx, double sy);
+  void scale(double sx, double sy, double sz);
   void rotate(double angle_in_radians);
+  void rotate3d(double rx, double ry, double rz);
+  void rotateAxis(double axisX,
+                  double axisY,
+                  double axisZ,
+                  double angle_in_radians);
   void translate(double tx, double ty);
+  void translate(double tx, double ty, double tz);
+  void perspective(double length);
   void transform(double m11,
                  double m12,
                  double m21,

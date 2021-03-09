@@ -211,6 +211,9 @@ class CORE_EXPORT NGPhysicalBoxFragment final
   const LayoutBox* OwnerLayoutBox() const;
   LayoutBox* MutableOwnerLayoutBox() const;
 
+  // Returns the offset in the |OwnerLayoutBox| coordinate system.
+  PhysicalOffset OffsetFromOwnerLayoutBox() const;
+
   PhysicalRect ScrollableOverflow(TextHeightType height_type) const;
   PhysicalRect ScrollableOverflowFromChildren(TextHeightType height_type) const;
 

@@ -87,7 +87,6 @@ class LayoutNGTableSectionInterface;
 class LayoutNGTableCellInterface;
 class LayoutView;
 class LocalFrameView;
-class NGPhysicalBoxFragment;
 class PaintLayer;
 class PseudoElementStyleRequest;
 struct PaintInfo;
@@ -150,7 +149,7 @@ const int kShowTreeCharacterOffset = 39;
 // exclude certain functions like ~SVGImage() from this rule. This is allowed
 // when a Persistent is guaranteeing to keep the LayoutObject alive for that GC
 // cycle.
-class AllowDestroyingLayoutObjectInFinalizerScope {
+class CORE_EXPORT AllowDestroyingLayoutObjectInFinalizerScope {
   STACK_ALLOCATED();
 
  public:
@@ -453,13 +452,6 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
   // LayoutNG context.
   LayoutBlockFlow* ContainingNGBlockFlow() const;
 
-  // Returns |NGPhysicalBoxFragment| for |ContainingNGBlockFlow()| or nullptr
-  // otherwise.
-  //
-  // TODO(crbug.com/1061423): Remove this method. We shouldn't assume
-  // that there's only one fragment.
-  const NGPhysicalBoxFragment* ContainingBlockFlowFragment() const;
-
   // Function to return our enclosing flow thread if we are contained inside
   // one. This function follows the containing block chain.
   LayoutFlowThread* FlowThreadContainingBlock() const {
@@ -606,11 +598,24 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
     return ShouldApplyLayoutContainment(StyleRef());
   }
 
+  inline bool IsEligibleForSizeContainment() const {
+    NOT_DESTROYED();
+    return (!IsInline() || IsAtomicInlineLevel()) && !IsRubyText() &&
+           (!IsTablePart() || IsTableCaption()) && !IsTable();
+  }
   inline bool ShouldApplySizeContainment() const {
     NOT_DESTROYED();
-    return StyleRef().ContainsSize() &&
-           (!IsInline() || IsAtomicInlineLevel()) && !IsRubyText() &&
-           (!IsTablePart() || IsTableCaption()) && !IsTable();
+    return StyleRef().ContainsSize() && IsEligibleForSizeContainment();
+  }
+  inline bool ShouldApplyInlineSizeContainment() const {
+    NOT_DESTROYED();
+    return (StyleRef().ContainsInlineSize() || StyleRef().ContainsSize()) &&
+           IsEligibleForSizeContainment();
+  }
+  inline bool ShouldApplyBlockSizeContainment() const {
+    NOT_DESTROYED();
+    return (StyleRef().ContainsBlockSize() || StyleRef().ContainsSize()) &&
+           IsEligibleForSizeContainment();
   }
   inline bool ShouldApplyStyleContainment() const {
     NOT_DESTROYED();
@@ -627,7 +632,13 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
   }
   inline bool IsContainerForContainerQueries() const {
     NOT_DESTROYED();
-    return ShouldApplyLayoutContainment() && ShouldApplySizeContainment();
+    // TODO(crbug.com/1146092): Determine from the container queries what kind
+    // of size containment we require. Right now we allow query matching as long
+    // as there's any size containment at all specified, but we need the axes in
+    // the queries and the size containment to match.
+    return ShouldApplyLayoutContainment() &&
+           (ShouldApplyInlineSizeContainment() ||
+            ShouldApplyBlockSizeContainment());
   }
 
   inline bool IsStackingContext() const {
@@ -845,10 +856,6 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
     NOT_DESTROYED();
     return IsOfType(kLayoutObjectTableCol);
   }
-  bool IsLayoutNGTableCol() const {
-    NOT_DESTROYED();
-    return IsOfType(kLayoutObjectNGTableCol);
-  }
   bool IsListItem() const {
     NOT_DESTROYED();
     return IsOfType(kLayoutObjectListItem);
@@ -900,6 +907,10 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
   bool IsLayoutGrid() const {
     NOT_DESTROYED();
     return IsOfType(kLayoutObjectGrid);
+  }
+  bool IsLayoutGridIncludingNG() const {
+    NOT_DESTROYED();
+    return IsOfType(kLayoutObjectGrid) || IsOfType(kLayoutObjectNGGrid);
   }
   bool IsLayoutIFrame() const {
     NOT_DESTROYED();
@@ -1643,7 +1654,7 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
   }
   bool HasClipPath() const {
     NOT_DESTROYED();
-    return StyleRef().ClipPath();
+    return StyleRef().HasClipPath();
   }
   bool HasHiddenBackface() const {
     NOT_DESTROYED();
@@ -3130,6 +3141,11 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
       layout_object_.SetShouldSkipNextLayoutShiftTracking(b);
     }
 
+    void SetShouldAssumePaintOffsetTranslationForLayoutShiftTracking(bool b) {
+      layout_object_
+          .SetShouldAssumePaintOffsetTranslationForLayoutShiftTracking(b);
+    }
+
     FragmentData& FirstFragment() { return layout_object_.fragment_; }
 
     void EnsureId() { layout_object_.fragment_.EnsureId(); }
@@ -3356,6 +3372,14 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
     bitfields_.SetShouldSkipNextLayoutShiftTracking(b);
   }
 
+  bool ShouldAssumePaintOffsetTranslationForLayoutShiftTracking() const {
+    return bitfields_
+        .ShouldAssumePaintOffsetTranslationForLayoutShiftTracking();
+  }
+  void SetShouldAssumePaintOffsetTranslationForLayoutShiftTracking(bool b) {
+    bitfields_.SetShouldAssumePaintOffsetTranslationForLayoutShiftTracking(b);
+  }
+
  protected:
   // Identifiers for each of LayoutObject subclasses.
   // The identifier name for blink::LayoutFoo should be kLayoutObjectFoo.
@@ -3394,7 +3418,6 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
     kLayoutObjectNGMixin,
     kLayoutObjectNGOutsideListMarker,
     kLayoutObjectNGProgress,
-    kLayoutObjectNGTableCol,
     kLayoutObjectNGText,
     kLayoutObjectNGTextControlMultiLine,
     kLayoutObjectNGTextControlSingleLine,
@@ -3788,6 +3811,8 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
           transform_affects_vector_effect_(false),
           is_layout_ng_object_for_canvas_formatted_text(false),
           should_skip_next_layout_shift_tracking_(true),
+          should_assume_paint_offset_translation_for_layout_shift_tracking_(
+              false),
           positioned_state_(kIsStaticallyPositioned),
           selection_state_(static_cast<unsigned>(SelectionState::kNone)),
           subtree_paint_property_update_reasons_(
@@ -4108,6 +4133,15 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
     // See PaintInvalidator::UpdateLayoutShiftTracking().
     ADD_BOOLEAN_BITFIELD(should_skip_next_layout_shift_tracking_,
                          ShouldSkipNextLayoutShiftTracking);
+
+    // Whether, on the next time PaintPropertyTreeBuilder builds for this
+    // object, it should be assumed it had the same paint offset transform last
+    // time as it has this time. This is used when layout reattach loses the
+    // information from the previous frame; this bit stores that information
+    // to inform the next frame for layout shift tracking.
+    ADD_BOOLEAN_BITFIELD(
+        should_assume_paint_offset_translation_for_layout_shift_tracking_,
+        ShouldAssumePaintOffsetTranslationForLayoutShiftTracking);
 
    private:
     // This is the cached 'position' value of this object

@@ -172,20 +172,14 @@ class CORE_EXPORT LayoutNGTable : public LayoutNGMixin<LayoutBlock>,
     return ShouldCollapseBorders() ? 0 : StyleRef().VerticalBorderSpacing();
   }
 
-  // Legacy had a concept of colspan column compression. This is a legacy
-  // method to map between absolute and compressed columns.
-  // Because NG does not compress columns, absolute and effective are the same.
   unsigned AbsoluteColumnToEffectiveColumn(
-      unsigned absolute_column_index) const final {
-    NOT_DESTROYED();
-    return absolute_column_index;
-  }
+      unsigned absolute_column_index) const final;
 
   // NG does not need this method. Sections are not cached.
   void RecalcSectionsIfNeeded() const final {}
 
-  // Legacy caches sections. Might not be needed by NG.
-  void ForceSectionsRecalc() final { NOTIMPLEMENTED(); }
+  // Not used by NG. Legacy caches sections.
+  void ForceSectionsRecalc() final { NOT_DESTROYED(); }
 
   // Used in paint for printing. Should not be needed by NG.
   LayoutUnit RowOffsetFromRepeatingFooter() const final {

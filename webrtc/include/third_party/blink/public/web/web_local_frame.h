@@ -16,6 +16,7 @@
 #include "base/unguessable_token.h"
 #include "components/viz/common/surfaces/frame_sink_id.h"
 #include "services/network/public/mojom/web_sandbox_flags.mojom-shared.h"
+#include "third_party/blink/public/common/context_menu_data/untrustworthy_context_menu_params.h"
 #include "third_party/blink/public/common/css/page_size_type.h"
 #include "third_party/blink/public/common/feature_policy/feature_policy_features.h"
 #include "third_party/blink/public/common/frame/user_activation_update_source.h"
@@ -607,6 +608,23 @@ class WebLocalFrame : public WebFrame {
   // viewport coordinates.
   virtual void CopyImageAtForTesting(const gfx::Point&) = 0;
 
+  // Shows a context menu with the given information from an external context
+  // menu request. The given client will be called with the result.
+  //
+  // The request ID will be returned by this function. This is passed to the
+  // client functions for identification.
+  //
+  // If the client is destroyed, CancelContextMenu() should be called with the
+  // request ID returned by this function.
+  //
+  // Note: if you end up having clients outliving the WebLocalFrame, we should
+  // add a CancelContextMenuCallback function that takes a request id.
+  virtual void ShowContextMenuFromExternal(
+      const UntrustworthyContextMenuParams& params,
+      CrossVariantMojoAssociatedRemote<
+          blink::mojom::ContextMenuClientInterfaceBase>
+          context_menu_client) = 0;
+
   // Events --------------------------------------------------------------
 
   // Usage count for chrome.loadtimes deprecation.
@@ -739,11 +757,17 @@ class WebLocalFrame : public WebFrame {
 
   // True if the frame is thought (heuristically) to be created for
   // advertising purposes.
-  virtual bool IsAdSubframe() const = 0;
+  bool IsAdSubframe() const override = 0;
 
-  // This setter is available in case the embedder has more information about
-  // whether or not the frame is an ad.
+  // See blink::LocalFrame::SetIsAdSubframe()
   virtual void SetIsAdSubframe(blink::mojom::AdFrameType ad_frame_type) = 0;
+
+  // True iff a script tagged as an ad was on the v8 stack when the frame was
+  // created and the frame is a subframe. This is not currently propagated when
+  // a frame navigates cross-origin.
+  // TODO(crbug.com/1145634): propagate this bit for a frame that navigates
+  // cross-origin.
+  virtual bool IsSubframeCreatedByAdScript() = 0;
 
   // User activation -----------------------------------------------------------
 

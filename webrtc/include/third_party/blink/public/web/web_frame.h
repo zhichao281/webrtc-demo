@@ -72,9 +72,11 @@ class BLINK_EXPORT WebFrame {
   // Returns the number of live WebFrame objects, used for leak checking.
   static int InstanceCount();
 
-  // TODO(crbug.com/1096617): Remove the UnguessableToken version of this.
-  static WebFrame* FromFrameToken(const base::UnguessableToken&);
+  // TODO(crbug.com/1096617): Remove all but the FrameToken variant of this.
   static WebFrame* FromFrameToken(const FrameToken&);
+  static WebFrame* FromFrameToken(const base::UnguessableToken&);
+  static WebFrame* FromFrameToken(const LocalFrameToken&);
+  static WebFrame* FromFrameToken(const RemoteFrameToken&);
 
   virtual bool IsWebLocalFrame() const = 0;
   virtual WebLocalFrame* ToWebLocalFrame() = 0;
@@ -153,6 +155,12 @@ class BLINK_EXPORT WebFrame {
   // Will return true if between didStartLoading and didStopLoading
   // notifications.
   virtual bool IsLoading() const;
+
+  // Ad Tagging ---------------------------------------------------------
+
+  // True if the frame is thought (heuristically) to be created for
+  // advertising purposes.
+  virtual bool IsAdSubframe() const = 0;
 
   // Utility -------------------------------------------------------------
 

@@ -98,11 +98,15 @@
 // that's okay.
 
 class BrowserProcessImpl;
+class ChromeJsErrorReportProcessor;
 class ChromeNSSCryptoModuleDelegate;
 class HistogramSynchronizer;
 class KeyStorageLinux;
 class NativeBackendKWallet;
 class NativeDesktopMediaList;
+class Profile;
+
+Profile* GetLastProfileMac();
 
 namespace android_webview {
 class AwFormDatabaseService;
@@ -119,6 +123,7 @@ class RTCVideoDecoderAdapter;
 class RTCVideoEncoder;
 class SourceStream;
 class VideoFrameResourceProvider;
+class WebRtcVideoFrameAdapter;
 class WorkerThread;
 namespace scheduler {
 class WorkerThread;
@@ -418,6 +423,7 @@ class BASE_EXPORT ScopedAllowBlocking {
   friend class weblayer::WebLayerPathProvider;
 
   friend bool PathProviderWin(int, FilePath*);
+  friend Profile* ::GetLastProfileMac();  // crbug.com/1176734
 
   ScopedAllowBlocking(const Location& from_here = Location::Current());
   ~ScopedAllowBlocking();
@@ -466,6 +472,7 @@ class BASE_EXPORT ScopedAllowBaseSyncPrimitives {
   friend class blink::scheduler::WorkerThread;
   friend class chrome_cleaner::ResetShortcutsComponent;
   friend class chrome_cleaner::SystemReportComponent;
+  friend class ::ChromeJsErrorReportProcessor;
   friend class content::BrowserMainLoop;
   friend class content::BrowserProcessSubThread;
   friend class content::ServiceWorkerContextClient;
@@ -530,6 +537,7 @@ class BASE_EXPORT ScopedAllowBaseSyncPrimitivesOutsideBlockingScope {
   friend class base::StackSamplingProfiler;
   friend class blink::RTCVideoDecoderAdapter;
   friend class blink::RTCVideoEncoder;
+  friend class blink::WebRtcVideoFrameAdapter;
   friend class cc::TileTaskManagerImpl;
   friend class content::CategorizedWorkerPool;
   friend class content::DesktopCaptureDevice;

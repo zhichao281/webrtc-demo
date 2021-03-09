@@ -244,6 +244,11 @@ void av1_calc_indices_dim1_c(const int* data,
                              uint8_t* indices,
                              int n,
                              int k);
+void av1_calc_indices_dim1_sse2(const int* data,
+                                const int* centroids,
+                                uint8_t* indices,
+                                int n,
+                                int k);
 void av1_calc_indices_dim1_avx2(const int* data,
                                 const int* centroids,
                                 uint8_t* indices,
@@ -488,6 +493,26 @@ RTCD_EXTERN void (*av1_convolve_y_sr)(const uint8_t* src,
                                       int h,
                                       const InterpFilterParams* filter_params_y,
                                       const int subpel_y_qn);
+
+int av1_denoiser_filter_c(const uint8_t* sig,
+                          int sig_stride,
+                          const uint8_t* mc_avg,
+                          int mc_avg_stride,
+                          uint8_t* avg,
+                          int avg_stride,
+                          int increase_denoising,
+                          BLOCK_SIZE bs,
+                          int motion_magnitude);
+int av1_denoiser_filter_sse2(const uint8_t* sig,
+                             int sig_stride,
+                             const uint8_t* mc_avg,
+                             int mc_avg_stride,
+                             uint8_t* avg,
+                             int avg_stride,
+                             int increase_denoising,
+                             BLOCK_SIZE bs,
+                             int motion_magnitude);
+#define av1_denoiser_filter av1_denoiser_filter_sse2
 
 void av1_dist_wtd_convolve_2d_c(const uint8_t* src,
                                 int src_stride,
@@ -2062,7 +2087,7 @@ static void setup_rtcd_internal(void) {
   if (flags & HAS_AVX2)
     av1_build_compound_diffwtd_mask_highbd =
         av1_build_compound_diffwtd_mask_highbd_avx2;
-  av1_calc_indices_dim1 = av1_calc_indices_dim1_c;
+  av1_calc_indices_dim1 = av1_calc_indices_dim1_sse2;
   if (flags & HAS_AVX2)
     av1_calc_indices_dim1 = av1_calc_indices_dim1_avx2;
   av1_calc_indices_dim2 = av1_calc_indices_dim2_c;

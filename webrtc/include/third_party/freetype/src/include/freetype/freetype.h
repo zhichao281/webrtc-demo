@@ -204,6 +204,7 @@ FT_BEGIN_HEADER
    *   FT_Size_RequestRec
    *   FT_Size_Request
    *   FT_Set_Transform
+   *   FT_Get_Transform
    *   FT_Load_Glyph
    *   FT_Get_Char_Index
    *   FT_Get_First_Char
@@ -3200,7 +3201,8 @@ FT_BEGIN_HEADER
    *     A pointer to the transformation's 2x2 matrix.  Use `NULL` for the
    *     identity matrix.
    *   delta ::
-   *     A pointer to the translation vector.  Use `NULL` for the null vector.
+   *     A pointer to the translation vector.  Use `NULL` for the null
+   *     vector.
    *
    * @note:
    *   This function is provided as a convenience, but keep in mind that
@@ -3219,6 +3221,35 @@ FT_BEGIN_HEADER
    */
   FT_EXPORT( void )
   FT_Set_Transform( FT_Face     face,
+                    FT_Matrix*  matrix,
+                    FT_Vector*  delta );
+
+
+  /**************************************************************************
+   *
+   * @function:
+   *   FT_Get_Transform
+   *
+   * @description:
+   *   Return the transformation that is applied to glyph images when they
+   *   are loaded into a glyph slot through @FT_Load_Glyph.  See
+   *   @FT_Set_Transform for more details.
+   *
+   * @input:
+   *   face ::
+   *     A handle to the source face object.
+   *
+   * @output:
+   *   matrix ::
+   *     A pointer to a transformation's 2x2 matrix.  Set this to NULL if you
+   *     are not interested in the value.
+   *
+   *   delta ::
+   *     A pointer a translation vector.  Set this to NULL if you are not
+   *     interested in the value.
+   */
+  FT_EXPORT( void )
+  FT_Get_Transform( FT_Face     face,
                     FT_Matrix*  matrix,
                     FT_Vector*  delta );
 
@@ -4235,14 +4266,15 @@ FT_BEGIN_HEADER
     FT_COLR_PAINTFORMAT_SOLID           = 2,
     FT_COLR_PAINTFORMAT_LINEAR_GRADIENT = 3,
     FT_COLR_PAINTFORMAT_RADIAL_GRADIENT = 4,
-    FT_COLR_PAINTFORMAT_GLYPH           = 5,
-    FT_COLR_PAINTFORMAT_COLR_GLYPH      = 6,
-    FT_COLR_PAINTFORMAT_TRANSFORMED     = 7,
-    FT_COLR_PAINTFORMAT_TRANSLATE       = 8,
-    FT_COLR_PAINTFORMAT_ROTATE          = 9,
-    FT_COLR_PAINTFORMAT_SKEW            = 10,
-    FT_COLR_PAINTFORMAT_COMPOSITE       = 11,
-    FT_COLR_PAINT_FORMAT_MAX            = 12,
+    FT_COLR_PAINTFORMAT_SWEEP_GRADIENT  = 5,
+    FT_COLR_PAINTFORMAT_GLYPH           = 6,
+    FT_COLR_PAINTFORMAT_COLR_GLYPH      = 7,
+    FT_COLR_PAINTFORMAT_TRANSFORMED     = 8,
+    FT_COLR_PAINTFORMAT_TRANSLATE       = 9,
+    FT_COLR_PAINTFORMAT_ROTATE          = 10,
+    FT_COLR_PAINTFORMAT_SKEW            = 11,
+    FT_COLR_PAINTFORMAT_COMPOSITE       = 12,
+    FT_COLR_PAINT_FORMAT_MAX            = 13,
     FT_COLR_PAINTFORMAT_UNSUPPORTED     = 255
 
   } FT_PaintFormat;
@@ -4479,11 +4511,15 @@ FT_BEGIN_HEADER
    *   p ::
    *     An internal offset to a Paint table, needs to be set to NULL before
    *     passing this struct as an argument to @FT_Get_Paint.
+   *
+   *   insert_root_transform ::
+   *     An internal boolean to track whether an initial root transform is
+   *     to be provided.  Do not set this value.
    */
   typedef struct  FT_Opaque_Paint_
   {
     FT_Byte*  p;
-
+    FT_Bool   insert_root_transform;
   } FT_OpaquePaint;
 
 
@@ -4607,13 +4643,54 @@ FT_BEGIN_HEADER
   {
     FT_ColorLine  colorline;
 
-    /* TODO: Potentially expose those as x0, y0 etc. */
     FT_Vector  c0;
     FT_UShort  r0;
     FT_Vector  c1;
     FT_UShort  r1;
 
   } FT_PaintRadialGradient;
+
+
+  /**************************************************************************
+   *
+   * @struct:
+   *   FT_PaintSweepGradient
+   *
+   * @description:
+   *   A structure representing a `PaintSweepGradient` value of the 'COLR'
+   *   v1 extensions, see
+   *   'https://github.com/googlefonts/colr-gradients-spec'.  The glyph
+   *   layer filled with this paint is drawn filled with a sweep gradient
+   *   from `start_angle` to `end_angle`.
+   *
+   * @fields:
+   *   colorline ::
+   *     The @FT_ColorLine information for this paint, i.e., the list of
+   *     color stops along the gradient.
+   *
+   *   center ::
+   *     The center of the sweep gradient (in font units).
+   *
+   *   start_angle ::
+   *     The start angle of the sweep gradient, in 16.16 fixed point format
+   *     specifying degrees.  Values are given counter-clockwise, starting
+   *     from the (positive) y~axis.
+   *
+   *   end_angle ::
+   *     The end angle of the sweep gradient, in 16.16 fixed point format
+   *     specifying degrees.  Values are given counter-clockwise, starting
+   *     from the (positive) y~axis.
+   *
+   */
+  typedef struct  FT_PaintSweepGradient_
+  {
+    FT_ColorLine  colorline;
+
+    FT_Vector  center;
+    FT_Fixed   start_angle;
+    FT_Fixed   end_angle;
+
+  } FT_PaintSweepGradient;
 
 
   /**************************************************************************
@@ -4849,6 +4926,7 @@ FT_BEGIN_HEADER
    *       * @FT_PaintSolid
    *       * @FT_PaintLinearGradient
    *       * @FT_PaintRadialGradient
+   *       * @FT_PaintSweepGradient
    *       * @FT_PaintTransformed
    *       * @FT_PaintTranslate
    *       * @FT_PaintRotate
@@ -4867,6 +4945,7 @@ FT_BEGIN_HEADER
       FT_PaintSolid           solid;
       FT_PaintLinearGradient  linear_gradient;
       FT_PaintRadialGradient  radial_gradient;
+      FT_PaintSweepGradient   sweep_gradient;
       FT_PaintTransformed     transformed;
       FT_PaintTranslate       translate;
       FT_PaintRotate          rotate;
@@ -4877,6 +4956,33 @@ FT_BEGIN_HEADER
     } u;
 
   } FT_COLR_Paint;
+
+
+  /**************************************************************************
+   *
+   * @enum:
+   *   FT_Color_Root_Transform
+   *
+   * @description:
+   *   An enumeration to specify whether @FT_Get_Color_Glyph_Paint is to
+   *   return a root transform to configure the client's graphics context
+   *   matrix.
+   *
+   * @values:
+   *   FT_COLOR_INCLUDE_ROOT_TRANSFORM ::
+   *     Do include the root transform as the initial @FT_COLR_Paint object.
+   *
+   *   FT_COLOR_NO_ROOT_TRANSFORM ::
+   *     Do not output an initial root transform.
+   */
+  typedef enum  FT_Color_Root_Transform_
+  {
+    FT_COLOR_INCLUDE_ROOT_TRANSFORM,
+    FT_COLOR_NO_ROOT_TRANSFORM,
+
+    FT_COLOR_ROOT_TRANSFORM_MAX
+
+  } FT_Color_Root_Transform;
 
 
   /**************************************************************************
@@ -4898,12 +5004,54 @@ FT_BEGIN_HEADER
    *   function and specifying a glyph ID, one retrieves the root paint
    *   table for this glyph ID.
    *
+   *   This function allows control whether an initial root transform is
+   *   returned to configure scaling, transform, and translation correctly
+   *   on the client's graphics context.  The initial root transform is
+   *   computed and returned according to the values configured for @FT_Size
+   *   and @FT_Set_Transform on the @FT_Face object, see below for details
+   *   of the `root_transform` parameter.  This has implications for a
+   *   client 'COLR' v1 implementation: When this function returns an
+   *   initially computed root transform, at the time of executing the
+   *   @FT_Paint_Glyph operation, the contours should be retrieved using
+   *   @FT_Load_Glyph at unscaled, untransformed size.  This is because the
+   *   root transform applied to the graphics context will take care of
+   *   correct scaling.
+   *
+   *   Alternatively, to allow hinting of contours, at the time of executing
+   *   @FT_Load_Glyph, the current graphics context transformation matrix
+   *   can be decomposed into a scaling matrix and a remainder, and
+   *   @FT_Load_Glyph can be used to retrieve the contours at scaled size.
+   *   Care must then be taken to blit or clip to the graphics context with
+   *   taking this remainder transformation into account.
+   *
    * @input:
    *   face ::
    *     A handle to the parent face object.
    *
    *   base_glyph ::
    *     The glyph index for which to retrieve the root paint table.
+   *
+   *   root_transform ::
+   *     Specifies whether an initially computed root is returned by
+   *     @FT_Paint_Transformed to account for the activated size (see
+   *     @FT_Activate_Size) and the configured transform and translate (see
+   *     @FT_Set_Translate).
+   *
+   *     This root transform is returned before nodes of the glyph graph of
+   *     the font are returned.  Subsequent @FT_COLR_Paint structures
+   *     contain unscaled and untransformed values.  The inserted root
+   *     transform enables the client application to apply an initial
+   *     transform to its graphics context.  When executing subsequent
+   *     FT_COLR_Paint operations, values from @FT_COLR_Paint operations
+   *     will ultimately be correctly scaled because of the root transform
+   *     applied to the graphics context.  Use
+   *     @FT_COLOR_INCLUDE_ROOT_TRANSFORM to include the root transform, use
+   *     @FT_COLOR_NO_ROOT_TRANSFORM to not include it.  The latter may be
+   *     useful when traversing the 'COLR' v1 glyph graph and reaching a
+   *     @FT_PaintColrGlyph.  When recursing into @FT_PaintColrGlyph and
+   *     painting that inline, no additional root transform is needed as it
+   *     has already been applied to the graphics context at the beginning
+   *     of drawing this glyph.
    *
    * @output:
    *   paint ::
@@ -4918,9 +5066,10 @@ FT_BEGIN_HEADER
    *   error, value~0 is returned also.
    */
   FT_EXPORT( FT_Bool )
-  FT_Get_Color_Glyph_Paint( FT_Face          face,
-                            FT_UInt          base_glyph,
-                            FT_OpaquePaint*  paint );
+  FT_Get_Color_Glyph_Paint( FT_Face                  face,
+                            FT_UInt                  base_glyph,
+                            FT_Color_Root_Transform  root_transform,
+                            FT_OpaquePaint*          paint );
 
 
   /**************************************************************************

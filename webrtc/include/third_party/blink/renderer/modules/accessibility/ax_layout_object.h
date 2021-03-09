@@ -40,7 +40,6 @@ class AXObjectCacheImpl;
 class Element;
 class HTMLAreaElement;
 class IntPoint;
-class LocalFrameView;
 class Node;
 
 class MODULES_EXPORT AXLayoutObject : public AXNodeObject {
@@ -59,28 +58,19 @@ class MODULES_EXPORT AXLayoutObject : public AXNodeObject {
 
   // DOM and layout tree access.
   Document* GetDocument() const override;
-  LocalFrameView* DocumentFrameView() const override;
   Element* AnchorElement() const override;
 
  protected:
   LayoutObject* layout_object_;
-
-  LayoutBoxModelObject* GetLayoutBoxModelObject() const override;
-
-  LayoutObject* LayoutObjectForRelativeBounds() const override {
-    return layout_object_;
-  }
 
   //
   // Overridden from AXObject.
   //
 
   void Detach() override;
-  bool IsDetached() const override;
   bool IsAXLayoutObject() const final;
 
   // Check object role or purpose.
-  bool IsAutofillAvailable() const override;
   bool IsEditable() const override;
   bool IsRichlyEditable() const override;
   bool IsLineBreakingObject() const override;
@@ -121,9 +111,6 @@ class MODULES_EXPORT AXLayoutObject : public AXNodeObject {
                          ax::mojom::blink::NameFrom&,
                          AXRelatedObjectVector*,
                          NameSources*) const override;
-
-  // Modify or take an action on an object.
-  bool OnNativeSetValueAction(const String&) override;
 
   // Hit testing.
   AXObject* AccessibilityHitTest(const IntPoint&) const override;

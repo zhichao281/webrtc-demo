@@ -161,13 +161,12 @@ class PLATFORM_EXPORT TransformPaintPropertyNode
     // Use bitfield packing instead of separate bools to save space.
     struct Flags {
       bool flattens_inherited_transform : 1;
-      bool affected_by_outer_viewport_bounds_delta : 1;
       bool in_subtree_of_page_scale : 1;
       bool animation_is_axis_aligned : 1;
       bool delegates_to_parent_for_backface : 1;
       // Set if a frame is rooted at this node.
       bool is_frame_paint_offset_translation : 1;
-    } flags = {false, false, true, false, false, false};
+    } flags = {false, true, false, false, false};
     BackfaceVisibility backface_visibility = BackfaceVisibility::kInherited;
     unsigned rendering_context_id = 0;
     CompositingReasons direct_compositing_reasons = CompositingReason::kNone;
@@ -186,8 +185,6 @@ class PLATFORM_EXPORT TransformPaintPropertyNode
 
       if (flags.flattens_inherited_transform !=
               other.flags.flattens_inherited_transform ||
-          flags.affected_by_outer_viewport_bounds_delta !=
-              other.flags.affected_by_outer_viewport_bounds_delta ||
           flags.in_subtree_of_page_scale !=
               other.flags.in_subtree_of_page_scale ||
           flags.animation_is_axis_aligned !=
@@ -211,7 +208,11 @@ class PLATFORM_EXPORT TransformPaintPropertyNode
       bool transform_has_simple_change = true;
       if (!transform_changed) {
         transform_has_simple_change = false;
-      } else if (animation_state.is_running_animation_on_compositor) {
+      } else if (!origin_changed &&
+                 animation_state.is_running_animation_on_compositor) {
+        // |is_running_animation_on_compositor| means a transform animation is
+        // running. Composited transform origin animations are not supported so
+        // origin changes need to be considered as simple changes.
         transform_has_simple_change = false;
       } else if (matrix_changed &&
                  !transform_and_origin.ChangePreserves2dAxisAlignment(
@@ -319,7 +320,8 @@ class PLATFORM_EXPORT TransformPaintPropertyNode
   // used to keep bottom-fixed elements appear fixed to the bottom of the
   // screen in the presence of URL bar movement.
   bool IsAffectedByOuterViewportBoundsDelta() const {
-    return state_.flags.affected_by_outer_viewport_bounds_delta;
+    return DirectCompositingReasons() &
+           CompositingReason::kAffectedByOuterViewportBoundsDelta;
   }
 
   // If true, this node is a descendant of the page scale transform. This is
@@ -404,6 +406,11 @@ class PLATFORM_EXPORT TransformPaintPropertyNode
   bool HasActiveTransformAnimation() const {
     return state_.direct_compositing_reasons &
            CompositingReason::kActiveTransformAnimation;
+  }
+
+  bool RequiresCompositingForScrollDependentPosition() const {
+    return DirectCompositingReasons() &
+           CompositingReason::kScrollDependentPosition;
   }
 
   CompositingReasons DirectCompositingReasonsForDebugging() const {

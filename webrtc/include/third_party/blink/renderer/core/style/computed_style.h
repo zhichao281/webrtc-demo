@@ -586,6 +586,20 @@ class ComputedStyle : public ComputedStyleBase,
     return DataEquivalent(BoxShadow(), other.BoxShadow());
   }
 
+  // clip-path
+  ClipPathOperation* ClipPath() const {
+    // This method is accessed frequently during SVG Hit Testing, but the
+    // cumulative cost of calling |ClipPathInternal| can be fairly high due to
+    // multiple rare data pointer indirections. |HasClipPath| was added as a way
+    // to reduce the cost of these expensive indirections by placing a bit
+    // in more easily accessible memory.
+    return HasClipPath() ? ClipPathInternal().get() : nullptr;
+  }
+  void SetClipPath(scoped_refptr<ClipPathOperation> clip_path) {
+    SetHasClipPath(clip_path.get());
+    SetClipPathInternal(std::move(clip_path));
+  }
+
   // clip
   void SetClip(const LengthBox& box) {
     SetHasAutoClipInternal(false);
@@ -1087,6 +1101,13 @@ class ComputedStyle : public ComputedStyleBase,
   const SVGComputedStyle& SvgStyle() const { return *svg_style_.Get(); }
   SVGComputedStyle& AccessSVGStyle() { return *svg_style_.Access(); }
 
+  EAlignmentBaseline AlignmentBaseline() const {
+    return SvgStyle().AlignmentBaseline();
+  }
+  EBufferedRendering BufferedRendering() const {
+    return SvgStyle().BufferedRendering();
+  }
+
   // baseline-shift
   EBaselineShift BaselineShift() const { return SvgStyle().BaselineShift(); }
   const Length& BaselineShiftValue() const {
@@ -1099,28 +1120,61 @@ class ComputedStyle : public ComputedStyleBase,
   }
 
   // cx
+  const Length& Cx() const { return SvgStyle().Cx(); }
   void SetCx(const Length& cx) { AccessSVGStyle().SetCx(cx); }
 
   // cy
+  const Length& Cy() const { return SvgStyle().Cy(); }
   void SetCy(const Length& cy) { AccessSVGStyle().SetCy(cy); }
 
   // d
+  StylePath* D() const { return SvgStyle().D(); }
   void SetD(scoped_refptr<StylePath> d) { AccessSVGStyle().SetD(std::move(d)); }
 
   // x
+  const Length& X() const { return SvgStyle().X(); }
   void SetX(const Length& x) { AccessSVGStyle().SetX(x); }
 
   // y
+  const Length& Y() const { return SvgStyle().Y(); }
   void SetY(const Length& y) { AccessSVGStyle().SetY(y); }
 
   // r
+  const Length& R() const { return SvgStyle().R(); }
   void SetR(const Length& r) { AccessSVGStyle().SetR(r); }
 
   // rx
+  const Length& Rx() const { return SvgStyle().Rx(); }
   void SetRx(const Length& rx) { AccessSVGStyle().SetRx(rx); }
 
   // ry
+  const Length& Ry() const { return SvgStyle().Ry(); }
   void SetRy(const Length& ry) { AccessSVGStyle().SetRy(ry); }
+
+  WindRule ClipRule() const { return SvgStyle().ClipRule(); }
+  EColorInterpolation ColorInterpolation() const {
+    return SvgStyle().ColorInterpolation();
+  }
+  EColorInterpolation ColorInterpolationFilters() const {
+    return SvgStyle().ColorInterpolationFilters();
+  }
+  EColorRendering ColorRendering() const { return SvgStyle().ColorRendering(); }
+  EDominantBaseline DominantBaseline() const {
+    return SvgStyle().DominantBaseline();
+  }
+  WindRule FillRule() const { return SvgStyle().FillRule(); }
+
+  const SVGPaint& FillPaint() const { return SvgStyle().FillPaint(); }
+  const SVGPaint& InternalVisitedFillPaint() const {
+    return SvgStyle().InternalVisitedFillPaint();
+  }
+
+  // fill helpers
+  bool HasFill() const { return !FillPaint().IsNone(); }
+  bool IsFillColorCurrentColor() const {
+    return FillPaint().HasCurrentColor() ||
+           InternalVisitedFillPaint().HasCurrentColor();
+  }
 
   // fill-opacity
   float FillOpacity() const { return SvgStyle().FillOpacity(); }
@@ -1130,9 +1184,11 @@ class ComputedStyle : public ComputedStyleBase,
   void SetStopColor(const StyleColor& c) { AccessSVGStyle().SetStopColor(c); }
 
   // flood-color
+  const StyleColor& FloodColor() const { return SvgStyle().FloodColor(); }
   void SetFloodColor(const StyleColor& c) { AccessSVGStyle().SetFloodColor(c); }
 
   // lighting-color
+  const StyleColor& LightingColor() const { return SvgStyle().LightingColor(); }
   void SetLightingColor(const StyleColor& c) {
     AccessSVGStyle().SetLightingColor(c);
   }
@@ -1141,12 +1197,52 @@ class ComputedStyle : public ComputedStyleBase,
   float FloodOpacity() const { return SvgStyle().FloodOpacity(); }
   void SetFloodOpacity(float f) { AccessSVGStyle().SetFloodOpacity(f); }
 
+  EMaskType MaskType() const { return SvgStyle().MaskType(); }
+  StyleSVGResource* MaskerResource() const {
+    return SvgStyle().MaskerResource();
+  }
+
   // stop-opacity
   float StopOpacity() const { return SvgStyle().StopOpacity(); }
   void SetStopOpacity(float f) { AccessSVGStyle().SetStopOpacity(f); }
 
+  // marker-* helpers
+  StyleSVGResource* MarkerStartResource() const {
+    return SvgStyle().MarkerStartResource();
+  }
+  StyleSVGResource* MarkerMidResource() const {
+    return SvgStyle().MarkerMidResource();
+  }
+  StyleSVGResource* MarkerEndResource() const {
+    return SvgStyle().MarkerEndResource();
+  }
+  bool HasMarkers() const {
+    return MarkerStartResource() || MarkerMidResource() || MarkerEndResource();
+  }
+
+  // paint-order helper
+  EPaintOrder PaintOrder() const { return SvgStyle().PaintOrder(); }
+  EPaintOrderType PaintOrderType(unsigned index) const;
+
+  EShapeRendering ShapeRendering() const { return SvgStyle().ShapeRendering(); }
+
+  // stroke helpers
+  bool HasStroke() const { return !StrokePaint().IsNone(); }
+  bool HasVisibleStroke() const {
+    return HasStroke() && !StrokeWidth().IsZero();
+  }
+  bool IsStrokeColorCurrentColor() const {
+    return StrokePaint().HasCurrentColor() ||
+           InternalVisitedStrokePaint().HasCurrentColor();
+  }
+  const SVGPaint& StrokePaint() const { return SvgStyle().StrokePaint(); }
+  const SVGPaint& InternalVisitedStrokePaint() const {
+    return SvgStyle().InternalVisitedStrokePaint();
+  }
+
   // stroke-dasharray
   SVGDashArray* StrokeDashArray() const { return SvgStyle().StrokeDashArray(); }
+  bool HasDashArray() const { return !StrokeDashArray()->data.IsEmpty(); }
   void SetStrokeDashArray(scoped_refptr<SVGDashArray> array) {
     AccessSVGStyle().SetStrokeDashArray(std::move(array));
   }
@@ -1158,6 +1254,9 @@ class ComputedStyle : public ComputedStyleBase,
   void SetStrokeDashOffset(const Length& d) {
     AccessSVGStyle().SetStrokeDashOffset(d);
   }
+
+  LineCap CapStyle() const { return SvgStyle().CapStyle(); }
+  LineJoin JoinStyle() const { return SvgStyle().JoinStyle(); }
 
   // stroke-miterlimit
   float StrokeMiterLimit() const { return SvgStyle().StrokeMiterLimit(); }
@@ -1172,6 +1271,9 @@ class ComputedStyle : public ComputedStyleBase,
   void SetStrokeWidth(const UnzoomedLength& w) {
     AccessSVGStyle().SetStrokeWidth(w);
   }
+
+  ETextAnchor TextAnchor() const { return SvgStyle().TextAnchor(); }
+  EVectorEffect VectorEffect() const { return SvgStyle().VectorEffect(); }
 
   // Comparison operators
   // FIXME: Replace callers of operator== wth a named method instead, e.g.
@@ -2398,7 +2500,7 @@ class ComputedStyle : public ComputedStyleBase,
       return true;
     if (has_box_reflection)
       return true;
-    if (ClipPath())
+    if (HasClipPath())
       return true;
     if (HasIsolation())
       return true;
@@ -2433,7 +2535,7 @@ class ComputedStyle : public ComputedStyleBase,
   // Return true if this style has properties ('filter', 'clip-path' and 'mask')
   // that applies an effect to SVG elements.
   bool HasSVGEffect() const {
-    return HasFilter() || ClipPath() || SvgStyle().HasMasker();
+    return HasFilter() || HasClipPath() || MaskerResource();
   }
 
   // Paint utility functions.
@@ -2668,6 +2770,12 @@ class ComputedStyle : public ComputedStyleBase,
     return LogicalSize(LayoutUnit(ratio.Width()), LayoutUnit(ratio.Height()));
   }
 
+  EBoxSizing BoxSizingForAspectRatio() const {
+    if (AspectRatio().GetType() == EAspectRatioType::kAutoAndRatio)
+      return EBoxSizing::kContentBox;
+    return BoxSizing();
+  }
+
  private:
   EClear Clear() const { return ClearInternal(); }
   EFloat Floating() const { return FloatingInternal(); }
@@ -2888,8 +2996,6 @@ class ComputedStyle : public ComputedStyleBase,
   StyleColor DecorationColorIncludingFallback(bool visited_link) const;
 
   const StyleColor& StopColor() const { return SvgStyle().StopColor(); }
-  const StyleColor& FloodColor() const { return SvgStyle().FloodColor(); }
-  const StyleColor& LightingColor() const { return SvgStyle().LightingColor(); }
 
   // Appearance accessors are private to make sure callers use
   // EffectiveAppearance in almost all cases.

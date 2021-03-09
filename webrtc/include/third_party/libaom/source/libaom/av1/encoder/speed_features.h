@@ -377,15 +377,7 @@ typedef struct TPL_SPEED_FEATURES {
 } TPL_SPEED_FEATURES;
 
 typedef struct GLOBAL_MOTION_SPEED_FEATURES {
-  // Do not compute the global motion parameters for a LAST2_FRAME or
-  // LAST3_FRAME if the GOLDEN_FRAME is closer and it has a non identity
-  // global model.
-  int selective_ref_gm;
-
   GM_SEARCH_TYPE gm_search_type;
-
-  // whether to disable the global motion recode loop
-  int gm_disable_recode;
 
   // During global motion estimation, prune remaining reference frames in a
   // given direction(past/future), if the evaluated ref_frame in that direction
@@ -675,12 +667,18 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   int prune_compound_using_single_ref;
 
   // Skip extended compound mode using ref frames of above and left neighbor
-  // blocks and also skip when ref frame NEWMV mode does not have NEWMV as
-  // single mode winner
+  // blocks.
   // 0 : no pruning
   // 1 : prune extended compound mode (less aggressiveness)
   // 2 : prune extended compound mode (high aggressiveness)
-  int prune_extended_comp_mode;
+  int prune_compound_using_neighbors;
+
+  // Skip extended compound mode when ref frame corresponding to NEWMV does not
+  // have NEWMV as single mode winner.
+  // 0 : no pruning
+  // 1 : prune extended compound mode (less aggressiveness)
+  // 2 : prune extended compound mode (high aggressiveness)
+  int prune_comp_using_best_single_mode_ref;
 
   // Based on previous ref_mv_idx search result, prune the following search.
   int prune_ref_mv_idx_search;
@@ -709,9 +707,6 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Enable/disable ME for interinter wedge search.
   int disable_interinter_wedge_newmv_search;
-
-  // Enable/disable smooth inter-intra mode
-  int disable_smooth_interintra;
 
   // Decide when and how to use joint_comp.
   DIST_WTD_COMP_FLAG use_dist_wtd_comp_flag;

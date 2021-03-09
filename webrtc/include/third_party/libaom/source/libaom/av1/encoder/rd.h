@@ -231,7 +231,7 @@ int av1_compute_rd_mult(const struct AV1_COMP *cpi, int qindex);
 void av1_initialize_rd_consts(struct AV1_COMP *cpi);
 
 // Sets the multiplier to convert mv cost to l1 error during motion search.
-void av1_set_sad_per_bit(const struct AV1_COMP *cpi, MvCosts *mv_costs,
+void av1_set_sad_per_bit(const struct AV1_COMP *cpi, int *sadperbit,
                          int qindex);
 
 void av1_model_rd_from_var_lapndz(int64_t var, unsigned int n,
@@ -281,8 +281,8 @@ void av1_mv_pred(const struct AV1_COMP *cpi, MACROBLOCK *x,
                  BLOCK_SIZE block_size);
 
 // Sets the multiplier to convert mv cost to l2 error during motion search.
-static INLINE void av1_set_error_per_bit(MvCosts *mv_costs, int rdmult) {
-  mv_costs->errorperbit = AOMMAX(rdmult >> RD_EPB_SHIFT, 1);
+static INLINE void av1_set_error_per_bit(int *errorperbit, int rdmult) {
+  *errorperbit = AOMMAX(rdmult >> RD_EPB_SHIFT, 1);
 }
 
 // Get the threshold for R-D optimization of coefficients depending upon mode
@@ -320,33 +320,38 @@ static INLINE void get_rd_opt_coeff_thresh(
 static INLINE void reset_hash_records(TxfmSearchInfo *const txfm_info,
                                       int use_inter_txb_hash) {
   int32_t record_idx;
-
+  if (!txfm_info->txb_rd_records) return;
   // Reset the state for use_inter_txb_hash
   if (use_inter_txb_hash) {
     for (record_idx = 0;
          record_idx < ((MAX_MIB_SIZE >> 1) * (MAX_MIB_SIZE >> 1)); record_idx++)
-      txfm_info->txb_rd_record_8X8[record_idx].num =
-          txfm_info->txb_rd_record_8X8[record_idx].index_start = 0;
+      txfm_info->txb_rd_records->txb_rd_record_8X8[record_idx].num =
+          txfm_info->txb_rd_records->txb_rd_record_8X8[record_idx].index_start =
+              0;
     for (record_idx = 0;
          record_idx < ((MAX_MIB_SIZE >> 2) * (MAX_MIB_SIZE >> 2)); record_idx++)
-      txfm_info->txb_rd_record_16X16[record_idx].num =
-          txfm_info->txb_rd_record_16X16[record_idx].index_start = 0;
+      txfm_info->txb_rd_records->txb_rd_record_16X16[record_idx].num =
+          txfm_info->txb_rd_records->txb_rd_record_16X16[record_idx]
+              .index_start = 0;
     for (record_idx = 0;
          record_idx < ((MAX_MIB_SIZE >> 3) * (MAX_MIB_SIZE >> 3)); record_idx++)
-      txfm_info->txb_rd_record_32X32[record_idx].num =
-          txfm_info->txb_rd_record_32X32[record_idx].index_start = 0;
+      txfm_info->txb_rd_records->txb_rd_record_32X32[record_idx].num =
+          txfm_info->txb_rd_records->txb_rd_record_32X32[record_idx]
+              .index_start = 0;
     for (record_idx = 0;
          record_idx < ((MAX_MIB_SIZE >> 4) * (MAX_MIB_SIZE >> 4)); record_idx++)
-      txfm_info->txb_rd_record_64X64[record_idx].num =
-          txfm_info->txb_rd_record_64X64[record_idx].index_start = 0;
+      txfm_info->txb_rd_records->txb_rd_record_64X64[record_idx].num =
+          txfm_info->txb_rd_records->txb_rd_record_64X64[record_idx]
+              .index_start = 0;
   }
 
   // Reset the state for use_intra_txb_hash
-  txfm_info->txb_rd_record_intra.num =
-      txfm_info->txb_rd_record_intra.index_start = 0;
+  txfm_info->txb_rd_records->txb_rd_record_intra.num =
+      txfm_info->txb_rd_records->txb_rd_record_intra.index_start = 0;
 
   // Reset the state for use_mb_rd_hash
-  txfm_info->mb_rd_record.num = txfm_info->mb_rd_record.index_start = 0;
+  txfm_info->txb_rd_records->mb_rd_record.num =
+      txfm_info->txb_rd_records->mb_rd_record.index_start = 0;
 }
 
 void av1_setup_pred_block(const MACROBLOCKD *xd,

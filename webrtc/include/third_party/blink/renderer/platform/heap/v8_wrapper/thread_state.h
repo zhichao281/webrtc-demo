@@ -62,26 +62,8 @@ using V8BuildEmbedderGraphCallback = void (*)(v8::Isolate*,
                                               v8::EmbedderGraph*,
                                               void*);
 
-// Used to observe garbage collection events. The observer is imprecise wrt. to
-// garbage collection internals, i.e., it is not guaranteed that a garbage
-// collection is already finished. The observer guarantees that a full garbage
-// collection happens between two `OnGarbageCollection()` calls.
-//
-// The observer must outlive the corresponding ThreadState.
-class PLATFORM_EXPORT BlinkGCObserver {
+class PLATFORM_EXPORT ThreadState final {
  public:
-  explicit BlinkGCObserver(ThreadState*);
-  virtual ~BlinkGCObserver();
-
-  virtual void OnGarbageCollection() = 0;
-
- private:
-  ThreadState* thread_state_;
-};
-
-class ThreadState final {
- public:
-  class HeapPointersOnStackScope;
   class NoAllocationScope;
 
   static ALWAYS_INLINE ThreadState* Current() {
@@ -89,7 +71,6 @@ class ThreadState final {
   }
 
   static ALWAYS_INLINE ThreadState* MainThreadState() {
-    DCHECK(Current()->IsMainThread());
     return reinterpret_cast<ThreadState*>(main_thread_state_storage_);
   }
 
@@ -100,16 +81,8 @@ class ThreadState final {
   static ThreadState* AttachCurrentThread();
   static void DetachCurrentThread();
 
-  void AttachToIsolate(v8::Isolate* isolate, V8BuildEmbedderGraphCallback) {
-    isolate_ = isolate;
-    cpp_heap_ = isolate->GetCppHeap();
-    allocation_handle_ = &cpp_heap_->GetAllocationHandle();
-  }
-
-  void DetachFromIsolate() {
-    // No-op for the library implementation.
-    // TODO(1056170): Remove when removing Oilpan from Blink.
-  }
+  void AttachToIsolate(v8::Isolate* isolate, V8BuildEmbedderGraphCallback);
+  void DetachFromIsolate();
 
   ALWAYS_INLINE cppgc::AllocationHandle& allocation_handle() const {
     return *allocation_handle_;
@@ -122,27 +95,26 @@ class ThreadState final {
   // Collects garbage as long as live memory decreases (capped at 5).
   void CollectAllGarbageForTesting(
       BlinkGC::StackState stack_state =
-          BlinkGC::StackState::kNoHeapPointersOnStack) {
-    // TODO(1056170): Implement.
-  }
+          BlinkGC::StackState::kNoHeapPointersOnStack);
 
   void RunTerminationGC();
 
-  void SafePoint(BlinkGC::StackState) {
-    // TODO(1056170): Implement, if necessary for testing.
-  }
+  void SafePoint(BlinkGC::StackState);
 
   bool IsMainThread() const { return this == MainThreadState(); }
   bool IsCreationThread() const { return thread_id_ == CurrentThread(); }
 
-  void NotifyGarbageCollection();
-
-  size_t GcAge() const { return gc_age_; }
+  void NotifyGarbageCollection(v8::GCType, v8::GCCallbackFlags);
 
   bool InAtomicSweepingPause() const {
     auto& heap_handle = cpp_heap().GetHeapHandle();
     return cppgc::subtle::HeapState::IsInAtomicPause(heap_handle) &&
            cppgc::subtle::HeapState::IsSweeping(heap_handle);
+  }
+
+  bool IsAllocationAllowed() const {
+    return cppgc::subtle::DisallowGarbageCollectionScope::
+        IsGarbageCollectionAllowed(cpp_heap().GetHeapHandle());
   }
 
  private:
@@ -160,13 +132,10 @@ class ThreadState final {
   // Handle is the most frequently accessed field as it is required for
   // MakeGarbageCollected().
   cppgc::AllocationHandle* allocation_handle_ = nullptr;
-  v8::CppHeap* cpp_heap_ = nullptr;
+  std::unique_ptr<v8::CppHeap> cpp_heap_;
   v8::Isolate* isolate_ = nullptr;
   base::PlatformThreadId thread_id_;
-  size_t gc_age_ = 0;
-  WTF::HashSet<BlinkGCObserver*> observers_;
-
-  friend class BlinkGCObserver;
+  bool forced_scheduled_gc_for_testing_ = false;
 };
 
 template <>

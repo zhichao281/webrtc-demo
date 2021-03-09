@@ -130,6 +130,7 @@ class VideoStreamEncoderResourceManager
   // frames based on size and bitrate.
   bool DropInitialFrames() const;
   absl::optional<uint32_t> SingleActiveStreamPixels() const;
+  absl::optional<uint32_t> UseBandwidthAllocationBps() const;
 
   // VideoSourceRestrictionsListener implementation.
   // Updates |video_source_restrictions_|.
@@ -146,8 +147,6 @@ class VideoStreamEncoderResourceManager
   // QualityRampUpExperimentListener implementation.
   void OnQualityRampUp() override;
 
-  static absl::optional<uint32_t> GetSingleActiveLayerPixels(
-      const VideoCodec& codec);
   static bool IsSimulcast(const VideoEncoderConfig& encoder_config);
 
  private:

@@ -347,7 +347,6 @@ class SVGComputedStyle : public RefCounted<SVGComputedStyle> {
   EPaintOrder PaintOrder() const {
     return (EPaintOrder)svg_inherited_flags.paint_order;
   }
-  EPaintOrderType PaintOrderType(unsigned index) const;
 
   const SVGPaint& InternalVisitedFillPaint() const {
     return fill->visited_link_paint;
@@ -355,27 +354,6 @@ class SVGComputedStyle : public RefCounted<SVGComputedStyle> {
   const SVGPaint& InternalVisitedStrokePaint() const {
     return stroke->visited_link_paint;
   }
-
-  bool IsFillColorCurrentColor() const {
-    return FillPaint().HasCurrentColor() ||
-           InternalVisitedFillPaint().HasCurrentColor();
-  }
-
-  bool IsStrokeColorCurrentColor() const {
-    return StrokePaint().HasCurrentColor() ||
-           InternalVisitedStrokePaint().HasCurrentColor();
-  }
-
-  // convenience
-  bool HasMasker() const { return MaskerResource(); }
-  bool HasMarkers() const {
-    return MarkerStartResource() || MarkerMidResource() || MarkerEndResource();
-  }
-  bool HasStroke() const { return !StrokePaint().IsNone(); }
-  bool HasVisibleStroke() const {
-    return HasStroke() && !StrokeWidth().IsZero();
-  }
-  bool HasFill() const { return !FillPaint().IsNone(); }
 
  protected:
   // inherit

@@ -36,6 +36,7 @@
 #include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/optional.h"
+#include "base/time/time.h"
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_property.h"
@@ -44,6 +45,7 @@
 #include "third_party/blink/renderer/core/animation/compositor_animations.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/css_property_names.h"
+#include "third_party/blink/renderer/core/css/cssom/css_numeric_value.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
@@ -145,10 +147,11 @@ class CORE_EXPORT Animation : public EventTargetWithInlineData,
 
   void cancel();
 
-  base::Optional<double> currentTime() const;
-  void setCurrentTime(base::Optional<double> new_current_time,
-                      ExceptionState& exception_state);
-  void setCurrentTime(base::Optional<double> new_current_time);
+  void currentTime(CSSNumberish&) const;
+  base::Optional<AnimationTimeDelta> CurrentTimeInternal() const;
+  void setCurrentTime(CSSNumberish, ExceptionState& exception_state);
+  void setCurrentTime(CSSNumberish);
+  void SetCurrentTimeInternal(AnimationTimeDelta);
 
   base::Optional<AnimationTimeDelta> UnlimitedCurrentTime() const;
 
@@ -206,12 +209,12 @@ class CORE_EXPORT Animation : public EventTargetWithInlineData,
   virtual void setTimeline(AnimationTimeline* timeline);
   Document* GetDocument() const;
 
-  base::Optional<double> startTime() const;
+  void startTime(CSSNumberish&) const;
   base::Optional<AnimationTimeDelta> StartTimeInternal() const {
     return start_time_;
   }
-  virtual void setStartTime(base::Optional<double>, ExceptionState&);
-  void setStartTime(base::Optional<double>);
+  virtual void setStartTime(CSSNumberish, ExceptionState&);
+  void setStartTime(CSSNumberish);
 
   const AnimationEffect* effect() const { return content_.Get(); }
   AnimationEffect* effect() { return content_.Get(); }
@@ -297,11 +300,16 @@ class CORE_EXPORT Animation : public EventTargetWithInlineData,
   // depends on computed values.
   virtual void FlushPendingUpdates() const {}
 
+  bool IsInDisplayLockedSubtree();
+
+  void SetCanCompositeBGColorAnim() { can_composite_bgcolor_anim_ = true; }
+  void ResetCanCompositeBGColorAnim() { can_composite_bgcolor_anim_ = false; }
+  bool CanCompositeBGColorAnim() const { return can_composite_bgcolor_anim_; }
+
  protected:
   DispatchEventResult DispatchEventInternal(Event&) override;
   void AddedEventListener(const AtomicString& event_type,
                           RegisteredEventListener&) override;
-  base::Optional<AnimationTimeDelta> CurrentTimeInternal() const;
   TimelinePhase CurrentPhaseInternal() const;
   virtual AnimationEffect::EventDelegate* CreateEventDelegate(
       Element* target,
@@ -310,7 +318,6 @@ class CORE_EXPORT Animation : public EventTargetWithInlineData,
   }
 
  private:
-  void SetCurrentTimeInternal(AnimationTimeDelta new_current_time);
   void SetHoldTimeAndPhase(base::Optional<AnimationTimeDelta> new_hold_time,
                            TimelinePhase new_hold_phase);
   void ResetHoldTimeAndPhase();
@@ -516,6 +523,20 @@ class CORE_EXPORT Animation : public EventTargetWithInlineData,
   Member<CompositorAnimationHolder> compositor_animation_;
 
   bool effect_suppressed_;
+
+  // True if the background color animation can be composited. Set by the
+  // BackgroundColorPaintWorklet::GetBGColorPaintWorkletParams. We keep it here
+  // instead of ElementAnimations such that when we create a compositor
+  // animation, we know which animation should fall back. Note that when we
+  // extend the native paint worklet to composite other types of animations in
+  // the future, we might need to extend this to be a fall back reasons.
+  bool can_composite_bgcolor_anim_ = false;
+
+  // Animations with an owning element stop ticking if there is an active
+  // display lock on an ancestor element.  Cache the status to minimize the
+  // number of tree walks.
+  base::TimeTicks last_display_lock_update_time_ = base::TimeTicks();
+  bool is_in_display_locked_subtree_ = false;
 
   FRIEND_TEST_ALL_PREFIXES(AnimationAnimationTestCompositeAfterPaint,
                            NoCompositeWithoutCompositedElementId);

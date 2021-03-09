@@ -50,7 +50,7 @@ class NetworkEmulationManagerImpl : public NetworkEmulationManager {
 
   SimulatedNetworkNode::Builder NodeBuilder() override;
 
-  EmulatedEndpoint* CreateEndpoint(EmulatedEndpointConfig config) override;
+  EmulatedEndpointImpl* CreateEndpoint(EmulatedEndpointConfig config) override;
   void EnableEndpoint(EmulatedEndpoint* endpoint) override;
   void DisableEndpoint(EmulatedEndpoint* endpoint) override;
 
@@ -60,6 +60,11 @@ class NetworkEmulationManagerImpl : public NetworkEmulationManager {
 
   EmulatedRoute* CreateRoute(
       const std::vector<EmulatedNetworkNode*>& via_nodes) override;
+
+  EmulatedRoute* CreateDefaultRoute(
+      EmulatedEndpoint* from,
+      const std::vector<EmulatedNetworkNode*>& via_nodes,
+      EmulatedEndpoint* to) override;
 
   void ClearRoute(EmulatedRoute* route) override;
 
@@ -76,7 +81,7 @@ class NetworkEmulationManagerImpl : public NetworkEmulationManager {
   EmulatedNetworkManagerInterface* CreateEmulatedNetworkManagerInterface(
       const std::vector<EmulatedEndpoint*>& endpoints) override;
 
-  void GetStats(rtc::ArrayView<EmulatedEndpoint*> endpoints,
+  void GetStats(rtc::ArrayView<EmulatedEndpoint* const> endpoints,
                 std::function<void(std::unique_ptr<EmulatedNetworkStats>)>
                     stats_callback) override;
 

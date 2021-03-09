@@ -11,11 +11,11 @@
 #ifndef MODULES_AUDIO_DEVICE_ANDROID_AUDIO_DEVICE_TEMPLATE_H_
 #define MODULES_AUDIO_DEVICE_ANDROID_AUDIO_DEVICE_TEMPLATE_H_
 
+#include "api/sequence_checker.h"
 #include "modules/audio_device/android/audio_manager.h"
 #include "modules/audio_device/audio_device_generic.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/thread_checker.h"
 
 namespace webrtc {
 
@@ -411,7 +411,7 @@ class AudioDeviceTemplate : public AudioDeviceGeneric {
   }
 
  private:
-  rtc::ThreadChecker thread_checker_;
+  SequenceChecker thread_checker_;
 
   // Local copy of the audio layer set during construction of the
   // AudioDeviceModuleImpl instance. Read only value.

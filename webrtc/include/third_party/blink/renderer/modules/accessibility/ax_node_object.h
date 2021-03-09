@@ -50,11 +50,13 @@ class MODULES_EXPORT AXNodeObject : public AXObject {
  protected:
 #if DCHECK_IS_ON()
   bool initialized_ = false;
+  mutable bool getting_bounds_ = false;
 #endif
+
   // The accessibility role, not taking ARIA into account.
   ax::mojom::blink::Role native_role_;
 
-  static base::Optional<String> GetCSSAltText(Node*);
+  static base::Optional<String> GetCSSAltText(const Node*);
   AXObjectInclusion ShouldIncludeBasedOnSemantics(
       IgnoredReasons* = nullptr) const;
   bool ComputeAccessibilityIsIgnored(IgnoredReasons* = nullptr) const override;
@@ -84,10 +86,10 @@ class MODULES_EXPORT AXNodeObject : public AXObject {
 
   void Init(AXObject* parent_if_known) override;
   void Detach() override;
-  bool IsDetached() const override;
   bool IsAXNodeObject() const final;
 
   // Check object role or purpose.
+  bool IsAutofillAvailable() const override;
   bool IsControllingVideoElement() const;
   bool IsDefault() const final;
   bool IsMultiline() const override;
@@ -183,6 +185,9 @@ class MODULES_EXPORT AXNodeObject : public AXObject {
 
   ax::mojom::blink::HasPopup HasPopup() const override;
 
+  // Modify or take an action on an object.
+  bool OnNativeSetValueAction(const String&) override;
+
   // AX name calculation.
   String GetName(ax::mojom::blink::NameFrom&,
                  AXObjectVector* name_objects) const override;
@@ -262,10 +267,6 @@ class MODULES_EXPORT AXNodeObject : public AXObject {
   // Inline text boxes.
   void LoadInlineTextBoxes() override;
 
-  virtual LayoutBoxModelObject* GetLayoutBoxModelObject() const {
-    return nullptr;
-  }
-
   //
   // Layout object specific methods.
   //
@@ -297,8 +298,10 @@ class MODULES_EXPORT AXNodeObject : public AXObject {
   bool SelectionShouldFollowFocus() const;
   virtual bool IsTabItemSelected() const;
 
+  void AddChildrenImpl();
   void AddNodeChildren();
   void AddLayoutChildren();
+  bool CanAddLayoutChild(LayoutObject& child);
   void AddInlineTextBoxChildren(bool force = false);
   void AddImageMapChildren();
   void AddPopupChildren();
@@ -307,6 +310,9 @@ class MODULES_EXPORT AXNodeObject : public AXObject {
   void AddValidationMessageChild();
   void AddAccessibleNodeChildren();
   void AddOwnedChildren();
+#if DCHECK_IS_ON()
+  void CheckValidChild(AXObject* child);
+#endif
 
   ax::mojom::blink::Dropeffect ParseDropeffect(String& dropeffect) const;
 

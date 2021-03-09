@@ -25,7 +25,7 @@
 //
 // Because a Cord consists of these chunks, data can be added to or removed from
 // a Cord during its lifetime. Chunks may also be shared between Cords. Unlike a
-// `std::string`, a Cord can therefore accomodate data that changes over its
+// `std::string`, a Cord can therefore accommodate data that changes over its
 // lifetime, though it's not quite "mutable"; it can change only in the
 // attachment, detachment, or rearrangement of chunks of its constituent data.
 //
@@ -78,6 +78,8 @@
 #include "absl/functional/function_ref.h"
 #include "absl/meta/type_traits.h"
 #include "absl/strings/internal/cord_internal.h"
+#include "absl/strings/internal/cord_rep_ring.h"
+#include "absl/strings/internal/cord_rep_ring_reader.h"
 #include "absl/strings/internal/resize_uninitialized.h"
 #include "absl/strings/internal/string_constant.h"
 #include "absl/strings/string_view.h"
@@ -287,7 +289,7 @@ class Cord {
   bool StartsWith(const Cord& rhs) const;
   bool StartsWith(absl::string_view rhs) const;
 
-  // Cord::EndsWidth()
+  // Cord::EndsWith()
   //
   // Determines whether the Cord ends with the passed string data `rhs`.
   bool EndsWith(absl::string_view rhs) const;
@@ -361,6 +363,10 @@ class Cord {
     friend class CharIterator;
 
    private:
+    using CordRep = absl::cord_internal::CordRep;
+    using CordRepRing = absl::cord_internal::CordRepRing;
+    using CordRepRingReader = absl::cord_internal::CordRepRingReader;
+
     // Stack of right children of concat nodes that we have to visit.
     // Keep this at the end of the structure to avoid cache-thrashing.
     // TODO(jgm): Benchmark to see if there's a more optimal value than 47 for
@@ -385,6 +391,10 @@ class Cord {
     // Stack specific operator++
     ChunkIterator& AdvanceStack();
 
+    // Ring buffer specific operator++
+    ChunkIterator& AdvanceRing();
+    void AdvanceBytesRing(size_t n);
+
     // Iterates `n` bytes, where `n` is expected to be greater than or equal to
     // `current_chunk_.size()`.
     void AdvanceBytesSlowPath(size_t n);
@@ -398,6 +408,10 @@ class Cord {
     absl::cord_internal::CordRep* current_leaf_ = nullptr;
     // The number of bytes left in the `Cord` over which we are iterating.
     size_t bytes_remaining_ = 0;
+
+    // Cord reader for ring buffers. Empty if not traversing a ring buffer.
+    CordRepRingReader ring_reader_;
+
     // See 'Stack' alias definition.
     Stack stack_of_right_children_;
   };
@@ -741,6 +755,23 @@ class Cord {
 
     bool is_tree() const { return data_.is_tree(); }
 
+    // Returns true if the Cord is being profiled by cordz.
+    bool is_profiled() const { return data_.is_tree() && data_.is_profiled(); }
+
+    // Returns the profiled CordzInfo, or nullptr if not sampled.
+    absl::cord_internal::CordzInfo* cordz_info() const {
+      return data_.cordz_info();
+    }
+
+    // Sets the profiled CordzInfo. `cordz_info` must not be null.
+    void set_cordz_info(cord_internal::CordzInfo* cordz_info) {
+      assert(cordz_info != nullptr);
+      data_.set_cordz_info(cordz_info);
+    }
+
+    // Resets the current cordz_info to null / empty.
+    void clear_cordz_info() { data_.clear_cordz_info(); }
+
    private:
     friend class Cord;
 
@@ -907,8 +938,12 @@ Cord MakeCordFromExternal(absl::string_view data, Releaser&& releaser) {
 constexpr Cord::InlineRep::InlineRep(cord_internal::InlineData data)
     : data_(data) {}
 
-inline Cord::InlineRep::InlineRep(const Cord::InlineRep& src) {
-  data_ = src.data_;
+inline Cord::InlineRep::InlineRep(const Cord::InlineRep& src)
+    : data_(src.data_) {
+  if (is_tree()) {
+    data_.clear_cordz_info();
+    absl::cord_internal::CordRep::Ref(as_tree());
+  }
 }
 
 inline Cord::InlineRep::InlineRep(Cord::InlineRep&& src) {
@@ -942,7 +977,6 @@ inline void Cord::InlineRep::Swap(Cord::InlineRep* rhs) {
   if (rhs == this) {
     return;
   }
-
   std::swap(data_, rhs->data_);
 }
 
@@ -1022,6 +1056,8 @@ inline Cord& Cord::operator=(const Cord& x) {
   contents_ = x.contents_;
   return *this;
 }
+
+inline Cord::Cord(const Cord& src) : contents_(src.contents_) {}
 
 inline Cord::Cord(Cord&& src) noexcept : contents_(std::move(src.contents_)) {}
 
@@ -1107,6 +1143,11 @@ inline bool Cord::StartsWith(absl::string_view rhs) const {
 }
 
 inline void Cord::ChunkIterator::InitTree(cord_internal::CordRep* tree) {
+  if (tree->tag == cord_internal::RING) {
+    current_chunk_ = ring_reader_.Reset(tree->ring());
+    return;
+  }
+
   stack_of_right_children_.push_back(tree);
   operator++();
 }
@@ -1126,13 +1167,33 @@ inline Cord::ChunkIterator::ChunkIterator(const Cord* cord)
   }
 }
 
+inline Cord::ChunkIterator& Cord::ChunkIterator::AdvanceRing() {
+  current_chunk_ = ring_reader_.Next();
+  return *this;
+}
+
+inline void Cord::ChunkIterator::AdvanceBytesRing(size_t n) {
+  assert(n >= current_chunk_.size());
+  bytes_remaining_ -= n;
+  if (bytes_remaining_) {
+    if (n == current_chunk_.size()) {
+      current_chunk_ = ring_reader_.Next();
+    } else {
+      size_t offset = ring_reader_.length() - bytes_remaining_;
+      current_chunk_ = ring_reader_.Seek(offset);
+    }
+  } else {
+    current_chunk_ = {};
+  }
+}
+
 inline Cord::ChunkIterator& Cord::ChunkIterator::operator++() {
   ABSL_HARDENING_ASSERT(bytes_remaining_ > 0 &&
                         "Attempted to iterate past `end()`");
   assert(bytes_remaining_ >= current_chunk_.size());
   bytes_remaining_ -= current_chunk_.size();
   if (bytes_remaining_ > 0) {
-    return AdvanceStack();
+    return ring_reader_ ? AdvanceRing() : AdvanceStack();
   } else {
     current_chunk_ = {};
   }
@@ -1174,7 +1235,7 @@ inline void Cord::ChunkIterator::AdvanceBytes(size_t n) {
   if (ABSL_PREDICT_TRUE(n < current_chunk_.size())) {
     RemoveChunkPrefix(n);
   } else if (n != 0) {
-    AdvanceBytesSlowPath(n);
+    ring_reader_ ? AdvanceBytesRing(n) : AdvanceBytesSlowPath(n);
   }
 }
 

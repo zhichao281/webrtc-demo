@@ -108,6 +108,7 @@ class MODULES_EXPORT AXObjectCacheImpl
   void Remove(LayoutObject*) override;
   void Remove(Node*) override;
   void Remove(AbstractInlineTextBox*) override;
+  void Remove(AXObject*);  // Calls more specific Remove methods as necessary.
 
   const Element* RootAXEditableElement(const Node*) override;
 
@@ -188,7 +189,7 @@ class MODULES_EXPORT AXObjectCacheImpl
   // Used for objects without backing DOM nodes, layout objects, etc.
   AXObject* CreateAndInit(ax::mojom::blink::Role, AXObject* parent);
 
-  AXObject* GetOrCreate(AccessibleNode*, AXObject* parent_if_known);
+  AXObject* GetOrCreate(AccessibleNode*, AXObject* parent);
   AXObject* GetOrCreate(LayoutObject*, AXObject* parent_if_known) override;
   AXObject* GetOrCreate(LayoutObject* layout_object);
   AXObject* GetOrCreate(const Node*, AXObject* parent_if_known);
@@ -300,6 +301,7 @@ class MODULES_EXPORT AXObjectCacheImpl
 
   static bool UseAXMenuList() { return use_ax_menu_list_; }
   static bool ShouldCreateAXMenuListOptionFor(const Node*);
+  static bool IsPseudoElementDescendant(const LayoutObject& layout_object);
 
 #if DCHECK_IS_ON()
   bool HasBeenDisposed() { return has_been_disposed_; }
@@ -341,7 +343,9 @@ class MODULES_EXPORT AXObjectCacheImpl
   AXObject* CreateFromNode(Node*);
   AXObject* CreateFromInlineTextBox(AbstractInlineTextBox*);
   void Remove(AXID);
-  void Remove(AXObject*);  // Calls more specific Remove methods as necessary.
+
+  // Given a <map> element, get the image currently associated with it, if any.
+  AXObject* GetAXImageForMap(HTMLMapElement& map);
 
  private:
   struct AXEventParams final : public GarbageCollected<AXEventParams> {
@@ -497,6 +501,8 @@ class MODULES_EXPORT AXObjectCacheImpl
   void ChildrenChangedWithCleanLayout(Node* node);
   void HandleAttributeChangedWithCleanLayout(const QualifiedName& attr_name,
                                              Element* element);
+  void HandleUseMapAttributeChangedWithCleanLayout(Element*);
+  void HandleNameAttributeChangedWithCleanLayout(Element*);
 
   bool DoesEventListenerImpactIgnoredState(
       const AtomicString& event_type) const;

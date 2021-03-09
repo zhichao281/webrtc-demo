@@ -118,7 +118,7 @@ class BLINK_MODULES_EXPORT WebMediaPlayerMS
   void SetPreservesPitch(bool preserves_pitch) override;
   void SetAutoplayInitiated(bool autoplay_initiated) override;
   void OnRequestPictureInPicture() override;
-  void SetSinkId(const WebString& sink_id,
+  bool SetSinkId(const WebString& sink_id,
                  WebSetSinkIdCompleteCallback completion_callback) override;
   void SetPreload(WebMediaPlayer::Preload preload) override;
   WebTimeRanges Buffered() const override;
@@ -178,7 +178,6 @@ class BLINK_MODULES_EXPORT WebMediaPlayerMS
   void OnFrameClosed() override;
   void OnFrameShown() override;
   void OnIdleTimeout() override;
-  void OnSetAudioSink(const std::string& sink_id) override;
   void OnVolumeMultiplierUpdate(double multiplier) override;
   void OnBecamePersistentVideo(bool value) override;
 

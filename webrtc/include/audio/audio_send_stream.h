@@ -15,6 +15,7 @@
 #include <utility>
 #include <vector>
 
+#include "api/sequence_checker.h"
 #include "audio/audio_level.h"
 #include "audio/channel_send.h"
 #include "call/audio_send_stream.h"
@@ -24,7 +25,6 @@
 #include "rtc_base/experiments/struct_parameters_parser.h"
 #include "rtc_base/race_checker.h"
 #include "rtc_base/synchronization/mutex.h"
-#include "rtc_base/synchronization/sequence_checker.h"
 #include "rtc_base/task_queue.h"
 
 namespace webrtc {
@@ -142,8 +142,8 @@ class AudioSendStream final : public webrtc::AudioSendStream,
 
   // Returns bitrate constraints, maybe including overhead when enabled by
   // field trial.
-  TargetAudioBitrateConstraints GetMinMaxBitrateConstraints() const
-      RTC_RUN_ON(worker_thread_checker_);
+  absl::optional<TargetAudioBitrateConstraints> GetMinMaxBitrateConstraints()
+      const RTC_RUN_ON(worker_thread_checker_);
 
   // Sets per-packet overhead on encoded (for ANA) based on current known values
   // of transport and packetization overheads.

@@ -25,6 +25,10 @@
 
 #include "protos/perfetto/trace/android/frame_timeline_event.pbzero.h"
 
+#include <map>
+#include <unordered_map>
+#include <unordered_set>
+
 namespace perfetto {
 
 namespace trace_processor {
@@ -63,6 +67,18 @@ class FrameTimelineEventParser {
   std::array<StringId, 5> present_type_ids_;
   StringId expected_timeline_track_name_;
   StringId actual_timeline_track_name_;
+  // upid -> set of tokens map. The expected timeline is the same for a given
+  // token no matter how many times its seen. We can safely ignore duplicates
+  // for the expected timeline slices by caching the set of tokens seen so far
+  // per upid. upid is used as a dimension here because we show the timeline
+  // tracks for every process group.
+  // This map is used only for SurfaceFrames because there is no way two
+  // DisplayFrames use the same token unless there is something wrong with
+  // SurfaceFlinger.
+  std::unordered_map<UniquePid, std::unordered_set<int64_t>>
+      expected_timeline_token_map_;
+
+  std::multimap<int64_t, SliceId> display_token_to_surface_slice_;
 };
 }  // namespace trace_processor
 }  // namespace perfetto

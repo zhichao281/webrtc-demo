@@ -57,6 +57,7 @@
 class SkMatrix44;
 
 namespace ui {
+struct AXActionData;
 struct AXNodeData;
 }
 
@@ -360,7 +361,7 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   // When the corresponding WebCore object that this AXObject
   // wraps is deleted, it must be detached.
   virtual void Detach();
-  virtual bool IsDetached() const;
+  bool IsDetached() const;
 
   // Updates the cached attribute values. This may be recursive, so to prevent
   // deadlocks, functions called here may only search up the tree (ancestors),
@@ -779,7 +780,7 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   virtual AXRestriction Restriction() const;
 
   // ARIA attributes.
-  virtual ax::mojom::blink::Role DetermineAccessibilityRole();
+  virtual ax::mojom::blink::Role DetermineAccessibilityRole() = 0;
   ax::mojom::blink::Role DetermineAriaRoleAttribute() const;
   virtual ax::mojom::blink::Role AriaRoleAttribute() const;
   virtual bool HasAriaAttribute() const { return false; }
@@ -1044,7 +1045,7 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
 
   // Sets the parent AXObject directly. If the parent of this object is known,
   // this can be faster than using ComputeParent().
-  void SetParent(AXObject* parent);
+  void SetParent(AXObject* new_parent);
 
   // If parent was not initialized during AddChildren() it can be computed by
   // walking the DOM (or layout for nodeless aka anonymous layout object).
@@ -1081,8 +1082,8 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   bool ShouldUseLayoutObjectTraversalForChildren() const;
   virtual bool CanHaveChildren() const { return true; }
   void UpdateChildrenIfNecessary();
-  bool NeedsToUpdateChildren() const { return children_dirty_; }
-  void SetNeedsToUpdateChildren() { children_dirty_ = true; }
+  bool NeedsToUpdateChildren() const;
+  void SetNeedsToUpdateChildren();
   virtual void ClearChildren();
   void DetachFromParent() { parent_ = nullptr; }
   virtual void SelectedOptions(AXObjectVector&) const {}
@@ -1095,8 +1096,8 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   virtual Node* GetNode() const { return nullptr; }
   Element* GetElement() const;  // Same as GetNode, if it's an Element.
   virtual LayoutObject* GetLayoutObject() const { return nullptr; }
-  virtual Document* GetDocument() const;
-  virtual LocalFrameView* DocumentFrameView() const;
+  virtual Document* GetDocument() const = 0;
+  LocalFrameView* DocumentFrameView() const;
   virtual Element* AnchorElement() const { return nullptr; }
   virtual Element* ActionElement() const { return nullptr; }
   virtual AtomicString Language() const;
@@ -1158,6 +1159,10 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   // that isn't handled it calls |DoNativeIncrement|.
   //
   // These all return true if handled.
+  //
+  // Note: we're migrating to have PerformAction() be the only public
+  // interface, the others will all be private.
+  bool PerformAction(const ui::AXActionData&);
   bool RequestDecrementAction();
   bool RequestClickAction();
   bool RequestFocusAction();
@@ -1242,7 +1247,7 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   mutable Member<AXObject> parent_;
   // Only children that are included in tree, maybe rename to children_in_tree_.
   AXObjectVector children_;
-  bool children_dirty_;
+  mutable bool children_dirty_;
   ax::mojom::blink::Role role_;
   ax::mojom::blink::Role aria_role_;
   LayoutRect explicit_element_rect_;
@@ -1286,10 +1291,6 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
 
   ax::mojom::blink::Role ButtonRoleType() const;
 
-  virtual LayoutObject* LayoutObjectForRelativeBounds() const {
-    return nullptr;
-  }
-
   bool CanSetSelectedAttribute() const;
   const AXObject* InertRoot() const;
 
@@ -1309,6 +1310,8 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   void SerializeTableAttributes(ui::AXNodeData* node_data);
   void SerializeListAttributes(ui::AXNodeData* node_data);
   void SerializeScrollAttributes(ui::AXNodeData* node_data);
+  void SerializeElementAttributes(ui::AXNodeData* dst);
+  void SerializeHTMLAttributes(ui::AXNodeData* dst);
 
   // Serialization implemented in specific subclasses.
   virtual void SerializeMarkerAttributes(ui::AXNodeData* node_data) const;
@@ -1335,7 +1338,6 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
 
   Member<AXObjectCacheImpl> ax_object_cache_;
 
- private:
   void UpdateDistributionForFlatTreeTraversal() const;
   bool IsARIAControlledByTextboxWithActiveDescendant() const;
   bool AncestorExposesActiveDescendant() const;
@@ -1368,6 +1370,10 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
       ax::mojom::blink::StringAttribute attribute,
       const std::string& value,
       uint32_t max_len = kMaxStringAttributeLength) const;
+
+  // If this is an element that uses a child shadow root <slot>, detach the
+  // slot's parent.
+  void DetachSelectSlotChildFromParent();
 
   static unsigned number_of_live_ax_objects_;
 

@@ -145,6 +145,8 @@ class CORE_EXPORT NGContainerFragmentBuilder : public NGFragmentBuilder {
   void SwapMulticolsWithPendingOOFs(
       MulticolCollection* multicols_with_pending_oofs);
 
+  void ClearOutOfFlowFragmentainerDescendants();
+
   bool HasOutOfFlowPositionedCandidates() const {
     return !oof_positioned_candidates_.IsEmpty();
   }
@@ -155,6 +157,11 @@ class CORE_EXPORT NGContainerFragmentBuilder : public NGFragmentBuilder {
 
   bool HasMulticolsWithPendingOOFs() const {
     return !multicols_with_pending_oofs_.IsEmpty();
+  }
+
+  Vector<NGLogicalOutOfFlowPositionedNode>*
+  MutableOutOfFlowPositionedCandidates() {
+    return &oof_positioned_candidates_;
   }
 
   // This method should only be used within the inline layout algorithm. It is

@@ -12,6 +12,7 @@
 namespace blink {
 
 class StyleRuleCounterStyle;
+class CSSValue;
 
 enum class CounterStyleSystem {
   kCyclic,
@@ -20,6 +21,17 @@ enum class CounterStyleSystem {
   kAlphabetic,
   kNumeric,
   kAdditive,
+  kHebrew,
+  kSimpChineseInformal,
+  kSimpChineseFormal,
+  kTradChineseInformal,
+  kTradChineseFormal,
+  kKoreanHangulFormal,
+  kKoreanHanjaInformal,
+  kKoreanHanjaFormal,
+  kLowerArmenian,
+  kUpperArmenian,
+  kEthiopicNumeric,
   kUnresolvedExtends,
 };
 
@@ -27,6 +39,8 @@ enum class CounterStyleSystem {
 class CORE_EXPORT CounterStyle final : public GarbageCollected<CounterStyle> {
  public:
   static CounterStyle& GetDecimal();
+
+  static CounterStyleSystem ToCounterStyleSystemEnum(const CSSValue* value);
 
   // Returns nullptr if the @counter-style rule is invalid.
   static CounterStyle* Create(const StyleRuleCounterStyle&);
@@ -98,8 +112,13 @@ class CORE_EXPORT CounterStyle final : public GarbageCollected<CounterStyle> {
   // It may recurse, and if it enters a loop, it uses 'decimal' instead.
   String GenerateFallbackRepresentation(int value) const;
 
+  String IndexesToString(const Vector<wtf_size_t>& symbol_indexes) const;
+
   // The corresponding style rule in CSS.
   Member<const StyleRuleCounterStyle> style_rule_;
+
+  // Tracks mutations of |style_rule_|.
+  int style_rule_version_;
 
   // The actual system of the counter style with 'extends' resolved. The value
   // is kUnresolvedExtends temporarily before the resolution.

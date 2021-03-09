@@ -38,6 +38,7 @@
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/unique_receiver_set.h"
+#include "third_party/blink/public/common/frame/payment_request_token.h"
 #include "third_party/blink/public/common/frame/transient_allow_fullscreen.h"
 #include "third_party/blink/public/mojom/blob/blob_url_store.mojom-blink.h"
 #include "third_party/blink/public/mojom/frame/back_forward_cache_controller.mojom-blink.h"
@@ -498,10 +499,15 @@ class CORE_EXPORT LocalFrame final
   // be removed.
   bool IsProvisional() const;
 
-  // Called in the constructor if AdTracker heuristics have determined that this
-  // frame is an ad; LocalFrames created on behalf of OOPIF aren't set until
-  // just before commit (ReadyToCommitNavigation time) by the embedder.
+  // Called by the embedder if the evidence indicates the frame is an ad
+  // subframe. Called on creation of the initial empty document or, for
+  // LocalFrames created on behalf of OOPIF, just before commit
+  // (ReadyToCommitNavigation time).
   void SetIsAdSubframe(blink::mojom::AdFrameType ad_frame_type);
+
+  bool IsSubframeCreatedByAdScript() const {
+    return is_subframe_created_by_ad_script_;
+  }
 
   // Updates the frame color overlay to match the highlight ad setting.
   void UpdateAdHighlight();
@@ -731,6 +737,12 @@ class CORE_EXPORT LocalFrame final
   // Return true if the frame has a transient affordance to enter fullscreen.
   bool IsTransientAllowFullscreenActive() const;
 
+  // Returns the state of the |PaymentRequestToken| in the current |Frame|.
+  bool IsPaymentRequestTokenActive() const;
+
+  // Consumes the |PaymentRequestToken| of the current |Frame| if it was active.
+  bool ConsumePaymentRequestToken();
+
   void SetOptimizationGuideHints(
       mojom::blink::BlinkOptimizationGuideHintsPtr hints);
   mojom::blink::BlinkOptimizationGuideHints* GetOptimizationGuideHints() {
@@ -777,8 +789,6 @@ class CORE_EXPORT LocalFrame final
 
   void EnableNavigation() { --navigation_disable_count_; }
   void DisableNavigation() { ++navigation_disable_count_; }
-
-  void SetIsAdSubframeIfNecessary();
 
   void PropagateInertToChildFrames();
 
@@ -1005,10 +1015,19 @@ class CORE_EXPORT LocalFrame final
   // Manages a transient affordance for this frame to enter fullscreen.
   TransientAllowFullscreen transient_allow_fullscreen_;
 
+  PaymentRequestToken payment_request_token_;
+
   std::unique_ptr<PolicyContainer> policy_container_;
 
   bool is_window_controls_overlay_visible_ = false;
   gfx::Rect window_controls_overlay_rect_;
+
+  // True if this frame is a subframe that had a script tagged as an ad on the
+  // v8 stack at the time of creation. This is not currently propagated when a
+  // frame navigates cross-origin.
+  // TODO(crbug.com/1145634): propagate this bit for a frame that navigates
+  // cross-origin.
+  bool is_subframe_created_by_ad_script_ = false;
 };
 
 inline FrameLoader& LocalFrame::Loader() const {

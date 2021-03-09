@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "api/adaptation/resource.h"
+#include "api/sequence_checker.h"
 #include "api/units/data_rate.h"
 #include "api/video/video_bitrate_allocator.h"
 #include "api/video/video_rotation.h"
@@ -40,7 +41,6 @@
 #include "rtc_base/task_queue.h"
 #include "rtc_base/task_utils/pending_task_safety_flag.h"
 #include "rtc_base/thread_annotations.h"
-#include "rtc_base/thread_checker.h"
 #include "system_wrappers/include/clock.h"
 #include "video/adaptation/video_stream_encoder_resource_manager.h"
 #include "video/encoder_bitrate_adjuster.h"
@@ -439,6 +439,9 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
   // This class is thread-safe.
   VideoSourceSinkController video_source_sink_controller_
       RTC_GUARDED_BY(main_queue_);
+
+  // Default bitrate limits in EncoderInfoSettings allowed.
+  const bool default_limits_allowed_;
 
   // Public methods are proxied to the task queues. The queues must be destroyed
   // first to make sure no tasks run that use other members.

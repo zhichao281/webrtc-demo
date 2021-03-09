@@ -122,7 +122,6 @@ class DocumentInit;
 class DocumentLoader;
 class DocumentMarkerController;
 class DocumentNameCollection;
-class DocumentOutliveTimeReporter;
 class DocumentParser;
 class DocumentResourceCoordinator;
 class DocumentState;
@@ -322,6 +321,8 @@ class CORE_EXPORT Document : public ContainerNode,
   // other Documents in a different process. document.open() also causes the
   // document to cease to be the initial empty document.
   void OverrideIsInitialEmptyDocument() { is_initial_empty_document_ = false; }
+
+  bool IsPrerendering() const { return is_prerendering_; }
 
   // Gets the associated LocalDOMWindow even if this Document is associated with
   // an HTMLImportsController.
@@ -578,8 +579,20 @@ class CORE_EXPORT Document : public ContainerNode,
       bool ignore_adjacent_style = false) const;
 
   // Update ComputedStyles and attach LayoutObjects if necessary, but don't
-  // lay out.
+  // lay out. This recursively invokes itself for all ancestor LocalFrames,
+  // because style in an ancestor frame can affect style in a child frame.
+  // This method is appropriate for cases where we need to ensure that the
+  // style for a single Document is up-to-date.
   void UpdateStyleAndLayoutTree();
+
+  // Same as UpdateStyleAndLayoutTree, but does not recursively update style in
+  // ancestor frames. This method is intended to be used in cases where we can
+  // guarantee that ancestor frames already have clean style (e.g., from
+  // LocalFrameView::UpdateLifecyclePhases, which is a top-down iteration over
+  // the entire LocalFrame tree; or from Document::UpdateStyleAndLayout, which
+  // does its own ancestor tree walk).
+  void UpdateStyleAndLayoutTreeForThisDocument();
+
   void UpdateStyleAndLayoutTreeForNode(const Node*);
   void UpdateStyleAndLayoutTreeForSubtree(const Node*);
 
@@ -1363,18 +1376,21 @@ class CORE_EXPORT Document : public ContainerNode,
   const HeapVector<Member<Element>>& TopLayerElements() const {
     return top_layer_elements_;
   }
-  const HeapVector<Member<HTMLPopupElement>>& PopupElementStack() const {
-    return popup_element_stack_;
-  }
+
   HTMLDialogElement* ActiveModalDialog() const;
 
-  void PushNewPopupElement(HTMLPopupElement*);
-  void PopPopupElement(HTMLPopupElement*);
-  HTMLPopupElement* TopmostPopupElement();
+  HeapVector<Member<HTMLPopupElement>>& PopupElementStack() {
+    return popup_element_stack_;
+  }
+  bool PopupShowing() const;
+  void HideTopmostPopupElement() const;
+  // This hides all visible popups up to, but not including,
+  // |endpoint|. If |endpoint| is nullptr, all popups are hidden.
+  void HideAllPopupsUntil(const HTMLPopupElement* endpoint);
 
   // A non-null template_document_host_ implies that |this| was created by
   // EnsureTemplateDocument().
-  bool IsTemplateDocument() const { return !!template_document_host_; }
+  bool IsTemplateDocument() const { return template_document_host_; }
   Document& EnsureTemplateDocument();
   Document* TemplateDocumentHost() { return template_document_host_; }
 
@@ -1483,8 +1499,6 @@ class CORE_EXPORT Document : public ContainerNode,
   FontMatchingMetrics* GetFontMatchingMetrics();
 
   scoped_refptr<base::SingleThreadTaskRunner> GetTaskRunner(TaskType);
-
-  void RecordUkmOutliveTimeAfterShutdown(int outlive_time_count);
 
   bool CurrentFrameHadRAF() const;
   bool NextFrameHasPendingRAF() const;
@@ -1823,6 +1837,11 @@ class CORE_EXPORT Document : public ContainerNode,
 
   bool is_initial_empty_document_;
 
+  // Track the prerendering state.
+  // TODO(crbug.com/1169032): Update the flag on the prerendering activation.
+  // Also, we will merge the state into the lifecycle state eventually.
+  const bool is_prerendering_;
+
   bool evaluate_media_queries_on_style_recalc_;
 
   // If we do ignore the pending stylesheet count, then we need to add a boolean
@@ -2086,13 +2105,10 @@ class CORE_EXPORT Document : public ContainerNode,
 
   Member<NetworkStateObserver> network_state_observer_;
 
-  std::unique_ptr<DocumentOutliveTimeReporter> document_outlive_time_reporter_;
-
   // |ukm_recorder_| and |source_id_| will allow objects that are part of
   // the document to record UKM.
   std::unique_ptr<ukm::UkmRecorder> ukm_recorder_;
   const int64_t ukm_source_id_;
-  bool needs_to_record_ukm_outlive_time_;
 
   // Tracks and reports metrics of attempted font match attempts (both
   // successful and not successful) by the page.

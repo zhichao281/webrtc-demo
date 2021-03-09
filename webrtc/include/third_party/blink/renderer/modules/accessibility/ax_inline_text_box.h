@@ -59,14 +59,19 @@ class AXInlineTextBox final : public AXObject {
                          bool* clips_children = nullptr) const override;
   ax::mojom::blink::WritingDirection GetTextDirection() const override;
   Node* GetNode() const override;
+  Document* GetDocument() const override;
   AXObject* NextOnLine() const override;
   AXObject* PreviousOnLine() const override;
   void SerializeMarkerAttributes(ui::AXNodeData* node_data) const override;
+  ax::mojom::blink::Role DetermineAccessibilityRole() override {
+    // role_ is set manually in Init(), but must implement pure virtual method.
+    NOTREACHED();
+    return ax::mojom::blink::Role::kInlineTextBox;
+  }
 
  protected:
   void Init(AXObject* parent) override;
   void Detach() override;
-  bool IsDetached() const override;
   bool IsAXInlineTextBox() const override;
   bool IsLineBreakingObject() const override;
   int TextLength() const override;

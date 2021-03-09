@@ -71,6 +71,9 @@ class BASE_EXPORT ThreadCacheRegistry {
   void OnDeallocation();
 
   static PartitionLock& GetLock() { return Instance().lock_; }
+  // Purges all thread caches *now*. This is completely thread-unsafe, and
+  // should only be called in a post-fork() handler.
+  void ForcePurgeAllThreadAfterForkUnsafe();
 
   bool has_pending_purge_task() const { return has_pending_purge_task_; }
   void ResetForTesting();
@@ -151,8 +154,20 @@ class BASE_EXPORT ThreadCache {
   static void Init(PartitionRoot<ThreadSafe>* root);
   static void Init(PartitionRoot<NotThreadSafe>* root) { IMMEDIATE_CRASH(); }
 
+  // Can be called several times, must be called before any ThreadCache
+  // interactions.
+  static void EnsureThreadSpecificDataInitialized();
+
   static ThreadCache* Get() {
     return reinterpret_cast<ThreadCache*>(PartitionTlsGet(g_thread_cache_key));
+  }
+
+  static bool IsValid(ThreadCache* tcache) {
+    return reinterpret_cast<uintptr_t>(tcache) & kTombstoneMask;
+  }
+
+  static bool IsTombstone(ThreadCache* tcache) {
+    return reinterpret_cast<uintptr_t>(tcache) == kTombstone;
   }
 
   // Create a new ThreadCache associated with |root|.
@@ -210,6 +225,9 @@ class BASE_EXPORT ThreadCache {
   static constexpr uint16_t kBatchFillRatio = 8;
   static constexpr uint8_t kMaxCountPerBucket = 128;
 
+  // TODO(lizeb): Optimize the threshold.
+  static constexpr size_t kSizeThreshold = 512;
+
  private:
   struct Bucket {
     PartitionFreelistEntry* freelist_head;
@@ -231,8 +249,6 @@ class BASE_EXPORT ThreadCache {
   void HandleNonNormalMode();
   void ResetForTesting();
 
-  // TODO(lizeb): Optimize the threshold.
-  static constexpr size_t kSizeThreshold = 512;
   static constexpr uint16_t kBucketCount =
       ((ConstexprLog2(kSizeThreshold) - kMinBucketedOrder + 1)
        << kNumBucketsPerOrderBits) +
@@ -240,6 +256,19 @@ class BASE_EXPORT ThreadCache {
   static_assert(
       kBucketCount < kNumBuckets,
       "Cannot have more cached buckets than what the allocator supports");
+
+  // On some architectures, ThreadCache::Get() can be called and return
+  // something after the thread cache has been destroyed. In this case, we set
+  // it to this value, to signal that the thread is being terminated, and the
+  // thread cache should not be used.
+  //
+  // This happens in particular on Windows, during program termination.
+  //
+  // We choose 0x1 as the value as it is an invalid pointer value, since it is
+  // not aligned, and too low. Also, checking !(ptr & kTombstoneMask) checks for
+  // nullptr and kTombstone at the same time.
+  static constexpr uintptr_t kTombstone = 0x1;
+  static constexpr uintptr_t kTombstoneMask = ~kTombstone;
 
   std::atomic<Mode> mode_{Mode::kNormal};
   Bucket buckets_[kBucketCount];
