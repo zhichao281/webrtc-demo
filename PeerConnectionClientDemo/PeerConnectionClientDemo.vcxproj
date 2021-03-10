@@ -79,10 +79,12 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>../webrtc/include;../webrtc/include/third_party/abseil-cpp;../webrtc/include/third_party/jsoncpp/source/include;../webrtc/include/third_party/libyuv/include;$(IncludePath)</IncludePath>
+    <OutDir>$(SolutionDir)Bin\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>../webrtc/include;../webrtc/include/third_party/abseil-cpp;../webrtc/include/third_party/jsoncpp/source/include;../webrtc/include/third_party/libyuv/include;$(IncludePath)</IncludePath>
+    <OutDir>$(SolutionDir)Bin\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -162,7 +164,6 @@
     <ClInclude Include="main_wnd.h" />
     <ClInclude Include="MyCapturer.h" />
     <ClInclude Include="peer_connection_client.h" />
-    <ClInclude Include="vcm_capturer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="conductor.cc" />

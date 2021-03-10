@@ -33,9 +33,6 @@
     <ClInclude Include="MyCapturer.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="vcm_capturer.h">
-      <Filter>源文件</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cc">

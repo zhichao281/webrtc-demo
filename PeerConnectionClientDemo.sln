@@ -7,6 +7,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PeerConnectionClientDemo", 
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PeerConnectionClientDemo-linux", "PeerConnectionClientDemo-linux\PeerConnectionClientDemo-linux.vcxproj", "{D4DE1C45-B51C-4F16-9536-AB97C765BC55}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PeerConnectionServer", "PeerConnectionServer\PeerConnectionServer.vcxproj", "{63EA97AB-4540-485F-A834-3A117423B41E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|ARM64 = Debug|ARM64
@@ -45,6 +47,16 @@ Global
 		{D4DE1C45-B51C-4F16-9536-AB97C765BC55}.Release|x86.ActiveCfg = Release|x86
 		{D4DE1C45-B51C-4F16-9536-AB97C765BC55}.Release|x86.Build.0 = Release|x86
 		{D4DE1C45-B51C-4F16-9536-AB97C765BC55}.Release|x86.Deploy.0 = Release|x86
+		{63EA97AB-4540-485F-A834-3A117423B41E}.Debug|ARM64.ActiveCfg = Debug|Win32
+		{63EA97AB-4540-485F-A834-3A117423B41E}.Debug|x64.ActiveCfg = Debug|x64
+		{63EA97AB-4540-485F-A834-3A117423B41E}.Debug|x64.Build.0 = Debug|x64
+		{63EA97AB-4540-485F-A834-3A117423B41E}.Debug|x86.ActiveCfg = Debug|Win32
+		{63EA97AB-4540-485F-A834-3A117423B41E}.Debug|x86.Build.0 = Debug|Win32
+		{63EA97AB-4540-485F-A834-3A117423B41E}.Release|ARM64.ActiveCfg = Release|Win32
+		{63EA97AB-4540-485F-A834-3A117423B41E}.Release|x64.ActiveCfg = Release|x64
+		{63EA97AB-4540-485F-A834-3A117423B41E}.Release|x64.Build.0 = Release|x64
+		{63EA97AB-4540-485F-A834-3A117423B41E}.Release|x86.ActiveCfg = Release|Win32
+		{63EA97AB-4540-485F-A834-3A117423B41E}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
