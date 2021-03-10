@@ -1,0 +1,267 @@
+/* ---------------------------------------------------------------------------
+** This software is in the public domain, furnished "as is", without technical
+** support, and with no warranty, express or implied, as to its usefulness for
+** any purpose.
+**
+** main.cpp
+**
+** -------------------------------------------------------------------------*/
+
+
+#include <signal.h>
+
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <mutex>
+#include <regex>
+#include <thread>
+#include <future>
+#include <map>
+#include <memory>
+#include "rtc_base/strings/json.h"
+#include "modules/audio_device/include/audio_device.h"
+#include "rtc_base/thread.h"
+#include "p2p/base/stun_server.h"
+
+#include "rtc_base/ssl_adapter.h"
+#include "head.h"
+
+#define VERSION	 "1.1.1.1211"
+
+#if WIN32
+#include "getopt.h"
+#endif
+
+void sighandler(int n)
+{
+	printf("SIGINT\n");
+	rtc::Thread::Current()->Quit();
+}
+
+void  printfVersion()
+{
+	//std::cout << "******************************************" << std::endl;
+	//std::cout << "*                                        *" << std::endl;
+	//std::cout << "*                                        *" << std::endl;
+	//std::cout << "*                                        *" << std::endl;
+	//std::cout << "*                                        *" << std::endl;
+	//std::cout << "*           webrtc-streamer-linux        *" << std::endl;
+	//std::cout << "*                                        *" << std::endl;
+	//std::cout << "*                                        *" << std::endl;
+	//std::cout << "*                "<<VERSION<<"              *" << std::endl;
+	//std::cout << "*                                        *" << std::endl;
+	//std::cout << "*                                        *" << std::endl;
+	//std::cout << "*           "<< FileLog::getDatetime("yyyy-MM-dd hh:mm:ss.zzz") << "          *" << std::endl;
+	//std::cout << "*                                        *" << std::endl;
+	//std::cout << "*                                        *" << std::endl;
+	//std::cout << "*                                        *" << std::endl;
+	//std::cout << "*                                        *" << std::endl;
+	//std::cout << "******************************************" << std::endl;
+
+	RTC_LOG(LS_ERROR) << "******************************************";
+	RTC_LOG(LS_ERROR) << "*                                         *";
+	RTC_LOG(LS_ERROR) << "*                                        *";
+	RTC_LOG(LS_ERROR) << "*                                        *";
+	RTC_LOG(LS_ERROR) << "*                                        *";
+	RTC_LOG(LS_ERROR) << "*           webrtc-streamer-linux        *";
+	RTC_LOG(LS_ERROR) << "*                                        *";
+	RTC_LOG(LS_ERROR) << "*                                        *";
+	RTC_LOG(LS_ERROR) << "*                " << VERSION << "              *";
+	RTC_LOG(LS_ERROR) << "*                                        *";
+	RTC_LOG(LS_ERROR) << "*                                        *";
+	RTC_LOG(LS_ERROR) << "*                                        *";
+	RTC_LOG(LS_ERROR) << "*                                        *";
+	RTC_LOG(LS_ERROR) << "*                                        *";
+	RTC_LOG(LS_ERROR) << "*                                        *";
+	RTC_LOG(LS_ERROR) << "******************************************";
+}
+
+
+/* ---------------------------------------------------------------------------
+**  main
+** -------------------------------------------------------------------------*/
+int main(int argc, char* argv[]) {
+
+	/*std::map<std::string, std::shared_ptr<WsClient>> m_mapWsClient;
+	for (size_t i = 0; i < 5; i++)
+	{
+		if (m_mapWsClient.count("1")>0)
+		{
+			auto client = m_mapWsClient["1"];
+			m_mapWsClient.erase("1");
+
+		}
+	std::string strError = "";
+	auto client = std::shared_ptr<WsClient>(new WsClient());
+	client->SetEvent(nullptr);
+	int bRes = client->Start("ws://121.40.165.18:8800", "24", strError);
+	client->startAutoPing(1,  R"({"type":"heartbeat"})");
+	m_mapWsClient["1"] = client;
+
+		sleep(5);
+		client->Stop();
+
+	}*/
+
+	const char* turnurl = "admin:admin@110.80.40.206:3478";
+
+	//const char* turnurl = "";
+	const char* defaultlocalstunurl = "110.80.40.206:3478";
+	const char* localstunurl = NULL;
+	const char* defaultlocalturnurl = "admin:admin@110.80.40.206:3478";
+	const char* localturnurl = NULL;
+	const char* stunurl = "";
+	std::string defaultWebrtcUdpPortRange = "0:65535";
+	std::string localWebrtcUdpPortRange = "";
+	int logLevel = rtc::LS_INFO;
+	const char* webroot = "./html";
+	std::string sslCertificate;
+	//webrtc::AudioDeviceModule::AudioLayer audioLayer = webrtc::AudioDeviceModule::kPlatformDefaultAudio;
+	webrtc::AudioDeviceModule::AudioLayer audioLayer = webrtc::AudioDeviceModule::kDummyAudio;
+
+	std::string streamName;
+	std::string nbthreads;
+	std::string passwdFile;
+	std::string authDomain = "mydomain.com";
+	std::string publishFilter(".*");
+	Json::Value config;
+
+	std::string httpAddress("0.0.0.0:");
+	std::string httpPort = "8000";
+	const char* port = getenv("PORT");
+	if (port)
+	{
+		httpPort = port;
+	}
+	httpAddress.append(httpPort);
+
+	int c = 0;
+	while ((c = getopt(argc, argv, "hVv::" "c:H:w:N:A:D:C:" "T::t:S::s::" "a::q:" "n:u:U:" "R:")) != -1)
+	{
+		switch (c)
+		{
+		case 'H': httpAddress = optarg; break;
+		case 'c': sslCertificate = optarg; break;
+		case 'w': webroot = optarg; break;
+		case 'N': nbthreads = optarg; break;
+		case 'A': passwdFile = optarg; break;
+		case 'D': authDomain = optarg; break;
+
+		case 'T': localturnurl = optarg ? optarg : defaultlocalturnurl; turnurl = localturnurl; break;
+		case 't': turnurl = optarg; break;
+		case 'S': localstunurl = optarg ? optarg : defaultlocalstunurl; stunurl = localstunurl; break;
+		case 's': stunurl = optarg ? optarg : defaultlocalstunurl; break;
+
+		case 'a': audioLayer = optarg ? (webrtc::AudioDeviceModule::AudioLayer)atoi(optarg) : webrtc::AudioDeviceModule::kDummyAudio; break;
+		case 'q': publishFilter = optarg; break;
+
+		case 'C': {
+			std::ifstream stream(optarg);
+			stream >> config;
+			break;
+		}
+
+		case 'n': streamName = optarg; break;
+		case 'u': {
+			if (!streamName.empty()) {
+				config["urls"][streamName]["video"] = optarg;
+			}
+		}
+				break;
+		case 'U': {
+			if (!streamName.empty()) {
+				config["urls"][streamName]["audio"] = optarg;
+			}
+		}
+				break;
+
+		case 'v':
+			logLevel--;
+			if (optarg) {
+				logLevel -= strlen(optarg);
+			}
+			break;
+		case 'V':
+			std::cout << VERSION << std::endl;
+			exit(0);
+			break;
+		case 'R':
+			std::cout << " First log " << std::endl;
+			localWebrtcUdpPortRange = optarg ? optarg : defaultWebrtcUdpPortRange;
+			std::cout << localWebrtcUdpPortRange << " [-R defaultWebrtcUdpPortRange]" << std::endl;
+			break;
+		case 'h':
+		default:
+			std::cout << argv[0] << " [-H http port] [-S[embeded stun address]] [-t [username:password@]turn_address] -[v[v]]  [url1]...[urln]" << std::endl;
+			std::cout << argv[0] << " [-H http port] [-s[externel stun address]] [-t [username:password@]turn_address] -[v[v]] [url1]...[urln]" << std::endl;
+			std::cout << argv[0] << " -V" << std::endl;
+
+			std::cout << "\t -v[v[v]]           : verbosity" << std::endl;
+			std::cout << "\t -V                 : print version" << std::endl;
+
+			std::cout << "\t -H hostname:port   : HTTP server binding (default " << httpAddress << ")" << std::endl;
+			std::cout << "\t -w webroot         : path to get files" << std::endl;
+			std::cout << "\t -c sslkeycert      : path to private key and certificate for HTTPS" << std::endl;
+			std::cout << "\t -N nbthreads       : number of threads for HTTP server" << std::endl;
+			std::cout << "\t -A passwd          : password file for HTTP server access" << std::endl;
+			std::cout << "\t -D authDomain      : authentication domain for HTTP server access (default:mydomain.com)" << std::endl;
+
+			std::cout << "\t -S[stun_address]                   : start embeded STUN server bind to address (default " << defaultlocalstunurl << ")" << std::endl;
+			std::cout << "\t -s[stun_address]                   : use an external STUN server (default:" << stunurl << " , -:means no STUN)" << std::endl;
+			std::cout << "\t -t[username:password@]turn_address : use an external TURN relay server (default:disabled)" << std::endl;
+			std::cout << "\t -T[username:password@]turn_address : start embeded TURN server (default:disabled)" << std::endl;
+
+			std::cout << "\t -a[audio layer]                    : spefify audio capture layer to use (default:" << audioLayer << ")" << std::endl;
+
+			std::cout << "\t -n name -u videourl -U audiourl    : register a stream with name using url" << std::endl;
+			std::cout << "\t [url]                              : url to register in the source list" << std::endl;
+			std::cout << "\t -C config.json                     : load urls from JSON config file" << std::endl;
+
+			std::cout << "\t -R [Udp port range min:max]        : Set the webrtc udp port range (default 0:65534)" << std::endl;
+
+			exit(0);
+		}
+	}
+
+	while (optind < argc)
+	{
+		std::string url(argv[optind]);
+		config["urls"][url]["video"] = url;
+		optind++;
+	}
+
+	std::cout << "Version:" << VERSION << std::endl;
+
+	std::cout << config;
+
+	//rtc::LogMessage::LogToDebug((rtc::LoggingSeverity)logLevel);
+	//rtc::LogMessage::LogTimestamps();
+	//rtc::LogMessage::LogThreads();
+	//rtc::LogMessage::AddLogToStream(new FileLog("logs"), (rtc::LoggingSeverity)logLevel);
+	//std::cout << "Logger level:" << rtc::LogMessage::GetLogToDebug() << std::endl;
+
+	rtc::Thread* thread = rtc::Thread::Current();
+	rtc::InitializeSSL();
+
+	// webrtc server
+	std::list<std::string> iceServerList;
+
+	//iceServerList.push_back(std::string("turn:") + "admin:admin@110.80.40.206:3478?transport=udp");
+	//iceServerList.push_back(std::string("turn:") + "admin:admin@110.80.40.206:3478?transport=tcp");
+	if ((strlen(stunurl) != 0) && (strcmp(stunurl, "-") != 0)) {
+		iceServerList.push_back(std::string("stun:") + stunurl);
+	}
+	if (strlen(turnurl)) {
+		iceServerList.push_back(std::string("turn:") + turnurl);
+	}
+
+	// mainloop
+	printfVersion();
+	signal(SIGINT, sighandler);
+	thread->Run();
+	rtc::CleanupSSL();
+	std::cout << "Exit" << std::endl;
+	return 0;
+}
+

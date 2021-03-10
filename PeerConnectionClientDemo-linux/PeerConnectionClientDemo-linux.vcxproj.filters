@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="include">
+      <UniqueIdentifier>{51752833-ef2d-4292-ba29-e363a8f79b34}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{e02c505e-d50b-420e-86b7-192e4655978b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Lib">
+      <UniqueIdentifier>{23ad8e4a-b571-4383-90c5-f3d6f4bb32bb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Lib\arm64">
+      <UniqueIdentifier>{52f545ba-b4a4-4002-9a0e-49296ce1713c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Lib\amd">
+      <UniqueIdentifier>{930b29d6-3787-4407-b29c-4c8a4a1c2127}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main-linux.cc">
+      <Filter>src</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="head.h">
+      <Filter>src</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Object Include="..\webrtc\arm64\json.o">
+      <Filter>Lib\arm64</Filter>
+    </Object>
+    <Object Include="..\webrtc\arm64\json_reader.o">
+      <Filter>Lib\arm64</Filter>
+    </Object>
+    <Object Include="..\webrtc\arm64\json_value.o">
+      <Filter>Lib\arm64</Filter>
+    </Object>
+    <Object Include="..\webrtc\arm64\json_writer.o">
+      <Filter>Lib\arm64</Filter>
+    </Object>
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="..\webrtc\arm64\libwebrtc.a">
+      <Filter>Lib\arm64</Filter>
+    </Library>
+  </ItemGroup>
+</Project>
