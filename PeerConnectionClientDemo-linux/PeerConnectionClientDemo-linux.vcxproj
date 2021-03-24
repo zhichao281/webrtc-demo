@@ -77,6 +77,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <UseDebugLibraries>false</UseDebugLibraries>
+    <RemoteCopyIncludeDirectories>
+    </RemoteCopyIncludeDirectories>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="Configuration">
     <UseDebugLibraries>false</UseDebugLibraries>
@@ -96,6 +98,9 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <IncludePath>/home/server/webrtc2020/webrtc-checkout/src;/home/server/webrtc2020/webrtc-checkout/src/third_party/abseil-cpp;/home/server/webrtc2020/webrtc-checkout/src/third_party/libyuv/include;/home/server/webrtc2020/webrtc-checkout/src/third_party/jsoncpp/source/include</IncludePath>
     <RemoteCCompileToolExe>g++</RemoteCCompileToolExe>
+    <ProjectPublicIncludePath>
+    </ProjectPublicIncludePath>
+    <AdditionalSourcesToCopyMapping>..\webrtc\include;$(AdditionalSourcesToCopyMapping)</AdditionalSourcesToCopyMapping>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
     <ClCompile>
@@ -112,6 +117,7 @@
       <CppLanguageStandard>c++17</CppLanguageStandard>
       <PreprocessorDefinitions>NDEBUG;WEBRTC_LINUX;WEBRTC_POSIX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CLanguageStandard>c11</CLanguageStandard>
+      <AdditionalIncludeDirectories>%(ClCompile.AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <LibraryDependencies>atomic;pthread;m;dl;X11;glib-2.0;%(LibraryDependencies)</LibraryDependencies>
