@@ -6,20 +6,22 @@
 #define BASE_ALLOCATOR_PARTITION_ALLOCATOR_PARTITION_PAGE_H_
 
 #include <string.h>
+#include <limits>
 
 #include "base/allocator/partition_allocator/address_pool_manager.h"
-#include "base/allocator/partition_allocator/object_bitmap.h"
 #include "base/allocator/partition_allocator/partition_address_space.h"
 #include "base/allocator/partition_allocator/partition_alloc_check.h"
 #include "base/allocator/partition_allocator/partition_alloc_constants.h"
 #include "base/allocator/partition_allocator/partition_alloc_forward.h"
 #include "base/allocator/partition_allocator/partition_bucket.h"
 #include "base/allocator/partition_allocator/partition_freelist_entry.h"
-#include "base/allocator/partition_allocator/random.h"
-#include "base/check_op.h"
+#include "base/allocator/partition_allocator/starscan/object_bitmap.h"
+#include "base/base_export.h"
+#include "base/compiler_specific.h"
+#include "base/dcheck_is_on.h"
 #include "base/thread_annotations.h"
 
-#if BUILDFLAG(REF_COUNT_AT_END_OF_ALLOCATION)
+#if BUILDFLAG(PUT_REF_COUNT_IN_PREVIOUS_SLOT)
 #include "base/allocator/partition_allocator/partition_ref_count.h"
 #endif
 
@@ -64,15 +66,17 @@ using QuarantineBitmap =
 // 2) Full.
 // 3) Empty.
 // 4) Decommitted.
-// An active slot span has available free slots. A full slot span has no free
-// slots. An empty slot span has no free slots, and a decommitted slot span is
-// an empty one that had its backing memory released back to the system.
+// An active slot span has available free slots, as well as allocated ones.
+// A full slot span has no free slots. An empty slot span has no allocated
+// slots, and a decommitted slot span is an empty one that had its backing
+// memory released back to the system.
 //
-// There are two linked lists tracking slot spans. The "active" list is an
+// There are three linked lists tracking slot spans. The "active" list is an
 // approximation of a list of active slot spans. It is an approximation because
 // full, empty and decommitted slot spans may briefly be present in the list
-// until we next do a scan over it. The "empty" list is an accurate list of slot
-// spans which are either empty or decommitted.
+// until we next do a scan over it. The "empty" list holds mostly empty slot
+// spans, but may briefly hold decommitted ones too. The "decommitted" list
+// holds only decommitted slot spans.
 //
 // The significant slot span transitions are:
 // - Free() will detect when a full slot span has a slot freed and immediately
@@ -84,18 +88,23 @@ using QuarantineBitmap =
 //   If it does this, full, empty and decommitted slot spans encountered will be
 //   booted out of the active list. If there are no suitable active slot spans
 //   found, an empty or decommitted slot spans (if one exists) will be pulled
-//   from the empty list on to the active list.
+//   from the empty/decommitted list on to the active list.
 template <bool thread_safe>
 struct __attribute__((packed)) SlotSpanMetadata {
-  PartitionFreelistEntry* freelist_head;
-  SlotSpanMetadata<thread_safe>* next_slot_span;
-  PartitionBucket<thread_safe>* bucket;
+  PartitionFreelistEntry* freelist_head = nullptr;
+  SlotSpanMetadata<thread_safe>* next_slot_span = nullptr;
+  PartitionBucket<thread_safe>* const bucket;
 
   // Deliberately signed, 0 for empty or decommitted slot spans, -n for full
   // slot spans:
-  int16_t num_allocated_slots;
-  uint16_t num_unprovisioned_slots;
-  int16_t empty_cache_index;  // -1 if not in the empty cache.
+  int16_t num_allocated_slots = 0;
+  uint16_t num_unprovisioned_slots = 0;
+  int8_t empty_cache_index = 0;  // -1 if not in the empty cache.
+                                 // < kMaxFreeableSpans.
+  static_assert(kMaxFreeableSpans < std::numeric_limits<int8_t>::max(), "");
+  const bool can_store_raw_size;
+
+  explicit SlotSpanMetadata(PartitionBucket<thread_safe>* bucket);
 
   // Public API
   // Note the matching Alloc() functions are in PartitionPage.
@@ -116,7 +125,7 @@ struct __attribute__((packed)) SlotSpanMetadata {
   ALWAYS_INLINE static SlotSpanMetadata* FromSlotInnerPtr(void* ptr);
 
   // Checks if it is feasible to store raw_size.
-  ALWAYS_INLINE bool CanStoreRawSize() const;
+  ALWAYS_INLINE bool CanStoreRawSize() const { return can_store_raw_size; }
   // The caller is responsible for ensuring that raw_size can be stored before
   // calling Set/GetRawSize.
   ALWAYS_INLINE void SetRawSize(size_t raw_size);
@@ -135,11 +144,7 @@ struct __attribute__((packed)) SlotSpanMetadata {
     if (LIKELY(!CanStoreRawSize())) {
       return bucket->slot_size;
     }
-#if BUILDFLAG(REF_COUNT_AT_END_OF_ALLOCATION)
-    return bits::AlignUp(GetRawSize(), alignof(PartitionRefCount));
-#else
     return GetRawSize();
-#endif
   }
 
   // Returns the size available to the app. It can be equal or higher than the
@@ -198,7 +203,12 @@ struct __attribute__((packed)) SlotSpanMetadata {
   // Note, this declaration is kept in the header as opposed to an anonymous
   // namespace so the getter can be fully inlined.
   static SlotSpanMetadata sentinel_slot_span_;
+  // For the sentinel.
+  constexpr SlotSpanMetadata() noexcept
+      : bucket(nullptr), can_store_raw_size(false) {}
 };
+static_assert(sizeof(SlotSpanMetadata<ThreadSafe>) <= kPageMetadataSize,
+              "SlotSpanMetadata must fit into a Page Metadata slot.");
 
 // Metadata of a non-first partition page in a slot span.
 struct SubsequentPageMetadata {
@@ -264,7 +274,10 @@ static_assert(offsetof(PartitionPage<NotThreadSafe>,
                        subsequent_page_metadata) == 0,
               "");
 
+// CAUTION! Use only for normal buckets. Using on direct-mapped allocations may
+// lead to undefined behavior.
 ALWAYS_INLINE char* PartitionSuperPageToMetadataArea(char* ptr) {
+  // TODO(bartekn): Add a "is in normal buckets" DCHECK.
   uintptr_t pointer_as_uint = reinterpret_cast<uintptr_t>(ptr);
   PA_DCHECK(!(pointer_as_uint & kSuperPageOffsetMask));
   // The metadata area is exactly one system page (the guard page) into the
@@ -312,8 +325,10 @@ ALWAYS_INLINE char* SuperPagePayloadEnd(char* super_page_base) {
   return super_page_base + kSuperPageSize - PartitionPageSize();
 }
 
+// CAUTION! Use only for normal buckets. Using on direct-mapped allocations may
+// lead to undefined behavior.
 ALWAYS_INLINE bool IsWithinSuperPagePayload(char* ptr, bool with_quarantine) {
-  PA_DCHECK(!IsManagedByPartitionAllocDirectMap(ptr));
+  // TODO(bartekn): Add a "is in normal buckets" DCHECK.
   char* super_page_base = reinterpret_cast<char*>(
       reinterpret_cast<uintptr_t>(ptr) & kSuperPageBaseMask);
   char* payload_start = SuperPagePayloadBegin(super_page_base, with_quarantine);
@@ -325,12 +340,15 @@ ALWAYS_INLINE bool IsWithinSuperPagePayload(char* ptr, bool with_quarantine) {
 // an existing slot span. The function may return a pointer even inside a
 // decommitted or free slot span, it's the caller responsibility to check if
 // memory is actually allocated.
-// The precondition is that |maybe_inner_ptr| must point to payload of a valid
-// super page.
+//
+// Furthermore, |maybe_inner_ptr| must point to payload of a valid super page.
+//
+// CAUTION! Use only for normal buckets. Using on direct-mapped allocations may
+// lead to undefined behavior.
 template <bool thread_safe>
 ALWAYS_INLINE char* GetSlotStartInSuperPage(char* maybe_inner_ptr) {
 #if DCHECK_IS_ON()
-  PA_DCHECK(!IsManagedByPartitionAllocDirectMap(maybe_inner_ptr));
+  // TODO(bartekn): Add a "is in normal buckets" DCHECK.
   char* super_page_ptr = reinterpret_cast<char*>(
       reinterpret_cast<uintptr_t>(maybe_inner_ptr) & kSuperPageBaseMask);
   auto* extent = reinterpret_cast<PartitionSuperPageExtentEntry<thread_safe>*>(
@@ -380,9 +398,13 @@ ALWAYS_INLINE void* PartitionPage<thread_safe>::ToSlotSpanStartPtr(
 // Converts from a pointer inside a slot into a pointer to the PartitionPage
 // object (within super pages's metadata) that describes the first partition
 // page of a slot span containing that slot.
+//
+// CAUTION! Use only for normal buckets. Using on direct-mapped allocations may
+// lead to undefined behavior.
 template <bool thread_safe>
 ALWAYS_INLINE PartitionPage<thread_safe>*
 PartitionPage<thread_safe>::FromSlotInnerPtr(void* ptr) {
+  // TODO(bartekn): Add a "is in normal buckets" DCHECK.
   uintptr_t pointer_as_uint = reinterpret_cast<uintptr_t>(ptr);
   char* super_page_ptr =
       reinterpret_cast<char*>(pointer_as_uint & kSuperPageBaseMask);
@@ -420,11 +442,14 @@ PartitionPage<thread_safe>::FromSlotStartPtr(void* slot_start) {
 
 // Converts from a pointer to the SlotSpanMetadata object (within super pages's
 // metadata) into a pointer to the beginning of the slot span.
+//
+// CAUTION! Use only for normal buckets. Using on direct-mapped allocations may
+// lead to undefined behavior.
 template <bool thread_safe>
 ALWAYS_INLINE void* SlotSpanMetadata<thread_safe>::ToSlotSpanStartPtr(
     const SlotSpanMetadata* slot_span) {
+  // TODO(bartekn): Add a "is in normal buckets" DCHECK.
   uintptr_t pointer_as_uint = reinterpret_cast<uintptr_t>(slot_span);
-
   uintptr_t super_page_offset = (pointer_as_uint & kSuperPageOffsetMask);
 
   // A valid |page| must be past the first guard System page and within
@@ -466,13 +491,6 @@ SlotSpanMetadata<thread_safe>::FromSlotStartPtr(void* slot_start) {
   auto* page = PartitionPage<thread_safe>::FromSlotStartPtr(slot_start);
   PA_DCHECK(!page->slot_span_metadata_offset);
   return &page->slot_span_metadata;
-}
-
-template <bool thread_safe>
-ALWAYS_INLINE bool SlotSpanMetadata<thread_safe>::CanStoreRawSize() const {
-  // The answer is the same for all slot spans in a bucket, because it's based
-  // on the slot size.
-  return bucket->CanStoreRawSize();
 }
 
 template <bool thread_safe>
@@ -579,11 +597,13 @@ ALWAYS_INLINE void DeferredUnmap::Run() {
 
 enum class QuarantineBitmapType { kMutator, kScanner };
 
+// CAUTION! Use only for normal buckets. Using on direct-mapped allocations may
+// lead to undefined behavior.
 ALWAYS_INLINE QuarantineBitmap* QuarantineBitmapFromPointer(
     QuarantineBitmapType type,
     size_t pcscan_epoch,
     void* ptr) {
-  PA_DCHECK(!IsManagedByPartitionAllocDirectMap(ptr));
+  // TODO(bartekn): Add a "is in normal buckets" DCHECK.
   auto* super_page_base = reinterpret_cast<char*>(
       reinterpret_cast<uintptr_t>(ptr) & kSuperPageBaseMask);
   auto* first_bitmap = SuperPageQuarantineBitmaps(super_page_base);
@@ -596,11 +616,12 @@ ALWAYS_INLINE QuarantineBitmap* QuarantineBitmapFromPointer(
 }
 
 // Iterates over all active and full slot spans in a super-page. Returns number
-// of the visited slot spans.
+// of the visited slot spans. |Callback| must return a bool indicating whether
+// the slot was visited (true) or skipped (false).
 template <bool thread_safe, typename Callback>
-size_t IterateActiveAndFullSlotSpans(char* super_page_base,
-                                     bool with_quarantine,
-                                     Callback callback) {
+size_t IterateSlotSpans(char* super_page_base,
+                        bool with_quarantine,
+                        Callback callback) {
 #if DCHECK_IS_ON()
   PA_DCHECK(
       !(reinterpret_cast<uintptr_t>(super_page_base) % kSuperPageAlignment));
@@ -623,11 +644,8 @@ size_t IterateActiveAndFullSlotSpans(char* super_page_base,
        page <= last_page && page->slot_span_metadata.bucket;
        page += page->slot_span_metadata.bucket->get_pages_per_slot_span()) {
     auto* slot_span = &page->slot_span_metadata;
-    if (slot_span->is_empty() || slot_span->is_decommitted()) {
-      continue;
-    }
-    callback(slot_span);
-    ++visited;
+    if (callback(slot_span))
+      ++visited;
   }
   return visited;
 }

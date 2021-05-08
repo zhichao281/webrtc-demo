@@ -165,6 +165,14 @@ struct BASE_EXPORT LaunchOptions {
   // If set to true, permission to bring windows to the foreground is passed to
   // the launched process if the current process has such permission.
   bool grant_foreground_privilege = false;
+
+  // If set to true, sets a process mitigation flag to disable Hardware-enforced
+  // Stack Protection for the process.
+  // This overrides /cetcompat if set on the executable. See:
+  // https://docs.microsoft.com/en-us/cpp/build/reference/cetcompat?view=msvc-160
+  // If not supported by Windows, has no effect. This flag weakens security by
+  // turning off ROP protection.
+  bool disable_cetcompat = false;
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
   // Remap file descriptors according to the mapping of src_fd->dest_fd to
   // propagate FDs into the child process.
@@ -216,12 +224,9 @@ struct BASE_EXPORT LaunchOptions {
   // that any TCC requests are not associated with the parent.
   bool disclaim_responsibility = false;
 
-#if defined(ARCH_CPU_ARM64)
-  // If true, the child process will be launched as x86_64 code under Rosetta
-  // translation. The executable being launched must contain x86_64 code, either
-  // as a thin Mach-O file targeting x86_64, or a fat file with an x86_64 slice.
-  bool launch_x86_64 = false;
-#endif  // ARCH_CPU_ARM64
+  // Apply a process scheduler policy to enable mitigations against CPU side-
+  // channel attacks.
+  bool enable_cpu_security_mitigations = false;
 #endif  // OS_MAC
 
 #if defined(OS_FUCHSIA)

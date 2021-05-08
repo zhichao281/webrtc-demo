@@ -63,6 +63,7 @@ class CORE_EXPORT FrameOverlay : public GraphicsLayerClient,
   };
 
   FrameOverlay(LocalFrame*, std::unique_ptr<FrameOverlay::Delegate>);
+  ~FrameOverlay() override;
 
   void UpdatePrePaint();
 
@@ -96,6 +97,7 @@ class CORE_EXPORT FrameOverlay : public GraphicsLayerClient,
                      GraphicsLayerPaintingPhase,
                      const IntRect& interest_rect) const override;
   void GraphicsLayersDidChange() override;
+  PaintArtifactCompositor* GetPaintArtifactCompositor() override;
   String DebugName(const GraphicsLayer*) const override;
 
   PropertyTreeState DefaultPropertyTreeState() const;
@@ -108,4 +110,4 @@ class CORE_EXPORT FrameOverlay : public GraphicsLayerClient,
 
 }  // namespace blink
 
-#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_PAGE_PAGE_OVERLAY_H_
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_FRAME_FRAME_OVERLAY_H_

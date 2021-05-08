@@ -32,6 +32,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/dcheck_is_on.h"
 #include "base/gtest_prod_util.h"
 #include "base/macros.h"
 #include "third_party/blink/public/mojom/permissions/permission.mojom-blink.h"
@@ -94,6 +95,7 @@ class MODULES_EXPORT AXObjectCacheImpl
   void UpdateReverseRelations(const AXObject* relation_source,
                               const Vector<String>& target_ids);
   void ChildrenChanged(AXObject*);
+  void ChildrenChanged(const AXObject*);
   void ChildrenChanged(Node*) override;
   void ChildrenChanged(const LayoutObject*) override;
   void ChildrenChanged(AccessibleNode*) override;
@@ -105,7 +107,8 @@ class MODULES_EXPORT AXObjectCacheImpl
   void ImageLoaded(const LayoutObject*) override;
 
   void Remove(AccessibleNode*) override;
-  void Remove(LayoutObject*) override;
+  // Returns false if no associated AXObject exists in the cache.
+  bool Remove(LayoutObject*) override;
   void Remove(Node*) override;
   void Remove(AbstractInlineTextBox*) override;
   void Remove(AXObject*);  // Calls more specific Remove methods as necessary.
@@ -143,7 +146,7 @@ class MODULES_EXPORT AXObjectCacheImpl
   void HandleScaleAndLocationChanged(Document*) override;
   void HandleTextMarkerDataAdded(Node* start, Node* end) override;
   void HandleValueChanged(Node*) override;
-  void HandleUpdateActiveMenuOption(LayoutObject*, int option_index) override;
+  void HandleUpdateActiveMenuOption(Node*) override;
   void DidShowMenuListPopup(LayoutObject*) override;
   void DidHideMenuListPopup(LayoutObject*) override;
   void HandleLoadComplete(Document*) override;
@@ -156,7 +159,7 @@ class MODULES_EXPORT AXObjectCacheImpl
                              Element*,
                              const LayoutRect&) override;
 
-  void InlineTextBoxesUpdated(LineLayoutItem) override;
+  void InlineTextBoxesUpdated(LayoutObject*) override;
   void ProcessDeferredAccessibilityEvents(Document&) override;
   bool IsDirty() const override;
 
@@ -204,7 +207,9 @@ class MODULES_EXPORT AXObjectCacheImpl
   AXObject* Get(AccessibleNode*);
   AXObject* Get(AbstractInlineTextBox*);
 
-  AXObject* Get(const Node*) override;
+  // Get an AXObject* backed by the passed-in DOM node or the node's layout
+  // object, whichever is available.
+  AXObject* Get(const Node*);
   AXObject* Get(const LayoutObject*);
 
   AXObject* FirstAccessibleObjectFromNode(const Node*);
@@ -217,6 +222,7 @@ class MODULES_EXPORT AXObjectCacheImpl
   void MaybeNewRelationTarget(Node& node, AXObject* obj);
 
   void HandleActiveDescendantChangedWithCleanLayout(Node*);
+  void SectionOrRegionRoleMaybeChanged(Element* element);
   void HandleRoleChangeWithCleanLayout(Node*);
   void HandleAriaHiddenChangedWithCleanLayout(Node*);
   void HandleAriaExpandedChangeWithCleanLayout(Node*);
@@ -230,6 +236,8 @@ class MODULES_EXPORT AXObjectCacheImpl
   void StyleChangedWithCleanLayout(Node*);
   void HandleScrollPositionChangedWithCleanLayout(Node*);
   void HandleValidationMessageVisibilityChangedWithCleanLayout(const Node*);
+  void HandleUpdateActiveMenuOptionWithCleanLayout(Node*);
+  void HandleEditableTextContentChangedWithCleanLayout(Node*);
 
   bool InlineTextBoxAccessibilityEnabled();
 
@@ -248,8 +256,11 @@ class MODULES_EXPORT AXObjectCacheImpl
   // TODO(accessibility) Find out if we can merge with EnsurePostNotification().
   void PostNotification(Node*, ax::mojom::blink::Event);
   void PostNotification(AXObject*, ax::mojom::blink::Event);
-  void MarkAXObjectDirty(AXObject*, bool subtree);
-  void MarkElementDirty(const Node*, bool subtree);
+  void MarkAXObjectDirtyWithCleanLayout(
+      AXObject*,
+      bool subtree,
+      ax::mojom::blink::Action event_from_action =
+          ax::mojom::blink::Action::kNone);
 
   //
   // Aria-owns support.
@@ -290,18 +301,26 @@ class MODULES_EXPORT AXObjectCacheImpl
   WebAXAutofillState GetAutofillState(AXID id) const;
   void SetAutofillState(AXID id, WebAXAutofillState state);
 
-  ax::mojom::blink::EventFrom active_event_from() const {
-    return active_event_from_;
+  std::pair<ax::mojom::blink::EventFrom, ax::mojom::blink::Action>
+  active_event_from_data() const {
+    return std::make_pair(active_event_from_, active_event_from_action_);
   }
-  void set_active_event_from(const ax::mojom::blink::EventFrom event_from) {
+
+  void set_active_event_from_data(
+      const ax::mojom::blink::EventFrom event_from,
+      const ax::mojom::blink::Action event_from_action) {
     active_event_from_ = event_from;
+    active_event_from_action_ = event_from_action;
   }
 
   AXObject* GetActiveAriaModalDialog() const;
 
   static bool UseAXMenuList() { return use_ax_menu_list_; }
+  static bool ShouldCreateAXMenuListFor(LayoutObject* layout_object);
   static bool ShouldCreateAXMenuListOptionFor(const Node*);
-  static bool IsPseudoElementDescendant(const LayoutObject& layout_object);
+  static bool IsRelevantPseudoElement(const Node& node);
+  static bool IsRelevantPseudoElementDescendant(
+      const LayoutObject& layout_object);
 
 #if DCHECK_IS_ON()
   bool HasBeenDisposed() { return has_been_disposed_; }
@@ -318,6 +337,8 @@ class MODULES_EXPORT AXObjectCacheImpl
       ax::mojom::blink::Event event_type,
       ax::mojom::blink::EventFrom event_from =
           ax::mojom::blink::EventFrom::kNone,
+      ax::mojom::blink::Action event_from_action =
+          ax::mojom::blink::Action::kNone,
       const BlinkAXEventIntentsSet& event_intents = BlinkAXEventIntentsSet());
   void LabelChangedWithCleanLayout(Element*);
 
@@ -352,8 +373,12 @@ class MODULES_EXPORT AXObjectCacheImpl
     AXEventParams(AXObject* target,
                   ax::mojom::blink::Event event_type,
                   ax::mojom::blink::EventFrom event_from,
+                  ax::mojom::blink::Action event_from_action,
                   const BlinkAXEventIntentsSet& intents)
-        : target(target), event_type(event_type), event_from(event_from) {
+        : target(target),
+          event_type(event_type),
+          event_from(event_from),
+          event_from_action(event_from_action) {
       for (const auto& intent : intents) {
         event_intents.insert(intent.key, intent.value);
       }
@@ -361,6 +386,7 @@ class MODULES_EXPORT AXObjectCacheImpl
     Member<AXObject> target;
     ax::mojom::blink::Event event_type;
     ax::mojom::blink::EventFrom event_from;
+    ax::mojom::blink::Action event_from_action;
     BlinkAXEventIntentsSet event_intents;
 
     void Trace(Visitor* visitor) const { visitor->Trace(target); }
@@ -370,11 +396,13 @@ class MODULES_EXPORT AXObjectCacheImpl
     TreeUpdateParams(const Node* node,
                      AXID axid,
                      ax::mojom::blink::EventFrom event_from,
+                     ax::mojom::blink::Action event_from_action,
                      const BlinkAXEventIntentsSet& intents,
                      base::OnceClosure callback)
         : node(node),
           axid(axid),
           event_from(event_from),
+          event_from_action(event_from_action),
           callback(std::move(callback)) {
       for (const auto& intent : intents) {
         event_intents.insert(intent.key, intent.value);
@@ -383,6 +411,7 @@ class MODULES_EXPORT AXObjectCacheImpl
     WeakMember<const Node> node;
     AXID axid;
     ax::mojom::blink::EventFrom event_from;
+    ax::mojom::blink::Action event_from_action;
     BlinkAXEventIntentsSet event_intents;
     base::OnceClosure callback;
 
@@ -391,12 +420,24 @@ class MODULES_EXPORT AXObjectCacheImpl
 
   ax::mojom::blink::EventFrom ComputeEventFrom();
 
+  void UpdateCachedAttributeValuesWithCleanLayout(Node* node, AXObject* obj);
+  void MarkAXObjectDirtyHelper(AXObject* obj,
+                               bool subtree,
+                               ax::mojom::blink::Action event_from_action);
+  void MarkAXObjectDirty(AXObject*,
+                         bool subtree,
+                         ax::mojom::blink::Action event_from_action =
+                             ax::mojom::blink::Action::kNone);
+  void MarkElementDirty(const Node*, bool subtree);
+  void MarkAXSubtreeDirtyWithCleanLayout(AXObject*);
+  void MarkElementDirtyWithCleanLayout(const Node*, bool subtree);
+
   Member<Document> document_;
   HeapHashMap<AXID, Member<AXObject>> objects_;
   // LayoutObject and AbstractInlineTextBox are not on the Oilpan heap so we
   // do not use HeapHashMap for those mappings.
   HeapHashMap<Member<AccessibleNode>, AXID> accessible_node_mapping_;
-  HashMap<const LayoutObject*, AXID> layout_object_mapping_;
+  HeapHashMap<Member<const LayoutObject>, AXID> layout_object_mapping_;
   HeapHashMap<Member<const Node>, AXID> node_object_mapping_;
   HashMap<AbstractInlineTextBox*, AXID> inline_text_box_object_mapping_;
   int modification_count_;
@@ -467,7 +508,7 @@ class MODULES_EXPORT AXObjectCacheImpl
   void ContainingTableRowsOrColsMaybeChanged(Node*);
 
   // Must be called an entire subtree of accessible objects are no longer valid.
-  void RemoveAXObjectsInLayoutSubtree(AXObject* subtree);
+  void RemoveAXObjectsInLayoutSubtree(AXObject* subtree, int depth);
 
   // Object for HTML validation alerts. Created at most once per object cache.
   AXObject* GetOrCreateValidationMessageObject();
@@ -490,7 +531,6 @@ class MODULES_EXPORT AXObjectCacheImpl
   // Provide either a DOM node or AXObject. If both are provided, then they must
   // match, meaning that the AXObject's DOM node must equal the provided node.
   void DeferTreeUpdate(void (AXObjectCacheImpl::*method)(Node*, AXObject*),
-                       Node* node,
                        AXObject* obj);
 
   void DeferTreeUpdateInternal(base::OnceClosure callback, const Node* node);
@@ -526,11 +566,13 @@ class MODULES_EXPORT AXObjectCacheImpl
   void FireTreeUpdatedEventImmediately(
       Document& document,
       ax::mojom::blink::EventFrom event_from,
+      ax::mojom::blink::Action event_from_action,
       const BlinkAXEventIntentsSet& event_intents,
       base::OnceClosure callback);
   void FireAXEventImmediately(AXObject* obj,
                               ax::mojom::blink::Event event_type,
                               ax::mojom::blink::EventFrom event_from,
+                              ax::mojom::blink::Action event_from_action,
                               const BlinkAXEventIntentsSet& event_intents);
 
   void SetMaxPendingUpdatesForTesting(wtf_size_t max_pending_updates) {
@@ -581,6 +623,11 @@ class MODULES_EXPORT AXObjectCacheImpl
   // The source of the event that is currently being handled.
   ax::mojom::blink::EventFrom active_event_from_ =
       ax::mojom::blink::EventFrom::kNone;
+
+  // The accessibility action that caused the event. Will only be valid if
+  // active_event_from_ is set to kAction.
+  ax::mojom::blink::Action active_event_from_action_ =
+      ax::mojom::blink::Action::kNone;
 
   // A set of currently active event intents.
   BlinkAXEventIntentsSet active_event_intents_;

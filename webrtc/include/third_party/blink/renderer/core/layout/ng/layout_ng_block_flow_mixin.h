@@ -17,6 +17,7 @@
 #include "third_party/blink/renderer/core/layout/layout_table_cell.h"
 #include "third_party/blink/renderer/core/layout/ng/layout_ng_mixin.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_constraint_space.h"
+#include "third_party/blink/renderer/core/layout/svg/layout_svg_block.h"
 
 namespace blink {
 
@@ -34,7 +35,7 @@ class LayoutNGBlockFlowMixin : public LayoutNGMixin<Base> {
   NGInlineNodeData* GetNGInlineNodeData() const final;
   void ResetNGInlineNodeData() final;
   void ClearNGInlineNodeData() final;
-  bool HasNGInlineNodeData() const final { return ng_inline_node_data_.get(); }
+  bool HasNGInlineNodeData() const final { return ng_inline_node_data_; }
 
   LayoutUnit FirstLineBoxBaseline() const final;
   LayoutUnit InlineBlockBaseline(LineDirectionMode) const final;
@@ -45,6 +46,8 @@ class LayoutNGBlockFlowMixin : public LayoutNGMixin<Base> {
                    HitTestAction) override;
 
   PositionWithAffinity PositionForPoint(const PhysicalOffset&) const override;
+
+  void Trace(Visitor*) const override;
 
   using LayoutNGMixin<Base>::CurrentFragment;
 
@@ -64,13 +67,12 @@ class LayoutNGBlockFlowMixin : public LayoutNGMixin<Base> {
   // behavior as LayoutNGBlockFlow.
   void UpdateNGBlockLayout();
 
-  std::unique_ptr<NGInlineNodeData> ng_inline_node_data_;
+  Member<NGInlineNodeData> ng_inline_node_data_;
 
   friend class NGBaseLayoutAlgorithmTest;
 
  private:
   void AddScrollingOverflowFromChildren();
-  void UpdateMargins();
 };
 
 // If you edit these export templates, also update templates in
@@ -87,6 +89,8 @@ extern template class CORE_EXTERN_TEMPLATE_EXPORT
     LayoutNGBlockFlowMixin<LayoutRubyRun>;
 extern template class CORE_EXTERN_TEMPLATE_EXPORT
     LayoutNGBlockFlowMixin<LayoutRubyText>;
+extern template class CORE_EXTERN_TEMPLATE_EXPORT
+    LayoutNGBlockFlowMixin<LayoutSVGBlock>;
 extern template class CORE_EXTERN_TEMPLATE_EXPORT
     LayoutNGBlockFlowMixin<LayoutTableCaption>;
 extern template class CORE_EXTERN_TEMPLATE_EXPORT

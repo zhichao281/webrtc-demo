@@ -31,6 +31,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_CSS_CSS_MATH_EXPRESSION_NODE_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_CSS_MATH_EXPRESSION_NODE_H_
 
+#include "base/dcheck_is_on.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/css_math_operator.h"
 #include "third_party/blink/renderer/core/css/css_primitive_value.h"
@@ -95,7 +96,8 @@ class CORE_EXPORT CSSMathExpressionNode
 
   scoped_refptr<CalculationValue> ToCalcValue(
       const CSSToLengthConversionData& conversion_data,
-      ValueRange range) const;
+      ValueRange range,
+      bool allows_negative_percentage_reference) const;
 
   // Evaluates the expression with type conversion (e.g., cm -> px) handled, and
   // returns the result value in the canonical unit of the corresponding

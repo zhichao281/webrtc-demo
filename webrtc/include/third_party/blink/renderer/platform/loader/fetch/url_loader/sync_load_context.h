@@ -57,20 +57,19 @@ class BLINK_PLATFORM_EXPORT SyncLoadContext : public WebRequestPeer {
   // |response|.
   static void StartAsyncWithWaitableEvent(
       std::unique_ptr<network::ResourceRequest> request,
-      int routing_id,
       scoped_refptr<base::SingleThreadTaskRunner> loading_task_runner,
       const net::NetworkTrafficAnnotationTag& traffic_annotation,
       uint32_t loader_options,
       std::unique_ptr<network::PendingSharedURLLoaderFactory>
           pending_url_loader_factory,
-      std::vector<std::unique_ptr<URLLoaderThrottle>> throttles,
+      WebVector<std::unique_ptr<URLLoaderThrottle>> throttles,
       SyncLoadResponse* response,
       SyncLoadContext** context_for_redirect,
       base::WaitableEvent* completed_event,
       base::WaitableEvent* abort_event,
       base::TimeDelta timeout,
       mojo::PendingRemote<mojom::BlobRegistry> download_to_blob_registry,
-      const std::vector<std::string>& cors_exempt_header_list,
+      const WebVector<WebString>& cors_exempt_header_list,
       std::unique_ptr<ResourceLoadInfoNotifierWrapper>
           resource_load_info_notifier_wrapper);
 
@@ -104,10 +103,6 @@ class BLINK_PLATFORM_EXPORT SyncLoadContext : public WebRequestPeer {
   void OnTransferSizeUpdated(int transfer_size_diff) override;
   void OnCompletedRequest(
       const network::URLLoaderCompletionStatus& status) override;
-  void EvictFromBackForwardCache(blink::mojom::RendererEvictionReason) override;
-  void DidBufferLoadWhileInBackForwardCache(size_t num_bytes) override;
-  bool CanContinueBufferingWhileInBackForwardCache() override;
-
   void OnFinishCreatingBlob(mojom::SerializedBlobPtr blob);
 
   void OnBodyReadable(MojoResult, const mojo::HandleSignalsState&);

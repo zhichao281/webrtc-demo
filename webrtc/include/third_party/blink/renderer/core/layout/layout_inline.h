@@ -116,7 +116,7 @@ class CORE_EXPORT LayoutInline : public LayoutBoxModelObject {
  public:
   explicit LayoutInline(Element*);
 
-  ~LayoutInline() override;
+  void Trace(Visitor*) const override;
 
   static LayoutInline* CreateAnonymous(Document*);
 
@@ -262,7 +262,8 @@ class CORE_EXPORT LayoutInline : public LayoutBoxModelObject {
                           TransformState&,
                           MapCoordinatesFlags mode) const override;
 
-  PhysicalRect AbsoluteBoundingBoxRectHandlingEmptyInline() const final;
+  PhysicalRect AbsoluteBoundingBoxRectHandlingEmptyInline(
+      MapCoordinatesFlags = 0) const final;
 
   PhysicalRect VisualRectInDocument(
       VisualRectFlags = kDefaultVisualRectFlags) const override;
@@ -285,6 +286,7 @@ class CORE_EXPORT LayoutInline : public LayoutBoxModelObject {
 
   void InvalidateDisplayItemClients(PaintInvalidationReason) const override;
 
+  void LocalQuadsForSelf(Vector<FloatQuad>& quads) const override;
   void AbsoluteQuadsForSelf(Vector<FloatQuad>& quads,
                             MapCoordinatesFlags mode = 0) const override;
 
@@ -293,6 +295,11 @@ class CORE_EXPORT LayoutInline : public LayoutBoxModelObject {
       bool ignore_scroll_offset) const final;
 
  private:
+  bool AbsoluteTransformDependsOnPoint(const LayoutObject& object) const;
+  void QuadsForSelfInternal(Vector<FloatQuad>& quads,
+                            MapCoordinatesFlags mode,
+                            bool map_to_absolute) const;
+
   LayoutObjectChildList* VirtualChildren() final {
     NOT_DESTROYED();
     return Children();
@@ -446,17 +453,16 @@ class CORE_EXPORT LayoutInline : public LayoutBoxModelObject {
 
   LayoutObjectChildList children_;
 
-  union {
-    // All of the line boxes created for this inline flow. For example,
-    // <i>Hello<br>world.</i> will have two <i> line boxes.
-    // Valid only when !IsInLayoutNGInlineFormattingContext().
-    LineBoxList line_boxes_;
-    // The index of the first fragment item associated with this object in
-    // |NGFragmentItems::Items()|. Zero means there are no such item.
-    // Valid only when IsInLayoutNGInlineFormattingContext().
-    wtf_size_t first_fragment_item_index_;
+  // All of the line boxes created for this inline flow. For example,
+  // <i>Hello<br>world.</i> will have two <i> line boxes.
+  // Valid only when !IsInLayoutNGInlineFormattingContext().
+  LineBoxList line_boxes_;
+
+  // The index of the first fragment item associated with this object in
+  // |NGFragmentItems::Items()|. Zero means there are no such item.
+  // Valid only when IsInLayoutNGInlineFormattingContext().
+  wtf_size_t first_fragment_item_index_ = 0u;
   };
-};
 
 inline LineBoxList* LayoutInline::MutableLineBoxes() {
   CHECK(!IsInLayoutNGInlineFormattingContext());

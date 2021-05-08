@@ -80,8 +80,6 @@ GDK_AVAILABLE_IN_ALL GType gtk_text_direction_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_TEXT_DIRECTION (gtk_text_direction_get_type ())
 GDK_AVAILABLE_IN_ALL GType gtk_justification_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_JUSTIFICATION (gtk_justification_get_type ())
-GDK_AVAILABLE_IN_ALL GType gtk_menu_direction_type_get_type (void) G_GNUC_CONST;
-#define GTK_TYPE_MENU_DIRECTION_TYPE (gtk_menu_direction_type_get_type ())
 GDK_AVAILABLE_IN_ALL GType gtk_message_type_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_MESSAGE_TYPE (gtk_message_type_get_type ())
 GDK_AVAILABLE_IN_ALL GType gtk_movement_step_get_type (void) G_GNUC_CONST;
@@ -148,10 +146,6 @@ GDK_AVAILABLE_IN_ALL GType gtk_pan_direction_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_PAN_DIRECTION (gtk_pan_direction_get_type ())
 GDK_AVAILABLE_IN_ALL GType gtk_shortcut_scope_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_SHORTCUT_SCOPE (gtk_shortcut_scope_get_type ())
-GDK_AVAILABLE_IN_ALL GType gtk_popover_constraint_get_type (void) G_GNUC_CONST;
-#define GTK_TYPE_POPOVER_CONSTRAINT (gtk_popover_constraint_get_type ())
-GDK_AVAILABLE_IN_ALL GType gtk_places_open_flags_get_type (void) G_GNUC_CONST;
-#define GTK_TYPE_PLACES_OPEN_FLAGS (gtk_places_open_flags_get_type ())
 GDK_AVAILABLE_IN_ALL GType gtk_pick_flags_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_PICK_FLAGS (gtk_pick_flags_get_type ())
 GDK_AVAILABLE_IN_ALL GType gtk_constraint_relation_get_type (void) G_GNUC_CONST;
@@ -286,10 +280,6 @@ GDK_AVAILABLE_IN_ALL GType gtk_string_filter_match_mode_get_type (void) G_GNUC_C
 /* enumerations from "gtkstylecontext.h" */
 GDK_AVAILABLE_IN_ALL GType gtk_style_context_print_flags_get_type (void) G_GNUC_CONST;
 #define GTK_TYPE_STYLE_CONTEXT_PRINT_FLAGS (gtk_style_context_print_flags_get_type ())
-
-/* enumerations from "gtktextbuffer.h" */
-GDK_AVAILABLE_IN_ALL GType gtk_text_buffer_target_info_get_type (void) G_GNUC_CONST;
-#define GTK_TYPE_TEXT_BUFFER_TARGET_INFO (gtk_text_buffer_target_info_get_type ())
 
 /* enumerations from "gtktextiter.h" */
 GDK_AVAILABLE_IN_ALL GType gtk_text_search_flags_get_type (void) G_GNUC_CONST;

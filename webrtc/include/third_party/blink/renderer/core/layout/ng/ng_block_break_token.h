@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_NG_BLOCK_BREAK_TOKEN_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_NG_BLOCK_BREAK_TOKEN_H_
 
+#include "base/dcheck_is_on.h"
 #include "base/memory/scoped_refptr.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_break_token.h"
@@ -25,23 +26,17 @@ class CORE_EXPORT NGBlockBreakToken final : public NGBreakToken {
   //
   // The node is NGBlockNode, or any other NGLayoutInputNode that produces
   // anonymous box.
-  static scoped_refptr<NGBlockBreakToken> Create(const NGBoxFragmentBuilder&);
+  static NGBlockBreakToken* Create(const NGBoxFragmentBuilder&);
 
   // Creates a break token for a node that needs to produce its first fragment
   // in the next fragmentainer. In this case we create a break token for a node
   // that hasn't yet produced any fragments.
-  static scoped_refptr<NGBlockBreakToken> CreateBreakBefore(
-      NGLayoutInputNode node,
-      bool is_forced_break) {
-    auto* token = new NGBlockBreakToken(PassKey(), node);
+  static NGBlockBreakToken* CreateBreakBefore(NGLayoutInputNode node,
+                                              bool is_forced_break) {
+    auto* token = MakeGarbageCollected<NGBlockBreakToken>(PassKey(), node);
     token->is_break_before_ = true;
     token->is_forced_break_ = is_forced_break;
-    return base::AdoptRef(token);
-  }
-
-  ~NGBlockBreakToken() override {
-    for (const NGBreakToken* token : ChildBreakTokens())
-      token->Release();
+    return token;
   }
 
   // Represents the amount of block-size consumed by previous fragments.
@@ -112,8 +107,8 @@ class CORE_EXPORT NGBlockBreakToken final : public NGBreakToken {
   // this child).
   //
   // A child which we haven't visited yet doesn't have a break token here.
-  const base::span<const NGBreakToken* const> ChildBreakTokens() const {
-    return base::make_span(child_break_tokens_, num_children_);
+  const base::span<const Member<const NGBreakToken>> ChildBreakTokens() const {
+    return base::make_span(child_break_tokens_, const_num_children_);
   }
 
   // Find the child NGInlineBreakToken for the specified node.
@@ -132,13 +127,40 @@ class CORE_EXPORT NGBlockBreakToken final : public NGBreakToken {
 
   explicit NGBlockBreakToken(PassKey, NGLayoutInputNode node);
 
+  // This exposes a mutable part of the break token for |NGOutOfFlowLayoutPart|.
+  class MutableForOutOfFlow final {
+    STACK_ALLOCATED();
+
+   protected:
+    friend class NGOutOfFlowLayoutPart;
+    // Replace the child break token at the provided |index|.
+    void ReplaceChildBreakToken(const NGBreakToken* child_break_token,
+                                wtf_size_t index) {
+      DCHECK_LT(index, break_token_->const_num_children_);
+      break_token_->child_break_tokens_[index] = child_break_token;
+    }
+
+   private:
+    friend class NGBlockBreakToken;
+    explicit MutableForOutOfFlow(const NGBlockBreakToken* break_token)
+        : break_token_(const_cast<NGBlockBreakToken*>(break_token)) {}
+
+    NGBlockBreakToken* break_token_;
+  };
+
+  MutableForOutOfFlow GetMutableForOutOfFlow() const {
+    return MutableForOutOfFlow(this);
+  }
+
+  void Trace(Visitor*) const override;
+
  private:
   LayoutUnit consumed_block_size_;
   unsigned sequence_number_ = 0;
 
-  wtf_size_t num_children_;
+  const wtf_size_t const_num_children_;
   // This must be the last member, because it is a flexible array.
-  const NGBreakToken* child_break_tokens_[];
+  Member<const NGBreakToken> child_break_tokens_[];
 };
 
 template <>

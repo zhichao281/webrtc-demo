@@ -327,7 +327,7 @@ class PLATFORM_EXPORT ResourceResponse final {
   bool WasFetchedViaSPDY() const { return was_fetched_via_spdy_; }
   void SetWasFetchedViaSPDY(bool value) { was_fetched_via_spdy_ = value; }
 
-  // See network::ResourceResponseInfo::was_fetched_via_service_worker.
+  // See network.mojom.URLResponseHead.was_fetched_via_service_worker.
   bool WasFetchedViaServiceWorker() const {
     return was_fetched_via_service_worker_;
   }
@@ -344,14 +344,6 @@ class PLATFORM_EXPORT ResourceResponse final {
     service_worker_response_source_ = value;
   }
 
-  // See network::ResourceResponseInfo::was_fallback_required_by_service_worker.
-  bool WasFallbackRequiredByServiceWorker() const {
-    return was_fallback_required_by_service_worker_;
-  }
-  void SetWasFallbackRequiredByServiceWorker(bool value) {
-    was_fallback_required_by_service_worker_ = value;
-  }
-
   network::mojom::FetchResponseType GetType() const { return response_type_; }
   void SetType(network::mojom::FetchResponseType value) {
     response_type_ = value;
@@ -364,7 +356,7 @@ class PLATFORM_EXPORT ResourceResponse final {
   int64_t GetPadding() const { return padding_; }
   void SetPadding(int64_t padding) { padding_ = padding; }
 
-  // See network::ResourceResponseInfo::url_list_via_service_worker.
+  // See network.mojom.URLResponseHead.url_list_via_service_worker.
   const Vector<KURL>& UrlListViaServiceWorker() const {
     return url_list_via_service_worker_;
   }
@@ -413,6 +405,13 @@ class PLATFORM_EXPORT ResourceResponse final {
   bool WasAlpnNegotiated() const { return was_alpn_negotiated_; }
   void SetWasAlpnNegotiated(bool was_alpn_negotiated) {
     was_alpn_negotiated_ = was_alpn_negotiated;
+  }
+
+  bool HasAuthorizationCoveredByWildcardOnPreflight() const {
+    return has_authorization_covered_by_wildcard_on_preflight_;
+  }
+  void SetHasAuthorizationCoveredByWildcardOnPreflight(bool b) {
+    has_authorization_covered_by_wildcard_on_preflight_ = b;
   }
 
   const AtomicString& AlpnNegotiatedProtocol() const {
@@ -509,6 +508,14 @@ class PLATFORM_EXPORT ResourceResponse final {
   network::mojom::CrossOriginEmbedderPolicyValue GetCrossOriginEmbedderPolicy()
       const;
 
+  const base::Optional<net::AuthChallengeInfo>& AuthChallengeInfo() const {
+    return auth_challenge_info_;
+  }
+  void SetAuthChallengeInfo(
+      const base::Optional<net::AuthChallengeInfo>& value) {
+    auth_challenge_info_ = value;
+  }
+
  private:
   void UpdateHeaderParsedState(const AtomicString& name);
 
@@ -572,9 +579,6 @@ class PLATFORM_EXPORT ResourceResponse final {
   network::mojom::FetchResponseSource service_worker_response_source_ =
       network::mojom::FetchResponseSource::kUnspecified;
 
-  // Was the fallback request with skip service worker flag required.
-  bool was_fallback_required_by_service_worker_ = false;
-
   // True if service worker navigation preload was performed due to
   // the request for this resource.
   bool did_service_worker_navigation_preload_ = false;
@@ -604,6 +608,11 @@ class PLATFORM_EXPORT ResourceResponse final {
 
   // True if the response was delivered after ALPN is negotiated.
   bool was_alpn_negotiated_ = false;
+
+  // True when there is an "authorization" header on the request and it is
+  // covered by the wildcard in the preflight response.
+  // TODO(crbug.com/1176753): Remove this once the investigation is done.
+  bool has_authorization_covered_by_wildcard_on_preflight_ = false;
 
   // https://fetch.spec.whatwg.org/#concept-response-type
   network::mojom::FetchResponseType response_type_ =
@@ -692,6 +701,8 @@ class PLATFORM_EXPORT ResourceResponse final {
   // The URL of WebBundle this response was loaded from. This value is only
   // populated for resources loaded from a WebBundle.
   KURL web_bundle_url_;
+
+  base::Optional<net::AuthChallengeInfo> auth_challenge_info_;
 };
 
 }  // namespace blink

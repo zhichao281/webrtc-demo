@@ -31,6 +31,7 @@
 #ifndef THIRD_PARTY_BLINK_PUBLIC_PLATFORM_WEB_SECURITY_ORIGIN_H_
 #define THIRD_PARTY_BLINK_PUBLIC_PLATFORM_WEB_SECURITY_ORIGIN_H_
 
+#include "base/dcheck_is_on.h"
 #include "third_party/blink/public/platform/web_common.h"
 #include "third_party/blink/public/platform/web_private_ptr.h"
 #include "third_party/blink/public/platform/web_string.h"
@@ -59,7 +60,6 @@ class WebSecurityOrigin {
   BLINK_PLATFORM_EXPORT static WebSecurityOrigin CreateFromString(
       const WebString&);
   BLINK_PLATFORM_EXPORT static WebSecurityOrigin Create(const WebURL&);
-  BLINK_PLATFORM_EXPORT static WebSecurityOrigin CreateUniqueOpaque();
 
   BLINK_PLATFORM_EXPORT void Reset();
   BLINK_PLATFORM_EXPORT void Assign(const WebSecurityOrigin&);
@@ -139,4 +139,4 @@ class WebSecurityOrigin {
 
 }  // namespace blink
 
-#endif
+#endif  // THIRD_PARTY_BLINK_PUBLIC_PLATFORM_WEB_SECURITY_ORIGIN_H_

@@ -63,14 +63,10 @@ class FakeCanvasResourceHost : public CanvasResourceHost {
     return ResourceProvider();
   }
 
-  SkFilterQuality FilterQuality() const override {
-    return kLow_SkFilterQuality;
-  }
-
  private:
   IntSize size_;
 };
 
 }  // namespace blink
 
-#endif
+#endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_TEST_FAKE_CANVAS_RESOURCE_HOST_H_

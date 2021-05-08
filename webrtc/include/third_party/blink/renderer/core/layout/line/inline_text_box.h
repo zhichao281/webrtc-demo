@@ -24,6 +24,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_LINE_INLINE_TEXT_BOX_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_LINE_INLINE_TEXT_BOX_H_
 
+#include "base/dcheck_is_on.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/api/line_layout_text.h"
 #include "third_party/blink/renderer/core/layout/line/inline_box.h"
@@ -48,11 +49,13 @@ class CORE_EXPORT InlineTextBox : public InlineBox {
     SetIsText(true);
   }
 
+  void Trace(Visitor*) const override;
+
   LineLayoutText GetLineLayoutItem() const {
     return LineLayoutText(InlineBox::GetLineLayoutItem());
   }
 
-  void Destroy() final;
+  void Destroy() override;
 
   InlineTextBox* PrevForSameLayoutObject() const { return prev_text_box_; }
   InlineTextBox* NextForSameLayoutObject() const { return next_text_box_; }
@@ -220,8 +223,8 @@ class CORE_EXPORT InlineTextBox : public InlineBox {
 
  private:
   // The next/previous box that also uses our LayoutObject.
-  InlineTextBox* prev_text_box_;
-  InlineTextBox* next_text_box_;
+  Member<InlineTextBox> prev_text_box_;
+  Member<InlineTextBox> next_text_box_;
 
   int start_;
   uint16_t len_;

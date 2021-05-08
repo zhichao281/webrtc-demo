@@ -33,10 +33,14 @@
 
 #include "base/optional.h"
 #include "base/time/time.h"
+#include "services/network/public/mojom/content_security_policy.mojom-blink-forward.h"
 #include "services/network/public/mojom/parsed_headers.mojom-blink-forward.h"
+#include "services/network/public/mojom/timing_allow_origin.mojom-blink.h"
+#include "third_party/blink/renderer/platform/network/content_security_policy_response_headers.h"
 #include "third_party/blink/renderer/platform/network/parsed_content_type.h"
 #include "third_party/blink/renderer/platform/network/server_timing_header.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
+#include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
@@ -150,6 +154,37 @@ PLATFORM_EXPORT network::mojom::blink::ParsedHeadersPtr ParseHeaders(
     const String& raw_headers,
     const KURL& url);
 
+// Parses Content Security Policies. This is the same as
+// network::ParseContentSecurityPolicies but using blink types.
+PLATFORM_EXPORT
+Vector<network::mojom::blink::ContentSecurityPolicyPtr>
+ParseContentSecurityPolicies(
+    const String& raw_policies,
+    network::mojom::blink::ContentSecurityPolicyType type,
+    network::mojom::blink::ContentSecurityPolicySource source,
+    const KURL& base_url);
+
+// Parses Content Security Policies. This is the same as
+// network::ParseContentSecurityPolicies but using blink types.
+PLATFORM_EXPORT
+Vector<network::mojom::blink::ContentSecurityPolicyPtr>
+ParseContentSecurityPolicies(
+    const String& raw_policies,
+    network::mojom::blink::ContentSecurityPolicyType type,
+    network::mojom::blink::ContentSecurityPolicySource source,
+    const SecurityOrigin& self_origin);
+
+// Parses Content Security Policies headers. This uses
+// network::ParseContentSecurityPolicies and translates to blink types.
+PLATFORM_EXPORT
+Vector<network::mojom::blink::ContentSecurityPolicyPtr>
+ParseContentSecurityPolicyHeaders(
+    const ContentSecurityPolicyResponseHeaders& headers);
+
+PLATFORM_EXPORT
+network::mojom::blink::TimingAllowOriginPtr ParseTimingAllowOrigin(
+    const String& header_value);
+
 }  // namespace blink
 
-#endif
+#endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_NETWORK_HTTP_PARSERS_H_

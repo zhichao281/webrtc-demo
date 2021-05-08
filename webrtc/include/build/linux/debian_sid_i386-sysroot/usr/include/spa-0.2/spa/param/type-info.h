@@ -40,7 +40,7 @@ extern "C" {
 
 static const struct spa_type_info spa_type_param[] = {
 	{ SPA_PARAM_Invalid, SPA_TYPE_None, SPA_TYPE_INFO_PARAM_ID_BASE "Invalid", NULL },
-	{ SPA_PARAM_PropInfo, SPA_TYPE_OBJECT_Props, SPA_TYPE_INFO_PARAM_ID_BASE "PropInfo", NULL },
+	{ SPA_PARAM_PropInfo, SPA_TYPE_OBJECT_PropInfo, SPA_TYPE_INFO_PARAM_ID_BASE "PropInfo", NULL },
 	{ SPA_PARAM_Props, SPA_TYPE_OBJECT_Props, SPA_TYPE_INFO_PARAM_ID_BASE "Props", NULL },
 	{ SPA_PARAM_EnumFormat, SPA_TYPE_OBJECT_Format, SPA_TYPE_INFO_PARAM_ID_BASE "EnumFormat", NULL },
 	{ SPA_PARAM_Format, SPA_TYPE_OBJECT_Format, SPA_TYPE_INFO_PARAM_ID_BASE "Format", NULL },
@@ -63,6 +63,19 @@ static const struct spa_type_info spa_type_param[] = {
 
 #define SPA_TYPE_INFO_Props			SPA_TYPE_INFO_PARAM_BASE "Props"
 #define SPA_TYPE_INFO_PROPS_BASE		SPA_TYPE_INFO_Props ":"
+
+#include <spa/param/audio/type-info.h>
+#include <spa/param/video/type-info.h>
+
+static const struct spa_type_info spa_type_prop_channel_volume[] = {
+	{ SPA_PROP_START, SPA_TYPE_Float, SPA_TYPE_INFO_BASE "channelVolumes", NULL, },
+	{ 0, 0, NULL, NULL },
+};
+
+static const struct spa_type_info spa_type_prop_channel_map[] = {
+	{ SPA_PROP_START, SPA_TYPE_Id, SPA_TYPE_INFO_BASE "channelMap", spa_type_audio_channel, },
+	{ 0, 0, NULL, NULL },
+};
 
 static const struct spa_type_info spa_type_props[] = {
 	{ SPA_PROP_START, SPA_TYPE_Id, SPA_TYPE_INFO_PROPS_BASE, spa_type_param, },
@@ -88,9 +101,10 @@ static const struct spa_type_info spa_type_props[] = {
 	{ SPA_PROP_patternType, SPA_TYPE_Id, SPA_TYPE_INFO_PROPS_BASE "patternType", NULL },
 	{ SPA_PROP_ditherType, SPA_TYPE_Id, SPA_TYPE_INFO_PROPS_BASE "ditherType", NULL },
 	{ SPA_PROP_truncate, SPA_TYPE_Bool, SPA_TYPE_INFO_PROPS_BASE "truncate", NULL },
-	{ SPA_PROP_channelVolumes, SPA_TYPE_Array, SPA_TYPE_INFO_PROPS_BASE "channelVolumes", NULL },
+	{ SPA_PROP_channelVolumes, SPA_TYPE_Array, SPA_TYPE_INFO_PROPS_BASE "channelVolumes", spa_type_prop_channel_volume },
 	{ SPA_PROP_volumeBase, SPA_TYPE_Float, SPA_TYPE_INFO_PROPS_BASE "volumeBase", NULL },
 	{ SPA_PROP_volumeStep, SPA_TYPE_Float, SPA_TYPE_INFO_PROPS_BASE "volumeStep", NULL },
+	{ SPA_PROP_channelMap, SPA_TYPE_Array, SPA_TYPE_INFO_PROPS_BASE "channelMap", spa_type_prop_channel_map },
 
 	{ SPA_PROP_brightness, SPA_TYPE_Int, SPA_TYPE_INFO_PROPS_BASE "brightness", NULL },
 	{ SPA_PROP_contrast, SPA_TYPE_Int, SPA_TYPE_INFO_PROPS_BASE "contrast", NULL },
@@ -113,6 +127,7 @@ static const struct spa_type_info spa_type_prop_info[] = {
 	{ SPA_PROP_INFO_name, SPA_TYPE_String, SPA_TYPE_INFO_PROP_INFO_BASE "name", NULL },
 	{ SPA_PROP_INFO_type, SPA_TYPE_Pod, SPA_TYPE_INFO_PROP_INFO_BASE "type", NULL },
 	{ SPA_PROP_INFO_labels, SPA_TYPE_Struct, SPA_TYPE_INFO_PROP_INFO_BASE "labels", NULL },
+	{ SPA_PROP_INFO_container, SPA_TYPE_Id, SPA_TYPE_INFO_PROP_INFO_BASE "container", NULL },
 	{ 0, 0, NULL, NULL },
 };
 
@@ -144,9 +159,6 @@ static const struct spa_type_info spa_type_param_io[] = {
 
 #define SPA_TYPE_INFO_MediaType		SPA_TYPE_INFO_ENUM_BASE "MediaType"
 #define SPA_TYPE_INFO_MEDIA_TYPE_BASE	SPA_TYPE_INFO_MediaType ":"
-
-#include <spa/param/audio/type-info.h>
-#include <spa/param/video/type-info.h>
 
 static const struct spa_type_info spa_type_media_type[] = {
 	{ SPA_MEDIA_TYPE_unknown, SPA_TYPE_Int, SPA_TYPE_INFO_MEDIA_TYPE_BASE "unknown", NULL },
@@ -226,8 +238,8 @@ static const struct spa_type_info spa_type_format[] = {
 		spa_type_audio_flags },
 	{ SPA_FORMAT_AUDIO_rate, SPA_TYPE_Int, SPA_TYPE_INFO_FORMAT_AUDIO_BASE "rate", NULL },
 	{ SPA_FORMAT_AUDIO_channels, SPA_TYPE_Int, SPA_TYPE_INFO_FORMAT_AUDIO_BASE "channels", NULL },
-	{ SPA_FORMAT_AUDIO_position, SPA_TYPE_Id, SPA_TYPE_INFO_FORMAT_AUDIO_BASE "position",
-		spa_type_audio_channel },
+	{ SPA_FORMAT_AUDIO_position, SPA_TYPE_Array, SPA_TYPE_INFO_FORMAT_AUDIO_BASE "position",
+		spa_type_prop_channel_map },
 
 	{ SPA_FORMAT_VIDEO_format, SPA_TYPE_Id, SPA_TYPE_INFO_FORMAT_VIDEO_BASE "format",
 		spa_type_video_format, },
@@ -315,7 +327,7 @@ static const struct spa_type_info spa_type_param_port_config[] = {
 	{ SPA_PARAM_PORT_CONFIG_mode, SPA_TYPE_Id, SPA_TYPE_INFO_PARAM_PORT_CONFIG_BASE "mode", spa_type_param_port_config_mode },
 	{ SPA_PARAM_PORT_CONFIG_monitor, SPA_TYPE_Bool, SPA_TYPE_INFO_PARAM_PORT_CONFIG_BASE "monitor", NULL },
 	{ SPA_PARAM_PORT_CONFIG_control, SPA_TYPE_Bool, SPA_TYPE_INFO_PARAM_PORT_CONFIG_BASE "control", NULL },
-	{ SPA_PARAM_PORT_CONFIG_format, SPA_TYPE_Object, SPA_TYPE_INFO_PARAM_PORT_CONFIG_BASE "format", NULL },
+	{ SPA_PARAM_PORT_CONFIG_format, SPA_TYPE_OBJECT_Format, SPA_TYPE_INFO_PARAM_PORT_CONFIG_BASE "format", NULL },
 	{ 0, 0, NULL, NULL },
 };
 
@@ -333,9 +345,9 @@ static const struct spa_type_info spa_type_param_route[] = {
 	{ SPA_PARAM_ROUTE_priority, SPA_TYPE_Int, SPA_TYPE_INFO_PARAM_ROUTE_BASE "priority", NULL, },
 	{ SPA_PARAM_ROUTE_available, SPA_TYPE_Id, SPA_TYPE_INFO_PARAM_ROUTE_BASE "available", spa_type_param_availability, },
 	{ SPA_PARAM_ROUTE_info, SPA_TYPE_Struct, SPA_TYPE_INFO_PARAM_ROUTE_BASE "info", NULL, },
-	{ SPA_PARAM_ROUTE_profiles, SPA_TYPE_Array, SPA_TYPE_INFO_PARAM_ROUTE_BASE "profiles", NULL, },
-	{ SPA_PARAM_ROUTE_props, SPA_TYPE_Object, SPA_TYPE_INFO_PARAM_ROUTE_BASE "props", NULL, },
-	{ SPA_PARAM_ROUTE_devices, SPA_TYPE_Array, SPA_TYPE_INFO_PARAM_ROUTE_BASE "devices", NULL, },
+	{ SPA_PARAM_ROUTE_profiles, SPA_TYPE_Int, SPA_TYPE_INFO_PARAM_ROUTE_BASE "profiles", NULL, },
+	{ SPA_PARAM_ROUTE_props, SPA_TYPE_OBJECT_Props, SPA_TYPE_INFO_PARAM_ROUTE_BASE "props", NULL, },
+	{ SPA_PARAM_ROUTE_devices, SPA_TYPE_Int, SPA_TYPE_INFO_PARAM_ROUTE_BASE "devices", NULL, },
 	{ SPA_PARAM_ROUTE_profile, SPA_TYPE_Int, SPA_TYPE_INFO_PARAM_ROUTE_BASE "profile", NULL, },
 	{ 0, 0, NULL, NULL },
 };

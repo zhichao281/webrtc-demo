@@ -76,6 +76,7 @@ class LayoutSVGResourceMarker final : public LayoutSVGResourceContainer {
  private:
   void UpdateLayout() override;
   SVGTransformChange CalculateLocalTransform(bool bounds_changed) final;
+  bool FindCycleFromSelf() const override;
 
   AffineTransform local_to_parent_transform_;
   FloatSize viewport_size_;
@@ -92,4 +93,4 @@ struct DowncastTraits<LayoutSVGResourceMarker> {
 
 }  // namespace blink
 
-#endif
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_SVG_LAYOUT_SVG_RESOURCE_MARKER_H_

@@ -86,6 +86,8 @@ class XRSession final
       "Plane detection feature is not supported by the session.";
   static constexpr char kDepthSensingFeatureNotSupported[] =
       "Depth sensing feature is not supported by the session.";
+  static constexpr char kRawCameraAccessFeatureNotSupported[] =
+      "Raw camera access feature is not supported by the session.";
   // Runs all the video.requestVideoFrameCallback() callbacks associated with
   // one HTMLVideoElement. |double| is the |high_res_now_ms|, derived from
   // MonotonicTimeToZeroBasedDocumentTime(|current_frame_time|), to be passed as
@@ -138,6 +140,7 @@ class XRSession final
   XRAnchorSet* TrackedAnchors() const;
 
   bool immersive() const;
+  device::mojom::blink::XRSessionMode mode() const { return mode_; }
 
   DEFINE_ATTRIBUTE_EVENT_LISTENER(end, kEnd)
   DEFINE_ATTRIBUTE_EVENT_LISTENER(select, kSelect)
@@ -164,25 +167,15 @@ class XRSession final
   // origin and the initial anchor's position.
   // |native_origin_information| describes native origin relative to which the
   // transform is expressed.
+  // |maybe_plane_id| is an ID of the plane to which the anchor should be
+  // attached - set to base::nullopt if the plane is not to be attached to any
+  // plane.
   ScriptPromise CreateAnchorHelper(
       ScriptState* script_state,
       const blink::TransformationMatrix& native_origin_from_anchor,
       const device::mojom::blink::XRNativeOriginInformation&
           native_origin_information,
-      ExceptionState& exception_state);
-
-  // Helper, not IDL-exposed
-  // |native_origin_from_anchor| is a matrix describing transform between native
-  // origin and the initial anchor's position.
-  // |native_origin_information| describes native origin relative to which the
-  // transform is expressed.
-  // |plane_id| is the id of the plane to which the anchor should be attached.
-  ScriptPromise CreatePlaneAnchorHelper(
-      ScriptState* script_state,
-      const blink::TransformationMatrix& native_origin_from_anchor,
-      const device::mojom::blink::XRNativeOriginInformation&
-          native_origin_information,
-      uint64_t plane_id,
+      base::Optional<uint64_t> maybe_plane_id,
       ExceptionState& exception_state);
 
   // Helper POD type containing the information needed for anchor creation in
@@ -386,6 +379,10 @@ class XRSession final
   HeapVector<Member<XRImageTrackingResult>> ImageTrackingResults(
       ExceptionState&);
 
+  const base::Optional<gfx::Size>& CameraImageSize() const {
+    return camera_image_size_;
+  }
+
  private:
   class XRSessionResizeObserverDelegate;
 
@@ -465,6 +462,7 @@ class XRSession final
   // Helper, creates an instance of depth manager if depth sensing API is
   // enabled in the session configuration.
   XRDepthManager* CreateDepthManagerIfEnabled(
+      const XRSessionFeatureSet& feature_set,
       const device::mojom::blink::XRSessionDeviceConfig& device_config);
 
   const Member<XRSystem> xr_;
@@ -554,6 +552,10 @@ class XRSession final
   Member<XRPlaneManager> plane_manager_;
   Member<XRDepthManager> depth_manager_;
 
+  // Populated iff the raw camera feature has been enabled and the session
+  // received a frame from the device that contained the camera image.
+  base::Optional<gfx::Size> camera_image_size_;
+
   uint32_t view_parameters_id_ = 0;
   HeapVector<Member<XRViewData>> views_;
   Vector<device::mojom::blink::VREyeParametersPtr> pending_view_parameters_;
@@ -573,13 +575,10 @@ class XRSession final
   uint32_t stage_parameters_id_ = 0;
   device::mojom::blink::VRStageParametersPtr stage_parameters_;
 
-  HeapMojoReceiver<device::mojom::blink::XRSessionClient,
-                   XRSession,
-                   HeapMojoWrapperMode::kWithoutContextObserver>
+  HeapMojoReceiver<device::mojom::blink::XRSessionClient, XRSession>
       client_receiver_;
   HeapMojoAssociatedReceiver<device::mojom::blink::XRInputSourceButtonListener,
-                             XRSession,
-                             HeapMojoWrapperMode::kWithoutContextObserver>
+                             XRSession>
       input_receiver_;
 
   // Used to schedule video.rVFC callbacks for immersive sessions.

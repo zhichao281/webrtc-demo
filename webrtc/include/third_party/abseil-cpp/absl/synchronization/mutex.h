@@ -457,11 +457,9 @@ class ABSL_LOCKABLE Mutex {
 
   // Post()/Wait() versus associated PerThreadSem; in class for required
   // friendship with PerThreadSem.
-  static inline void IncrementSynchSem(Mutex *mu,
-                                       base_internal::PerThreadSynch *w);
-  static inline bool DecrementSynchSem(
-      Mutex *mu, base_internal::PerThreadSynch *w,
-      synchronization_internal::KernelTimeout t);
+  static void IncrementSynchSem(Mutex *mu, base_internal::PerThreadSynch *w);
+  static bool DecrementSynchSem(Mutex *mu, base_internal::PerThreadSynch *w,
+                                synchronization_internal::KernelTimeout t);
 
   // slow path acquire
   void LockSlowLoop(SynchWaitParams *waitp, int flags);
@@ -1078,7 +1076,7 @@ ABSL_NAMESPACE_END
 // By changing our extension points to be extern "C", we dodge this
 // check.
 extern "C" {
-void AbslInternalMutexYield();
+void ABSL_INTERNAL_C_SYMBOL(AbslInternalMutexYield)();
 }  // extern "C"
 
 #endif  // ABSL_SYNCHRONIZATION_MUTEX_H_

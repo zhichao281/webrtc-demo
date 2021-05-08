@@ -93,7 +93,6 @@
 #include "pc/test/fake_video_track_renderer.h"
 #include "pc/test/mock_peer_connection_observers.h"
 #include "pc/video_track_source.h"
-#include "rtc_base/async_invoker.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/fake_clock.h"
 #include "rtc_base/fake_mdns_responder.h"
@@ -110,6 +109,8 @@
 #include "rtc_base/rtc_certificate_generator.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/ssl_stream_adapter.h"
+#include "rtc_base/task_utils/pending_task_safety_flag.h"
+#include "rtc_base/task_utils/to_queued_task.h"
 #include "rtc_base/test_certificate_verifier.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
@@ -450,8 +451,7 @@ class PeerConnectionIntegrationWrapper : public webrtc::PeerConnectionObserver,
   // which can be used to access the gathered stats.
   rtc::scoped_refptr<MockStatsObserver> OldGetStatsForTrack(
       webrtc::MediaStreamTrackInterface* track) {
-    rtc::scoped_refptr<MockStatsObserver> observer(
-        new rtc::RefCountedObject<MockStatsObserver>());
+    auto observer = rtc::make_ref_counted<MockStatsObserver>();
     EXPECT_TRUE(peer_connection_->GetStats(
         observer, nullptr, PeerConnectionInterface::kStatsOutputLevelStandard));
     EXPECT_TRUE_WAIT(observer->called(), kDefaultTimeout);
@@ -466,8 +466,8 @@ class PeerConnectionIntegrationWrapper : public webrtc::PeerConnectionObserver,
   // Synchronously gets stats and returns them. If it times out, fails the test
   // and returns null.
   rtc::scoped_refptr<const webrtc::RTCStatsReport> NewGetStats() {
-    rtc::scoped_refptr<webrtc::MockRTCStatsCollectorCallback> callback(
-        new rtc::RefCountedObject<webrtc::MockRTCStatsCollectorCallback>());
+    auto callback =
+        rtc::make_ref_counted<webrtc::MockRTCStatsCollectorCallback>();
     peer_connection_->GetStats(callback);
     EXPECT_TRUE_WAIT(callback->called(), kDefaultTimeout);
     return callback->report();
@@ -604,8 +604,8 @@ class PeerConnectionIntegrationWrapper : public webrtc::PeerConnectionObserver,
 
   // Returns null on failure.
   std::unique_ptr<SessionDescriptionInterface> CreateOfferAndWait() {
-    rtc::scoped_refptr<MockCreateSessionDescriptionObserver> observer(
-        new rtc::RefCountedObject<MockCreateSessionDescriptionObserver>());
+    auto observer =
+        rtc::make_ref_counted<MockCreateSessionDescriptionObserver>();
     pc()->CreateOffer(observer, offer_answer_options_);
     return WaitForDescriptionFromObserver(observer);
   }
@@ -827,7 +827,7 @@ class PeerConnectionIntegrationWrapper : public webrtc::PeerConnectionObserver,
     config.frame_interval_ms = 100;
 
     video_track_sources_.emplace_back(
-        new rtc::RefCountedObject<webrtc::FakePeriodicVideoTrackSource>(
+        rtc::make_ref_counted<webrtc::FakePeriodicVideoTrackSource>(
             config, false /* remote */));
     rtc::scoped_refptr<webrtc::VideoTrackInterface> track(
         peer_connection_factory_->CreateVideoTrack(
@@ -873,8 +873,8 @@ class PeerConnectionIntegrationWrapper : public webrtc::PeerConnectionObserver,
 
   // Returns null on failure.
   std::unique_ptr<SessionDescriptionInterface> CreateAnswer() {
-    rtc::scoped_refptr<MockCreateSessionDescriptionObserver> observer(
-        new rtc::RefCountedObject<MockCreateSessionDescriptionObserver>());
+    auto observer =
+        rtc::make_ref_counted<MockCreateSessionDescriptionObserver>();
     pc()->CreateAnswer(observer, offer_answer_options_);
     return WaitForDescriptionFromObserver(observer);
   }
@@ -899,8 +899,7 @@ class PeerConnectionIntegrationWrapper : public webrtc::PeerConnectionObserver,
   // don't outrace the description.
   bool SetLocalDescriptionAndSendSdpMessage(
       std::unique_ptr<SessionDescriptionInterface> desc) {
-    rtc::scoped_refptr<MockSetSessionDescriptionObserver> observer(
-        new rtc::RefCountedObject<MockSetSessionDescriptionObserver>());
+    auto observer = rtc::make_ref_counted<MockSetSessionDescriptionObserver>();
     RTC_LOG(LS_INFO) << debug_name_ << ": SetLocalDescriptionAndSendSdpMessage";
     SdpType type = desc->GetType();
     std::string sdp;
@@ -916,8 +915,7 @@ class PeerConnectionIntegrationWrapper : public webrtc::PeerConnectionObserver,
   }
 
   bool SetRemoteDescription(std::unique_ptr<SessionDescriptionInterface> desc) {
-    rtc::scoped_refptr<MockSetSessionDescriptionObserver> observer(
-        new rtc::RefCountedObject<MockSetSessionDescriptionObserver>());
+    auto observer = rtc::make_ref_counted<MockSetSessionDescriptionObserver>();
     RTC_LOG(LS_INFO) << debug_name_ << ": SetRemoteDescription";
     pc()->SetRemoteDescription(observer, desc.release());
     RemoveUnusedVideoRenderers();
@@ -958,9 +956,11 @@ class PeerConnectionIntegrationWrapper : public webrtc::PeerConnectionObserver,
     if (signaling_delay_ms_ == 0) {
       RelaySdpMessageIfReceiverExists(type, msg);
     } else {
-      invoker_.AsyncInvokeDelayed<void>(
-          RTC_FROM_HERE, rtc::Thread::Current(),
-          [this, type, msg] { RelaySdpMessageIfReceiverExists(type, msg); },
+      rtc::Thread::Current()->PostDelayedTask(
+          ToQueuedTask(task_safety_.flag(),
+                       [this, type, msg] {
+                         RelaySdpMessageIfReceiverExists(type, msg);
+                       }),
           signaling_delay_ms_);
     }
   }
@@ -979,11 +979,12 @@ class PeerConnectionIntegrationWrapper : public webrtc::PeerConnectionObserver,
     if (signaling_delay_ms_ == 0) {
       RelayIceMessageIfReceiverExists(sdp_mid, sdp_mline_index, msg);
     } else {
-      invoker_.AsyncInvokeDelayed<void>(
-          RTC_FROM_HERE, rtc::Thread::Current(),
-          [this, sdp_mid, sdp_mline_index, msg] {
-            RelayIceMessageIfReceiverExists(sdp_mid, sdp_mline_index, msg);
-          },
+      rtc::Thread::Current()->PostDelayedTask(
+          ToQueuedTask(task_safety_.flag(),
+                       [this, sdp_mid, sdp_mline_index, msg] {
+                         RelayIceMessageIfReceiverExists(sdp_mid,
+                                                         sdp_mline_index, msg);
+                       }),
           signaling_delay_ms_);
     }
   }
@@ -1179,7 +1180,7 @@ class PeerConnectionIntegrationWrapper : public webrtc::PeerConnectionObserver,
   std::string rtp_stats_id_;
   std::string audio_track_stats_id_;
 
-  rtc::AsyncInvoker invoker_;
+  ScopedTaskSafety task_safety_;
 
   friend class PeerConnectionIntegrationBaseTest;
 };
@@ -1318,8 +1319,7 @@ class MockIceTransportFactory : public IceTransportFactory {
       int component,
       IceTransportInit init) {
     RecordIceTransportCreated();
-    return new rtc::RefCountedObject<MockIceTransport>(transport_name,
-                                                       component);
+    return rtc::make_ref_counted<MockIceTransport>(transport_name, component);
   }
   MOCK_METHOD(void, RecordIceTransportCreated, ());
 };
@@ -1351,10 +1351,12 @@ class PeerConnectionIntegrationBaseTest : public ::testing::Test {
     // when Send() is called it will hit a seg fault.
     if (caller_) {
       caller_->set_signaling_message_receiver(nullptr);
+      caller_->pc()->Close();
       delete SetCallerPcWrapperAndReturnCurrent(nullptr);
     }
     if (callee_) {
       callee_->set_signaling_message_receiver(nullptr);
+      callee_->pc()->Close();
       delete SetCalleePcWrapperAndReturnCurrent(nullptr);
     }
 
@@ -1775,8 +1777,10 @@ class PeerConnectionIntegrationBaseTest : public ::testing::Test {
   }
 
   void ClosePeerConnections() {
-    caller()->pc()->Close();
-    callee()->pc()->Close();
+    if (caller())
+      caller()->pc()->Close();
+    if (callee())
+      callee()->pc()->Close();
   }
 
   void TestNegotiatedCipherSuite(

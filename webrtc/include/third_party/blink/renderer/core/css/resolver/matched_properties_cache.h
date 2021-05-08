@@ -45,8 +45,8 @@ class CORE_EXPORT CachedMatchedProperties final
   Vector<UntracedMember<CSSPropertyValueSet>> matched_properties;
   Vector<MatchedProperties::Data> matched_properties_types;
 
-  scoped_refptr<ComputedStyle> computed_style;
-  scoped_refptr<ComputedStyle> parent_computed_style;
+  Member<ComputedStyle> computed_style;
+  Member<ComputedStyle> parent_computed_style;
 
   void Set(const ComputedStyle&,
            const ComputedStyle& parent_style,
@@ -55,7 +55,7 @@ class CORE_EXPORT CachedMatchedProperties final
 
   bool DependenciesEqual(const StyleResolverState&);
 
-  void Trace(Visitor*) const {}
+  void Trace(Visitor*) const;
 
   bool operator==(const MatchedPropertiesVector& properties);
   bool operator!=(const MatchedPropertiesVector& properties);
@@ -121,4 +121,4 @@ class CORE_EXPORT MatchedPropertiesCache {
 
 }  // namespace blink
 
-#endif
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_CSS_RESOLVER_MATCHED_PROPERTIES_CACHE_H_

@@ -13,6 +13,7 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/dom_node_ids.h"
 #include "third_party/blink/renderer/core/page/event_with_hit_test_results.h"
+#include "third_party/blink/renderer/core/page/scrolling/scroll_state.h"
 #include "third_party/blink/renderer/core/scroll/scroll_types.h"
 #include "third_party/blink/renderer/platform/geometry/layout_size.h"
 #include "third_party/blink/renderer/platform/graphics/compositor_element_id.h"
@@ -150,16 +151,17 @@ class CORE_EXPORT ScrollManager : public GarbageCollected<ScrollManager>,
                  const Node& current_node,
                  bool for_autoscroll);
 
-  // scroller_size is set only when scrolling non root scroller.
-  void ComputeScrollRelatedMetrics(
-      uint32_t* non_composited_main_thread_scrolling_reasons);
-  void RecordScrollRelatedMetrics(const WebGestureDevice);
+  uint32_t GetNonCompositedMainThreadScrollingReasons() const;
+  void RecordScrollRelatedMetrics(WebGestureDevice) const;
 
   WebGestureEvent SynthesizeGestureScrollBegin(
       const WebGestureEvent& update_event);
 
   bool SnapAtGestureScrollEnd(const WebGestureEvent& end_event,
                               base::ScopedClosureRunner callback);
+
+  void AdjustForSnapAtScrollUpdate(const WebGestureEvent& gesture_event,
+                                   ScrollStateData* scroll_state_data);
 
   void NotifyScrollPhaseBeginForCustomizedScroll(const ScrollState&);
   void NotifyScrollPhaseEndForCustomizedScroll();

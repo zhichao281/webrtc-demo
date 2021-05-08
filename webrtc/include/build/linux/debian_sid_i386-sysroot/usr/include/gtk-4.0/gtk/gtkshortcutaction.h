@@ -33,8 +33,8 @@ G_BEGIN_DECLS
 /**
  * GtkShortcutFunc:
  * @widget: The widget passed to the activation
- * @args: The arguments passed to the activation
- * @user_data: The user data provided when activating the action
+ * @args: (nullable): The arguments passed to the activation
+ * @user_data: (nullable): The user data provided when activating the action
  *
  * Prototype for shortcuts based on user callbacks.
  */
@@ -132,6 +132,9 @@ GtkShortcutAction *     gtk_activate_action_get                 (void);
  * GtkSignalAction:
  *
  * A #GtkShortcutAction that emits a signal.
+ *
+ * Signals that are used in this way are referred to as keybinding signals,
+ * and they are expected to be defined with the %G_SIGNAL_ACTION flag.
  */
 GDK_AVAILABLE_IN_ALL
 GDK_DECLARE_INTERNAL_TYPE (GtkSignalAction, gtk_signal_action, GTK, SIGNAL_ACTION, GtkShortcutAction)

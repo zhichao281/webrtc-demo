@@ -64,9 +64,28 @@ class FrameTimelineEventParser {
   // of the cookie makes it so that we can end a slice with just the cookie and
   // the TrackSetId.
   std::map<int64_t, TrackSetId> cookie_track_set_id_map_;
-  std::array<StringId, 5> present_type_ids_;
+  std::array<StringId, 6> present_type_ids_;
+  std::array<StringId, 4> prediction_type_ids_;
   StringId expected_timeline_track_name_;
   StringId actual_timeline_track_name_;
+
+  StringId surface_frame_token_id_;
+  StringId display_frame_token_id_;
+  StringId present_type_id_;
+  StringId on_time_finish_id_;
+  StringId gpu_composition_id_;
+  StringId jank_type_id_;
+  StringId layer_name_id_;
+  StringId prediction_type_id_;
+  StringId is_buffer_id_;
+
+  StringId jank_tag_none_id_;
+  StringId jank_tag_self_id_;
+  StringId jank_tag_other_id_;
+  StringId jank_tag_dropped_id_;
+  StringId jank_tag_buffer_stuffing_id_;
+  StringId jank_tag_sf_stuffing_id_;
+
   // upid -> set of tokens map. The expected timeline is the same for a given
   // token no matter how many times its seen. We can safely ignore duplicates
   // for the expected timeline slices by caching the set of tokens seen so far

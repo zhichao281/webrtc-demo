@@ -81,6 +81,12 @@ typedef NS_ENUM(NSInteger, RTCStatsOutputLevel) {
   RTCStatsOutputLevelDebug,
 };
 
+typedef void (^RTCCreateSessionDescriptionCompletionHandler)(RTC_OBJC_TYPE(RTCSessionDescription) *
+                                                                 _Nullable sdp,
+                                                             NSError *_Nullable error);
+
+typedef void (^RTCSetSessionDescriptionCompletionHandler)(NSError *_Nullable error);
+
 @class RTC_OBJC_TYPE(RTCPeerConnection);
 
 RTC_OBJC_EXPORT
@@ -213,7 +219,12 @@ RTC_OBJC_EXPORT
 - (void)close;
 
 /** Provide a remote candidate to the ICE Agent. */
-- (void)addIceCandidate:(RTC_OBJC_TYPE(RTCIceCandidate) *)candidate;
+- (void)addIceCandidate:(RTC_OBJC_TYPE(RTCIceCandidate) *)candidate
+    DEPRECATED_MSG_ATTRIBUTE("Please use addIceCandidate:completionHandler: instead");
+
+/** Provide a remote candidate to the ICE Agent. */
+- (void)addIceCandidate:(RTC_OBJC_TYPE(RTCIceCandidate) *)candidate
+      completionHandler:(void (^)(NSError *_Nullable error))completionHandler;
 
 /** Remove a group of remote candidates from the ICE Agent. */
 - (void)removeIceCandidates:(NSArray<RTC_OBJC_TYPE(RTCIceCandidate) *> *)candidates;
@@ -285,24 +296,32 @@ RTC_OBJC_EXPORT
     addTransceiverOfType:(RTCRtpMediaType)mediaType
                     init:(RTC_OBJC_TYPE(RTCRtpTransceiverInit) *)init;
 
+/** Tells the PeerConnection that ICE should be restarted. This triggers a need
+ * for negotiation and subsequent offerForConstraints:completionHandler call will act as if
+ * RTCOfferAnswerOptions::ice_restart is true.
+ */
+- (void)restartIce;
+
 /** Generate an SDP offer. */
 - (void)offerForConstraints:(RTC_OBJC_TYPE(RTCMediaConstraints) *)constraints
-          completionHandler:(nullable void (^)(RTC_OBJC_TYPE(RTCSessionDescription) * _Nullable sdp,
-                                               NSError *_Nullable error))completionHandler;
+          completionHandler:(RTCCreateSessionDescriptionCompletionHandler)completionHandler;
 
 /** Generate an SDP answer. */
 - (void)answerForConstraints:(RTC_OBJC_TYPE(RTCMediaConstraints) *)constraints
-           completionHandler:
-               (nullable void (^)(RTC_OBJC_TYPE(RTCSessionDescription) * _Nullable sdp,
-                                  NSError *_Nullable error))completionHandler;
+           completionHandler:(RTCCreateSessionDescriptionCompletionHandler)completionHandler;
 
 /** Apply the supplied RTCSessionDescription as the local description. */
 - (void)setLocalDescription:(RTC_OBJC_TYPE(RTCSessionDescription) *)sdp
-          completionHandler:(nullable void (^)(NSError *_Nullable error))completionHandler;
+          completionHandler:(RTCSetSessionDescriptionCompletionHandler)completionHandler;
+
+/** Creates an offer or answer (depending on current signaling state) and sets
+ * it as the local session description. */
+- (void)setLocalDescriptionWithCompletionHandler:
+    (RTCSetSessionDescriptionCompletionHandler)completionHandler;
 
 /** Apply the supplied RTCSessionDescription as the remote description. */
 - (void)setRemoteDescription:(RTC_OBJC_TYPE(RTCSessionDescription) *)sdp
-           completionHandler:(nullable void (^)(NSError *_Nullable error))completionHandler;
+           completionHandler:(RTCSetSessionDescriptionCompletionHandler)completionHandler;
 
 /** Limits the bandwidth allocated for all RTP streams sent by this
  *  PeerConnection. Nil parameters will be unchanged. Setting

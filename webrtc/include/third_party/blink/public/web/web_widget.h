@@ -40,7 +40,6 @@
 #include "cc/trees/layer_tree_host_client.h"
 #include "third_party/blink/public/common/input/web_menu_source_type.h"
 #include "third_party/blink/public/common/metrics/document_update_reason.h"
-#include "third_party/blink/public/common/widget/screen_info.h"
 #include "third_party/blink/public/mojom/input/input_event_result.mojom-shared.h"
 #include "third_party/blink/public/mojom/input/pointer_lock_context.mojom-shared.h"
 #include "third_party/blink/public/mojom/input/pointer_lock_result.mojom-shared.h"
@@ -61,7 +60,6 @@ namespace cc {
 class LayerTreeHost;
 class LayerTreeSettings;
 class TaskGraphRunner;
-class UkmRecorderFactory;
 }
 
 namespace ui {
@@ -69,7 +67,13 @@ class Cursor;
 class LatencyInfo;
 }
 
+namespace gfx {
+class RenderingPipeline;
+}
+
 namespace blink {
+struct ScreenInfo;
+struct ScreenInfos;
 struct VisualProperties;
 class WebCoalescedInputEvent;
 
@@ -87,9 +91,10 @@ class WebWidget {
   virtual void InitializeCompositing(
       scheduler::WebAgentGroupScheduler& agent_group_scheduler,
       cc::TaskGraphRunner* task_graph_runner,
-      const ScreenInfo& screen_info,
-      std::unique_ptr<cc::UkmRecorderFactory> ukm_recorder_factory,
-      const cc::LayerTreeSettings* settings) = 0;
+      const ScreenInfos& screen_info,
+      const cc::LayerTreeSettings* settings,
+      gfx::RenderingPipeline* main_thread_pipeline,
+      gfx::RenderingPipeline* compositor_thread_pipeline) = 0;
 
   // Set the compositor as visible. If |visible| is true, then the compositor
   // will request a new layer frame sink and begin producing frames from the
@@ -201,9 +206,15 @@ class WebWidget {
   // displayed.
   virtual const ScreenInfo& GetScreenInfo() = 0;
 
+  // Returns information about all available screens.
+  virtual const ScreenInfos& GetScreenInfos() = 0;
+
   // Returns original (non-emulated) information about the screen where this
   // view's widgets are being displayed.
   virtual const ScreenInfo& GetOriginalScreenInfo() = 0;
+
+  // Returns original (non-emulated) information about all available screens.
+  virtual const ScreenInfos& GetOriginalScreenInfos() = 0;
 
   // Called to get the position of the widget's window in screen
   // coordinates. Note, the window includes any decorations such as borders,
@@ -232,4 +243,4 @@ class WebWidget {
 
 }  // namespace blink
 
-#endif
+#endif  // THIRD_PARTY_BLINK_PUBLIC_WEB_WEB_WIDGET_H_

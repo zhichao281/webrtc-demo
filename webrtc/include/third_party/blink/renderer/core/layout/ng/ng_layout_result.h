@@ -5,12 +5,13 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_NG_LAYOUT_RESULT_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_NG_LAYOUT_RESULT_H_
 
-#include "base/memory/scoped_refptr.h"
+#include "base/dcheck_is_on.h"
 #include "third_party/blink/renderer/bindings/core/v8/serialization/serialized_script_value.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/ng/exclusions/ng_exclusion_space.h"
 #include "third_party/blink/renderer/core/layout/ng/geometry/ng_bfc_offset.h"
 #include "third_party/blink/renderer/core/layout/ng/geometry/ng_margin_strut.h"
+#include "third_party/blink/renderer/core/layout/ng/grid/layout_ng_grid.h"
 #include "third_party/blink/renderer/core/layout/ng/list/ng_unpositioned_list_marker.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_block_node.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_break_appeal.h"
@@ -18,8 +19,9 @@
 #include "third_party/blink/renderer/core/layout/ng/ng_floats_utils.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_fragment.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_link.h"
-#include "third_party/blink/renderer/core/layout/ng/ng_physical_container_fragment.h"
+#include "third_party/blink/renderer/core/layout/ng/ng_physical_fragment.h"
 #include "third_party/blink/renderer/core/style/computed_style_constants.h"
+#include "third_party/blink/renderer/platform/heap/heap.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
@@ -35,7 +37,8 @@ class NGLineBoxFragmentBuilder;
 // necessary during layout and stored on this object.
 // Layout code should access the NGPhysicalFragment through the wrappers in
 // NGFragment et al.
-class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
+class CORE_EXPORT NGLayoutResult final
+    : public GarbageCollected<NGLayoutResult> {
  public:
   enum EStatus {
     kSuccess = 0,
@@ -43,13 +46,14 @@ class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
     kNeedsEarlierBreak = 2,
     kOutOfFragmentainerSpace = 3,
     kNeedsRelayoutWithNoForcedTruncateAtLineClamp = 4,
+    kDisableFragmentation = 5,
     // When adding new values, make sure the bit size of |Bitfields::status| is
     // large enough to store.
   };
 
   // Creates a copy of |other| but uses the "post-layout" fragments to ensure
   // fragment-tree consistency.
-  static scoped_refptr<const NGLayoutResult> CloneWithPostLayoutFragments(
+  static const NGLayoutResult* CloneWithPostLayoutFragments(
       const NGLayoutResult& other,
       const base::Optional<PhysicalRect> updated_layout_overflow =
           base::nullopt);
@@ -63,9 +67,31 @@ class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
                  LayoutUnit bfc_line_offset,
                  base::Optional<LayoutUnit> bfc_block_offset,
                  LayoutUnit block_offset_delta);
-  ~NGLayoutResult();
 
-  const NGPhysicalContainerFragment& PhysicalFragment() const {
+  // Creates a copy of NGLayoutResult with a new (but "identical") fragment.
+  NGLayoutResult(const NGLayoutResult& other,
+                 const NGPhysicalFragment* physical_fragment);
+
+  // Delegate constructor that sets up what it can, based on the builder.
+  NGLayoutResult(const NGPhysicalFragment* physical_fragment,
+                 NGContainerFragmentBuilder* builder);
+
+  // We don't need the copy constructor, move constructor, copy
+  // assigmnment-operator, or move assignment-operator today.
+  // Delete these to clarify that they will not work because a |RefCounted|
+  // object can't be copied directly.
+  //
+  // If at some point we do need these constructors particular care will need
+  // to be taken with the |rare_data_| field which is manually memory managed.
+  NGLayoutResult(const NGLayoutResult&) = delete;
+  NGLayoutResult(NGLayoutResult&&) = delete;
+  NGLayoutResult& operator=(const NGLayoutResult& other) = delete;
+  NGLayoutResult& operator=(NGLayoutResult&& other) = delete;
+  NGLayoutResult() = delete;
+
+  ~NGLayoutResult() = default;
+
+  const NGPhysicalFragment& PhysicalFragment() const {
     DCHECK(physical_fragment_);
     DCHECK_EQ(kSuccess, Status());
     return *physical_fragment_;
@@ -115,7 +141,7 @@ class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
     return HasRareData() ? rare_data_->column_spanner : NGBlockNode(nullptr);
   }
 
-  scoped_refptr<const NGEarlyBreak> GetEarlyBreak() const {
+  const NGEarlyBreak* GetEarlyBreak() const {
     if (!HasRareData())
       return nullptr;
     return rare_data_->early_break;
@@ -185,12 +211,6 @@ class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
     return intrinsic_block_size_;
   }
 
-  LayoutUnit OverflowBlockSize() const {
-    return HasRareData() && rare_data_->overflow_block_size != kIndefiniteSize
-               ? rare_data_->overflow_block_size
-               : intrinsic_block_size_;
-  }
-
   LayoutUnit MinimalSpaceShortage() const {
     if (!HasRareData() || rare_data_->minimal_space_shortage == kIndefiniteSize)
       return LayoutUnit::Max();
@@ -211,20 +231,16 @@ class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
     return HasRareData() && rare_data_->has_violating_break;
   }
 
-  // Return whether this result is single-use only (true), or if it is allowed
-  // to be involved in cache hits in future layout passes (false).
-  // For example, this happens when a block is fragmented, since we don't yet
-  // support caching of block-fragmented results.
-  bool IsSingleUse() const {
-    return HasRareData() && rare_data_->is_single_use;
-  }
-
   SerializedScriptValue* CustomLayoutData() const {
     return HasRareData() ? rare_data_->custom_layout_data.get() : nullptr;
   }
 
   wtf_size_t TableColumnCount() const {
     return HasRareData() ? rare_data_->table_column_count_ : 0;
+  }
+
+  const NGGridData* GridData() const {
+    return HasRareData() ? rare_data_->grid_layout_data_.get() : nullptr;
   }
 
   LayoutUnit MathItalicCorrection() const {
@@ -336,6 +352,29 @@ class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
     return MutableForOutOfFlow(this);
   }
 
+  class MutableForLayoutBoxCachedResults final {
+    STACK_ALLOCATED();
+
+   protected:
+    friend class LayoutBox;
+
+    void SetFragmentChildrenInvalid() {
+      layout_result_->physical_fragment_->SetChildrenInvalid();
+    }
+
+   private:
+    friend class NGLayoutResult;
+    explicit MutableForLayoutBoxCachedResults(
+        const NGLayoutResult* layout_result)
+        : layout_result_(const_cast<NGLayoutResult*>(layout_result)) {}
+
+    NGLayoutResult* layout_result_;
+  };
+
+  MutableForLayoutBoxCachedResults GetMutableForLayoutBoxCachedResults() const {
+    return MutableForLayoutBoxCachedResults(this);
+  }
+
 #if DCHECK_IS_ON()
   void CheckSameForSimplifiedLayout(const NGLayoutResult&,
                                     bool check_same_block_size = true) const;
@@ -345,17 +384,17 @@ class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
   // This constructor is for a non-success status.
   NGLayoutResult(NGBoxFragmentBuilderPassKey, EStatus, NGBoxFragmentBuilder*);
   // This constructor requires a non-null fragment and sets a success status.
-  NGLayoutResult(
-      NGBoxFragmentBuilderPassKey,
-      scoped_refptr<const NGPhysicalContainerFragment> physical_fragment,
-      NGBoxFragmentBuilder*);
+  NGLayoutResult(NGBoxFragmentBuilderPassKey,
+                 const NGPhysicalFragment* physical_fragment,
+                 NGBoxFragmentBuilder*);
   using NGLineBoxFragmentBuilderPassKey =
       base::PassKey<NGLineBoxFragmentBuilder>;
   // This constructor requires a non-null fragment and sets a success status.
-  NGLayoutResult(
-      NGLineBoxFragmentBuilderPassKey,
-      scoped_refptr<const NGPhysicalContainerFragment> physical_fragment,
-      NGLineBoxFragmentBuilder*);
+  NGLayoutResult(NGLineBoxFragmentBuilderPassKey,
+                 const NGPhysicalFragment* physical_fragment,
+                 NGLineBoxFragmentBuilder*);
+
+  void Trace(Visitor*) const;
 
   // See https://mathml-refresh.github.io/mathml-core/#box-model
   struct MathData {
@@ -365,28 +404,6 @@ class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
  private:
   friend class MutableForOutOfFlow;
 
-  // Creates a copy of NGLayoutResult with a new (but "identical") fragment.
-  NGLayoutResult(
-      const NGLayoutResult& other,
-      scoped_refptr<const NGPhysicalContainerFragment> physical_fragment);
-
-  // We don't need the copy constructor, move constructor, copy
-  // assigmnment-operator, or move assignment-operator today.
-  // Delete these to clarify that they will not work because a |RefCounted|
-  // object can't be copied directly.
-  //
-  // If at some point we do need these constructors particular care will need
-  // to be taken with the |rare_data_| field which is manually memory managed.
-  NGLayoutResult(const NGLayoutResult&) = delete;
-  NGLayoutResult(NGLayoutResult&&) = delete;
-  NGLayoutResult& operator=(const NGLayoutResult& other) = delete;
-  NGLayoutResult& operator=(NGLayoutResult&& other) = delete;
-  NGLayoutResult() = delete;
-
-  // Delegate constructor that sets up what it can, based on the builder.
-  NGLayoutResult(
-      scoped_refptr<const NGPhysicalContainerFragment> physical_fragment,
-      NGContainerFragmentBuilder* builder);
 
   static NGExclusionSpace MergeExclusionSpaces(
       const NGLayoutResult& other,
@@ -394,19 +411,43 @@ class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
       LayoutUnit bfc_line_offset,
       LayoutUnit block_offset_delta);
 
-  struct RareData {
-    USING_FAST_MALLOC(RareData);
-
+  struct RareData final : public GarbageCollected<RareData> {
    public:
     RareData(LayoutUnit bfc_line_offset,
              base::Optional<LayoutUnit> bfc_block_offset)
         : bfc_line_offset(bfc_line_offset),
           bfc_block_offset(bfc_block_offset) {}
+    RareData(const RareData& rare_data)
+        : bfc_line_offset(rare_data.bfc_line_offset),
+          bfc_block_offset(rare_data.bfc_block_offset),
+          early_break(rare_data.early_break),
+          early_break_appeal(rare_data.early_break_appeal),
+          oof_positioned_offset(rare_data.oof_positioned_offset),
+          end_margin_strut(rare_data.end_margin_strut),
+          unpositioned_list_marker(rare_data.unpositioned_list_marker),
+          // This will initialize "both" members of the union.
+          tallest_unbreakable_block_size(
+              rare_data.tallest_unbreakable_block_size),
+          exclusion_space(rare_data.exclusion_space),
+          custom_layout_data(rare_data.custom_layout_data),
+          annotation_overflow(rare_data.annotation_overflow),
+          block_end_annotation_space(rare_data.block_end_annotation_space),
+          has_violating_break(rare_data.has_violating_break),
+          lines_until_clamp(rare_data.lines_until_clamp),
+          table_column_count_(rare_data.table_column_count_),
+          math_layout_data_(rare_data.math_layout_data_) {
+      if (rare_data.grid_layout_data_) {
+        grid_layout_data_ =
+            std::make_unique<NGGridData>(*rare_data.grid_layout_data_);
+      }
+    }
+
+    void Trace(Visitor* visitor) const;
 
     LayoutUnit bfc_line_offset;
     base::Optional<LayoutUnit> bfc_block_offset;
 
-    scoped_refptr<const NGEarlyBreak> early_break;
+    Member<const NGEarlyBreak> early_break;
     NGBreakAppeal early_break_appeal = kBreakAppealLastResort;
     LogicalOffset oof_positioned_offset;
     NGMarginStrut end_margin_strut;
@@ -428,16 +469,17 @@ class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
     NGExclusionSpace exclusion_space;
     scoped_refptr<SerializedScriptValue> custom_layout_data;
 
-    LayoutUnit overflow_block_size = kIndefiniteSize;
     LayoutUnit annotation_overflow;
     LayoutUnit block_end_annotation_space;
-    bool is_single_use = false;
     bool has_violating_break = false;
     int lines_until_clamp = 0;
     wtf_size_t table_column_count_ = 0;
+    std::unique_ptr<const NGGridData> grid_layout_data_;
     base::Optional<MathData> math_layout_data_;
   };
-
+  // |HasRareData()| should always return the same value to ensure that Trace()
+  // method works correctly, so |EnsureRareData()| cannot be called except in
+  // ctor.
   bool HasRareData() const { return bitfields_.has_rare_data; }
   RareData* EnsureRareData();
 
@@ -449,8 +491,6 @@ class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
     DISALLOW_NEW();
 
    public:
-    // We define the default constructor so that the |has_rare_data| bit is
-    // never uninitialized (potentially allowing a dangling pointer).
     Bitfields()
         : Bitfields(
               /* is_self_collapsing */ false,
@@ -506,9 +546,11 @@ class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
   // as indicated by |has_valid_space_|.
   const NGConstraintSpace space_;
 
-  scoped_refptr<const NGPhysicalContainerFragment> physical_fragment_;
+  Member<const NGPhysicalFragment> physical_fragment_;
 
-  // To save space, we union these fields.
+  // |rare_data_| is not stored in the union because |Bitfields::has_rare_data|
+  // is not initialized in constructor's initializer list and it cannot be
+  // checked in Trace() in this case.
   //  - |rare_data_| is valid if the |Bitfields::has_rare_data| bit is set.
   //    |bfc_offset_| and |oof_positioned_offset_| are stored within the
   //    |RareData| object for this case.
@@ -516,13 +558,13 @@ class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
   //    |Bitfields::has_oof_positioned_offset| bit is set. As the node is
   //    OOF-positioned the |bfc_offset_| is *always* the initial value.
   //  - Otherwise |bfc_offset_| is valid.
+  Member<RareData> rare_data_;
   union {
     NGBfcOffset bfc_offset_;
     // This is the final position of an OOF-positioned object in its parent's
     // writing-mode. This is set by the |NGOutOfFlowLayoutPart| while
     // generating this layout result.
     LogicalOffset oof_positioned_offset_;
-    RareData* rare_data_;
   };
 
   LayoutUnit intrinsic_block_size_;

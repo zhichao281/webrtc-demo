@@ -15,28 +15,32 @@ namespace blink {
 class NGBlockNode;
 class NGBlockBreakToken;
 class NGBoxFragment;
+struct DevtoolsFlexInfo;
 
 class CORE_EXPORT NGFlexLayoutAlgorithm
     : public NGLayoutAlgorithm<NGBlockNode,
                                NGBoxFragmentBuilder,
                                NGBlockBreakToken> {
  public:
-  NGFlexLayoutAlgorithm(const NGLayoutAlgorithmParams& params);
+  explicit NGFlexLayoutAlgorithm(const NGLayoutAlgorithmParams& params,
+                                 DevtoolsFlexInfo* devtools = nullptr);
 
-  MinMaxSizesResult ComputeMinMaxSizes(const MinMaxSizesInput&) const override;
-  scoped_refptr<const NGLayoutResult> Layout() override;
+  MinMaxSizesResult ComputeMinMaxSizes(
+      const MinMaxSizesFloatInput&) const override;
+  const NGLayoutResult* Layout() override;
 
  private:
-  scoped_refptr<const NGLayoutResult> RelayoutIgnoringChildScrollbarChanges();
-  scoped_refptr<const NGLayoutResult> LayoutInternal();
+  const NGLayoutResult* RelayoutIgnoringChildScrollbarChanges();
+  const NGLayoutResult* LayoutInternal();
 
   bool DoesItemCrossSizeComputeToAuto(const NGBlockNode& child) const;
   bool IsItemFlexBasisDefinite(const NGBlockNode& child) const;
   bool IsItemMainSizeDefinite(const NGBlockNode& child) const;
   bool IsItemCrossAxisLengthDefinite(const NGBlockNode& child,
                                      const Length& length) const;
-  bool ShouldItemShrinkToFit(const NGBlockNode& child) const;
-  double GetMainOverCrossAspectRatio(const NGBlockNode& child) const;
+  bool AspectRatioProvidesMainSize(const NGBlockNode& child,
+                                   const Length& cross_axis_length) const;
+  LogicalSize GetMainOverCrossAspectRatio(const NGBlockNode& child) const;
   bool DoesItemStretch(const NGBlockNode& child) const;
   // This implements the first of the additional scenarios where a flex item
   // has definite sizes when it would not if it weren't a flex item.
@@ -52,9 +56,6 @@ class CORE_EXPORT NGFlexLayoutAlgorithm
 
   bool IsColumnContainerMainSizeDefinite() const;
   bool IsContainerCrossSizeDefinite() const;
-
-  LayoutUnit CalculateFixedCrossSize(const MinMaxSizes& cross_axis_min_max,
-                                     const NGBoxStrut& margins) const;
 
   NGConstraintSpace BuildSpaceForFlexBasis(const NGBlockNode& flex_item) const;
   NGConstraintSpace BuildSpaceForIntrinsicBlockSize(
@@ -83,9 +84,11 @@ class CORE_EXPORT NGFlexLayoutAlgorithm
   const bool is_column_;
   const bool is_horizontal_flow_;
   const bool is_cross_size_definite_;
+  const LogicalSize child_percentage_size_;
+
   bool ignore_child_scrollbar_changes_ = false;
-  LogicalSize child_percentage_size_;
-  base::Optional<FlexLayoutAlgorithm> algorithm_;
+  FlexLayoutAlgorithm algorithm_;
+  DevtoolsFlexInfo* layout_info_for_devtools_;
 };
 
 }  // namespace blink

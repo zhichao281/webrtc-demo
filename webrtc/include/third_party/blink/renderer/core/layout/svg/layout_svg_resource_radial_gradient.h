@@ -32,6 +32,7 @@ class LayoutSVGResourceRadialGradient final : public LayoutSVGResourceGradient {
  public:
   explicit LayoutSVGResourceRadialGradient(SVGRadialGradientElement*);
   ~LayoutSVGResourceRadialGradient() override;
+  void Trace(Visitor*) const override;
 
   const char* GetName() const override {
     NOT_DESTROYED();
@@ -62,7 +63,7 @@ class LayoutSVGResourceRadialGradient final : public LayoutSVGResourceGradient {
   float FocalRadius(const RadialGradientAttributes&) const;
 
  private:
-  Persistent<RadialGradientAttributesWrapper> attributes_wrapper_;
+  Member<RadialGradientAttributesWrapper> attributes_wrapper_;
 
   RadialGradientAttributes& MutableAttributes() {
     NOT_DESTROYED();
@@ -83,4 +84,4 @@ struct DowncastTraits<LayoutSVGResourceRadialGradient> {
 
 }  // namespace blink
 
-#endif
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_SVG_LAYOUT_SVG_RESOURCE_RADIAL_GRADIENT_H_

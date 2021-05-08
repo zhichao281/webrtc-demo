@@ -37,7 +37,6 @@
 #include "third_party/blink/renderer/bindings/modules/v8/object_or_string.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
-#include "third_party/blink/renderer/platform/wtf/assertions.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "v8/include/v8.h"
 
@@ -66,4 +65,4 @@ MODULES_EXPORT WARN_UNUSED_RESULT bool NormalizeAlgorithm(
 
 }  // namespace blink
 
-#endif
+#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_CRYPTO_NORMALIZE_ALGORITHM_H_

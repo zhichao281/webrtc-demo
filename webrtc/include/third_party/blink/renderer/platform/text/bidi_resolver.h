@@ -22,6 +22,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_TEXT_BIDI_RESOLVER_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_TEXT_BIDI_RESOLVER_H_
 
+#include "base/dcheck_is_on.h"
 #include "third_party/blink/renderer/platform/text/bidi_character_run.h"
 #include "third_party/blink/renderer/platform/text/bidi_context.h"
 #include "third_party/blink/renderer/platform/text/bidi_run_list.h"
@@ -213,14 +214,13 @@ class NoIsolatedRun {};
 // http://unicode.org/reports/tr9
 template <class Iterator, class Run, class IsolatedRun = NoIsolatedRun>
 class BidiResolver final {
-  DISALLOW_NEW();
+  STACK_ALLOCATED();
 
  public:
   BidiResolver()
       : direction_(WTF::unicode::kOtherNeutral),
         reached_end_of_line_(false),
         empty_run_(true),
-        nested_isolate_count_(0),
         trailing_space_run_(nullptr),
         needs_trailing_space_(false) {}
 
@@ -289,7 +289,7 @@ class BidiResolver final {
   // It's unclear if this is still needed.
   void MarkCurrentRunEmpty() { empty_run_ = true; }
 
-  Vector<IsolatedRun>& IsolatedRuns() { return isolated_runs_; }
+  HeapVector<IsolatedRun>& IsolatedRuns() { return isolated_runs_; }
 
   bool IsEndOfLine(const Iterator& end) {
     return current_ == end || current_.AtEnd();
@@ -352,8 +352,8 @@ class BidiResolver final {
 
   MidpointState<Iterator> midpoint_state_;
 
-  unsigned nested_isolate_count_;
-  Vector<IsolatedRun> isolated_runs_;
+  unsigned nested_isolate_count_ = 0;
+  HeapVector<IsolatedRun> isolated_runs_;
   Run* trailing_space_run_;
   bool needs_trailing_space_;
   TextDirection paragraph_directionality_;
@@ -379,7 +379,8 @@ class BidiResolver final {
       bool* has_strong_directionality);
 
   Vector<BidiEmbedding, 8> current_explicit_embedding_sequence_;
-  HashMap<Run*, MidpointState<Iterator>> midpoint_state_for_isolated_run_;
+  HeapHashMap<Member<Run>, MidpointState<Iterator>>
+      midpoint_state_for_isolated_run_;
 
   DISALLOW_COPY_AND_ASSIGN(BidiResolver);
 };
@@ -418,8 +419,9 @@ void BidiResolver<Iterator, Run, IsolatedRun>::AppendRun(
           USHRT_MAX;  // InlineTextBox stores text length as unsigned short.
       if (end - start_offset > kLimit)
         end = start_offset + kLimit;
-      runs.AddRun(new Run(Context()->Override(), Context()->Level(),
-                          start_offset, end, direction_, Context()->Dir()));
+      runs.AddRun(MakeGarbageCollected<Run>(Context()->Override(),
+                                            Context()->Level(), start_offset,
+                                            end, direction_, Context()->Dir()));
       start_offset = end;
     }
 

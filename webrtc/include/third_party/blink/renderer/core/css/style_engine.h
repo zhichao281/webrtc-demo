@@ -52,6 +52,7 @@
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/tree_ordered_list.h"
 #include "third_party/blink/renderer/core/html/track/text_track.h"
+#include "third_party/blink/renderer/core/layout/geometry/axis.h"
 #include "third_party/blink/renderer/core/style/filter_operations.h"
 #include "third_party/blink/renderer/platform/bindings/name_client.h"
 #include "third_party/blink/renderer/platform/fonts/font_selector_client.h"
@@ -67,6 +68,7 @@ class CounterStyleMap;
 class CSSFontSelector;
 class CSSStyleSheet;
 class FontSelector;
+class HTMLSelectElement;
 class MediaQueryEvaluator;
 class Node;
 class RuleFeatureSet;
@@ -120,6 +122,24 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
     base::AutoReset<bool> allow_marking_;
   };
 
+  // We postpone updating ::first-letter styles until layout tree rebuild to
+  // know which text node contains the first letter. If we need to re-attach the
+  // ::first-letter element as a result means we mark for re-attachment during
+  // layout tree rebuild. That is not generally allowed, and we make sure we
+  // explicitly allow it for that case.
+  class AllowMarkForReattachFromRebuildLayoutTreeScope {
+    STACK_ALLOCATED();
+
+   public:
+    explicit AllowMarkForReattachFromRebuildLayoutTreeScope(StyleEngine& engine)
+        : allow_marking_(
+              &engine.allow_mark_for_reattach_from_rebuild_layout_tree_,
+              true) {}
+
+   private:
+    base::AutoReset<bool> allow_marking_;
+  };
+
   explicit StyleEngine(Document&);
   ~StyleEngine() override;
 
@@ -166,7 +186,6 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   }
   void InitialViewportChanged();
   void ViewportRulesChanged();
-  void HtmlImportAddedOrRemoved();
 
   void InjectSheet(const StyleSheetKey&, StyleSheetContents*,
                    WebDocument::CSSOrigin =
@@ -176,16 +195,12 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
                                WebDocument::kAuthorOrigin);
   CSSStyleSheet& EnsureInspectorStyleSheet();
   RuleSet* WatchedSelectorsRuleSet() {
-    DCHECK(!IsHTMLImport());
     DCHECK(global_rule_set_);
     return global_rule_set_->WatchedSelectorsRuleSet();
   }
 
   RuleSet* RuleSetForSheet(CSSStyleSheet&);
   void MediaQueryAffectingValueChanged(MediaValueChange change);
-  void UpdateActiveStyleSheetsInImport(
-      StyleEngine& root_engine,
-      DocumentStyleSheetCollector& parent_collector);
   void UpdateActiveStyle();
 
   String PreferredStylesheetSetName() const {
@@ -254,7 +269,6 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   bool MediaQueryAffectedByViewportChange();
   bool MediaQueryAffectedByDeviceChange();
   bool HasViewportDependentMediaQueries() {
-    DCHECK(!IsHTMLImport());
     DCHECK(global_rule_set_);
     UpdateActiveStyle();
     return !global_rule_set_->GetRuleFeatureSet()
@@ -334,7 +348,7 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
     style_recalc_root_.RemovedFromFlatTree(node);
   }
   void PseudoElementRemoved(Element& originating_element) {
-    layout_tree_rebuild_root_.ChildrenRemoved(originating_element);
+    layout_tree_rebuild_root_.SubtreeModified(originating_element);
   }
 
   unsigned StyleForElementCount() const { return style_for_element_count_; }
@@ -350,8 +364,7 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
                                const ActiveStyleSheetVector& new_style_sheets);
 
   void VisionDeficiencyChanged();
-  void ApplyVisionDeficiencyStyle(
-      scoped_refptr<ComputedStyle> layout_view_style);
+  void ApplyVisionDeficiencyStyle(ComputedStyle* layout_view_style);
 
   void CollectMatchingUserRules(ElementRuleCollector&) const;
 
@@ -406,15 +419,18 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   void UpdateStyleAndLayoutTree();
   // To be called from layout when container queries change for the container.
   void UpdateStyleAndLayoutTreeForContainer(Element& container,
-                                            const LogicalSize&);
-  void RecalcStyle() { RecalcStyle({}, StyleRecalcContext()); }
+                                            const LogicalSize&,
+                                            LogicalAxes contained_axes);
+  void RecalcStyle();
 
   void ClearEnsuredDescendantStyles(Element& element);
   void RebuildLayoutTree();
   bool InRebuildLayoutTree() const { return in_layout_tree_rebuild_; }
+  bool InDOMRemoval() const { return in_dom_removal_; }
   bool InContainerQueryStyleRecalc() const {
     return in_container_query_style_recalc_;
   }
+  void ChangeRenderingForHTMLSelect(HTMLSelectElement& select);
 
   void SetColorSchemeFromMeta(const CSSValue* color_scheme);
   const CSSValue* GetMetaColorSchemeValue() const { return meta_color_scheme_; }
@@ -450,8 +466,6 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   void MarkTreeScopeDirty(TreeScope&);
   void MarkUserStyleDirty();
 
-  bool IsHTMLImport() const { return is_html_import_; }
-  Document* HTMLImportRootDocument();
   Document& GetDocument() const { return *document_; }
 
   typedef HeapHashSet<Member<TreeScope>> UnorderedTreeScopeSet;
@@ -465,7 +479,6 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
                                        MediaValueChange);
 
   const RuleFeatureSet& GetRuleFeatureSet() const {
-    DCHECK(!IsHTMLImport());
     DCHECK(global_rule_set_);
     return global_rule_set_->GetRuleFeatureSet();
   }
@@ -550,17 +563,12 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
 
   Member<Document> document_;
 
-  // True if this StyleEngine is for an HTML Import document.
-  bool is_html_import_{false};
-
   // Tracks the number of currently loading top-level stylesheets. Sheets loaded
   // using the @import directive are not included in this count. We use this
   // count of pending sheets to detect when it is safe to execute scripts
   // (parser-inserted scripts may not run until all pending stylesheets have
   // loaded). See:
   // https://html.spec.whatwg.org/multipage/semantics.html#interactions-of-styling-and-scripting
-  // Once the BlockHTMLParserOnStyleSheets flag has shipped, this is the same
-  // as pending_parser_blocking_stylesheets_.
   int pending_script_blocking_stylesheets_{0};
 
   // Tracks the number of currently loading top-level stylesheets which block
@@ -608,6 +616,10 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   // should get rid of this, but we keep track of where we allow it with
   // AllowMarkStyleDirtyFromRecalcScope.
   bool allow_mark_style_dirty_from_recalc_{false};
+
+  // Set to true if we allow marking for reattachment from layout tree rebuild.
+  // AllowMarkStyleDirtyFromRecalcScope.
+  bool allow_mark_for_reattach_from_rebuild_layout_tree_{false};
 
   VisionDeficiency vision_deficiency_{VisionDeficiency::kNoVisionDeficiency};
   Member<ReferenceFilterOperation> vision_deficiency_filter_;
@@ -696,4 +708,4 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
 
 }  // namespace blink
 
-#endif
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_CSS_STYLE_ENGINE_H_

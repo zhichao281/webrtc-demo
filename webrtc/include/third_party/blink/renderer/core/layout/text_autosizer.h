@@ -32,7 +32,10 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_TEXT_AUTOSIZER_H_
 
 #include <unicode/uchar.h>
+
 #include <memory>
+
+#include "base/dcheck_is_on.h"
 #include "third_party/blink/public/mojom/frame/frame.mojom-blink.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/platform/geometry/layout_unit.h"
@@ -138,8 +141,8 @@ class CORE_EXPORT TextAutosizer final : public GarbageCollected<TextAutosizer> {
   };
 
  private:
-  typedef HashSet<LayoutBlock*> BlockSet;
-  typedef HashSet<const LayoutBlock*> ConstBlockSet;
+  typedef HashSet<UntracedMember<LayoutBlock>> BlockSet;
+  typedef HashSet<UntracedMember<const LayoutBlock>> ConstBlockSet;
 
   enum HasEnoughTextToAutosize {
     kUnknownAmountOfText,
@@ -208,12 +211,12 @@ class CORE_EXPORT TextAutosizer final : public GarbageCollected<TextAutosizer> {
                      Cluster* parent,
                      Supercluster* = nullptr);
 
-    const LayoutBlock* const root_;
+    UntracedMember<const LayoutBlock> const root_;
     BlockFlags flags_;
     // The deepest block containing all text is computed lazily (see:
     // deepestBlockContainingAllText). A value of 0 indicates the value has not
     // been computed yet.
-    const LayoutBlock* deepest_block_containing_all_text_;
+    UntracedMember<const LayoutBlock> deepest_block_containing_all_text_;
     Cluster* parent_;
     // The multiplier is computed lazily (see: clusterMultiplier) because it
     // must be calculated after the lowest block containing all text has entered
@@ -272,9 +275,10 @@ class CORE_EXPORT TextAutosizer final : public GarbageCollected<TextAutosizer> {
     HashSet<Supercluster*>& GetPotentiallyInconsistentSuperclusters() {
       return potentially_inconsistent_superclusters_;
     }
+    void Trace(Visitor* visitor) const;
 
    private:
-    typedef HashMap<const LayoutObject*, Fingerprint> FingerprintMap;
+    typedef HeapHashMap<Member<const LayoutObject>, Fingerprint> FingerprintMap;
     typedef HashMap<Fingerprint, std::unique_ptr<BlockSet>>
         ReverseFingerprintMap;
     typedef HashMap<Fingerprint, std::unique_ptr<Supercluster>> SuperclusterMap;
@@ -367,7 +371,7 @@ class CORE_EXPORT TextAutosizer final : public GarbageCollected<TextAutosizer> {
   void ReportIfCrossSiteFrame();
 
   Member<const Document> document_;
-  const LayoutBlock* first_block_to_begin_layout_;
+  Member<const LayoutBlock> first_block_to_begin_layout_;
 #if DCHECK_IS_ON()
   // Used to ensure we don't compute properties of a block before beginLayout()
   // is called on it.

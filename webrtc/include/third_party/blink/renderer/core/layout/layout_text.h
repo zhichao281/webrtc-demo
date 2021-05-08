@@ -24,6 +24,8 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_LAYOUT_TEXT_H_
 
 #include <iterator>
+
+#include "base/dcheck_is_on.h"
 #include "base/memory/scoped_refptr.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/text.h"
@@ -39,7 +41,8 @@ namespace blink {
 class AbstractInlineTextBox;
 class ContentCaptureManager;
 class InlineTextBox;
-class NGInlineItem;
+struct NGInlineItemsData;
+struct NGInlineItemSpan;
 class NGOffsetMapping;
 
 enum class OnlyWhitespaceOrNbsp : unsigned { kUnknown = 0, kNo = 1, kYes = 2 };
@@ -80,14 +83,14 @@ class CORE_EXPORT LayoutText : public LayoutObject {
   // doesn't re-transform the string.
   LayoutText(Node*, scoped_refptr<StringImpl>);
 
-  ~LayoutText() override;
+  void Trace(Visitor*) const override;
 
   static LayoutText* CreateEmptyAnonymous(Document&,
-                                          scoped_refptr<const ComputedStyle>,
+                                          const ComputedStyle*,
                                           LegacyLayout);
 
   static LayoutText* CreateAnonymous(Document&,
-                                     scoped_refptr<const ComputedStyle>,
+                                     const ComputedStyle*,
                                      scoped_refptr<StringImpl>,
                                      LegacyLayout legacy);
 
@@ -369,13 +372,13 @@ class CORE_EXPORT LayoutText : public LayoutObject {
     return node_id_ != kInvalidDOMNodeId;
   }
 
-  void SetInlineItems(NGInlineItem* begin, NGInlineItem* end);
+  void SetInlineItems(NGInlineItemsData* data, size_t begin, size_t size);
   void ClearInlineItems();
   bool HasValidInlineItems() const {
     NOT_DESTROYED();
     return valid_ng_items_;
   }
-  const base::span<NGInlineItem>& InlineItems() const;
+  const NGInlineItemSpan& InlineItems() const;
   // Inline items depends on context. It needs to be invalidated not only when
   // it was inserted/changed but also it was moved.
   void InvalidateInlineItems() {
@@ -396,11 +399,11 @@ class CORE_EXPORT LayoutText : public LayoutObject {
     has_bidi_control_items_ = false;
   }
 
-  virtual const base::span<NGInlineItem>* GetNGInlineItems() const {
+  virtual const NGInlineItemSpan* GetNGInlineItems() const {
     NOT_DESTROYED();
     return nullptr;
   }
-  virtual base::span<NGInlineItem>* GetNGInlineItems() {
+  virtual NGInlineItemSpan* GetNGInlineItems() {
     NOT_DESTROYED();
     return nullptr;
   }
@@ -416,6 +419,9 @@ class CORE_EXPORT LayoutText : public LayoutObject {
 
   // Returns the size of area occupied by this LayoutText.
   LayoutUnit PhysicalAreaSize() const;
+
+  // Returns the rightmost offset occupied by this LayoutText.
+  LayoutUnit PhysicalRightOffset() const;
 
   // For LayoutShiftTracker. Saves the value of LogicalStartingPoint() value
   // during the previous paint invalidation.
@@ -583,16 +589,15 @@ class CORE_EXPORT LayoutText : public LayoutObject {
   mutable LogicalOffset previous_logical_starting_point_ =
       UninitializedLogicalStartingPoint();
 
-  union {
-    // The line boxes associated with this object.
-    // Read the LINE BOXES OWNERSHIP section in the class header comment.
-    // Valid only when !IsInLayoutNGInlineFormattingContext().
-    InlineTextBoxList text_boxes_;
-    // The index of the first fragment item associated with this object in
-    // |NGFragmentItems::Items()|. Zero means there are no such item.
-    // Valid only when IsInLayoutNGInlineFormattingContext().
-    wtf_size_t first_fragment_item_index_;
-  };
+  // The line boxes associated with this object.
+  // Read the LINE BOXES OWNERSHIP section in the class header comment.
+  // Valid only when !IsInLayoutNGInlineFormattingContext().
+  InlineTextBoxList text_boxes_;
+
+  // The index of the first fragment item associated with this object in
+  // |NGFragmentItems::Items()|. Zero means there are no such item.
+  // Valid only when IsInLayoutNGInlineFormattingContext().
+  wtf_size_t first_fragment_item_index_ = 0u;
 };
 
 inline InlineTextBoxList& LayoutText::MutableTextBoxes() {

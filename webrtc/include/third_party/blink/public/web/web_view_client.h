@@ -35,7 +35,7 @@
 #include "base/strings/string_piece.h"
 #include "services/network/public/mojom/web_sandbox_flags.mojom-shared.h"
 #include "third_party/blink/public/common/dom_storage/session_storage_namespace_id.h"
-#include "third_party/blink/public/common/feature_policy/feature_policy_features.h"
+#include "third_party/blink/public/common/permissions_policy/permissions_policy_features.h"
 #include "third_party/blink/public/common/renderer_preferences/renderer_preferences.h"
 #include "third_party/blink/public/mojom/page/page_visibility_state.mojom-forward.h"
 #include "third_party/blink/public/platform/web_impression.h"
@@ -80,18 +80,13 @@ class WebViewClient {
   // Create a new popup WebWidget.
   virtual WebPagePopup* CreatePopup(WebLocalFrame*) { return nullptr; }
 
-  // Returns the session storage namespace id associated with this WebView.
-  virtual base::StringPiece GetSessionStorageNamespaceId() {
-    return base::StringPiece();
-  }
-
   // Misc ----------------------------------------------------------------
 
   // Called when a region of the WebView needs to be re-painted. This is only
   // for non-composited WebViews that exist to contribute to a "parent" WebView
   // painting. Otherwise invalidations are transmitted to the compositor through
   // the layers.
-  virtual void DidInvalidateRect(const gfx::Rect&) {}
+  virtual void InvalidateContainer() {}
 
   // Called when script in the page calls window.print().  If frame is
   // non-null, then it selects a particular frame, including its
@@ -120,18 +115,8 @@ class WebViewClient {
   // Called when the View acquires focus.
   virtual void DidFocus() {}
 
-  // Session history -----------------------------------------------------
-
-  // Returns the number of history items before/after the current
-  // history item.
-  virtual int HistoryBackListCount() { return 0; }
-  virtual int HistoryForwardListCount() { return 0; }
-
-  // History -------------------------------------------------------------
-  virtual void OnSetHistoryOffsetAndLength(int history_offset,
-                                           int history_length) {}
 };
 
 }  // namespace blink
 
-#endif
+#endif  // THIRD_PARTY_BLINK_PUBLIC_WEB_WEB_VIEW_CLIENT_H_

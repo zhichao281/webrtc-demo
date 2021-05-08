@@ -12,7 +12,6 @@
 #include "base/allocator/partition_allocator/page_allocator_constants.h"
 #include "base/base_export.h"
 #include "base/compiler_specific.h"
-#include "build/build_config.h"
 
 namespace base {
 
@@ -20,6 +19,12 @@ enum PageAccessibilityConfiguration {
   PageInaccessible,
   PageRead,
   PageReadWrite,
+  // This flag is mapped to PageReadWrite on systems that
+  // don't support MTE.
+  PageReadWriteTagged,
+  // This flag is mapped to PageReadExecute on systems
+  // that don't support Arm's BTI.
+  PageReadExecuteProtected,
   PageReadExecute,
   // This flag is deprecated and will go away soon.
   // TODO(bbudge) Remove this as soon as V8 doesn't need RWX pages.
@@ -157,6 +162,13 @@ BASE_EXPORT void RecommitSystemPages(
     size_t length,
     PageAccessibilityConfiguration page_accessibility,
     PageAccessibilityDisposition accessibility_disposition);
+
+// Like RecommitSystemPages(), but returns false instead of crashing.
+BASE_EXPORT bool TryRecommitSystemPages(
+    void* address,
+    size_t length,
+    PageAccessibilityConfiguration page_accessibility,
+    PageAccessibilityDisposition accessibility_disposition) WARN_UNUSED_RESULT;
 
 // Discard one or more system pages starting at |address| and continuing for
 // |length| bytes. |length| must be a multiple of |SystemPageSize()|.

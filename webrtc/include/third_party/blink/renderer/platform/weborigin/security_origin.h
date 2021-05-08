@@ -141,11 +141,6 @@ class PLATFORM_EXPORT SecurityOrigin : public RefCounted<SecurityOrigin> {
   // scheme (e.g. "http" => 80).
   uint16_t Port() const { return port_; }
 
-  // Returns true if a given URL is secure, based either directly on its
-  // own protocol, or, when relevant, on the protocol of its "inner URL"
-  // Protocols like blob: and filesystem: fall into this latter category.
-  static bool IsSecure(const KURL&);
-
   // Returns true if this SecurityOrigin can script objects in the given
   // SecurityOrigin. This check is similar to `IsSameOriginDomainWith()`, but
   // additionally takes "universal access" flag into account, as well as the
@@ -236,6 +231,8 @@ class PLATFORM_EXPORT SecurityOrigin : public RefCounted<SecurityOrigin> {
   bool CanAccessCacheStorage() const { return !IsOpaque(); }
   bool CanAccessLocks() const { return !IsOpaque(); }
   bool CanAccessSessionStorage() const { return !IsOpaque(); }
+  bool CanAccessStorageFoundation() const { return !IsOpaque(); }
+  bool CanAccessStorageBuckets() const { return !IsOpaque(); }
 
   // The local SecurityOrigin is the most privileged SecurityOrigin.
   // The local SecurityOrigin can script any document, navigate to local
@@ -318,6 +315,18 @@ class PLATFORM_EXPORT SecurityOrigin : public RefCounted<SecurityOrigin> {
   }
   bool IsSameOriginDomainWith(const SecurityOrigin*,
                               AccessResultDomainDetail&) const;
+
+  // This method implements HTML's "same site" check, which is true if the two
+  // origins are schemelessly same site, and either are both opaque or are both
+  // tuple origins with the same scheme.
+  //
+  // Note: Use of "same site" should be avoided when possible, in favor of "same
+  // origin" checks. A "same origin" check is generally more appropriate for
+  // security decisions, as registrable domains cannot be relied upon to provide
+  // a hard security boundary.
+  //
+  // https://html.spec.whatwg.org/#same-site
+  bool IsSameSiteWith(const SecurityOrigin* other) const;
 
   static const KURL& UrlWithUniqueOpaqueOrigin();
 

@@ -6,6 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_HEAP_COLLECTION_SUPPORT_HEAP_HASH_TABLE_BACKING_H_
 
 #include "third_party/blink/renderer/platform/heap/trace_traits.h"
+#include "third_party/blink/renderer/platform/heap/visitor.h"
 #include "third_party/blink/renderer/platform/wtf/buildflags.h"
 
 #if BUILDFLAG(USE_V8_OILPAN)
@@ -176,17 +177,46 @@ struct TraceInCollectionTrait<kNoWeakHandling,
 
 template <typename Key, typename Value, typename Traits>
 struct TraceInCollectionTrait<kWeakHandling, KeyValuePair<Key, Value>, Traits> {
+ private:
+  template <typename T>
+  struct NullReferenceChecker {
+    static bool IsNull(const T& t) { return false; }
+  };
+  template <typename T>
+  struct NullReferenceChecker<blink::Member<T>> {
+    static bool IsNull(const blink::Member<T>& t) { return !t; }
+  };
+  template <typename T>
+  struct NullReferenceChecker<blink::WeakMember<T>> {
+    static bool IsNull(const blink::WeakMember<T>& t) { return !t; }
+  };
+
+ public:
   static bool IsAlive(const blink::LivenessBroker& info,
                       const KeyValuePair<Key, Value>& self) {
     // Needed for Weak/Weak, Strong/Weak (reverse ephemeron), and Weak/Strong
     // (ephemeron). Order of invocation does not matter as tracing weak key or
     // value does not have any side effects.
-    return blink::TraceCollectionIfEnabled<
-               WeakHandlingTrait<Key>::value, Key,
-               typename Traits::KeyTraits>::IsAlive(info, self.key) &&
-           blink::TraceCollectionIfEnabled<
-               WeakHandlingTrait<Value>::value, Value,
-               typename Traits::ValueTraits>::IsAlive(info, self.value);
+    //
+    // Blink (reverse) ephemerons are allowed to temporarily contain a null key.
+    // In case a GC happens before the key is overwritten with a non-null value,
+    // IsAlive of weak KeyValuePair needs to consider null keys as alive (null
+    // is generally treated as dead). Otherwise, weakness processing for the
+    // hash table will delete the bucket even though it is still actively in
+    // use. Since only the key of the (reverse) ephemeron can be null, pairs in
+    // which both key and value are null do not need to be kept alive and can be
+    // regarded as dead.
+    bool key_is_null = NullReferenceChecker<Key>::IsNull(self.key);
+    bool value_is_null = NullReferenceChecker<Value>::IsNull(self.value);
+    return (key_is_null ||
+            blink::TraceCollectionIfEnabled<
+                WeakHandlingTrait<Key>::value, Key,
+                typename Traits::KeyTraits>::IsAlive(info, self.key)) &&
+           (value_is_null ||
+            blink::TraceCollectionIfEnabled<
+                WeakHandlingTrait<Value>::value, Value,
+                typename Traits::ValueTraits>::IsAlive(info, self.value)) &&
+           (!key_is_null || !value_is_null);
   }
 
   static void Trace(blink::Visitor* visitor,
@@ -224,6 +254,9 @@ struct TraceInCollectionTrait<
                                                       self.value());
   }
 };
+
+template <typename T>
+struct IsWeak<internal::ConcurrentBucket<T>> : IsWeak<T> {};
 
 }  // namespace WTF
 

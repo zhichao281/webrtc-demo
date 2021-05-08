@@ -52,6 +52,7 @@ class CORE_EXPORT FilterOperation : public GarbageCollected<FilterOperation> {
     SEPIA,
     SATURATE,
     HUE_ROTATE,
+    LUMINANCE_TO_ALPHA,
     INVERT,
     OPACITY,
     BRIGHTNESS,
@@ -59,6 +60,7 @@ class CORE_EXPORT FilterOperation : public GarbageCollected<FilterOperation> {
     BLUR,
     DROP_SHADOW,
     BOX_REFLECT,
+    COLOR_MATRIX,
     NONE
   };
 
@@ -68,12 +70,14 @@ class CORE_EXPORT FilterOperation : public GarbageCollected<FilterOperation> {
       case SEPIA:
       case SATURATE:
       case HUE_ROTATE:
+      case LUMINANCE_TO_ALPHA:
       case INVERT:
       case OPACITY:
       case BRIGHTNESS:
       case CONTRAST:
       case BLUR:
       case DROP_SHADOW:
+      case COLOR_MATRIX:
         return true;
       case REFERENCE:
       case BOX_REFLECT:
@@ -152,8 +156,9 @@ struct DowncastTraits<ReferenceFilterOperation> {
   }
 };
 
-// GRAYSCALE, SEPIA, SATURATE and HUE_ROTATE are variations on a basic color
-// matrix effect.  For HUE_ROTATE, the angle of rotation is stored in m_amount.
+// GRAYSCALE, SEPIA, SATURATE, HUE_ROTATE and LUMINANCE_TO_ALPHA are variations
+// on a basic color matrix effect.  For HUE_ROTATE, the angle of rotation is
+// stored in amount_. For LUMINANCE_TO_ALPHA amount_ is unused.
 class CORE_EXPORT BasicColorMatrixFilterOperation : public FilterOperation {
  public:
   BasicColorMatrixFilterOperation(double amount, OperationType type)
@@ -173,18 +178,46 @@ class CORE_EXPORT BasicColorMatrixFilterOperation : public FilterOperation {
   double amount_;
 };
 
+// Generic color matrices
+class CORE_EXPORT ColorMatrixFilterOperation : public FilterOperation {
+ public:
+  ColorMatrixFilterOperation(Vector<float> values, OperationType type)
+      : FilterOperation(type), values_(std::move(values)) {}
+
+  const Vector<float>& Values() const { return values_; }
+
+ private:
+  bool operator==(const FilterOperation& o) const override {
+    if (!IsSameType(o))
+      return false;
+    const ColorMatrixFilterOperation* other =
+        static_cast<const ColorMatrixFilterOperation*>(&o);
+    return values_ == other->values_;
+  }
+
+  Vector<float> values_;
+};
+
 inline bool IsBasicColorMatrixFilterOperation(
     const FilterOperation& operation) {
   FilterOperation::OperationType type = operation.GetType();
   return type == FilterOperation::GRAYSCALE || type == FilterOperation::SEPIA ||
          type == FilterOperation::SATURATE ||
-         type == FilterOperation::HUE_ROTATE;
+         type == FilterOperation::HUE_ROTATE ||
+         type == FilterOperation::LUMINANCE_TO_ALPHA;
 }
 
 template <>
 struct DowncastTraits<BasicColorMatrixFilterOperation> {
   static bool AllowFrom(const FilterOperation& op) {
     return IsBasicColorMatrixFilterOperation(op);
+  }
+};
+
+template <>
+struct DowncastTraits<ColorMatrixFilterOperation> {
+  static bool AllowFrom(const FilterOperation& op) {
+    return op.GetType() == FilterOperation::COLOR_MATRIX;
   }
 };
 

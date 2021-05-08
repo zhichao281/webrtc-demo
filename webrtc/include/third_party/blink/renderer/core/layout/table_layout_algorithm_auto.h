@@ -90,7 +90,7 @@ class TableLayoutAlgorithmAuto final : public TableLayoutAlgorithm {
   };
 
   Vector<Layout, 4> layout_struct_;
-  Vector<LayoutTableCell*, 4> span_cells_;
+  Vector<UntracedMember<LayoutTableCell>, 4> span_cells_;
   bool has_percent_ : 1;
   mutable bool effective_logical_width_dirty_ : 1;
   LayoutUnit scaled_width_from_percent_columns_;
@@ -98,4 +98,4 @@ class TableLayoutAlgorithmAuto final : public TableLayoutAlgorithm {
 
 }  // namespace blink
 
-#endif  // TableLayoutAlgorithmAuto
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_TABLE_LAYOUT_ALGORITHM_AUTO_H_

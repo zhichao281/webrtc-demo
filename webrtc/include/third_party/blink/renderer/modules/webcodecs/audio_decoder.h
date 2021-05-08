@@ -58,6 +58,7 @@ class MODULES_EXPORT AudioDecoderTraits {
       media::GpuVideoAcceleratorFactories* gpu_factories,
       media::MediaLog* media_log);
   static void InitializeDecoder(MediaDecoderType& decoder,
+                                bool low_delay,
                                 const MediaConfigType& media_config,
                                 MediaDecoderType::InitCB init_cb,
                                 MediaDecoderType::OutputCB output_cb);
@@ -65,8 +66,9 @@ class MODULES_EXPORT AudioDecoderTraits {
   static void UpdateDecoderLog(const MediaDecoderType& decoder,
                                const MediaConfigType& media_config,
                                media::MediaLog* media_log);
-  static OutputType* MakeOutput(scoped_refptr<MediaOutputType>,
-                                ExecutionContext*);
+  static media::StatusOr<OutputType*> MakeOutput(scoped_refptr<MediaOutputType>,
+                                                 ExecutionContext*);
+  static const char* GetName();
 };
 
 class MODULES_EXPORT AudioDecoder : public DecoderTemplate<AudioDecoderTraits> {

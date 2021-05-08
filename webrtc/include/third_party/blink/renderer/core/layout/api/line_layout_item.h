@@ -5,13 +5,13 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_API_LINE_LAYOUT_ITEM_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_API_LINE_LAYOUT_ITEM_H_
 
+#include "base/dcheck_is_on.h"
 #include "third_party/blink/renderer/core/editing/position_with_affinity.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/core/layout/layout_text.h"
 #include "third_party/blink/renderer/core/layout/layout_text_fragment.h"
 #include "third_party/blink/renderer/core/paint/object_paint_invalidator.h"
-
 #include "third_party/blink/renderer/platform/geometry/layout_unit.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/hash_table_deleted_value_type.h"
@@ -66,7 +66,8 @@ class LineLayoutItem {
   Node* NonPseudoNode() const { return layout_object_->NonPseudoNode(); }
 
   Node* GetNodeForOwnerNodeId() const {
-    auto* layout_text_fragment = DynamicTo<LayoutTextFragment>(layout_object_);
+    auto* layout_text_fragment =
+        DynamicTo<LayoutTextFragment>(layout_object_.Get());
     if (layout_text_fragment)
       return layout_text_fragment->AssociatedTextNode();
     return layout_object_->GetNode();
@@ -213,7 +214,8 @@ class LineLayoutItem {
   bool IsText() const { return layout_object_->IsText(); }
 
   bool IsEmptyText() const {
-    return IsText() && To<LayoutText>(layout_object_)->GetText().IsEmpty();
+    return IsText() &&
+           To<LayoutText>(layout_object_.Get())->GetText().IsEmpty();
   }
 
   bool HasLayer() const { return layout_object_->HasLayer(); }
@@ -352,7 +354,7 @@ class LineLayoutItem {
   const LayoutObject* GetLayoutObject() const { return layout_object_; }
 
  private:
-  LayoutObject* layout_object_;
+  UntracedMember<LayoutObject> layout_object_;
 
   friend class LayoutBlockFlow;
   friend class LineLayoutAPIShim;

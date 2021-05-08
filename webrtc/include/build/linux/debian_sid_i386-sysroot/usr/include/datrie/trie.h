@@ -125,6 +125,10 @@ Trie *  trie_fread (FILE *file);
 
 void    trie_free (Trie *trie);
 
+size_t  trie_get_serialized_size (Trie *trie);
+
+void    trie_serialize (Trie *trie, uint8 *ptr);
+
 int     trie_save (Trie *trie, const char *path);
 
 int     trie_fwrite (Trie *trie, FILE *file);
@@ -188,7 +192,7 @@ int       trie_state_walkable_chars (const TrieState  *s,
  * Check if the given state is a terminal state. A terminal state is a trie
  * state that terminates a key, and stores a value associated with it.
  */
-#define   trie_state_is_terminal(s) trie_state_is_walkable((s),TRIE_CHAR_TERM)
+#define   trie_state_is_terminal(s) trie_state_is_walkable((s),0)
 
 Bool      trie_state_is_single (const TrieState *s);
 

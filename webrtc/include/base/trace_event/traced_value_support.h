@@ -8,6 +8,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/optional.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
 #include "third_party/perfetto/include/perfetto/tracing/traced_value.h"
@@ -25,8 +26,8 @@ namespace perfetto {
 template <class T>
 struct TraceFormatTraits<scoped_refptr<T>,
                          perfetto::check_traced_value_support_t<T>> {
-  static void WriteIntoTracedValue(perfetto::TracedValue context,
-                                   const scoped_refptr<T>& value) {
+  static void WriteIntoTrace(perfetto::TracedValue context,
+                             const scoped_refptr<T>& value) {
     if (!value) {
       std::move(context).WritePointer(nullptr);
       return;
@@ -39,8 +40,8 @@ struct TraceFormatTraits<scoped_refptr<T>,
 template <class T>
 struct TraceFormatTraits<::base::WeakPtr<T>,
                          perfetto::check_traced_value_support_t<T>> {
-  static void WriteIntoTracedValue(perfetto::TracedValue context,
-                                   const ::base::WeakPtr<T>& value) {
+  static void WriteIntoTrace(perfetto::TracedValue context,
+                             const ::base::WeakPtr<T>& value) {
     if (!value) {
       std::move(context).WritePointer(nullptr);
       return;
@@ -57,8 +58,8 @@ struct TraceFormatTraits<::base::WeakPtr<T>,
 template <class T>
 struct TraceFormatTraits<::base::Optional<T>,
                          perfetto::check_traced_value_support_t<T>> {
-  static void WriteIntoTracedValue(perfetto::TracedValue context,
-                                   const ::base::Optional<T>& value) {
+  static void WriteIntoTrace(perfetto::TracedValue context,
+                             const ::base::Optional<T>& value) {
     if (!value) {
       std::move(context).WritePointer(nullptr);
       return;
@@ -66,8 +67,8 @@ struct TraceFormatTraits<::base::Optional<T>,
     perfetto::WriteIntoTracedValue(std::move(context), *value);
   }
 
-  static void WriteIntoTracedValue(perfetto::TracedValue context,
-                                   ::base::Optional<T>& value) {
+  static void WriteIntoTrace(perfetto::TracedValue context,
+                             ::base::Optional<T>& value) {
     if (!value) {
       std::move(context).WritePointer(nullptr);
       return;
@@ -81,24 +82,24 @@ struct TraceFormatTraits<::base::Optional<T>,
 // UI.
 template <>
 struct TraceFormatTraits<::base::TimeDelta> {
-  static void WriteIntoTracedValue(perfetto::TracedValue context,
-                                   const ::base::TimeDelta& value) {
+  static void WriteIntoTrace(perfetto::TracedValue context,
+                             const ::base::TimeDelta& value) {
     std::move(context).WriteUInt64(value.InMicroseconds());
   }
 };
 
 template <>
 struct TraceFormatTraits<::base::TimeTicks> {
-  static void WriteIntoTracedValue(perfetto::TracedValue context,
-                                   const ::base::TimeTicks& value) {
+  static void WriteIntoTrace(perfetto::TracedValue context,
+                             const ::base::TimeTicks& value) {
     perfetto::WriteIntoTracedValue(std::move(context), value.since_origin());
   }
 };
 
 template <>
 struct TraceFormatTraits<::base::Time> {
-  static void WriteIntoTracedValue(perfetto::TracedValue context,
-                                   const ::base::Time& value) {
+  static void WriteIntoTrace(perfetto::TracedValue context,
+                             const ::base::Time& value) {
     perfetto::WriteIntoTracedValue(std::move(context), value.since_origin());
   }
 };
@@ -108,9 +109,63 @@ struct TraceFormatTraits<::base::Time> {
 // human-comprehensible alias for all unguessable tokens instead.
 template <>
 struct TraceFormatTraits<::base::UnguessableToken> {
-  static void WriteIntoTracedValue(perfetto::TracedValue context,
-                                   const ::base::UnguessableToken& value) {
+  static void WriteIntoTrace(perfetto::TracedValue context,
+                             const ::base::UnguessableToken& value) {
     return std::move(context).WriteString(value.ToString());
+  }
+};
+
+// UTF-16 string support.
+template <>
+struct TraceFormatTraits<std::u16string> {
+  static void WriteIntoTrace(perfetto::TracedValue context,
+                             const std::u16string& value) {
+    return std::move(context).WriteString(::base::UTF16ToUTF8(value));
+  }
+};
+
+template <size_t N>
+struct TraceFormatTraits<char16_t[N]> {
+  static void WriteIntoTrace(perfetto::TracedValue context,
+                             const char16_t value[N]) {
+    return std::move(context).WriteString(
+        ::base::UTF16ToUTF8(::base::StringPiece16(value)));
+  }
+};
+
+template <>
+struct TraceFormatTraits<const char16_t*> {
+  static void WriteIntoTrace(perfetto::TracedValue context,
+                             const char16_t* value) {
+    return std::move(context).WriteString(
+        ::base::UTF16ToUTF8(::base::StringPiece16(value)));
+  }
+};
+
+// Wide string support.
+template <>
+struct TraceFormatTraits<std::wstring> {
+  static void WriteIntoTrace(perfetto::TracedValue context,
+                             const std::wstring& value) {
+    return std::move(context).WriteString(::base::WideToUTF8(value));
+  }
+};
+
+template <size_t N>
+struct TraceFormatTraits<wchar_t[N]> {
+  static void WriteIntoTrace(perfetto::TracedValue context,
+                             const wchar_t value[N]) {
+    return std::move(context).WriteString(
+        ::base::WideToUTF8(::base::WStringPiece(value)));
+  }
+};
+
+template <>
+struct TraceFormatTraits<const wchar_t*> {
+  static void WriteIntoTrace(perfetto::TracedValue context,
+                             const wchar_t* value) {
+    return std::move(context).WriteString(
+        ::base::WideToUTF8(::base::WStringPiece(value)));
   }
 };
 

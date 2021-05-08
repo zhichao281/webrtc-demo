@@ -30,6 +30,7 @@
 
 #include <memory>
 
+#include "base/dcheck_is_on.h"
 #include "base/macros.h"
 #include "third_party/blink/public/mojom/frame/color_scheme.mojom-blink-forward.h"
 #include "third_party/blink/renderer/platform/fonts/font.h"
@@ -168,8 +169,9 @@ class PLATFORM_EXPORT GraphicsContext {
   void SetDeviceScaleFactor(float factor) { device_scale_factor_ = factor; }
   float DeviceScaleFactor() const { return device_scale_factor_; }
 
-  // Set to true if context is for printing. Bitmaps won't  be resampled when
-  // printing to keep the best possible quality.
+  // Set to true if context is for printing. Bitmaps won't be resampled when
+  // printing to keep the best possible quality. When printing text will be
+  // provided along with glyphs.
   void SetPrinting(bool printing) { printing_ = printing; }
 
   SkColorFilter* GetColorFilter() const;
@@ -354,7 +356,7 @@ class PLATFORM_EXPORT GraphicsContext {
   // not necessarily non-empty), even when the context is disabled.
   sk_sp<PaintRecord> EndRecording();
 
-  void SetDrawLooper(sk_sp<DrawLooper>);
+  void SetDrawLooper(sk_sp<SkDrawLooper>);
 
   void DrawFocusRing(const Vector<IntRect>&,
                      float width,

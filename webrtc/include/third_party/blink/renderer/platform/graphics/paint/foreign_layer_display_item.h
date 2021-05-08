@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_PAINT_FOREIGN_LAYER_DISPLAY_ITEM_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_PAINT_FOREIGN_LAYER_DISPLAY_ITEM_H_
 
+#include "base/dcheck_is_on.h"
 #include "cc/layers/layer.h"
 #include "third_party/blink/renderer/platform/graphics/paint/display_item.h"
 #include "third_party/blink/renderer/platform/graphics/paint/property_tree_state.h"
@@ -35,10 +36,7 @@ class PLATFORM_EXPORT ForeignLayerDisplayItem : public DisplayItem {
   void PropertiesAsJSON(JSONObject&) const final;
 #endif
 
-  IntPoint Offset() const { return offset_; }
-
  private:
-  IntPoint offset_;
   scoped_refptr<cc::Layer> layer_;
 };
 

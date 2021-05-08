@@ -29,6 +29,7 @@
 
 #include <memory>
 
+#include "base/dcheck_is_on.h"
 #include "base/macros.h"
 #include "cc/input/scroll_snap_data.h"
 #include "cc/layers/content_layer_client.h"
@@ -160,6 +161,7 @@ class PLATFORM_EXPORT GraphicsLayer : public DisplayItemClient,
   // For hosting this GraphicsLayer in a native layer hierarchy.
   cc::PictureLayer& CcLayer() const { return *layer_; }
 
+  bool IsTrackingRasterInvalidations() const;
   void UpdateTrackingRasterInvalidations();
   void ResetTrackedRasterInvalidations();
   bool HasTrackedRasterInvalidations() const;

@@ -282,7 +282,7 @@ class CORE_EXPORT Animation : public EventTargetWithInlineData,
 
   void Trace(Visitor*) const override;
 
-  bool CompositorPendingForTesting() const { return compositor_pending_; }
+  bool CompositorPending() const { return compositor_pending_; }
 
   // Methods for handling removal and persistence of animations.
   bool IsReplaceable();
@@ -302,9 +302,7 @@ class CORE_EXPORT Animation : public EventTargetWithInlineData,
 
   bool IsInDisplayLockedSubtree();
 
-  void SetCanCompositeBGColorAnim() { can_composite_bgcolor_anim_ = true; }
-  void ResetCanCompositeBGColorAnim() { can_composite_bgcolor_anim_ = false; }
-  bool CanCompositeBGColorAnim() const { return can_composite_bgcolor_anim_; }
+  base::TimeDelta ComputeCompositorTimeOffset() const;
 
  protected:
   DispatchEventResult DispatchEventInternal(Event&) override;
@@ -523,14 +521,6 @@ class CORE_EXPORT Animation : public EventTargetWithInlineData,
   Member<CompositorAnimationHolder> compositor_animation_;
 
   bool effect_suppressed_;
-
-  // True if the background color animation can be composited. Set by the
-  // BackgroundColorPaintWorklet::GetBGColorPaintWorkletParams. We keep it here
-  // instead of ElementAnimations such that when we create a compositor
-  // animation, we know which animation should fall back. Note that when we
-  // extend the native paint worklet to composite other types of animations in
-  // the future, we might need to extend this to be a fall back reasons.
-  bool can_composite_bgcolor_anim_ = false;
 
   // Animations with an owning element stop ticking if there is an active
   // display lock on an ancestor element.  Cache the status to minimize the

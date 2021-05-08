@@ -17,6 +17,7 @@
 #include "mojo/public/cpp/system/data_pipe.h"
 #include "services/network/public/mojom/url_loader.mojom.h"
 #include "third_party/blink/public/mojom/frame/back_forward_cache_controller.mojom-forward.h"
+#include "third_party/blink/public/platform/web_back_forward_cache_loader_helper.h"
 #include "third_party/blink/public/platform/web_common.h"
 #include "third_party/blink/public/platform/web_url_loader.h"
 #include "third_party/blink/public/platform/web_vector.h"
@@ -35,7 +36,8 @@ struct URLLoaderCompletionStatus;
 }  // namespace network
 
 namespace blink {
-class WebMojoURLLoaderClientObserver;
+class BackForwardCacheLoaderHelper;
+class WebResourceRequestSender;
 
 // MojoURLLoaderClient is an implementation of
 // network::mojom::URLLoaderClient to receive messages from a single URLLoader.
@@ -43,10 +45,11 @@ class BLINK_PLATFORM_EXPORT MojoURLLoaderClient final
     : public network::mojom::URLLoaderClient {
  public:
   MojoURLLoaderClient(
-      WebMojoURLLoaderClientObserver* url_loader_client_observer,
+      WebResourceRequestSender* resource_request_sender,
       scoped_refptr<base::SingleThreadTaskRunner> task_runner,
       bool bypass_redirect_checks,
-      const GURL& request_url);
+      const GURL& request_url,
+      WebBackForwardCacheLoaderHelper back_forward_cache_loader_helper);
   ~MojoURLLoaderClient() override;
 
   // Set the defer status. If loading is deferred, received messages are not
@@ -54,6 +57,7 @@ class BLINK_PLATFORM_EXPORT MojoURLLoaderClient final
   void SetDefersLoading(WebURLLoader::DeferType value);
 
   // network::mojom::URLLoaderClient implementation
+  void OnReceiveEarlyHints(network::mojom::EarlyHintsPtr early_hints) override;
   void OnReceiveResponse(
       network::mojom::URLResponseHeadPtr response_head) override;
   void OnReceiveRedirect(
@@ -96,6 +100,7 @@ class BLINK_PLATFORM_EXPORT MojoURLLoaderClient final
 
   void EvictFromBackForwardCacheDueToTimeout();
   void StopBackForwardCacheEvictionTimer();
+  BackForwardCacheLoaderHelper* GetBackForwardCacheLoaderHelper();
 
   WebVector<std::unique_ptr<DeferredMessage>> deferred_messages_;
   std::unique_ptr<BodyBuffer> body_buffer_;
@@ -107,10 +112,11 @@ class BLINK_PLATFORM_EXPORT MojoURLLoaderClient final
   WebURLLoader::DeferType deferred_state_ =
       WebURLLoader::DeferType::kNotDeferred;
   int32_t accumulated_transfer_size_diff_during_deferred_ = 0;
-  WebMojoURLLoaderClientObserver* const url_loader_client_observer_;
+  WebResourceRequestSender* const resource_request_sender_;
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
   bool bypass_redirect_checks_ = false;
   KURL last_loaded_url_;
+  WebBackForwardCacheLoaderHelper back_forward_cache_loader_helper_;
 
   // For UMA.
   base::TimeTicks on_receive_response_time_;

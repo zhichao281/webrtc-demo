@@ -468,8 +468,16 @@ inline size_t NormalizeCapacity(size_t n) {
   return n ? ~size_t{} >> countl_zero(n) : 1;
 }
 
-// We use 7/8th as maximum load factor.
-// For 16-wide groups, that gives an average of two empty slots per group.
+// General notes on capacity/growth methods below:
+// - We use 7/8th as maximum load factor. For 16-wide groups, that gives an
+//   average of two empty slots per group.
+// - For (capacity+1) >= Group::kWidth, growth is 7/8*capacity.
+// - For (capacity+1) < Group::kWidth, growth == capacity. In this case, we
+//   never need to probe (the whole table fits in one group) so we don't need a
+//   load factor less than 1.
+
+// Given `capacity` of the table, returns the size (i.e. number of full slots)
+// at which we should grow the capacity.
 inline size_t CapacityToGrowth(size_t capacity) {
   assert(IsValidCapacity(capacity));
   // `capacity*7/8`
@@ -480,7 +488,7 @@ inline size_t CapacityToGrowth(size_t capacity) {
   return capacity - capacity / 8;
 }
 // From desired "growth" to a lowerbound of the necessary capacity.
-// Might not be a valid one and required NormalizeCapacity().
+// Might not be a valid one and requires NormalizeCapacity().
 inline size_t GrowthToLowerboundCapacity(size_t growth) {
   // `growth*8/7`
   if (Group::kWidth == 8 && growth == 7) {
@@ -784,7 +792,8 @@ class raw_hash_set {
   explicit raw_hash_set(size_t bucket_count, const hasher& hash = hasher(),
                         const key_equal& eq = key_equal(),
                         const allocator_type& alloc = allocator_type())
-      : ctrl_(EmptyGroup()), settings_(0, hash, eq, alloc) {
+      : ctrl_(EmptyGroup()),
+        settings_(0, HashtablezInfoHandle(), hash, eq, alloc) {
     if (bucket_count) {
       capacity_ = NormalizeCapacity(bucket_count);
       initialize_slots();
@@ -895,7 +904,7 @@ class raw_hash_set {
       auto target = find_first_non_full(ctrl_, hash, capacity_);
       set_ctrl(target.offset, H2(hash));
       emplace_at(target.offset, v);
-      infoz_.RecordInsert(hash, target.probe_length);
+      infoz().RecordInsert(hash, target.probe_length);
     }
     size_ = that.size();
     growth_left() -= that.size();
@@ -909,28 +918,27 @@ class raw_hash_set {
         slots_(absl::exchange(that.slots_, nullptr)),
         size_(absl::exchange(that.size_, 0)),
         capacity_(absl::exchange(that.capacity_, 0)),
-        infoz_(absl::exchange(that.infoz_, HashtablezInfoHandle())),
         // Hash, equality and allocator are copied instead of moved because
         // `that` must be left valid. If Hash is std::function<Key>, moving it
         // would create a nullptr functor that cannot be called.
-        settings_(that.settings_) {
-    // growth_left was copied above, reset the one from `that`.
-    that.growth_left() = 0;
-  }
+        settings_(absl::exchange(that.growth_left(), 0),
+                  absl::exchange(that.infoz(), HashtablezInfoHandle()),
+                  that.hash_ref(), that.eq_ref(), that.alloc_ref()) {}
 
   raw_hash_set(raw_hash_set&& that, const allocator_type& a)
       : ctrl_(EmptyGroup()),
         slots_(nullptr),
         size_(0),
         capacity_(0),
-        settings_(0, that.hash_ref(), that.eq_ref(), a) {
+        settings_(0, HashtablezInfoHandle(), that.hash_ref(), that.eq_ref(),
+                  a) {
     if (a == that.alloc_ref()) {
       std::swap(ctrl_, that.ctrl_);
       std::swap(slots_, that.slots_);
       std::swap(size_, that.size_);
       std::swap(capacity_, that.capacity_);
       std::swap(growth_left(), that.growth_left());
-      std::swap(infoz_, that.infoz_);
+      std::swap(infoz(), that.infoz());
     } else {
       reserve(that.size());
       // Note: this will copy elements of dense_set and unordered_set instead of
@@ -1001,7 +1009,7 @@ class raw_hash_set {
       reset_growth_left();
     }
     assert(empty());
-    infoz_.RecordStorageChanged(0, capacity_);
+    infoz().RecordStorageChanged(0, capacity_);
   }
 
   // This overload kicks in when the argument is an rvalue of insertable and
@@ -1293,7 +1301,7 @@ class raw_hash_set {
     swap(growth_left(), that.growth_left());
     swap(hash_ref(), that.hash_ref());
     swap(eq_ref(), that.eq_ref());
-    swap(infoz_, that.infoz_);
+    swap(infoz(), that.infoz());
     SwapAlloc(alloc_ref(), that.alloc_ref(),
               typename AllocTraits::propagate_on_container_swap{});
   }
@@ -1302,7 +1310,7 @@ class raw_hash_set {
     if (n == 0 && capacity_ == 0) return;
     if (n == 0 && size_ == 0) {
       destroy_slots();
-      infoz_.RecordStorageChanged(0, 0);
+      infoz().RecordStorageChanged(0, 0);
       return;
     }
     // bitor is a faster way of doing `max` here. We will round up to the next
@@ -1520,7 +1528,7 @@ class raw_hash_set {
 
     set_ctrl(index, was_never_full ? kEmpty : kDeleted);
     growth_left() += was_never_full;
-    infoz_.RecordErase();
+    infoz().RecordErase();
   }
 
   void initialize_slots() {
@@ -1537,7 +1545,7 @@ class raw_hash_set {
     // bound more carefully.
     if (std::is_same<SlotAlloc, std::allocator<slot_type>>::value &&
         slots_ == nullptr) {
-      infoz_ = Sample();
+      infoz() = Sample();
     }
 
     auto layout = MakeLayout(capacity_);
@@ -1547,7 +1555,7 @@ class raw_hash_set {
     slots_ = layout.template Pointer<1>(mem);
     reset_ctrl();
     reset_growth_left();
-    infoz_.RecordStorageChanged(size_, capacity_);
+    infoz().RecordStorageChanged(size_, capacity_);
   }
 
   void destroy_slots() {
@@ -1595,7 +1603,7 @@ class raw_hash_set {
       Deallocate<Layout::Alignment()>(&alloc_ref(), old_ctrl,
                                       layout.AllocSize());
     }
-    infoz_.RecordRehash(total_probe_length);
+    infoz().RecordRehash(total_probe_length);
   }
 
   void drop_deletes_without_resize() ABSL_ATTRIBUTE_NOINLINE {
@@ -1661,7 +1669,7 @@ class raw_hash_set {
       }
     }
     reset_growth_left();
-    infoz_.RecordRehash(total_probe_length);
+    infoz().RecordRehash(total_probe_length);
   }
 
   void rehash_and_grow_if_necessary() {
@@ -1735,7 +1743,7 @@ class raw_hash_set {
     ++size_;
     growth_left() -= IsEmpty(ctrl_[target.offset]);
     set_ctrl(target.offset, H2(hash));
-    infoz_.RecordInsert(hash, target.probe_length);
+    infoz().RecordInsert(hash, target.probe_length);
     return target.offset;
   }
 
@@ -1792,13 +1800,15 @@ class raw_hash_set {
 
   size_t& growth_left() { return settings_.template get<0>(); }
 
-  hasher& hash_ref() { return settings_.template get<1>(); }
-  const hasher& hash_ref() const { return settings_.template get<1>(); }
-  key_equal& eq_ref() { return settings_.template get<2>(); }
-  const key_equal& eq_ref() const { return settings_.template get<2>(); }
-  allocator_type& alloc_ref() { return settings_.template get<3>(); }
+  HashtablezInfoHandle& infoz() { return settings_.template get<1>(); }
+
+  hasher& hash_ref() { return settings_.template get<2>(); }
+  const hasher& hash_ref() const { return settings_.template get<2>(); }
+  key_equal& eq_ref() { return settings_.template get<3>(); }
+  const key_equal& eq_ref() const { return settings_.template get<3>(); }
+  allocator_type& alloc_ref() { return settings_.template get<4>(); }
   const allocator_type& alloc_ref() const {
-    return settings_.template get<3>();
+    return settings_.template get<4>();
   }
 
   // TODO(alkis): Investigate removing some of these fields:
@@ -1808,10 +1818,11 @@ class raw_hash_set {
   slot_type* slots_ = nullptr;     // [capacity * slot_type]
   size_t size_ = 0;                // number of full slots
   size_t capacity_ = 0;            // total number of slots
-  HashtablezInfoHandle infoz_;
-  absl::container_internal::CompressedTuple<size_t /* growth_left */, hasher,
+  absl::container_internal::CompressedTuple<size_t /* growth_left */,
+                                            HashtablezInfoHandle, hasher,
                                             key_equal, allocator_type>
-      settings_{0, hasher{}, key_equal{}, allocator_type{}};
+      settings_{0, HashtablezInfoHandle{}, hasher{}, key_equal{},
+                allocator_type{}};
 };
 
 // Erases all elements that satisfy the predicate `pred` from the container `c`.

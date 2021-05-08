@@ -22,6 +22,7 @@
 #include "api/array_view.h"
 #include "api/crypto/frame_decryptor_interface.h"
 #include "api/sequence_checker.h"
+#include "api/units/timestamp.h"
 #include "api/video/color_space.h"
 #include "api/video_codecs/video_codec.h"
 #include "call/rtp_packet_sink_interface.h"
@@ -67,7 +68,7 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
                                public RecoveredPacketReceiver,
                                public RtpPacketSinkInterface,
                                public KeyFrameRequestSender,
-                               public video_coding::OnCompleteFrameCallback,
+                               public OnCompleteFrameCallback,
                                public OnDecryptedFrameCallback,
                                public OnDecryptionStatusChangeCallback,
                                public RtpVideoFrameReceiver {
@@ -89,7 +90,7 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
       // The KeyFrameRequestSender is optional; if not provided, key frame
       // requests are sent via the internal RtpRtcp module.
       KeyFrameRequestSender* keyframe_request_sender,
-      video_coding::OnCompleteFrameCallback* complete_frame_callback,
+      OnCompleteFrameCallback* complete_frame_callback,
       rtc::scoped_refptr<FrameDecryptorInterface> frame_decryptor,
       rtc::scoped_refptr<FrameTransformerInterface> frame_transformer);
 
@@ -110,7 +111,7 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
       // The KeyFrameRequestSender is optional; if not provided, key frame
       // requests are sent via the internal RtpRtcp module.
       KeyFrameRequestSender* keyframe_request_sender,
-      video_coding::OnCompleteFrameCallback* complete_frame_callback,
+      OnCompleteFrameCallback* complete_frame_callback,
       rtc::scoped_refptr<FrameDecryptorInterface> frame_decryptor,
       rtc::scoped_refptr<FrameTransformerInterface> frame_transformer);
   ~RtpVideoStreamReceiver() override;
@@ -172,12 +173,10 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
   void RequestPacketRetransmit(const std::vector<uint16_t>& sequence_numbers);
 
   // Implements OnCompleteFrameCallback.
-  void OnCompleteFrame(
-      std::unique_ptr<video_coding::EncodedFrame> frame) override;
+  void OnCompleteFrame(std::unique_ptr<EncodedFrame> frame) override;
 
   // Implements OnDecryptedFrameCallback.
-  void OnDecryptedFrame(
-      std::unique_ptr<video_coding::RtpFrameObject> frame) override;
+  void OnDecryptedFrame(std::unique_ptr<RtpFrameObject> frame) override;
 
   // Implements OnDecryptionStatusChangeCallback.
   void OnDecryptionStatusChange(
@@ -208,8 +207,7 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
 
  private:
   // Implements RtpVideoFrameReceiver.
-  void ManageFrame(
-      std::unique_ptr<video_coding::RtpFrameObject> frame) override;
+  void ManageFrame(std::unique_ptr<RtpFrameObject> frame) override;
 
   // Used for buffering RTCP feedback messages and sending them all together.
   // Note:
@@ -305,7 +303,10 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
   ParseGenericDependenciesResult ParseGenericDependenciesExtension(
       const RtpPacketReceived& rtp_packet,
       RTPVideoHeader* video_header) RTC_RUN_ON(worker_task_checker_);
-  void OnAssembledFrame(std::unique_ptr<video_coding::RtpFrameObject> frame);
+  void OnAssembledFrame(std::unique_ptr<RtpFrameObject> frame);
+  void UpdatePacketReceiveTimestamps(const RtpPacketReceived& packet,
+                                     bool is_keyframe)
+      RTC_RUN_ON(worker_task_checker_);
 
   Clock* const clock_;
   // Ownership of this object lies with VideoReceiveStream, which owns |this|.
@@ -329,14 +330,15 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
 
   const std::unique_ptr<RtpRtcp> rtp_rtcp_;
 
-  video_coding::OnCompleteFrameCallback* complete_frame_callback_;
+  OnCompleteFrameCallback* complete_frame_callback_;
   KeyFrameRequestSender* const keyframe_request_sender_;
 
   RtcpFeedbackBuffer rtcp_feedback_buffer_;
   std::unique_ptr<DEPRECATED_NackModule> nack_module_;
   std::unique_ptr<LossNotificationController> loss_notification_controller_;
 
-  video_coding::PacketBuffer packet_buffer_;
+  mutable Mutex packet_buffer_lock_;
+  video_coding::PacketBuffer packet_buffer_ RTC_GUARDED_BY(packet_buffer_lock_);
   UniqueTimestampCounter frame_counter_ RTC_GUARDED_BY(worker_task_checker_);
   SeqNumUnwrapper<uint16_t> frame_id_unwrapper_
       RTC_GUARDED_BY(worker_task_checker_);
@@ -352,7 +354,7 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
       RTC_GUARDED_BY(worker_task_checker_);
 
   Mutex reference_finder_lock_;
-  std::unique_ptr<video_coding::RtpFrameReferenceFinder> reference_finder_
+  std::unique_ptr<RtpFrameReferenceFinder> reference_finder_
       RTC_GUARDED_BY(reference_finder_lock_);
   absl::optional<VideoCodecType> current_codec_;
   uint32_t last_assembled_frame_rtp_timestamp_;
@@ -381,7 +383,11 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
   mutable Mutex sync_info_lock_;
   absl::optional<uint32_t> last_received_rtp_timestamp_
       RTC_GUARDED_BY(sync_info_lock_);
-  absl::optional<int64_t> last_received_rtp_system_time_ms_
+  absl::optional<uint32_t> last_received_keyframe_rtp_timestamp_
+      RTC_GUARDED_BY(sync_info_lock_);
+  absl::optional<Timestamp> last_received_rtp_system_time_
+      RTC_GUARDED_BY(sync_info_lock_);
+  absl::optional<Timestamp> last_received_keyframe_rtp_system_time_
       RTC_GUARDED_BY(sync_info_lock_);
 
   // Used to validate the buffered frame decryptor is always run on the correct

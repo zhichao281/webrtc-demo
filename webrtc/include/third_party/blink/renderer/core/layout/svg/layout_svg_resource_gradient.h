@@ -35,6 +35,7 @@ struct GradientData;
 class LayoutSVGResourceGradient : public LayoutSVGResourcePaintServer {
  public:
   explicit LayoutSVGResourceGradient(SVGGradientElement*);
+  void Trace(Visitor*) const override;
 
   void RemoveAllClientsFromCache() final;
   bool RemoveClientFromCache(SVGResourceClient&) final;
@@ -62,9 +63,9 @@ class LayoutSVGResourceGradient : public LayoutSVGResourcePaintServer {
   bool should_collect_gradient_attributes_ : 1;
   using GradientMap = HeapHashMap<Member<const SVGResourceClient>,
                                   std::unique_ptr<GradientData>>;
-  Persistent<GradientMap> gradient_map_;
+  Member<GradientMap> gradient_map_;
 };
 
 }  // namespace blink
 
-#endif
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_SVG_LAYOUT_SVG_RESOURCE_GRADIENT_H_

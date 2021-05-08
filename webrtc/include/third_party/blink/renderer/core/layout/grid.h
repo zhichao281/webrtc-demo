@@ -5,12 +5,12 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_GRID_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_GRID_H_
 
+#include "base/dcheck_is_on.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/order_iterator.h"
 #include "third_party/blink/renderer/core/style/grid_area.h"
 #include "third_party/blink/renderer/core/style/grid_positions_resolver.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
-#include "third_party/blink/renderer/platform/wtf/assertions.h"
 #include "third_party/blink/renderer/platform/wtf/doubly_linked_list.h"
 #include "third_party/blink/renderer/platform/wtf/linked_hash_set.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
@@ -28,7 +28,7 @@ struct OrderedTrackIndexSetHashTraits : public HashTraits<size_t> {
 };
 
 // TODO(svillar): Perhaps we should use references here.
-typedef Vector<LayoutBox*, 1> GridItemList;
+typedef Vector<UntracedMember<LayoutBox>, 1> GridItemList;
 typedef LinkedHashSet<size_t, OrderedTrackIndexSetHashTraits>
     OrderedTrackIndexSet;
 
@@ -142,8 +142,8 @@ class CORE_EXPORT Grid {
 
   bool needs_items_placement_{true};
 
-  HashMap<const LayoutBox*, GridArea> grid_item_area_;
-  HashMap<const LayoutBox*, size_t> grid_items_indexes_map_;
+  HashMap<UntracedMember<const LayoutBox>, GridArea> grid_item_area_;
+  HashMap<UntracedMember<const LayoutBox>, size_t> grid_items_indexes_map_;
 
   std::unique_ptr<OrderedTrackIndexSet> auto_repeat_empty_columns_{nullptr};
   std::unique_ptr<OrderedTrackIndexSet> auto_repeat_empty_rows_{nullptr};

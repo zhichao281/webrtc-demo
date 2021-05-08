@@ -27,10 +27,12 @@
 #include <iterator>
 #include <utility>
 
+#include "base/dcheck_is_on.h"
 #include "base/macros.h"
 #include "base/template_util.h"
 #include "build/build_config.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/partition_allocator.h"
+#include "third_party/blink/renderer/platform/wtf/assertions.h"
 #include "third_party/blink/renderer/platform/wtf/conditional_destructor.h"
 #include "third_party/blink/renderer/platform/wtf/construct_traits.h"
 #include "third_party/blink/renderer/platform/wtf/container_annotations.h"
@@ -608,7 +610,7 @@ class VectorBuffer<T, 0, Allocator> : protected VectorBufferBase<T, Allocator> {
 
   bool ExpandBuffer(wtf_size_t new_capacity) {
     size_t size_to_allocate = AllocationSize(new_capacity);
-    if (Allocator::ExpandVectorBacking(buffer_, size_to_allocate)) {
+    if (buffer_ && Allocator::ExpandVectorBacking(buffer_, size_to_allocate)) {
       capacity_ = static_cast<wtf_size_t>(size_to_allocate / sizeof(T));
       return true;
     }
@@ -719,7 +721,7 @@ class VectorBuffer : protected VectorBufferBase<T, Allocator> {
       return false;
 
     size_t size_to_allocate = AllocationSize(new_capacity);
-    if (Allocator::ExpandVectorBacking(buffer_, size_to_allocate)) {
+    if (buffer_ && Allocator::ExpandVectorBacking(buffer_, size_to_allocate)) {
       capacity_ = static_cast<wtf_size_t>(size_to_allocate / sizeof(T));
       return true;
     }

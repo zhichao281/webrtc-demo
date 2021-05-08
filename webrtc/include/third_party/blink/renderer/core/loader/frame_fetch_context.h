@@ -120,7 +120,8 @@ class CORE_EXPORT FrameFetchContext final : public BaseFetchContext,
   bool SendConversionRequestInsteadOfRedirecting(
       const KURL& url,
       const base::Optional<ResourceRequest::RedirectInfo>& redirect_info,
-      ReportingDisposition reporting_disposition) const override;
+      ReportingDisposition reporting_disposition,
+      const String& devtools_request_id) const override;
 
   mojo::PendingReceiver<mojom::blink::WorkerTimingContainer>
   TakePendingWorkerTimingReceiver(int request_id) override;
@@ -153,7 +154,7 @@ class CORE_EXPORT FrameFetchContext final : public BaseFetchContext,
   bool AllowScriptFromSource(const KURL&) const override;
   bool ShouldBlockRequestByInspector(const KURL&) const override;
   void DispatchDidBlockRequest(const ResourceRequest&,
-                               const FetchInitiatorInfo&,
+                               const ResourceLoaderOptions&,
                                ResourceRequestBlockedReason,
                                ResourceType) const override;
   ContentSecurityPolicy* GetContentSecurityPolicyForWorld(
@@ -182,13 +183,13 @@ class CORE_EXPORT FrameFetchContext final : public BaseFetchContext,
   Settings* GetSettings() const;
   String GetUserAgent() const;
   base::Optional<UserAgentMetadata> GetUserAgentMetadata() const;
-  const FeaturePolicy* GetFeaturePolicy() const override;
+  const PermissionsPolicy* GetPermissionsPolicy() const override;
   const ClientHintsPreferences GetClientHintsPreferences() const;
   float GetDevicePixelRatio() const;
 
   enum class ClientHintsMode { kLegacy, kStandard };
   bool ShouldSendClientHint(ClientHintsMode mode,
-                            const FeaturePolicy*,
+                            const PermissionsPolicy*,
                             const url::Origin& resource_origin,
                             bool is_1p_origin,
                             network::mojom::blink::WebClientHintsType,
@@ -224,4 +225,4 @@ class CORE_EXPORT FrameFetchContext final : public BaseFetchContext,
 
 }  // namespace blink
 
-#endif
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_LOADER_FRAME_FETCH_CONTEXT_H_

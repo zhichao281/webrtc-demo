@@ -20,24 +20,8 @@ class RemoteFrameClientImpl final : public RemoteFrameClient {
   // FrameClient overrides:
   bool InShadowTree() const override;
   void Detached(FrameDetachType) override;
-  base::UnguessableToken GetDevToolsFrameToken() const override;
 
-  // RemoteFrameClient overrides:
-  void Navigate(const ResourceRequest&,
-                blink::WebLocalFrame* initiator_frame,
-                bool should_replace_current_entry,
-                bool is_opener_navigation,
-                bool prevent_sandboxed_download,
-                bool initiator_frame_is_ad,
-                mojo::PendingRemote<mojom::blink::BlobURLToken>,
-                const base::Optional<WebImpression>& impression) override;
   unsigned BackForwardLength() override;
-  void WillSynchronizeVisualProperties(
-      bool capture_sequence_number_changed,
-      const viz::SurfaceId& surface_id,
-      const gfx::Size& compositor_viewport_size) override;
-  bool RemoteProcessGone() const override;
-  void DidSetFrameSinkId() override;
   AssociatedInterfaceProvider* GetRemoteAssociatedInterfaces() override;
 
   WebRemoteFrameImpl* GetWebFrame() const { return web_frame_; }

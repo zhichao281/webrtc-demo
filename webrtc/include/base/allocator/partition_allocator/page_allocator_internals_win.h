@@ -21,8 +21,10 @@ int GetAccessFlags(PageAccessibilityConfiguration accessibility) {
     case PageRead:
       return PAGE_READONLY;
     case PageReadWrite:
+    case PageReadWriteTagged:
       return PAGE_READWRITE;
     case PageReadExecute:
+    case PageReadExecuteProtected:
       return PAGE_EXECUTE_READ;
     case PageReadWriteExecute:
       return PAGE_EXECUTE_READWRITE;
@@ -120,6 +122,16 @@ void RecommitSystemPagesInternal(
   // Ignore accessibility_disposition, because decommitting is equivalent to
   // making pages inaccessible.
   SetSystemPagesAccess(address, length, accessibility);
+}
+
+bool TryRecommitSystemPagesInternal(
+    void* address,
+    size_t length,
+    PageAccessibilityConfiguration accessibility,
+    PageAccessibilityDisposition accessibility_disposition) {
+  // Ignore accessibility_disposition, because decommitting is equivalent to
+  // making pages inaccessible.
+  return TrySetSystemPagesAccess(address, length, accessibility);
 }
 
 void DiscardSystemPagesInternal(void* address, size_t length) {

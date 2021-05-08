@@ -101,7 +101,8 @@ class SynchronousLayerTreeFrameSink
   void SubmitCompositorFrame(viz::CompositorFrame frame,
                              bool hit_test_data_changed,
                              bool show_hit_test_borders) override;
-  void DidNotProduceFrame(const viz::BeginFrameAck& ack) override;
+  void DidNotProduceFrame(const viz::BeginFrameAck& ack,
+                          cc::FrameSkippedReason reason) override;
   void DidAllocateSharedBitmap(base::ReadOnlySharedMemoryRegion region,
                                const viz::SharedBitmapId& id) override;
   void DidDeleteSharedBitmap(const viz::SharedBitmapId& id) override;
@@ -109,13 +110,14 @@ class SynchronousLayerTreeFrameSink
 
   // viz::mojom::CompositorFrameSinkClient implementation.
   void DidReceiveCompositorFrameAck(
-      const Vector<viz::ReturnedResource>& resources) override;
+      Vector<viz::ReturnedResource> resources) override;
   void OnBeginFrame(const viz::BeginFrameArgs& args,
                     const HashMap<uint32_t, viz::FrameTimingDetails>&
                         timing_details) override;
-  void ReclaimResources(
-      const Vector<viz::ReturnedResource>& resources) override;
+  void ReclaimResources(Vector<viz::ReturnedResource> resources) override;
   void OnBeginFramePausedChanged(bool paused) override;
+  void OnCompositorFrameTransitionDirectiveProcessed(
+      uint32_t sequence_id) override {}
 
   // viz::ExternalBeginFrameSourceClient overrides.
   void OnNeedsBeginFrames(bool needs_begin_frames) override;
@@ -127,10 +129,11 @@ class SynchronousLayerTreeFrameSink
   void SetBeginFrameSourcePaused(bool paused);
   void SetMemoryPolicy(size_t bytes_limit);
   void ReclaimResources(uint32_t layer_tree_frame_sink_id,
-                        const Vector<viz::ReturnedResource>& resources);
+                        Vector<viz::ReturnedResource> resources);
   void DemandDrawHw(const gfx::Size& viewport_size,
                     const gfx::Rect& viewport_rect_for_tile_priority,
-                    const gfx::Transform& transform_for_tile_priority);
+                    const gfx::Transform& transform_for_tile_priority,
+                    bool need_new_local_surface_id);
   void DemandDrawSw(SkCanvas* canvas);
   void DemandDrawSwZeroCopy();
   void WillSkipDraw();

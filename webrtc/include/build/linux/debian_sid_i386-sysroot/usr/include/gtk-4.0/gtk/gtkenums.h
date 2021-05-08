@@ -64,12 +64,12 @@ G_BEGIN_DECLS
  * could be scaled and stretched, it could be centered, or it could be
  * positioned to one side of the space.
  *
- * Note that in horizontal context @GTK_ALIGN_START and @GTK_ALIGN_END
+ * Note that in horizontal context %GTK_ALIGN_START and %GTK_ALIGN_END
  * are interpreted relative to text direction.
  *
- * @GTK_ALIGN_BASELINE support is optional for containers and widgets, and
+ * %GTK_ALIGN_BASELINE support is optional for containers and widgets, and
  * it is only supported for vertical alignment.  When it's not supported by
- * a child or a container it is treated as @GTK_ALIGN_FILL.
+ * a child or a container it is treated as %GTK_ALIGN_FILL.
  */
 typedef enum
 {
@@ -196,13 +196,13 @@ typedef enum
 
 /**
  * GtkSensitivityType:
- * @GTK_SENSITIVITY_AUTO: The arrow is made insensitive if the
- *   thumb is at the end
- * @GTK_SENSITIVITY_ON: The arrow is always sensitive
- * @GTK_SENSITIVITY_OFF: The arrow is always insensitive
+ * @GTK_SENSITIVITY_AUTO: The control is made insensitive if no
+ *   action can be triggered
+ * @GTK_SENSITIVITY_ON: The control is always sensitive
+ * @GTK_SENSITIVITY_OFF: The control is always insensitive
  *
- * Determines how GTK handles the sensitivity of stepper arrows
- * at the end of range widgets.
+ * Determines how GTK handles the sensitivity of various controls,
+ * such as combo box buttons.
  */
 typedef enum
 {
@@ -243,23 +243,6 @@ typedef enum
   GTK_JUSTIFY_CENTER,
   GTK_JUSTIFY_FILL
 } GtkJustification;
-
-/**
- * GtkMenuDirectionType:
- * @GTK_MENU_DIR_PARENT: To the parent menu shell
- * @GTK_MENU_DIR_CHILD: To the submenu, if any, associated with the item
- * @GTK_MENU_DIR_NEXT: To the next menu item
- * @GTK_MENU_DIR_PREV: To the previous menu item
- *
- * An enumeration representing directional movements within a menu.
- */
-typedef enum
-{
-  GTK_MENU_DIR_PARENT,
-  GTK_MENU_DIR_CHILD,
-  GTK_MENU_DIR_NEXT,
-  GTK_MENU_DIR_PREV
-} GtkMenuDirectionType;
 
 /**
  * GtkMessageType:
@@ -360,10 +343,11 @@ typedef enum
 
 /**
  * GtkPackType:
- * @GTK_PACK_START: The child is packed into the start of the box
- * @GTK_PACK_END: The child is packed into the end of the box
+ * @GTK_PACK_START: The child is packed into the start of the widget
+ * @GTK_PACK_END: The child is packed into the end of the widget
  *
- * Represents the packing location #GtkBox children
+ * Represents the packing location of a children in its parent.
+ * See #GtkWindowControls for example.
  */
 typedef enum
 {
@@ -760,7 +744,7 @@ typedef enum
 /**
  * GtkBorderStyle:
  * @GTK_BORDER_STYLE_NONE: No visible border
- * @GTK_BORDER_STYLE_HIDDEN: Same as @GTK_BORDER_STYLE_NONE
+ * @GTK_BORDER_STYLE_HIDDEN: Same as %GTK_BORDER_STYLE_NONE
  * @GTK_BORDER_STYLE_SOLID: A single line segment
  * @GTK_BORDER_STYLE_INSET: Looks as if the content is sunken into the canvas
  * @GTK_BORDER_STYLE_OUTSET: Looks as if the content is coming out of the canvas
@@ -811,8 +795,8 @@ G_END_DECLS
  * @GTK_INPUT_PURPOSE_URL: Edited field expects URL
  * @GTK_INPUT_PURPOSE_EMAIL: Edited field expects email address
  * @GTK_INPUT_PURPOSE_NAME: Edited field expects the name of a person
- * @GTK_INPUT_PURPOSE_PASSWORD: Like @GTK_INPUT_PURPOSE_FREE_FORM, but characters are hidden
- * @GTK_INPUT_PURPOSE_PIN: Like @GTK_INPUT_PURPOSE_DIGITS, but characters are hidden
+ * @GTK_INPUT_PURPOSE_PASSWORD: Like %GTK_INPUT_PURPOSE_FREE_FORM, but characters are hidden
+ * @GTK_INPUT_PURPOSE_PIN: Like %GTK_INPUT_PURPOSE_DIGITS, but characters are hidden
  * @GTK_INPUT_PURPOSE_TERMINAL: Allow any character, in addition to control codes
  *
  * Describes primary purpose of the input widget. This information is
@@ -826,8 +810,8 @@ G_END_DECLS
  * application is expected to validate the entry contents, even if
  * it specified a purpose.
  *
- * The difference between @GTK_INPUT_PURPOSE_DIGITS and
- * @GTK_INPUT_PURPOSE_NUMBER is that the former accepts only digits
+ * The difference between %GTK_INPUT_PURPOSE_DIGITS and
+ * %GTK_INPUT_PURPOSE_NUMBER is that the former accepts only digits
  * while the latter also some punctuation (like commas or points, plus,
  * minus) and “e” or “E” as in 3.14E+000.
  *
@@ -874,7 +858,7 @@ typedef enum
  * behaviour according to the #GtkInputPurpose of the entry.
  *
  * Some common sense is expected when using these flags - mixing
- * @GTK_INPUT_HINT_LOWERCASE with any of the uppercase hints makes no sense.
+ * %GTK_INPUT_HINT_LOWERCASE with any of the uppercase hints makes no sense.
  *
  * This enumeration may be extended in the future; input methods should
  * ignore unknown values.
@@ -987,29 +971,6 @@ typedef enum
   GTK_SHORTCUT_SCOPE_MANAGED,
   GTK_SHORTCUT_SCOPE_GLOBAL
 } GtkShortcutScope;
-
-/**
- * GtkPopoverConstraint:
- * @GTK_POPOVER_CONSTRAINT_NONE: Don't constrain the popover position
- *   beyond what is imposed by the implementation
- * @GTK_POPOVER_CONSTRAINT_WINDOW: Constrain the popover to the boundaries
- *   of the window that it is attached to
- *
- * Describes constraints to positioning of popovers. More values
- * may be added to this enumeration in the future.
- */
-typedef enum
-{
-  GTK_POPOVER_CONSTRAINT_NONE,
-  GTK_POPOVER_CONSTRAINT_WINDOW
-} GtkPopoverConstraint;
-
-
-typedef enum {
-  GTK_PLACES_OPEN_NORMAL     = 1 << 0,
-  GTK_PLACES_OPEN_NEW_TAB    = 1 << 1,
-  GTK_PLACES_OPEN_NEW_WINDOW = 1 << 2
-} GtkPlacesOpenFlags;
 
 /**
  * GtkPickFlags:
@@ -1176,7 +1137,8 @@ typedef enum {
  * @GTK_ACCESSIBLE_ROLE_GENERIC: Unused
  * @GTK_ACCESSIBLE_ROLE_GRID: A grid of items.
  * @GTK_ACCESSIBLE_ROLE_GRID_CELL: An item in a grid or tree grid.
- * @GTK_ACCESSIBLE_ROLE_GROUP: Unused
+ * @GTK_ACCESSIBLE_ROLE_GROUP: An element that groups multiple widgets. GTK uses
+ *   this role for various containers, like #GtkBox, #GtkViewport, and #GtkHeaderBar.
  * @GTK_ACCESSIBLE_ROLE_HEADING: Unused
  * @GTK_ACCESSIBLE_ROLE_IMG: An image.
  * @GTK_ACCESSIBLE_ROLE_INPUT: Abstract role.
@@ -1464,7 +1426,7 @@ typedef enum {
  *    position with respect to the total number of columns within a table,
  *    grid, or treegrid. Value type: integer
  * @GTK_ACCESSIBLE_RELATION_COL_INDEX_TEXT: Defines a human readable text
- *   alternative of @GTK_ACCESSIBLE_RELATION_COL_INDEX. Value type: string
+ *   alternative of %GTK_ACCESSIBLE_RELATION_COL_INDEX. Value type: string
  * @GTK_ACCESSIBLE_RELATION_COL_SPAN: Defines the number of columns spanned
  *   by a cell or gridcell within a table, grid, or treegrid. Value type: integer
  * @GTK_ACCESSIBLE_RELATION_CONTROLS: Identifies the element (or elements) whose

@@ -157,7 +157,7 @@ class StyleBuilderConverter {
                                                 const CSSValue&);
   template <typename T>
   static T ConvertLineWidth(StyleResolverState&, const CSSValue&);
-  static float ConvertBorderWidth(StyleResolverState&, const CSSValue&);
+  static LayoutUnit ConvertBorderWidth(StyleResolverState&, const CSSValue&);
   static LayoutUnit ConvertLayoutUnit(StyleResolverState&, const CSSValue&);
   static base::Optional<Length> ConvertGapLength(const StyleResolverState&,
                                                  const CSSValue&);
@@ -201,7 +201,9 @@ class StyleBuilderConverter {
   static StyleAutoColor ConvertStyleAutoColor(StyleResolverState&,
                                               const CSSValue&,
                                               bool for_visited_link = false);
-  static SVGPaint ConvertSVGPaint(StyleResolverState&, const CSSValue&);
+  static SVGPaint ConvertSVGPaint(StyleResolverState&,
+                                  const CSSValue&,
+                                  bool for_visited_link);
   static TextDecorationThickness ConvertTextDecorationThickness(
       StyleResolverState&,
       const CSSValue&);
@@ -393,4 +395,4 @@ AtomicString StyleBuilderConverter::ConvertString(StyleResolverState&,
 
 }  // namespace blink
 
-#endif
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_CSS_RESOLVER_STYLE_BUILDER_CONVERTER_H_

@@ -45,6 +45,7 @@ class GPUSampler;
 class GPUSamplerDescriptor;
 class GPUShaderModule;
 class GPUShaderModuleDescriptor;
+class GPUSupportedFeatures;
 class GPUTexture;
 class GPUTextureDescriptor;
 class ScriptPromiseResolver;
@@ -66,7 +67,8 @@ class GPUDevice final : public EventTargetWithInlineData,
 
   // gpu_device.idl
   GPUAdapter* adapter() const;
-  Vector<String> extensions() const;
+  GPUSupportedFeatures* features() const;
+  Vector<String> extensions();
   ScriptPromise lost(ScriptState* script_state);
 
   GPUQueue* queue();
@@ -95,6 +97,13 @@ class GPUDevice final : public EventTargetWithInlineData,
       ScriptState* script_state,
       const GPURenderPipelineDescriptor* descriptor);
   GPUComputePipeline* createComputePipeline(
+      const GPUComputePipelineDescriptor* descriptor,
+      ExceptionState& exception_state);
+  ScriptPromise createRenderPipelineAsync(
+      ScriptState* script_state,
+      const GPURenderPipelineDescriptor* descriptor);
+  ScriptPromise createComputePipelineAsync(
+      ScriptState* script_state,
       const GPUComputePipelineDescriptor* descriptor);
   ScriptPromise createReadyRenderPipeline(
       ScriptState* script_state,
@@ -133,18 +142,18 @@ class GPUDevice final : public EventTargetWithInlineData,
                                WGPUErrorType type,
                                const char* message);
 
-  void OnCreateReadyRenderPipelineCallback(ScriptPromiseResolver* resolver,
-                                           WGPUCreateReadyPipelineStatus status,
+  void OnCreateRenderPipelineAsyncCallback(ScriptPromiseResolver* resolver,
+                                           WGPUCreatePipelineAsyncStatus status,
                                            WGPURenderPipeline render_pipeline,
                                            const char* message);
-  void OnCreateReadyComputePipelineCallback(
+  void OnCreateComputePipelineAsyncCallback(
       ScriptPromiseResolver* resolver,
-      WGPUCreateReadyPipelineStatus status,
+      WGPUCreatePipelineAsyncStatus status,
       WGPUComputePipeline compute_pipeline,
       const char* message);
 
   Member<GPUAdapter> adapter_;
-  Vector<String> extension_name_list_;
+  Member<GPUSupportedFeatures> features_;
   Member<GPUQueue> queue_;
   Member<LostProperty> lost_property_;
   std::unique_ptr<

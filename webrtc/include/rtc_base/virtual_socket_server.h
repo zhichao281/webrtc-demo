@@ -33,7 +33,7 @@ class SocketAddressPair;
 // interface can create as many addresses as you want.  All of the sockets
 // created by this network will be able to communicate with one another, unless
 // they are bound to addresses from incompatible families.
-class VirtualSocketServer : public SocketServer, public sigslot::has_slots<> {
+class VirtualSocketServer : public SocketServer {
  public:
   VirtualSocketServer();
   // This constructor needs to be used if the test uses a fake clock and
@@ -93,6 +93,16 @@ class VirtualSocketServer : public SocketServer, public sigslot::has_slots<> {
     RTC_DCHECK_LE(drop_prob, 1.0);
     drop_prob_ = drop_prob;
   }
+
+  // Controls the maximum UDP payload for the networks simulated
+  // by this server. Any UDP payload sent that is larger than this will
+  // be dropped.
+  size_t max_udp_payload() { return max_udp_payload_; }
+  void set_max_udp_payload(size_t payload_size) {
+    max_udp_payload_ = payload_size;
+  }
+
+  size_t largest_seen_udp_payload() { return largest_seen_udp_payload_; }
 
   // If |blocked| is true, subsequent attempts to send will result in -1 being
   // returned, with the socket error set to EWOULDBLOCK.
@@ -249,11 +259,6 @@ class VirtualSocketServer : public SocketServer, public sigslot::has_slots<> {
                                             uint32_t samples);
   static double Evaluate(const Function* f, double x);
 
-  // Null out our message queue if it goes away. Necessary in the case where
-  // our lifetime is greater than that of the thread we are using, since we
-  // try to send Close messages for all connected sockets when we shutdown.
-  void OnMessageQueueDestroyed() { msg_queue_ = nullptr; }
-
   // Determine if two sockets should be able to communicate.
   // We don't (currently) specify an address family for sockets; instead,
   // the currently bound address is used to infer the address family.
@@ -308,6 +313,13 @@ class VirtualSocketServer : public SocketServer, public sigslot::has_slots<> {
   std::unique_ptr<Function> delay_dist_;
 
   double drop_prob_;
+  // The largest UDP payload permitted on this virtual socket server.
+  // The default is the max size of IPv4 fragmented UDP packet payload:
+  // 65535 bytes - 8 bytes UDP header - 20 bytes IP header.
+  size_t max_udp_payload_ = 65507;
+  // The largest UDP payload seen so far.
+  size_t largest_seen_udp_payload_ = 0;
+
   bool sending_blocked_ = false;
   RTC_DISALLOW_COPY_AND_ASSIGN(VirtualSocketServer);
 };

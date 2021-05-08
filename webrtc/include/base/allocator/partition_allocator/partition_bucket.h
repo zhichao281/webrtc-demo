@@ -12,7 +12,6 @@
 #include "base/allocator/partition_allocator/partition_alloc_constants.h"
 #include "base/allocator/partition_allocator/partition_alloc_forward.h"
 #include "base/base_export.h"
-#include "base/check.h"
 #include "base/compiler_specific.h"
 #include "base/thread_annotations.h"
 
@@ -21,7 +20,8 @@ namespace internal {
 
 template <bool thread_safe>
 struct PartitionBucket {
-  // Accessed most in hot path => goes first.
+  // Accessed most in hot path => goes first. Only nullptr for invalid buckets,
+  // may be pointing to the sentinel.
   SlotSpanMetadata<thread_safe>* active_slot_spans_head;
 
   SlotSpanMetadata<thread_safe>* empty_slot_spans_head;
@@ -79,6 +79,11 @@ struct PartitionBucket {
     return true;
   }
 
+  // Some buckets are pseudo-buckets, which are disabled because they would
+  // otherwise not fulfill alignment constraints.
+  ALWAYS_INLINE bool is_valid() const {
+    return active_slot_spans_head != nullptr;
+  }
   ALWAYS_INLINE bool is_direct_mapped() const {
     return !num_system_pages_per_slot_span;
   }
@@ -139,13 +144,11 @@ struct PartitionBucket {
   uint8_t get_system_pages_per_slot_span();
 
   // Allocates a new slot span with size |num_partition_pages| from the
-  // current extent. Metadata within this slot span will be uninitialized.
+  // current extent. Metadata within this slot span will be initialized.
   // Returns nullptr on error.
-  ALWAYS_INLINE void* AllocNewSlotSpan(PartitionRoot<thread_safe>* root,
-                                       int flags,
-                                       uint16_t num_partition_pages,
-                                       size_t committed_size)
-      EXCLUSIVE_LOCKS_REQUIRED(root->lock_);
+  ALWAYS_INLINE SlotSpanMetadata<thread_safe>* AllocNewSlotSpan(
+      PartitionRoot<thread_safe>* root,
+      int flags) EXCLUSIVE_LOCKS_REQUIRED(root->lock_);
 
   // Allocates a new super page from the current extent. All slot-spans will be
   // in the decommitted state. Returns nullptr on error.

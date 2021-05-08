@@ -37,11 +37,11 @@ class FakeRemoteFrameHost : public mojom::blink::RemoteFrameHost {
       const base::UnguessableToken& guid) override;
   void SetIsInert(bool inert) override;
   void DidChangeOpener(
-      const base::Optional<base::UnguessableToken>& opener_frame) override;
+      const base::Optional<LocalFrameToken>& opener_frame) override;
   void AdvanceFocus(blink::mojom::FocusType focus_type,
-                    const base::UnguessableToken& source_frame_token) override;
+                    const LocalFrameToken& source_frame_token) override;
   void RouteMessageEvent(
-      const base::Optional<base::UnguessableToken>& source_frame_token,
+      const base::Optional<LocalFrameToken>& source_frame_token,
       const String& source_origin,
       const String& target_origin,
       BlinkTransferableMessage message) override;
@@ -54,6 +54,8 @@ class FakeRemoteFrameHost : public mojom::blink::RemoteFrameHost {
 
   void SynchronizeVisualProperties(
       const blink::FrameVisualProperties& properties) override;
+
+  void OpenURL(mojom::blink::OpenURLParamsPtr params) override;
 
  private:
   void BindFrameHostReceiver(mojo::ScopedInterfaceEndpointHandle handle);

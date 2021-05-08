@@ -47,6 +47,7 @@ class CORE_EXPORT LayoutFlexibleBox : public LayoutBlock {
  public:
   explicit LayoutFlexibleBox(Element*);
   ~LayoutFlexibleBox() override;
+  void Trace(Visitor*) const override;
 
   const char* GetName() const override {
     NOT_DESTROYED();
@@ -166,11 +167,14 @@ class CORE_EXPORT LayoutFlexibleBox : public LayoutBlock {
   bool UseChildAspectRatio(const LayoutBox& child) const;
   LayoutUnit ComputeMainSizeFromAspectRatioUsing(
       const LayoutBox& child,
-      const Length& cross_size_length) const;
+      const Length& cross_size_length,
+      LayoutUnit main_axis_border_and_padding,
+      LayoutUnit cross_axis_border_and_padding) const;
   void SetFlowAwareLocationForChild(LayoutBox& child, const LayoutPoint&);
   LayoutUnit ComputeInnerFlexBaseSizeForChild(
       LayoutBox& child,
       LayoutUnit main_axis_border_and_padding,
+      LayoutUnit cross_axis_border_and_padding,
       ChildLayoutType = kLayoutIfNeeded);
   void ResetAlignmentForChild(LayoutBox& child, LayoutUnit);
   bool MainAxisLengthIsDefinite(const LayoutBox& child,
@@ -197,10 +201,13 @@ class CORE_EXPORT LayoutFlexibleBox : public LayoutBlock {
   MinMaxSizes ComputeMinAndMaxSizesForChild(
       const FlexLayoutAlgorithm& algorithm,
       const LayoutBox& child,
-      LayoutUnit border_and_padding) const;
+      LayoutUnit border_and_padding,
+      LayoutUnit cross_axis_border_and_padding) const;
   LayoutUnit AdjustChildSizeForAspectRatioCrossAxisMinAndMax(
       const LayoutBox& child,
-      LayoutUnit child_size) const;
+      LayoutUnit child_size,
+      LayoutUnit main_axis_border_and_padding,
+      LayoutUnit cross_axis_border_and_padding) const;
   void ConstructAndAppendFlexItem(FlexLayoutAlgorithm* algorithm,
                                   LayoutBox& child,
                                   ChildLayoutType);
@@ -231,14 +238,15 @@ class CORE_EXPORT LayoutFlexibleBox : public LayoutBlock {
 
   // This is used to cache the preferred size for orthogonal flow children so we
   // don't have to relayout to get it
-  HashMap<const LayoutObject*, LayoutUnit> intrinsic_size_along_main_axis_;
+  HeapHashMap<Member<const LayoutObject>, LayoutUnit>
+      intrinsic_size_along_main_axis_;
 
   // This set is used to keep track of which children we laid out in this
   // current layout iteration. We need it because the ones in this set may
   // need an additional layout pass for correct stretch alignment handling, as
   // the first layout likely did not use the correct value for percentage
   // sizing of children.
-  HashSet<const LayoutObject*> relaid_out_children_;
+  HeapHashSet<Member<const LayoutObject>> relaid_out_children_;
 
   mutable OrderIterator order_iterator_;
   int number_of_in_flow_children_on_first_line_;

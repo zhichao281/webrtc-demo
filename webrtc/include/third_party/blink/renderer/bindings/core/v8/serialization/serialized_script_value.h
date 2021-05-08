@@ -34,6 +34,7 @@
 #include <memory>
 
 #include "base/containers/span.h"
+#include "base/dcheck_is_on.h"
 #include "base/optional.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "third_party/blink/public/common/messaging/message_port_channel.h"
@@ -228,11 +229,6 @@ class CORE_EXPORT SerializedScriptValue
   // exceptions as appropriate.
   // Returns true if the array was filled, or false if the passed value was not
   // of an appropriate type.
-  static bool ExtractTransferables(v8::Isolate*,
-                                   v8::Local<v8::Value>,
-                                   int,
-                                   Transferables&,
-                                   ExceptionState&);
   static bool ExtractTransferables(v8::Isolate*,
                                    const HeapVector<ScriptValue>&,
                                    Transferables&,

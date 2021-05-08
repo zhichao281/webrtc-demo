@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_TABLE_NG_TABLE_FRAGMENT_DATA_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_TABLE_NG_TABLE_FRAGMENT_DATA_H_
 
+#include "base/dcheck_is_on.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_layout_input_node.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/platform/geometry/layout_unit.h"
@@ -17,6 +18,9 @@ class NGTableFragmentData {
   // COLGROUP/COL geometry information. Used for painting column backgrounds.
   // Only present if column has a background.
   struct ColumnGeometry {
+    DISALLOW_NEW();
+
+   public:
     ColumnGeometry(wtf_size_t start_column,
                    wtf_size_t span,
                    LayoutUnit inline_offset,
@@ -27,6 +31,7 @@ class NGTableFragmentData {
           inline_offset(inline_offset),
           inline_size(inline_size),
           node(node) {}
+    void Trace(Visitor* visitor) const { visitor->Trace(node); }
     wtf_size_t start_column;
     wtf_size_t span;
     LayoutUnit inline_offset;
@@ -34,7 +39,7 @@ class NGTableFragmentData {
     NGLayoutInputNode node;
   };
 
-  using ColumnGeometries = Vector<ColumnGeometry>;
+  using ColumnGeometries = HeapVector<ColumnGeometry>;
 
   // Column/row location is used for collapsed border painting.
   // Only present if borders are collapsed.

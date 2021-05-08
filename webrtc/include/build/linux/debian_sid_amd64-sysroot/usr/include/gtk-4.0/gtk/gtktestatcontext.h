@@ -52,21 +52,21 @@ G_STMT_START { \
  * gtk_test_accessible_assert_property:
  * @accessible: a #GtkAccessible
  * @property: a #GtkAccessibleProperty
- * @value: the value of @property
+ * @...: the value of @property
  *
  * Checks whether a #GtkAccessible implementation has its accessible
- * property set to the expected @value, and raises an assertion if the
+ * property set to the expected value, and raises an assertion if the
  * condition is not satisfied.
  */
-#define gtk_test_accessible_assert_property(accessible,property,value) \
+#define gtk_test_accessible_assert_property(accessible,property,...) \
 G_STMT_START { \
   GtkAccessible *__a = GTK_ACCESSIBLE (accessible); \
   GtkAccessibleProperty __p = (property); \
-  char *__value = gtk_test_accessible_check_property (__a, __p, (value)); \
-  if (__value == NULL) ; else { \
-    char *__msg = g_strdup_printf ("assertion failed: (" #accessible ".accessible-property(" #property ") == " #value "): value = '%s'", __value); \
-    g_assertion_message (G_LOG_DOMAIN, __FILE__, __LINE__, G_STRFUNC, __msg); \
-    g_free (__msg); \
+  char *value__ = gtk_test_accessible_check_property (__a, __p, __VA_ARGS__); \
+  if (value__ == NULL) ; else { \
+    char *msg__ = g_strdup_printf ("assertion failed: (" #accessible ".accessible-property(" #property ") == " # __VA_ARGS__ "): value = '%s'", value__); \
+    g_assertion_message (G_LOG_DOMAIN, __FILE__, __LINE__, G_STRFUNC, msg__); \
+    g_free (msg__); \
   } \
 } G_STMT_END
 
@@ -74,21 +74,21 @@ G_STMT_START { \
  * gtk_test_accessible_assert_relation:
  * @accessible: a #GtkAccessible
  * @relation: a #GtkAccessibleRelation
- * @value: the expected value of @relation
+ * @...: the expected value of @relation
  *
  * Checks whether a #GtkAccessible implementation has its accessible
- * relation set to the expected @value, and raises an assertion if the
+ * relation set to the expected value, and raises an assertion if the
  * condition is not satisfied.
  */
-#define gtk_test_accessible_assert_relation(accessible,relation,value) \
+#define gtk_test_accessible_assert_relation(accessible,relation,...) \
 G_STMT_START { \
   GtkAccessible *__a = GTK_ACCESSIBLE (accessible); \
   GtkAccessibleRelation __r = (relation); \
-  char *__value = gtk_test_accessible_check_relation (__a, __r, (value)); \
-  if (__value == NULL); else { \
-    char *__msg = g_strdup_printf ("assertion failed: (" #accessible ".accessible-relation(" #relation ") == " #value "): value = '%s'", __value); \
-    g_assertion_message (G_LOG_DOMAIN, __FILE__, __LINE__, G_STRFUNC, __msg); \
-    g_free (__msg); \
+  char *value__ = gtk_test_accessible_check_relation (__a, __r, __VA_ARGS__); \
+  if (value__ == NULL); else { \
+    char *msg__ = g_strdup_printf ("assertion failed: (" #accessible ".accessible-relation(" #relation ") == " # __VA_ARGS__ "): value = '%s'", value__); \
+    g_assertion_message (G_LOG_DOMAIN, __FILE__, __LINE__, G_STRFUNC, msg__); \
+    g_free (msg__); \
   } \
 } G_STMT_END
 
@@ -96,21 +96,21 @@ G_STMT_START { \
  * gtk_test_accessible_assert_state:
  * @accessible: a #GtkAccessible
  * @state: a #GtkAccessibleRelation
- * @value: the expected value of @state
+ * @...: the expected value of @state
  *
  * Checks whether a #GtkAccessible implementation has its accessible
- * state set to the expected @value, and raises an assertion if the
+ * state set to the expected value, and raises an assertion if the
  * condition is not satisfied.
  */
-#define gtk_test_accessible_assert_state(accessible,state,value) \
+#define gtk_test_accessible_assert_state(accessible,state,...) \
 G_STMT_START { \
   GtkAccessible *__a = GTK_ACCESSIBLE (accessible); \
   GtkAccessibleState __s = (state); \
-  char *__value = gtk_test_accessible_check_state (__a, __s, (value)); \
-  if (__value == NULL); else { \
-    char *__msg = g_strdup_printf ("assertion failed: (" #accessible ".accessible-state(" #state ") == " #value "): value = '%s'", __value); \
-    g_assertion_message (G_LOG_DOMAIN, __FILE__, __LINE__, G_STRFUNC, __msg); \
-    g_free (__msg); \
+  char *value__ = gtk_test_accessible_check_state (__a, __s, __VA_ARGS__); \
+  if (value__ == NULL); else { \
+    char *msg__ = g_strdup_printf ("assertion failed: (" #accessible ".accessible-state(" #state ") == " # __VA_ARGS__ "): value = '%s'", value__); \
+    g_assertion_message (G_LOG_DOMAIN, __FILE__, __LINE__, G_STRFUNC, msg__); \
+    g_free (msg__); \
   } \
 } G_STMT_END
 

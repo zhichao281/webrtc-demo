@@ -34,6 +34,7 @@
 #include <atomic>
 #include <memory>
 
+#include "base/dcheck_is_on.h"
 #include "base/macros.h"
 #include "base/synchronization/lock.h"
 #include "base/task/post_job.h"
@@ -188,11 +189,13 @@ class PLATFORM_EXPORT ThreadState final {
   }
 
   static ThreadState* AttachMainThread();
+  static ThreadState* AttachMainThreadForTesting(v8::Platform* platform);
 
   // Associate ThreadState object with the current thread. After this
   // call thread can start using the garbage collected heap infrastructure.
   // It also has to periodically check for safepoints.
   static ThreadState* AttachCurrentThread();
+  static ThreadState* AttachCurrentThreadForTesting(v8::Platform* platform);
 
   // Disassociate attached ThreadState from the current thread. The thread
   // can no longer use the garbage collected heap after this call.
@@ -390,7 +393,19 @@ class PLATFORM_EXPORT ThreadState final {
     --disable_heap_verification_scope_;
   }
 
+  void EnableDetachedGarbageCollectionsForTesting() { CHECK(!isolate_); }
+
   void NotifyGarbageCollection(v8::GCType, v8::GCCallbackFlags);
+
+  // Waits until sweeping is done and invokes the given callback with
+  // the total sizes of live objects in Node and CSS arenas.
+  void CollectNodeAndCssStatistics(
+      base::OnceCallback<void(size_t allocated_node_bytes,
+                              size_t allocated_css_bytes)>);
+
+  void ForceNoFollowupFullGCForTesting() {
+    no_followup_full_gc_for_testing_ = true;
+  }
 
  private:
   class IncrementalMarkingScheduler;
@@ -533,6 +548,8 @@ class PLATFORM_EXPORT ThreadState final {
   // Schedule helpers.
   void ScheduleIdleLazySweep();
   void ScheduleConcurrentAndLazySweep();
+  // Advances sweeping and returns true if sweeping is complete.
+  bool AdvanceLazySweep(base::TimeTicks deadline);
 
   void NotifySweepDone();
   void PostSweep();
@@ -598,6 +615,7 @@ class PLATFORM_EXPORT ThreadState final {
   v8::Isolate* isolate_ = nullptr;
   V8BuildEmbedderGraphCallback v8_build_embedder_graph_ = nullptr;
   std::unique_ptr<UnifiedHeapController> unified_heap_controller_;
+  std::unique_ptr<v8::EmbedderRootsHandler> embedder_roots_handler_;
 
 #if defined(ADDRESS_SANITIZER)
   void* asan_fake_stack_;
@@ -627,6 +645,8 @@ class PLATFORM_EXPORT ThreadState final {
   size_t last_concurrently_marked_bytes_ = 0;
   base::TimeTicks last_concurrently_marked_bytes_update_;
   bool concurrent_marking_priority_increased_ = false;
+
+  bool no_followup_full_gc_for_testing_ = false;
 
   friend class incremental_marking_test::IncrementalMarkingScope;
   friend class HeapPointersOnStackScope;

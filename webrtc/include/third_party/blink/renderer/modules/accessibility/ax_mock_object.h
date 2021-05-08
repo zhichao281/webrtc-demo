@@ -50,11 +50,7 @@ class MODULES_EXPORT AXMockObject : public AXObject {
   AXRestriction Restriction() const override { return kRestrictionNone; }
   bool IsMockObject() const final { return true; }
   Document* GetDocument() const override;
-  AXObject* ComputeParentImpl() const override;
-  ax::mojom::blink::Role DetermineAccessibilityRole() override {
-    NOTREACHED();
-    return ax::mojom::blink::Role::kUnknown;
-  }
+  ax::mojom::blink::Role NativeRoleIgnoringAria() const override;
 
  private:
   bool ComputeAccessibilityIsIgnored(IgnoredReasons* = nullptr) const override;

@@ -6,6 +6,8 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_GRID_TRACK_SIZING_ALGORITHM_H_
 
 #include <memory>
+
+#include "base/dcheck_is_on.h"
 #include "base/optional.h"
 #include "third_party/blink/renderer/core/layout/grid_baseline_alignment.h"
 #include "third_party/blink/renderer/core/layout/layout_box.h"
@@ -233,7 +235,7 @@ class GridTrackSizingAlgorithm final {
 
   Grid& grid_;
 
-  const LayoutGrid* layout_grid_;
+  UntracedMember<const LayoutGrid> layout_grid_;
   std::unique_ptr<GridTrackSizingAlgorithmStrategy> strategy_;
 
   // The track sizing algorithm is used for both layout and intrinsic size
@@ -253,7 +255,7 @@ class GridTrackSizingAlgorithm final {
   SizingState sizing_state_;
 
   GridBaselineAlignment baseline_alignment_;
-  typedef HashMap<const LayoutBox*, bool> BaselineItemsCache;
+  using BaselineItemsCache = HashMap<UntracedMember<const LayoutBox>, bool>;
   BaselineItemsCache column_baseline_items_map_;
   BaselineItemsCache row_baseline_items_map_;
 

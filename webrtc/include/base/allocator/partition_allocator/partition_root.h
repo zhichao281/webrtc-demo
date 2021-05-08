@@ -32,10 +32,12 @@
 
 #include <atomic>
 
+#include "base/allocator/buildflags.h"
 #include "base/allocator/partition_allocator/page_allocator.h"
 #include "base/allocator/partition_allocator/page_allocator_constants.h"
 #include "base/allocator/partition_allocator/partition_alloc-inl.h"
 #include "base/allocator/partition_allocator/partition_alloc_check.h"
+#include "base/allocator/partition_allocator/partition_alloc_config.h"
 #include "base/allocator/partition_allocator/partition_alloc_constants.h"
 #include "base/allocator/partition_allocator/partition_alloc_features.h"
 #include "base/allocator/partition_allocator/partition_alloc_forward.h"
@@ -45,19 +47,12 @@
 #include "base/allocator/partition_allocator/partition_oom.h"
 #include "base/allocator/partition_allocator/partition_page.h"
 #include "base/allocator/partition_allocator/partition_ref_count.h"
-#include "base/allocator/partition_allocator/partition_stats.h"
-#include "base/allocator/partition_allocator/pcscan.h"
+#include "base/allocator/partition_allocator/starscan/pcscan.h"
 #include "base/allocator/partition_allocator/thread_cache.h"
 #include "base/bits.h"
-#include "base/optional.h"
+#include "base/compiler_specific.h"
 #include "base/partition_alloc_buildflags.h"
 #include "build/build_config.h"
-
-// If set to 1, enables zeroing memory on Free() with roughly 1% probability.
-// This applies only to normal buckets, as direct-map allocations are always
-// decommitted.
-// TODO(bartekn): Re-enable once PartitionAlloc-Everywhere evaluation is done.
-#define ZERO_RANDOMLY_ON_FREE 0
 
 // We use this to make MEMORY_TOOL_REPLACES_ALLOCATOR behave the same for max
 // size as other alloc code.
@@ -71,13 +66,15 @@
 
 namespace base {
 
+class PartitionStatsDumper;
+
 namespace internal {
 // Avoid including partition_address_space.h from this .h file, by moving the
-// call to IfManagedByPartitionAllocNormalBuckets into the .cc file.
+// call to IsManagedByPartitionAllocBRPPool into the .cc file.
 #if DCHECK_IS_ON()
-BASE_EXPORT void DCheckIfManagedByPartitionAllocNormalBuckets(const void* ptr);
+BASE_EXPORT void DCheckIfManagedByPartitionAllocBRPPool(void* ptr);
 #else
-ALWAYS_INLINE void DCheckIfManagedByPartitionAllocNormalBuckets(const void*) {}
+ALWAYS_INLINE void DCheckIfManagedByPartitionAllocBRPPool(void*) {}
 #endif
 }  // namespace internal
 
@@ -89,32 +86,25 @@ enum PartitionPurgeFlags {
   // size. It often frees a similar amount of memory to decommitting the empty
   // slot spans, though.
   PartitionPurgeDiscardUnusedSystemPages = 1 << 1,
-  // Free calls which have not been marterialized are forced now.
-  PartitionPurgeForceAllFreed = 1 << 2,
+  // Aggressively reclaim memory. This is meant to be used in low-memory
+  // situations, not for periodic memory reclaiming.
+  PartitionPurgeAggressiveReclaim = 1 << 2,
 };
 
 // Options struct used to configure PartitionRoot and PartitionAllocator.
 struct PartitionOptions {
-  enum class Alignment : uint8_t {
+  enum class AlignedAlloc : uint8_t {
     // By default all allocations will be aligned to `base::kAlignment`,
     // likely to be 8B or 16B depending on platforms and toolchains.
-    kRegular,
-
-    // In addition to the above alignment enforcement, this option allows using
-    // AlignedAlloc() which can align at a larger boundary.  This option comes
-    // at a cost of disallowing cookies on Debug builds and ref-count for
-    // CheckedPtr. It also causes all allocations to go outside of GigaCage, so
-    // that CheckedPtr can easily tell if a pointer comes with a ref-count or
-    // not.
-    kAlignedAlloc,
+    // AlignedAlloc() allows to enforce higher alignment.
+    // This option determines whether it is supported for the partition.
+    // Allowing AlignedAlloc() comes at a cost of disallowing extras in front
+    // of the allocation.
+    kDisallowed,
+    kAllowed,
   };
 
   enum class ThreadCache : uint8_t {
-    kDisabled,
-    kEnabled,
-  };
-
-  enum class RefCount : uint8_t {
     kDisabled,
     kEnabled,
   };
@@ -124,19 +114,32 @@ struct PartitionOptions {
     kAllowed,
   };
 
+  enum class Cookies : uint8_t {
+    kDisallowed,
+    kAllowed,
+  };
+
+  enum class RefCount : uint8_t {
+    kDisallowed,
+    kAllowed,
+  };
+
   // Constructor to suppress aggregate initialization.
-  constexpr PartitionOptions(Alignment alignment,
+  constexpr PartitionOptions(AlignedAlloc aligned_alloc,
                              ThreadCache thread_cache,
                              Quarantine quarantine,
+                             Cookies cookies,
                              RefCount ref_count)
-      : alignment(alignment),
+      : aligned_alloc(aligned_alloc),
         thread_cache(thread_cache),
         quarantine(quarantine),
+        cookies(cookies),
         ref_count(ref_count) {}
 
-  Alignment alignment;
+  AlignedAlloc aligned_alloc;
   ThreadCache thread_cache;
   Quarantine quarantine;
+  Cookies cookies;
   RefCount ref_count;
 };
 
@@ -145,12 +148,13 @@ struct PartitionOptions {
 template <bool thread_safe>
 struct BASE_EXPORT PartitionRoot {
   using SlotSpan = internal::SlotSpanMetadata<thread_safe>;
+  using Page = internal::PartitionPage<thread_safe>;
   using Bucket = internal::PartitionBucket<thread_safe>;
   using SuperPageExtentEntry =
       internal::PartitionSuperPageExtentEntry<thread_safe>;
   using DirectMapExtent = internal::PartitionDirectMapExtent<thread_safe>;
   using ScopedGuard = internal::ScopedGuard<thread_safe>;
-  using PCScan = internal::PCScan<thread_safe>;
+  using PCScan = internal::PCScan;
 
   // Defines whether objects should be quarantined for this root.
   enum class QuarantineMode : uint8_t {
@@ -173,12 +177,23 @@ struct BASE_EXPORT PartitionRoot {
   bool with_thread_cache = false;
   const bool is_thread_safe = thread_safe;
 
-  bool allow_ref_count;
+  bool allow_aligned_alloc;
   bool allow_cookies;
+  bool allow_ref_count;
 
-#if !PARTITION_EXTRAS_REQUIRED
-  // Teach the compiler that `AdjustSizeForExtrasAdd` etc. can be eliminated
-  // in builds that use no extras.
+  // Lazy commit should only be enabled on Windows, because commit charge is
+  // only meaningful and limited on Windows. It affects performance on other
+  // platforms and is simply not needed there due to OS supporting overcommit.
+#if defined(OS_WIN)
+  bool use_lazy_commit = true;
+  static constexpr bool never_used_lazy_commit = false;
+#else
+  static constexpr bool use_lazy_commit = false;
+  static constexpr bool never_used_lazy_commit = true;
+#endif
+
+#if !PA_EXTRAS_REQUIRED
+  // Teach the compiler that code can be optimized in builds that use no extras.
   static constexpr uint32_t extras_size = 0;
   static constexpr uint32_t extras_offset = 0;
 #else
@@ -218,12 +233,13 @@ struct BASE_EXPORT PartitionRoot {
   char* next_partition_page_end = nullptr;
   SuperPageExtentEntry* current_extent = nullptr;
   SuperPageExtentEntry* first_extent = nullptr;
-  DirectMapExtent* direct_map_list = nullptr;
+  DirectMapExtent* direct_map_list GUARDED_BY(lock_) = nullptr;
   SlotSpan* global_empty_slot_span_ring[kMaxFreeableSpans] = {};
   int16_t global_empty_slot_span_ring_index = 0;
 
   // Integrity check = ~reinterpret_cast<uintptr_t>(this).
   uintptr_t inverted_self = 0;
+  std::atomic<int> thread_caches_being_constructed_{0};
 
   PartitionRoot() = default;
   explicit PartitionRoot(PartitionOptions opts) { Init(opts); }
@@ -241,10 +257,12 @@ struct BASE_EXPORT PartitionRoot {
   // preserves the layering of the includes.
   void Init(PartitionOptions);
 
+  void ConfigureLazyCommit();
+
   ALWAYS_INLINE static bool IsValidSlotSpan(SlotSpan* slot_span);
   ALWAYS_INLINE static PartitionRoot* FromSlotSpan(SlotSpan* slot_span);
   ALWAYS_INLINE static PartitionRoot* FromSuperPage(char* super_page);
-  ALWAYS_INLINE static PartitionRoot* FromPointerInNormalBucketPool(char* ptr);
+  ALWAYS_INLINE static PartitionRoot* FromPointerInNormalBuckets(char* ptr);
 
   ALWAYS_INLINE void IncreaseCommittedPages(size_t len);
   ALWAYS_INLINE void DecreaseCommittedPages(size_t len);
@@ -258,6 +276,10 @@ struct BASE_EXPORT PartitionRoot {
       size_t length,
       PageAccessibilityDisposition accessibility_disposition)
       EXCLUSIVE_LOCKS_REQUIRED(lock_);
+  ALWAYS_INLINE bool TryRecommitSystemPagesForData(
+      void* address,
+      size_t length,
+      PageAccessibilityDisposition accessibility_disposition);
 
   [[noreturn]] NOINLINE void OutOfMemory(size_t size);
 
@@ -267,10 +289,12 @@ struct BASE_EXPORT PartitionRoot {
   // posix_memalign() for POSIX systems). The returned pointer may include
   // padding, and can be passed to |Free()| later.
   //
-  // NOTE: Doesn't work when DCHECK_IS_ON(), as it is incompatible with cookies.
+  // NOTE: This is incompatible with anything that adds extras before the
+  // returned pointer, such as cookies (with DCHECK_IS_ON()), or reference
+  // count.
   ALWAYS_INLINE void* AlignedAllocFlags(int flags,
                                         size_t alignment,
-                                        size_t size);
+                                        size_t requested_size);
 
   ALWAYS_INLINE void* Alloc(size_t requested_size, const char* type_name);
   ALWAYS_INLINE void* AllocFlags(int flags,
@@ -332,12 +356,15 @@ struct BASE_EXPORT PartitionRoot {
     return total_size_of_committed_pages.load(std::memory_order_relaxed);
   }
 
-  bool UsesGigaCage() const {
-    return features::IsPartitionAllocGigaCageEnabled()
+  bool UseBRPPool() const {
 #if BUILDFLAG(USE_BACKUP_REF_PTR)
-           && allow_ref_count
+    return allow_ref_count;
+#else
+    // This is counterintuitive, but when BRP isn't used, make all normal bucket
+    // allocations fall into the same pool, and BRP pool is a good place for
+    // that. PCScan requires this.
+    return true;
 #endif
-        ;
   }
 
   ALWAYS_INLINE bool IsQuarantineAllowed() const {
@@ -360,15 +387,8 @@ struct BASE_EXPORT PartitionRoot {
     // need to allocate a bunch of system pages more around the payload:
     // - The first few system pages are the partition page in which the super
     // page metadata is stored.
-    // - We add a trailing guard page on 32-bit (on 64-bit we rely on the
-    // massive address space plus randomization instead; additionally GigaCage
-    // guarantees that the region is followed by region with a preceding guard
-    // page or inaccessible in the direct map-pool).
-    size_t ret = PartitionPageSize();
-#if !defined(PA_HAS_64_BITS_POINTERS)
-    ret += SystemPageSize();
-#endif
-    return ret;
+    // - We add a trailing guard page (one system page will suffice).
+    return PartitionPageSize() + SystemPageSize();
   }
 
   static PAGE_ALLOCATOR_CONSTANTS_DECLARE_CONSTEXPR ALWAYS_INLINE size_t
@@ -380,7 +400,7 @@ struct BASE_EXPORT PartitionRoot {
     return bits::AlignUp(raw_size, SystemPageSize());
   }
 
-  ALWAYS_INLINE size_t GetDirectMapReservedSize(size_t raw_size) {
+  static ALWAYS_INLINE size_t GetDirectMapReservedSize(size_t raw_size) {
     // Caller must check that the size is not above the MaxDirectMapped()
     // limit before calling. This also guards against integer overflow in the
     // calculation here.
@@ -397,11 +417,74 @@ struct BASE_EXPORT PartitionRoot {
                          alignment);
   }
 
+// PartitionRefCount contains a cookie if slow checks are enabled or
+// DCHECK_IS_ON(), which makes it 8B in size. On 32-bit architectures it fills
+// the entire smallest slot, which is also 8B there.
+#if (BUILDFLAG(ENABLE_BACKUP_REF_PTR_SLOW_CHECKS) || DCHECK_IS_ON()) && \
+    !defined(PA_HAS_64_BITS_POINTERS)
+#define PA_REF_COUNT_FILLS_ENTIRE_SMALLEST_SLOT 1
+#endif
+
+  ALWAYS_INLINE size_t AdjustSize0IfNeeded(size_t size) const {
+#if BUILDFLAG(USE_BACKUP_REF_PTR) &&               \
+    (!BUILDFLAG(PUT_REF_COUNT_IN_PREVIOUS_SLOT) || \
+     defined(PA_REF_COUNT_FILLS_ENTIRE_SMALLEST_SLOT))
+    // The minimum slot size is base::kAlignment. If |requested_size| is 0 and
+    // there are extras only before the allocation (which must be at least
+    // kAlignment), then these extras will fill the slot, leading to returning a
+    // pointer to the next slot. This is a problem, because e.g. FreeNoHooks()
+    // or ReallocFlags() call SlotSpan::FromSlotInnerPtr(ptr) prior to
+    // subtracting extras, thus getting a wrong, possibly non-existent, slot
+    // span. Fake the size to be 1 in order to counteract it.
+    //
+    // Having any extras after the allocation nullifies the issue, so no need
+    // for this adjustment in the PUT_REF_COUNT_IN_PREVIOUS_SLOT case. Same for
+    // DCHECK_IS_ON(), but we prefer not to change codepaths between Release and
+    // Debug.
+    //
+    // In theory, this can be further refined using run-time checks. No need
+    // for this adjustment if |!extras_offset || (extras_size - extras_offset)|,
+    // or IsPartitionAllocGigaCageEnabled() is false (because BackupRefPtr is
+    // effectively disabled without GigaCage), but we prefer not to add more
+    // checks, as this function may be called on hot paths.
+    //
+    // We use this technique in another situation. When putting refcount in the
+    // previous slot, the previous slot may be free. In this case, the slot
+    // needs to fit both, a free-list entry and a ref-count. If
+    // sizeof(PartitionRefCount) is 8, it fills the entire smallest slot on
+    // 32-bit systems (kSmallestBucket is 8). Adjusting the request size from 0
+    // to 1 guarantees that we'll never allocate the smallest slot.
+    if (UNLIKELY(size == 0))
+      return 1;
+#else
+    PA_DCHECK(!extras_offset || (extras_size - extras_offset));
+#if BUILDFLAG(USE_BACKUP_REF_PTR)
+    constexpr size_t kRefCountSize = sizeof(internal::PartitionRefCount);
+#else
+    constexpr size_t kRefCountSize = 0;
+#endif
+    static_assert(
+        sizeof(internal::EncodedPartitionFreelistEntry) + kRefCountSize <=
+            kSmallestBucket,
+        "Ref-count and free-list entry must fit in the smallest slot");
+#endif  // BUILDFLAG(USE_BACKUP_REF_PTR) &&
+        // (!BUILDFLAG(PUT_REF_COUNT_IN_PREVIOUS_SLOT) ||
+        // defined(PA_REF_COUNT_FILLS_ENTIRE_SMALLEST_SLOT))
+    return size;
+  }
+
+  // Adjusts the size by adding extras. Also include the 0->1 adjustment if
+  // needed.
   ALWAYS_INLINE size_t AdjustSizeForExtrasAdd(size_t size) const {
+    size = AdjustSize0IfNeeded(size);
     PA_DCHECK(size + extras_size >= size);
     return size + extras_size;
   }
 
+  // Adjusts the size by subtracing extras. Doesn't include the 0->1 adjustment,
+  // which leads to an asymmetry with AdjustSizeForExtrasAdd, but callers of
+  // AdjustSizeForExtrasSubtract either expect the adjustment to be included, or
+  // are indifferent.
   ALWAYS_INLINE size_t AdjustSizeForExtrasSubtract(size_t size) const {
     return size - extras_size;
   }
@@ -449,12 +532,14 @@ struct BASE_EXPORT PartitionRoot {
                                       bool* is_already_zeroed)
       EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
+  bool TryReallocInPlace(void* ptr, SlotSpan* slot_span, size_t new_size);
   bool ReallocDirectMappedInPlace(
       internal::SlotSpanMetadata<thread_safe>* slot_span,
       size_t requested_size) EXCLUSIVE_LOCKS_REQUIRED(lock_);
   void DecommitEmptySlotSpans() EXCLUSIVE_LOCKS_REQUIRED(lock_);
   ALWAYS_INLINE void RawFreeLocked(void* slot_start)
       EXCLUSIVE_LOCKS_REQUIRED(lock_);
+  void* MaybeInitThreadCacheAndAlloc(uint16_t bucket_index, size_t* slot_size);
 
   friend class internal::ThreadCache;
 };
@@ -631,12 +716,15 @@ ALWAYS_INLINE constexpr size_t BucketIndexLookup::GetIndex(size_t size) {
 }
 
 // Gets the SlotSpanMetadata object of the slot span that contains |ptr|. It's
-// used with intention to do obtain the slot size. CAUTION! It works well for
-// normal buckets, but for direct-mapped allocations it'll only work if |ptr| is
-// in the first partition page of the allocation.
+// used with intention to do obtain the slot size.
+//
+// CAUTION! Use only for normal buckets. Using on direct-mapped allocations may
+// lead to undefined behavior.
 template <bool thread_safe>
 ALWAYS_INLINE internal::SlotSpanMetadata<thread_safe>*
 PartitionAllocGetSlotSpanForSizeQuery(void* ptr) {
+  // TODO(bartekn): Add a "is in normal buckets" DCHECK.
+
   // No need to lock here. Only |ptr| being freed by another thread could
   // cause trouble, and the caller is responsible for that not happening.
   auto* slot_span =
@@ -650,7 +738,7 @@ PartitionAllocGetSlotSpanForSizeQuery(void* ptr) {
 
 // Gets the pointer to the beginning of the allocated slot.
 //
-// This isn't a general pupose function, it is used specifically for obtaining
+// This isn't a general purpose function, it is used specifically for obtaining
 // BackupRefPtr's ref-count. The caller is responsible for ensuring that the
 // ref-count is in place for this allocation.
 //
@@ -662,14 +750,14 @@ ALWAYS_INLINE void* PartitionAllocGetSlotStart(void* ptr) {
   // some cases appear to point outside the designated allocation slot.
   //
   // If ref-count is present before the allocation, then adjusting a valid
-  // pointer down will not cause us to go down to the previous slot. If
-  // ref-count is present after the allocation, then adjust no adjustment is
-  // needed (and likely wouldn't be correct as there is a risk of going down to
-  // the previous slot). Either way, kPartitionPastAllocationAdjustment takes
-  // care of that detail.
+  // pointer down will not cause us to go down to the previous slot, otherwise
+  // no adjustment is needed (and likely wouldn't be correct as there is
+  // a risk of going down to the previous slot). Either way,
+  // kPartitionPastAllocationAdjustment takes care of that detail.
   ptr = reinterpret_cast<char*>(ptr) - kPartitionPastAllocationAdjustment;
 
-  internal::DCheckIfManagedByPartitionAllocNormalBuckets(ptr);
+  internal::DCheckIfManagedByPartitionAllocBRPPool(ptr);
+
   auto* slot_span =
       internal::PartitionAllocGetSlotSpanForSizeQuery<internal::ThreadSafe>(
           ptr);
@@ -690,6 +778,40 @@ ALWAYS_INLINE void* PartitionAllocGetSlotStart(void* ptr) {
       bucket->slot_size * bucket->GetSlotNumber(offset_in_slot_span));
 }
 
+// Checks whether a given pointer stays within the same allocation slot after
+// modification.
+//
+// This isn't a general purpose function. The caller is responsible for ensuring
+// that the ref-count is in place for this allocation.
+//
+// This function is not a template, and can be used on either variant
+// (thread-safe or not) of the allocator. This relies on the two PartitionRoot<>
+// having the same layout, which is enforced by static_assert().
+ALWAYS_INLINE bool PartitionAllocIsValidPtrDelta(void* ptr, ptrdiff_t delta) {
+  // Required for pointers right past an allocation. See
+  // |PartitionAllocGetSlotStart()|.
+  void* adjusted_ptr =
+      reinterpret_cast<char*>(ptr) - kPartitionPastAllocationAdjustment;
+
+  internal::DCheckIfManagedByPartitionAllocBRPPool(adjusted_ptr);
+  auto* slot_span =
+      internal::PartitionAllocGetSlotSpanForSizeQuery<internal::ThreadSafe>(
+          adjusted_ptr);
+  auto* root = PartitionRoot<internal::ThreadSafe>::FromSlotSpan(slot_span);
+  // Double check that ref-count is indeed present.
+  PA_DCHECK(root->allow_ref_count);
+
+  uintptr_t user_data_start = reinterpret_cast<uintptr_t>(
+      root->AdjustPointerForExtrasAdd(PartitionAllocGetSlotStart(ptr)));
+  size_t user_data_size = slot_span->GetUsableSize(root);
+  uintptr_t new_ptr = reinterpret_cast<uintptr_t>(ptr) + delta;
+
+  return user_data_start <= new_ptr &&
+         // We use "greater then or equal" below because we want to include
+         // pointers right past the end of an allocation.
+         new_ptr <= user_data_start + user_data_size;
+}
+
 // TODO(glazunov): Simplify the function once the non-thread-safe PartitionRoot
 // is no longer used.
 ALWAYS_INLINE void PartitionAllocFreeForRefCounting(void* slot_start) {
@@ -701,8 +823,14 @@ ALWAYS_INLINE void PartitionAllocFreeForRefCounting(void* slot_start) {
   // supports reference counts.
   PA_DCHECK(root->allow_ref_count);
 
-#if DCHECK_IS_ON()
-  memset(slot_start, kFreedByte, slot_span->GetUtilizedSlotSize());
+  // memset() can be really expensive.
+#if EXPENSIVE_DCHECKS_ARE_ON()
+  memset(slot_start, kFreedByte,
+         slot_span->GetUtilizedSlotSize()
+#if BUILDFLAG(PUT_REF_COUNT_IN_PREVIOUS_SLOT)
+             - sizeof(internal::PartitionRefCount)
+#endif
+  );
 #endif
 
   if (root->is_thread_safe) {
@@ -804,17 +932,15 @@ ALWAYS_INLINE void PartitionRoot<thread_safe>::FreeNoHooks(void* ptr) {
 
     // On Android, malloc() interception is more fragile than on other
     // platforms, as we use wrapped symbols. However, the GigaCage allows us to
-    // quickly tell that a pointer was allocated with PartitionAlloc. GigaCage
-    // is unfortunately not used for the aligned partition when BackupRefPtr is
-    // enabled, yielding the set of conditions below.
+    // quickly tell that a pointer was allocated with PartitionAlloc.
     //
     // This is a crash to detect imperfect symbol interception. However, we can
     // forward allocations we don't own to the system malloc() implementation in
     // these rare cases, assuming that some remain.
-#if defined(OS_ANDROID) && BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && \
-    !BUILDFLAG(USE_BACKUP_REF_PTR)
-  PA_CHECK(IsManagedByPartitionAllocNormalBuckets(ptr) ||
-           IsManagedByPartitionAllocDirectMap(ptr));
+#if defined(OS_ANDROID) && BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+  // GigaCage is always enabled on Android and is needed for PA_CHECK below.
+  PA_DCHECK(features::IsPartitionAllocGigaCageEnabled());
+  PA_CHECK(IsManagedByPartitionAlloc(ptr));
 #endif
 
   // Call FromSlotInnerPtr instead of FromSlotStartPtr because the pointer
@@ -828,7 +954,7 @@ ALWAYS_INLINE void PartitionRoot<thread_safe>::FreeNoHooks(void* ptr) {
   // by default.
   if (UNLIKELY(root->IsQuarantineEnabled()) &&
       LIKELY(!slot_span->bucket->is_direct_mapped())) {
-    PCScan::Instance().MoveToQuarantine(ptr, slot_span);
+    PCScan::MoveToQuarantine(ptr, slot_span->bucket->slot_size);
     return;
   }
 
@@ -865,7 +991,7 @@ ALWAYS_INLINE void PartitionRoot<thread_safe>::FreeNoHooksImmediate(
   // Note: ref-count and cookies can be 0-sized.
   //
   // For more context, see the other "Layout inside the slot" comment below.
-#if DCHECK_IS_ON() || ZERO_RANDOMLY_ON_FREE
+#if EXPENSIVE_DCHECKS_ARE_ON() || PA_ZERO_RANDOMLY_ON_FREE
   const size_t utilized_slot_size = slot_span->GetUtilizedSlotSize();
 #endif
 #if BUILDFLAG(USE_BACKUP_REF_PTR) || DCHECK_IS_ON()
@@ -885,13 +1011,14 @@ ALWAYS_INLINE void PartitionRoot<thread_safe>::FreeNoHooksImmediate(
 
 #if BUILDFLAG(USE_BACKUP_REF_PTR)
   if (allow_ref_count) {
+    PA_DCHECK(features::IsPartitionAllocGigaCageEnabled());
     if (LIKELY(!slot_span->bucket->is_direct_mapped())) {
       auto* ref_count = internal::PartitionRefCountPointer(slot_start);
-      // If we are holding the last reference to the allocation, it can be freed
+      // If there are no more references to the allocation, it can be freed
       // immediately. Otherwise, defer the operation and zap the memory to turn
       // potential use-after-free issues into unexploitable crashes.
-      if (UNLIKELY(!ref_count->HasOneRef()))
-        memset(ptr, kQuarantinedByte, usable_size);
+      if (UNLIKELY(!ref_count->IsAliveWithNoKnownRefs()))
+        internal::SecureMemset(ptr, kQuarantinedByte, usable_size);
 
       if (UNLIKELY(!(ref_count->ReleaseFromAllocator())))
         return;
@@ -899,14 +1026,25 @@ ALWAYS_INLINE void PartitionRoot<thread_safe>::FreeNoHooksImmediate(
   }
 #endif  // BUILDFLAG(USE_BACKUP_REF_PTR)
 
-#if DCHECK_IS_ON()
-  memset(slot_start, kFreedByte, utilized_slot_size);
-#elif ZERO_RANDOMLY_ON_FREE
+  // memset() can be really expensive.
+#if EXPENSIVE_DCHECKS_ARE_ON()
+  memset(slot_start, kFreedByte,
+         utilized_slot_size
+#if BUILDFLAG(PUT_REF_COUNT_IN_PREVIOUS_SLOT)
+             - sizeof(internal::PartitionRefCount)
+#endif
+  );
+#elif PA_ZERO_RANDOMLY_ON_FREE
   // `memset` only once in a while: we're trading off safety for time
   // efficiency.
   if (UNLIKELY(internal::RandomPeriod()) &&
       !slot_span->bucket->is_direct_mapped()) {
-    internal::SecureZero(slot_start, utilized_slot_size);
+    internal::SecureMemset(slot_start, 0,
+                           utilized_slot_size
+#if BUILDFLAG(PUT_REF_COUNT_IN_PREVIOUS_SLOT)
+                               - sizeof(internal::PartitionRefCount)
+#endif
+    );
   }
 #endif
 
@@ -990,10 +1128,12 @@ PartitionRoot<thread_safe>::FromSuperPage(char* super_page) {
   return root;
 }
 
+// CAUTION! Use only for normal buckets. Using on direct-mapped allocations may
+// lead to undefined behavior.
 template <bool thread_safe>
 ALWAYS_INLINE PartitionRoot<thread_safe>*
-PartitionRoot<thread_safe>::FromPointerInNormalBucketPool(char* ptr) {
-  PA_DCHECK(!IsManagedByPartitionAllocDirectMap(ptr));
+PartitionRoot<thread_safe>::FromPointerInNormalBuckets(char* ptr) {
+  // TODO(bartekn): Add a "is in normal buckets" DCHECK.
   char* super_page = reinterpret_cast<char*>(reinterpret_cast<uintptr_t>(ptr) &
                                              kSuperPageBaseMask);
   return FromSuperPage(super_page);
@@ -1028,6 +1168,19 @@ ALWAYS_INLINE void PartitionRoot<thread_safe>::RecommitSystemPagesForData(
   RecommitSystemPages(address, length, PageReadWrite,
                       accessibility_disposition);
   IncreaseCommittedPages(length);
+}
+
+template <bool thread_safe>
+ALWAYS_INLINE bool PartitionRoot<thread_safe>::TryRecommitSystemPagesForData(
+    void* address,
+    size_t length,
+    PageAccessibilityDisposition accessibility_disposition) {
+  bool ok = TryRecommitSystemPages(address, length, PageReadWrite,
+                                   accessibility_disposition);
+  if (ok)
+    IncreaseCommittedPages(length);
+
+  return ok;
 }
 
 // static
@@ -1119,17 +1272,7 @@ ALWAYS_INLINE void* PartitionRoot<thread_safe>::AllocFlagsNoHooks(
   //   b. Otherwise, call the "raw" allocator <-- Locking
   // 3. Handle cookies/ref-count, zero allocation if required
 
-  size_t raw_size = requested_size;
-#if BUILDFLAG(USE_BACKUP_REF_PTR)
-  // Without the size adjustment below, |Alloc()| returns a pointer past the end
-  // of a slot (most of the time a pointer to the beginning of the next slot)
-  // for zero-sized allocations when |PartitionRefCount| is used. The returned
-  // value may lead to incorrect results when passed to a function that performs
-  // bitwise operations on pointers, e.g., |PartitionAllocGetSlotOffset()|.
-  if (UNLIKELY(raw_size == 0))
-    raw_size = 1;
-#endif  // BUILDFLAG(USE_BACKUP_REF_PTR)
-  raw_size = AdjustSizeForExtrasAdd(raw_size);
+  size_t raw_size = AdjustSizeForExtrasAdd(requested_size);
   PA_CHECK(raw_size >= requested_size);  // check for overflows
 
   uint16_t bucket_index = SizeToBucketIndex(raw_size);
@@ -1138,6 +1281,10 @@ ALWAYS_INLINE void* PartitionRoot<thread_safe>::AllocFlagsNoHooks(
   void* slot_start = nullptr;
   size_t slot_size;
 
+  // PCScan safepoint. Call before trying to allocate from cache.
+  if (IsQuarantineEnabled())
+    PCScan::JoinScanIfNeeded();
+
   // !thread_safe => !with_thread_cache, but adding the condition allows the
   // compiler to statically remove this branch for the thread-unsafe variant.
   //
@@ -1145,41 +1292,12 @@ ALWAYS_INLINE void* PartitionRoot<thread_safe>::AllocFlagsNoHooks(
   // the thread cache.
   if (thread_safe && LIKELY(with_thread_cache)) {
     auto* tcache = internal::ThreadCache::Get();
-    if (UNLIKELY(!internal::ThreadCache::IsValid(tcache))) {
-      if (internal::ThreadCache::IsTombstone(tcache)) {
-        // Thread is being terminated, don't try to use the thread cache, and
-        // don't try to resurrect it.
-      } else {
-        // There is no per-thread ThreadCache allocated here yet, and this
-        // partition has a thread cache, allocate a new one.
-        //
-        // The thread cache allocation itself will not reenter here, as it
-        // sidesteps the thread cache by using placement new and
-        // |RawAlloc()|. However, internally to libc, allocations may happen to
-        // create a new TLS variable. This would end up here again, which is not
-        // what we want (and likely is not supported by libc).
-        //
-        // To avoid this sort of reentrancy, temporarily set this partition as
-        // not supporting a thread cache. so that reentering allocations will
-        // not end up allocating a thread cache. This value may be seen by other
-        // threads as well, in which case a few allocations will not use the
-        // thread cache. As it is purely an optimization, this is not a
-        // correctness issue.
-        //
-        // Note that there is no deadlock or data inconsistency concern, since
-        // we do not hold the lock, and has such haven't touched any internal
-        // data.
-        with_thread_cache = false;
-        tcache = internal::ThreadCache::Create(this);
-        with_thread_cache = true;
-
-        // Cache is created empty, but at least this will trigger batch fill,
-        // which may be useful, and we are already in a slow path anyway (first
-        // small allocation of this thread).
-        slot_start = tcache->GetFromCache(bucket_index, &slot_size);
-      }
-    } else {
+    // LIKELY: Typically always true, except for the very first allocation of
+    // this thread.
+    if (LIKELY(internal::ThreadCache::IsValid(tcache))) {
       slot_start = tcache->GetFromCache(bucket_index, &slot_size);
+    } else {
+      slot_start = MaybeInitThreadCacheAndAlloc(bucket_index, &slot_size);
     }
 
     // LIKELY: median hit rate in the thread cache is 95%, from metrics.
@@ -1245,26 +1363,32 @@ ALWAYS_INLINE void* PartitionRoot<thread_safe>::AllocFlagsNoHooks(
   //   we have no other choice than putting the cookie at the very end of the
   //   slot, thus creating the "empty" space.
   //
-  // If BUILDFLAG(REF_COUNT_AT_END_OF_ALLOCATION) is true, Layout inside the
-  // slot:
-  //  |[cookie]|...data...|[empty]|[cookie]|[align]|[refcnt]|[unused]|
+  // If BUILDFLAG(PUT_REF_COUNT_IN_PREVIOUS_SLOT) is true, Layout inside the
+  // slot of small buckets:
+  //  |[cookie]|...data...|[empty]|[cookie]|[refcnt]|
   //           <---(a)---->
   //           <-------(b)-------->
-  //  <--(c)--->                  <---(c)-->   +   <--(c)--->
-  //  <--(d)-------------->   +   <---(d)-->   +   <--(d)--->
-  //  <---------------------(e)----------------------------->
-  //  <-------------------------(f)---------------------------------->
+  //  <--(c)--->                  <-------(c)------->
+  //  <---------(d)------->   +   <-------(d)------->
+  //  <------------------(e)------------------------>
+  //  <------------------(f)------------------------>
   //
-  // [refcnt] is put just after the object instead of the end of the slot. This
-  // is important to keep the system pages at the end of the slot empty and thus
-  // decommittable.
-  //
-  // - The size is larger than or equal to utilized_slot_size => the situation
-  // is the same when BUILDFLAG(REF_COUNT_AT_END_OF_ALLOCATION) is not set.
-  // - refcnt needs to be aligned with alignof(refcnt).
+  // If the slot start address is not SystemPageSize() aligned (this also means,
+  // the slot size is small), [refcnt] of this slot is stored at the end of
+  // the previous slot. So this makes us to obtain refcount address with slot
+  // start address minus sizeof(refcount).
+  // If the slot start address is SystemPageSize() aligned (regarding single
+  // slot span, the slot start address is always SystemPage size-aligned),
+  // [refcnt] is stored in refcount bitmap placed after SuperPage metadata.
+  // However, the space for refcnt is still reserved at the end of slot, even
+  // though redundant. Because, regarding not single slot span, it is a little
+  // difficult to change usable_size if refcnt serves the slot in the next
+  // system page.
+  // TODO(tasak): we don't need to add/subtract sizeof(refcnt) to requested size
+  // in single slot span case.
 
   // The value given to the application is just after the ref-count and cookie,
-  // or the cookie (BUILDFLAG(REF_COUNT_AT_END_OF_ALLOCATION) is true).
+  // or the cookie (BUILDFLAG(PUT_REF_COUNT_IN_PREVIOUS_SLOT) is true).
   void* ret = AdjustPointerForExtrasAdd(slot_start);
 
 #if DCHECK_IS_ON()
@@ -1281,7 +1405,8 @@ ALWAYS_INLINE void* PartitionRoot<thread_safe>::AllocFlagsNoHooks(
   bool zero_fill = flags & PartitionAllocZeroFill;
   // LIKELY: operator new() calls malloc(), not calloc().
   if (LIKELY(!zero_fill)) {
-#if DCHECK_IS_ON()
+    // memset() can be really expensive.
+#if EXPENSIVE_DCHECKS_ARE_ON()
     memset(ret, kUninitializedByte, usable_size);
 #endif
   } else if (!is_already_zeroed) {
@@ -1292,6 +1417,7 @@ ALWAYS_INLINE void* PartitionRoot<thread_safe>::AllocFlagsNoHooks(
   bool is_direct_mapped = raw_size > kMaxBucketed;
   // LIKELY: Direct mapped allocations are large and rare.
   if (allow_ref_count && LIKELY(!is_direct_mapped)) {
+    PA_DCHECK(features::IsPartitionAllocGigaCageEnabled());
     new (internal::PartitionRefCountPointer(slot_start))
         internal::PartitionRefCount();
   }
@@ -1316,45 +1442,57 @@ template <bool thread_safe>
 ALWAYS_INLINE void* PartitionRoot<thread_safe>::AlignedAllocFlags(
     int flags,
     size_t alignment,
-    size_t size) {
+    size_t requested_size) {
   // Aligned allocation support relies on the natural alignment guarantees of
-  // PartitionAlloc. Since cookies and ref-count are layered on top of
-  // PartitionAlloc, they change the guarantees. As a consequence, forbid both.
-  PA_DCHECK(!allow_cookies && !allow_ref_count);
-
+  // PartitionAlloc. Specifically, it relies on the fact that slot spans are
+  // partition-page aligned, and slots within are aligned to slot size, from
+  // the beginning of the span. As a conseqneuce, allocations of sizes that are
+  // a power of two, up to partition page size, will always be aligned to its
+  // size. The code below adjusts the request size to be a power of two.
+  // TODO(bartekn): Handle requests larger than partition page.
+  //
+  // Extras before the allocation are forbidden as they shift the returned
+  // allocation from the beginning of the slot, thus messing up alignment.
+  // Extras after the allocation are acceptable, but they have to be taken into
+  // account in the request size calculation to avoid crbug.com/1185484.
+  PA_DCHECK(allow_aligned_alloc);
+  PA_DCHECK(!extras_offset);
   // This is mandated by |posix_memalign()|, so should never fire.
   PA_CHECK(base::bits::IsPowerOfTwo(alignment));
 
-  size_t requested_size;
+  size_t raw_size = AdjustSizeForExtrasAdd(requested_size);
   // Handle cases such as size = 16, alignment = 64.
   // Wastes memory when a large alignment is requested with a small size, but
   // this is hard to avoid, and should not be too common.
-  if (UNLIKELY(size < alignment)) {
-    requested_size = alignment;
+  if (UNLIKELY(raw_size < alignment)) {
+    raw_size = alignment;
   } else {
     // PartitionAlloc only guarantees alignment for power-of-two sized
     // allocations. To make sure this applies here, round up the allocation
     // size.
-    requested_size =
-        static_cast<size_t>(1)
-        << (sizeof(size_t) * 8 - base::bits::CountLeadingZeroBits(size - 1));
+    raw_size = static_cast<size_t>(1)
+               << (sizeof(size_t) * 8 -
+                   base::bits::CountLeadingZeroBits(raw_size - 1));
   }
+  PA_DCHECK(base::bits::IsPowerOfTwo(raw_size));
+  // Adjust back, because AllocFlagsNoHooks/Alloc will adjust it again.
+  size_t adjusted_size = AdjustSizeForExtrasSubtract(raw_size);
 
-  // Overflow check. requested_size must be larger or equal to size.
-  if (requested_size < size) {
+  // Overflow check. adjusted_size must be larger or equal to requested_size.
+  if (UNLIKELY(adjusted_size < requested_size)) {
     if (flags & PartitionAllocReturnNull)
       return nullptr;
     // OutOfMemoryDeathTest.AlignedAlloc requires
     // base::TerminateBecauseOutOfMemory (invoked by
     // PartitionExcessiveAllocationSize).
-    internal::PartitionExcessiveAllocationSize(size);
+    internal::PartitionExcessiveAllocationSize(requested_size);
     // internal::PartitionExcessiveAllocationSize(size) causes OOM_CRASH.
     NOTREACHED();
   }
 
   bool no_hooks = flags & PartitionAllocNoHooks;
-  void* ptr = no_hooks ? AllocFlagsNoHooks(0, requested_size)
-                       : Alloc(requested_size, "");
+  void* ptr =
+      no_hooks ? AllocFlagsNoHooks(0, adjusted_size) : Alloc(adjusted_size, "");
 
   // |alignment| is a power of two, but the compiler doesn't necessarily know
   // that. A regular % operation is very slow, make sure to use the equivalent,

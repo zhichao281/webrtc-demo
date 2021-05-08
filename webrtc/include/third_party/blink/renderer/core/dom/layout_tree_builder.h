@@ -89,7 +89,7 @@ class LayoutTreeBuilder {
 
   NodeType* node_;
   Node::AttachContext& context_;
-  scoped_refptr<const ComputedStyle> style_;
+  const ComputedStyle* style_;
 };
 
 class LayoutTreeBuilderForElement : public LayoutTreeBuilder<Element> {
@@ -123,4 +123,4 @@ class LayoutTreeBuilderForText : public LayoutTreeBuilder<Text> {
 
 }  // namespace blink
 
-#endif
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_DOM_LAYOUT_TREE_BUILDER_H_

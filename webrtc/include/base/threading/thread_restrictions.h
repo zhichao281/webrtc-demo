@@ -114,6 +114,10 @@ class CookieManager;
 class ScopedAllowInitGLBindings;
 class VizCompositorThreadRunnerWebView;
 }
+namespace ash {
+class MojoUtils;
+class BrowserDataMigrator;
+}
 namespace audio {
 class OutputDevice;
 }
@@ -124,6 +128,7 @@ class RTCVideoEncoder;
 class SourceStream;
 class VideoFrameResourceProvider;
 class WebRtcVideoFrameAdapter;
+class LegacyWebRtcVideoFrameAdapter;
 class WorkerThread;
 namespace scheduler {
 class WorkerThread;
@@ -135,7 +140,6 @@ class TileTaskManagerImpl;
 }
 namespace chromeos {
 class BlockingMethodCaller;
-class MojoUtils;
 namespace system {
 class StatisticsProviderImpl;
 }
@@ -282,10 +286,6 @@ class ScopedAllowThreadJoinForWebRtcTransport;
 }
 }
 
-namespace resource_coordinator {
-class TabManagerDelegate;
-}
-
 namespace service_manager {
 class ServiceProcessLauncher;
 }
@@ -395,8 +395,9 @@ class BASE_EXPORT ScopedAllowBlocking {
   friend class AdjustOOMScoreHelper;
   friend class StackSamplingProfiler;
   friend class android_webview::ScopedAllowInitGLBindings;
+  friend class ash::MojoUtils;  // http://crbug.com/1055467
+  friend class ash::BrowserDataMigrator;
   friend class blink::DiskDataAllocator;
-  friend class chromeos::MojoUtils;  // http://crbug.com/1055467
   friend class content::BrowserProcessSubThread;
   friend class content::NetworkServiceInstancePrivate;
   friend class content::PepperPrintSettingsManagerImpl;
@@ -415,7 +416,6 @@ class BASE_EXPORT ScopedAllowBlocking {
 #endif
   friend class printing::PrintJobWorker;
   friend class remoting::ScopedBypassIOThreadRestrictions;  // crbug.com/1144161
-  friend class resource_coordinator::TabManagerDelegate;  // crbug.com/778703
   friend class web::WebSubThread;
   friend class weblayer::BrowserContextImpl;
   friend class weblayer::ContentBrowserClientImpl;
@@ -538,6 +538,7 @@ class BASE_EXPORT ScopedAllowBaseSyncPrimitivesOutsideBlockingScope {
   friend class blink::RTCVideoDecoderAdapter;
   friend class blink::RTCVideoEncoder;
   friend class blink::WebRtcVideoFrameAdapter;
+  friend class blink::LegacyWebRtcVideoFrameAdapter;
   friend class cc::TileTaskManagerImpl;
   friend class content::CategorizedWorkerPool;
   friend class content::DesktopCaptureDevice;
@@ -597,7 +598,7 @@ class BASE_EXPORT ScopedAllowBaseSyncPrimitivesOutsideBlockingScope {
   // Since this object is used to indicate that sync primitives will be used to
   // wait for an event ignore the current operation for hang watching purposes
   // since the wait time duration is unknown.
-  base::HangWatchScopeDisabled hang_watch_scope_disabled_;
+  base::IgnoreHangsInScope hang_watch_scope_disabled_;
 
   DISALLOW_COPY_AND_ASSIGN(ScopedAllowBaseSyncPrimitivesOutsideBlockingScope);
 };

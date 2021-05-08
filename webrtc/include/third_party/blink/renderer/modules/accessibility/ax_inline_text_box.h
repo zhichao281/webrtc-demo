@@ -46,6 +46,7 @@ class AXInlineTextBox final : public AXObject {
   AXInlineTextBox(scoped_refptr<AbstractInlineTextBox>, AXObjectCacheImpl&);
 
   // AXObject overrides.
+  RGBA32 GetColor() const override { return Color::kTransparent; }
   String GetName(ax::mojom::blink::NameFrom&,
                  AXObject::AXObjectVector* name_objects) const override;
   void TextCharacterOffsets(Vector<int>&) const override;
@@ -63,7 +64,7 @@ class AXInlineTextBox final : public AXObject {
   AXObject* NextOnLine() const override;
   AXObject* PreviousOnLine() const override;
   void SerializeMarkerAttributes(ui::AXNodeData* node_data) const override;
-  ax::mojom::blink::Role DetermineAccessibilityRole() override {
+  ax::mojom::blink::Role NativeRoleIgnoringAria() const override {
     // role_ is set manually in Init(), but must implement pure virtual method.
     NOTREACHED();
     return ax::mojom::blink::Role::kInlineTextBox;

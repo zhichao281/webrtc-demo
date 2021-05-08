@@ -39,7 +39,6 @@
 #include "base/memory/weak_ptr.h"
 #include "mojo/public/cpp/bindings/deprecated_interface_types_forward.h"
 #include "third_party/blink/public/common/messaging/message_port_channel.h"
-#include "third_party/blink/renderer/platform/wtf/assertions.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"  // FunctionThreadAffinity
 #include "third_party/blink/renderer/platform/wtf/type_traits.h"
@@ -54,13 +53,15 @@ class Time;
 class UnguessableToken;
 }  // namespace base
 
+struct SkISize;
 class SkRefCnt;
 template <typename T>
 class sk_sp;
 
 namespace gfx {
+class ColorSpace;
 class Size;
-}
+}  // namespace gfx
 
 namespace gpu {
 struct SyncToken;
@@ -68,8 +69,8 @@ struct SyncToken;
 
 namespace media {
 class VideoFrame;
-struct VideoFrameFeedback;
-}
+struct VideoCaptureFeedback;
+}  // namespace media
 
 namespace mojo {
 template <typename Interface>
@@ -80,7 +81,7 @@ template <typename Interface>
 class PendingAssociatedRemote;
 template <typename Interface>
 class PendingAssociatedReceiver;
-}
+}  // namespace mojo
 
 namespace WTF {
 
@@ -262,15 +263,6 @@ struct CrossThreadCopier<base::WeakPtr<T>>
   STATIC_ONLY(CrossThreadCopier);
 };
 
-template <typename T>
-struct CrossThreadCopier<PassedWrapper<T>> {
-  STATIC_ONLY(CrossThreadCopier);
-  using Type = PassedWrapper<typename CrossThreadCopier<T>::Type>;
-  static Type Copy(PassedWrapper<T>&& value) {
-    return WTF::Passed(CrossThreadCopier<T>::Copy(value.MoveOut()));
-  }
-};
-
 template <typename Signature>
 struct CrossThreadCopier<CrossThreadFunction<Signature>> {
   STATIC_ONLY(CrossThreadCopier);
@@ -340,14 +332,26 @@ struct CrossThreadCopier<
 };
 
 template <>
+struct CrossThreadCopier<SkISize>
+    : public CrossThreadCopierPassThrough<SkISize> {
+  STATIC_ONLY(CrossThreadCopier);
+};
+
+template <>
 struct CrossThreadCopier<gfx::Size>
     : public CrossThreadCopierPassThrough<gfx::Size> {
   STATIC_ONLY(CrossThreadCopier);
 };
 
 template <>
-struct CrossThreadCopier<media::VideoFrameFeedback>
-    : public CrossThreadCopierPassThrough<media::VideoFrameFeedback> {
+struct CrossThreadCopier<gfx::ColorSpace>
+    : public CrossThreadCopierPassThrough<gfx::ColorSpace> {
+  STATIC_ONLY(CrossThreadCopier);
+};
+
+template <>
+struct CrossThreadCopier<media::VideoCaptureFeedback>
+    : public CrossThreadCopierPassThrough<media::VideoCaptureFeedback> {
   STATIC_ONLY(CrossThreadCopier);
 };
 

@@ -41,10 +41,10 @@ G_DECLARE_INTERFACE (GtkBuilderScope, gtk_builder_scope, GTK, BUILDER_SCOPE, GOb
  * The list of flags that can be passed to gtk_builder_create_closure().
  * New values may be added in the future for new features, so external
  * implementations of GtkBuilderScopeInterface should test the flags for unknown
- * values and raise a %@GTK_BUILDER_ERROR_INVALID_ATTRIBUTE error when they
+ * values and raise a %GTK_BUILDER_ERROR_INVALID_ATTRIBUTE error when they
  * encounter one.
  */
-typedef enum {
+typedef enum { /*< prefix=GTK_BUILDER_CLOSURE >*/
   GTK_BUILDER_CLOSURE_SWAPPED = (1 << 0)
 } GtkBuilderClosureFlags;
 

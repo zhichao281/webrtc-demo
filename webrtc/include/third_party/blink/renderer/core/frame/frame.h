@@ -33,15 +33,16 @@
 #include "base/optional.h"
 #include "base/unguessable_token.h"
 #include "services/network/public/mojom/web_sandbox_flags.mojom-blink.h"
-#include "third_party/blink/public/common/feature_policy/document_policy_features.h"
-#include "third_party/blink/public/common/feature_policy/feature_policy_features.h"
 #include "third_party/blink/public/common/frame/user_activation_state.h"
 #include "third_party/blink/public/common/frame/user_activation_update_source.h"
+#include "third_party/blink/public/common/permissions_policy/document_policy_features.h"
+#include "third_party/blink/public/common/permissions_policy/permissions_policy_features.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
 #include "third_party/blink/public/mojom/ad_tagging/ad_frame.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/frame/frame_owner_properties.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/frame/user_activation_notification_type.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/input/scroll_direction.mojom-blink-forward.h"
+#include "third_party/blink/public/mojom/timing/resource_timing.mojom-blink-forward.h"
 #include "third_party/blink/public/web/web_frame_load_type.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/frame/frame_lifecycle.h"
@@ -94,8 +95,6 @@ class CORE_EXPORT Frame : public GarbageCollected<Frame> {
  public:
   // Returns the Frame instance for the given |frame_token|.
   // Note that this Frame can be either a LocalFrame or Remote instance.
-  // TODO(crbug.com/1096617): Remove the UnguessableToken version of this.
-  static Frame* ResolveFrame(const base::UnguessableToken& frame_token);
   static Frame* ResolveFrame(const FrameToken& frame_token);
 
   virtual ~Frame();
@@ -305,8 +304,7 @@ class CORE_EXPORT Frame : public GarbageCollected<Frame> {
   // This identifier represents the stable identifier between a
   // LocalFrame  <--> RenderFrameHostImpl or a
   // RemoteFrame <--> RenderFrameProxyHost in the browser process.
-  // TODO(crbug.com/1096617): Make this return a FrameToken instead.
-  const base::UnguessableToken& GetFrameToken() const { return frame_token_; }
+  const FrameToken& GetFrameToken() const { return frame_token_; }
 
   bool GetVisibleToHitTesting() const { return visible_to_hit_testing_; }
   void UpdateVisibleToHitTesting();
@@ -385,7 +383,8 @@ class CORE_EXPORT Frame : public GarbageCollected<Frame> {
         Frame* parent,
         Frame* previous_sibling,
         FrameInsertType insert_type,
-        const base::UnguessableToken& frame_token,
+        const FrameToken& frame_token,
+        const base::UnguessableToken& devtools_frame_token,
         WindowProxyManager*,
         WindowAgentFactory* inheriting_agent_factory);
 
@@ -416,6 +415,11 @@ class CORE_EXPORT Frame : public GarbageCollected<Frame> {
       mojom::blink::UserActivationNotificationType notification_type);
   bool ConsumeTransientUserActivationInFrameTree();
   void ClearUserActivationInFrameTree();
+
+  void RenderFallbackContent();
+  void RenderFallbackContentWithResourceTiming(
+      mojom::blink::ResourceTimingInfoPtr timing,
+      const String& server_timing_values);
 
   mutable FrameTree tree_node_;
 
@@ -481,6 +485,7 @@ class CORE_EXPORT Frame : public GarbageCollected<Frame> {
 
   // TODO(sashab): Investigate if this can be represented with m_lifecycle.
   bool is_loading_;
+  // Contains token to be used as a frame id in the devtools protocol.
   base::UnguessableToken devtools_frame_token_;
   base::Optional<std::string> trace_value_;
 
@@ -509,7 +514,7 @@ class CORE_EXPORT Frame : public GarbageCollected<Frame> {
   // will *not* have the same identifier. This is different than the
   // |devtools_frame_token_| in which all representations of this frame node
   // have the same value in all processes.
-  base::UnguessableToken frame_token_;
+  FrameToken frame_token_;
 
   // This task is used for the async step in form submission when a form is
   // targeting this frame. http://html.spec.whatwg.org/C/#plan-to-navigate

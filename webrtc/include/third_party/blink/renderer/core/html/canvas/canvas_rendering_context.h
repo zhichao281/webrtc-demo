@@ -85,7 +85,9 @@ class CORE_EXPORT CanvasRenderingContext : public ScriptWrappable,
   void RecordUKMCanvasDrawnToRenderingAPI(
       CanvasRenderingAPI canvasRenderingAPI);
 
-  static ContextType ContextTypeFromId(const String& id);
+  static ContextType ContextTypeFromId(
+      const String& id,
+      const ExecutionContext* execution_context);
   static ContextType ResolveContextTypeAliases(ContextType);
 
   CanvasRenderingContextHost* Host() const { return host_; }
@@ -179,7 +181,7 @@ class CORE_EXPORT CanvasRenderingContext : public ScriptWrappable,
   virtual bool Is3d() const { return false; }
   virtual bool UsingSwapChain() const { return false; }
   virtual void SetFilterQuality(SkFilterQuality) { NOTREACHED(); }
-  virtual void Reshape(int width, int height) { NOTREACHED(); }
+  virtual void Reshape(int width, int height) {}
   virtual void MarkLayerComposited() { NOTREACHED(); }
   virtual sk_sp<SkData> PaintRenderingResultsToDataArray(SourceDrawingBuffer) {
     NOTREACHED();
@@ -239,4 +241,4 @@ class CORE_EXPORT CanvasRenderingContext : public ScriptWrappable,
 
 }  // namespace blink
 
-#endif
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_HTML_CANVAS_CANVAS_RENDERING_CONTEXT_H_

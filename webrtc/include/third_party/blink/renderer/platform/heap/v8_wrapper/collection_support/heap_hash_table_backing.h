@@ -8,12 +8,14 @@
 #include <type_traits>
 #include "third_party/blink/renderer/platform/heap/custom_spaces.h"
 #include "third_party/blink/renderer/platform/heap/heap.h"
+#include "third_party/blink/renderer/platform/heap/thread_state.h"
 #include "third_party/blink/renderer/platform/heap/trace_traits.h"
 #include "third_party/blink/renderer/platform/heap/visitor.h"
 #include "third_party/blink/renderer/platform/wtf/conditional_destructor.h"
 #include "third_party/blink/renderer/platform/wtf/hash_table.h"
 #include "third_party/blink/renderer/platform/wtf/hash_traits.h"
 #include "v8/include/cppgc/custom-space.h"
+#include "v8/include/cppgc/explicit-management.h"
 #include "v8/include/cppgc/object-size-trait.h"
 
 namespace blink {
@@ -24,9 +26,38 @@ class HeapHashTableBacking final
       public WTF::ConditionalDestructor<
           HeapHashTableBacking<Table>,
           std::is_trivially_destructible<typename Table::ValueType>::value> {
+  using ClassType = HeapHashTableBacking<Table>;
+  using ValueType = typename Table::ValueType;
+
  public:
+  static ValueType* ToArray(ClassType* backing) {
+    return reinterpret_cast<ValueType*>(backing);
+  }
+
+  static ClassType* FromArray(ValueType* array) {
+    return reinterpret_cast<ClassType*>(array);
+  }
+
+  static void Free(ValueType* array) {
+    // `array` is allowed to be null.
+    cppgc::subtle::FreeUnreferencedObject(FromArray(array));
+  }
+
+  bool Resize(size_t new_size) {
+    return cppgc::subtle::Resize(*this, GetAdditionalBytes(new_size));
+  }
+
   // Conditionally invoked via destructor.
   void Finalize();
+
+ private:
+  static cppgc::AdditionalBytes GetAdditionalBytes(size_t wanted_array_size) {
+    // HHTB is an empty class that's purely used with inline storage. Since its
+    // sizeof(HHTB) == 1, we need to subtract its size to avoid wasting storage.
+    static_assert(sizeof(ClassType) == 1, "Class declaration changed");
+    DCHECK_GE(wanted_array_size, sizeof(ClassType));
+    return cppgc::AdditionalBytes{wanted_array_size - sizeof(ClassType)};
+  }
 };
 
 template <typename Table>
@@ -45,6 +76,28 @@ void HeapHashTableBacking<Table>::Finalize() {
       table[i].~Value();
   }
 }
+
+template <typename Table>
+struct ThreadingTrait<HeapHashTableBacking<Table>> {
+  STATIC_ONLY(ThreadingTrait);
+  using Key = typename Table::KeyType;
+  using Value = typename Table::ValueType;
+  static constexpr ThreadAffinity kAffinity =
+      (ThreadingTrait<Key>::kAffinity == kMainThreadOnly) &&
+              (ThreadingTrait<Value>::kAffinity == kMainThreadOnly)
+          ? kMainThreadOnly
+          : kAnyThread;
+};
+
+template <typename First, typename Second>
+struct ThreadingTrait<WTF::KeyValuePair<First, Second>> {
+  STATIC_ONLY(ThreadingTrait);
+  static constexpr ThreadAffinity kAffinity =
+      (ThreadingTrait<First>::kAffinity == kMainThreadOnly) &&
+              (ThreadingTrait<Second>::kAffinity == kMainThreadOnly)
+          ? kMainThreadOnly
+          : kAnyThread;
+};
 
 }  // namespace blink
 

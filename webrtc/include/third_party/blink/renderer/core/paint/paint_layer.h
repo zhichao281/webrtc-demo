@@ -46,12 +46,13 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_PAINT_PAINT_LAYER_H_
 
 #include <memory>
+
 #include "base/auto_reset.h"
+#include "base/dcheck_is_on.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/hit_testing_transform_state.h"
 #include "third_party/blink/renderer/core/layout/layout_box.h"
 #include "third_party/blink/renderer/core/layout/ng/geometry/ng_static_position.h"
-#include "third_party/blink/renderer/core/paint/clip_rects_cache.h"
 #include "third_party/blink/renderer/core/paint/paint_layer_clipper.h"
 #include "third_party/blink/renderer/core/paint/paint_layer_fragment.h"
 #include "third_party/blink/renderer/core/paint/paint_layer_resource_info.h"
@@ -118,14 +119,15 @@ class CORE_EXPORT DisableCompositingQueryAsserts {
   base::AutoReset<CompositingQueryMode> disabler_;
 };
 
-struct PaintLayerRareData {
-  USING_FAST_MALLOC(PaintLayerRareData);
-
+struct CORE_EXPORT PaintLayerRareData final
+    : public GarbageCollected<PaintLayerRareData> {
  public:
   PaintLayerRareData();
   PaintLayerRareData(const PaintLayerRareData&) = delete;
   PaintLayerRareData& operator=(const PaintLayerRareData&) = delete;
   ~PaintLayerRareData();
+
+  void Trace(Visitor* visitor) const;
 
   // The offset for an in-flow relative-positioned PaintLayer. This is not
   // set by any other style.
@@ -143,7 +145,7 @@ struct PaintLayerRareData {
   // coordinates when working with multicol in Layer, since Layer is one of the
   // few places where we have to worry about the visual ones. Internally we try
   // to use flow-thread coordinates whenever possible.
-  PaintLayer* enclosing_pagination_layer;
+  Member<PaintLayer> enclosing_pagination_layer;
 
   // These compositing reasons are updated whenever style changes, not while
   // updating compositing layers.  They should not be used to infer the
@@ -170,7 +172,7 @@ struct PaintLayerRareData {
   // composited or paints into its own backing.
   CompositedLayerMapping* grouped_mapping;
 
-  Persistent<PaintLayerResourceInfo> resource_info;
+  Member<PaintLayerResourceInfo> resource_info;
 
   // The accumulated subpixel offset of a composited layer's composited bounds
   // compared to absolute coordinates.
@@ -244,12 +246,15 @@ struct PaintLayerRareData {
 // A good example of this is PaintLayerScrollableArea, which can only happen
 // be instanciated for LayoutBoxes. With the current design, it's hard to know
 // that by reading the code.
-class CORE_EXPORT PaintLayer : public DisplayItemClient {
+class CORE_EXPORT PaintLayer : public GarbageCollected<PaintLayer>,
+                               public DisplayItemClient {
  public:
-  PaintLayer(LayoutBoxModelObject&);
+  explicit PaintLayer(LayoutBoxModelObject*);
   PaintLayer(const PaintLayer&) = delete;
   PaintLayer& operator=(const PaintLayer&) = delete;
   ~PaintLayer() override;
+
+  void Destroy();
 
   // DisplayItemClient methods
   String DebugName() const final;
@@ -257,7 +262,7 @@ class CORE_EXPORT PaintLayer : public DisplayItemClient {
 
   LayoutBoxModelObject& GetLayoutObject() const { return *layout_object_; }
   LayoutBox* GetLayoutBox() const {
-    return DynamicTo<LayoutBox>(layout_object_);
+    return DynamicTo<LayoutBox>(layout_object_.Get());
   }
   PaintLayer* Parent() const { return parent_; }
   PaintLayer* PreviousSibling() const { return previous_; }
@@ -275,8 +280,6 @@ class CORE_EXPORT PaintLayer : public DisplayItemClient {
 
   void AddChild(PaintLayer* new_child, PaintLayer* before_child = nullptr);
   void RemoveChild(PaintLayer*);
-
-  void ClearClipRects(ClipRectsCacheSlot = kNumberOfClipRectsCacheSlots);
 
   void RemoveOnlyThisLayerAfterStyleChange(const ComputedStyle* old_style);
   void InsertOnlyThisLayerAfterStyleChange();
@@ -324,7 +327,7 @@ class CORE_EXPORT PaintLayer : public DisplayItemClient {
   // blocks writing mode.
   IntSize PixelSnappedSize() const {
     LayoutPoint location = layout_object_->IsBox()
-                               ? To<LayoutBox>(layout_object_)->Location()
+                               ? To<LayoutBox>(layout_object_.Get())->Location()
                                : LayoutPoint();
     return PixelSnappedIntSize(Size(), location);
   }
@@ -480,7 +483,6 @@ class CORE_EXPORT PaintLayer : public DisplayItemClient {
   PhysicalRect PhysicalBoundingBox(const PaintLayer* ancestor_layer) const;
   PhysicalRect FragmentsBoundingBox(const PaintLayer* ancestor_layer) const;
 
-  PhysicalRect LocalBoundingBoxForCompositingOverlapTest() const;
   IntRect ExpandedBoundingBoxForCompositingOverlapTest(
       bool use_clipped_bounding_rect) const;
   PhysicalRect BoundingBoxForCompositing() const;
@@ -558,10 +560,6 @@ class CORE_EXPORT PaintLayer : public DisplayItemClient {
   bool HasFilterInducingProperty() const {
     return GetLayoutObject().HasFilterInducingProperty();
   }
-
-  void* operator new(size_t);
-  // Only safe to call from LayoutBoxModelObject::destroyLayer()
-  void operator delete(void*);
 
   CompositingState GetCompositingState() const;
 
@@ -647,28 +645,23 @@ class CORE_EXPORT PaintLayer : public DisplayItemClient {
   // If the input CompositorFilterOperation is not empty, it will be populated
   // only if |filter_on_effect_node_dirty_| is true or the reference box has
   // changed. Otherwise it will be populated unconditionally.
+  // |filter_on_effect_node_dirty_| will be cleared.
   void UpdateCompositorFilterOperationsForFilter(
-      CompositorFilterOperations& operations) const;
+      CompositorFilterOperations& operations);
   void SetFilterOnEffectNodeDirty() { filter_on_effect_node_dirty_ = true; }
-  void ClearFilterOnEffectNodeDirty() { filter_on_effect_node_dirty_ = false; }
 
-  // |backdrop_filter_bounds| is an out param from both of these functions, and
-  // it represents the clipping bounds for the filtered backdrop image only.
-  // This rect lives in the local transform space of the containing
-  // EffectPaintPropertyNode. If the input CompositorFilterOperation is not
-  // empty, it will be populated only if |backdrop_filter_on_effect_node_dirty_|
-  // is true or the reference box has changed. Otherwise it will be populated
-  // unconditionally.
+  // |backdrop_filter_bounds| represents the clipping bounds for the filtered
+  // backdrop image only. This rect lives in the local transform space of the
+  // containing EffectPaintPropertyNode. If the input CompositorFilterOperation
+  // is not empty, it will be populated only if
+  // |backdrop_filter_on_effect_node_dirty_| is true or the reference box has
+  // changed. Otherwise it will be populated unconditionally.
+  // |backdrop_filter_on_effect_node_dirty_| will be cleared.
   void UpdateCompositorFilterOperationsForBackdropFilter(
       CompositorFilterOperations& operations,
-      base::Optional<gfx::RRectF>* backdrop_filter_bounds) const;
-  CompositorFilterOperations CreateCompositorFilterOperationsForBackdropFilter()
-      const;
+      gfx::RRectF& backdrop_filter_bounds);
   void SetBackdropFilterOnEffectNodeDirty() {
     backdrop_filter_on_effect_node_dirty_ = true;
-  }
-  void ClearBackdropFilterOnEffectNodeDirty() {
-    backdrop_filter_on_effect_node_dirty_ = false;
   }
 
   void SetIsUnderSVGHiddenContainer(bool value) {
@@ -699,7 +692,7 @@ class CORE_EXPORT PaintLayer : public DisplayItemClient {
   // local coordinate system of the effect node containing the filter.
   FloatRect FilterReferenceBox() const;
   FloatRect BackdropFilterReferenceBox() const;
-  gfx::RRectF BackdropFilterBounds(const FloatRect& reference_box) const;
+  gfx::RRectF BackdropFilterBounds() const;
 
   void UpdateFilterReferenceBox();
   void UpdateFilters(const ComputedStyle* old_style,
@@ -749,6 +742,9 @@ class CORE_EXPORT PaintLayer : public DisplayItemClient {
 
   bool CanBeCompositedForDirectReasons() const;
 
+  // Whether the layer could ever be composited.
+  bool CanBeComposited() const;
+
   CompositingReasons PotentialCompositingReasonsFromStyle() const {
     return rare_data_ ? rare_data_->potential_compositing_reasons_from_style
                       : CompositingReason::kNone;
@@ -776,18 +772,23 @@ class CORE_EXPORT PaintLayer : public DisplayItemClient {
            CompositingReason::kComboAllDirectStyleDeterminedReasons;
   }
 
-  struct AncestorDependentCompositingInputs {
-    const PaintLayer* opacity_ancestor = nullptr;
-    const PaintLayer* transform_ancestor = nullptr;
-    const PaintLayer* filter_ancestor = nullptr;
-    const PaintLayer* clip_path_ancestor = nullptr;
-    const PaintLayer* mask_ancestor = nullptr;
+  class CORE_EXPORT AncestorDependentCompositingInputs final
+      : public GarbageCollected<AncestorDependentCompositingInputs> {
+   public:
+    AncestorDependentCompositingInputs() = default;
+    void Trace(Visitor*) const;
 
-    // The fist ancestor which can scroll. This is a subset of the
+    Member<const PaintLayer> opacity_ancestor = nullptr;
+    Member<const PaintLayer> transform_ancestor = nullptr;
+    Member<const PaintLayer> filter_ancestor = nullptr;
+    Member<const PaintLayer> clip_path_ancestor = nullptr;
+    Member<const PaintLayer> mask_ancestor = nullptr;
+
+    // The first ancestor which can scroll. This is a subset of the
     // ancestorOverflowLayer chain where the scrolling layer is visible and
     // has a larger scroll content than its bounds.
-    const PaintLayer* ancestor_scrolling_layer = nullptr;
-    const PaintLayer* nearest_fixed_position_layer = nullptr;
+    Member<const PaintLayer> ancestor_scrolling_layer = nullptr;
+    Member<const PaintLayer> nearest_fixed_position_layer = nullptr;
 
     // A scroll parent is a compositor concept. It's only needed in blink
     // because we need to use it as a promotion trigger. A layer has a
@@ -795,34 +796,23 @@ class CORE_EXPORT PaintLayer : public DisplayItemClient {
     // other layer scrolled by this ancestor, is a stacking ancestor of this
     // layer. Layers with scroll parents must be scrolled with the main
     // scrolling layer by the compositor.
-    const PaintLayer* scroll_parent = nullptr;
+    Member<const PaintLayer> scroll_parent = nullptr;
 
     // A clip parent is another compositor concept that has leaked into
     // blink so that it may be used as a promotion trigger. Layers with clip
     // parents escape the clip of a stacking tree ancestor. The compositor
     // needs to know about clip parents in order to circumvent its normal
     // clipping logic.
-    const PaintLayer* clip_parent = nullptr;
+    Member<const PaintLayer> clip_parent = nullptr;
 
     // Nearest layer that has layout containment applied to its LayoutObject.
     // Squashing is disallowed across contain layout boundaries to provide
     // better isolation.
-    const PaintLayer* nearest_contained_layout_layer = nullptr;
+    Member<const PaintLayer> nearest_contained_layout_layer = nullptr;
 
-    // These two boxes do not include any applicable scroll offset of the
-    // root PaintLayer. Note that 'absolute' here is potentially misleading as
-    // the actual coordinate system depends on if this layer is affected by the
-    // viewport's scroll offset or not. For content that is not affected by the
-    // viewport scroll offsets, this ends up being a rect in viewport coords.
-    // For content that is affected by the viewport's scroll offset this
-    // coordinate system is in absolute coords.
-    // Note: This stores LocalBoundingBoxForCompositingOverlapTest and not the
-    // expanded bounds (ExpandedBoundingBoxForCompositingOverlapTest).
-    IntRect clipped_absolute_bounding_box;
-    IntRect unclipped_absolute_bounding_box;
-
-    const LayoutBoxModelObject* clipping_container = nullptr;
+    Member<const LayoutBoxModelObject> clipping_container;
   };
+
   bool NeedsVisualOverflowRecalc() const {
     return needs_visual_overflow_recalc_;
   }
@@ -860,7 +850,17 @@ class CORE_EXPORT PaintLayer : public DisplayItemClient {
     ancestor_scroll_container_layer_ = ancestor_scroll_container_layer;
   }
   void UpdateAncestorDependentCompositingInputs(
-      const AncestorDependentCompositingInputs&);
+      const PaintLayer* opacity_ancestor,
+      const PaintLayer* transform_ancestor,
+      const PaintLayer* filter_ancestor,
+      const PaintLayer* clip_path_ancestor,
+      const PaintLayer* mask_ancestor,
+      const PaintLayer* ancestor_scrolling_layer,
+      const PaintLayer* nearest_fixed_position_layer,
+      const PaintLayer* scroll_parent,
+      const PaintLayer* clip_parent,
+      const PaintLayer* nearest_contained_layout_layer,
+      const LayoutBoxModelObject* clipping_container);
   void ClearChildNeedsCompositingInputsUpdate();
 
   const AncestorDependentCompositingInputs&
@@ -1097,14 +1097,6 @@ class CORE_EXPORT PaintLayer : public DisplayItemClient {
     return descendant_may_need_compositing_requirements_update_;
   }
 
-  ClipRectsCache* GetClipRectsCache() const { return clip_rects_cache_.get(); }
-  ClipRectsCache& EnsureClipRectsCache() const {
-    if (!clip_rects_cache_)
-      clip_rects_cache_ = std::make_unique<ClipRectsCache>();
-    return *clip_rects_cache_;
-  }
-  void ClearClipRectsCache() const { clip_rects_cache_.reset(); }
-
   bool Has3DTransformedDescendant() const {
     DCHECK(!needs_descendant_dependent_flags_update_);
     return has3d_transformed_descendant_;
@@ -1139,10 +1131,6 @@ class CORE_EXPORT PaintLayer : public DisplayItemClient {
   }
 
 #if DCHECK_IS_ON()
-  void SetStackingParent(PaintLayerStackingNode* stacking_parent) {
-    stacking_parent_ = stacking_parent;
-  }
-  PaintLayerStackingNode* StackingParent() { return stacking_parent_; }
   bool IsInStackingParentZOrderLists() const;
   bool LayerListMutationAllowed() const { return layer_list_mutation_allowed_; }
 #endif
@@ -1175,7 +1163,10 @@ class CORE_EXPORT PaintLayer : public DisplayItemClient {
     needs_paint_offset_translation_for_compositing_ = b;
   }
 
+  void Trace(Visitor*) const;
+
  private:
+  PhysicalRect LocalBoundingBoxForCompositingOverlapTest() const;
   bool PaintsWithDirectReasonIntoOwnBacking(GlobalPaintFlags) const;
 
   void SetNeedsCompositingInputsUpdateInternal();
@@ -1303,7 +1294,7 @@ class CORE_EXPORT PaintLayer : public DisplayItemClient {
 
   PaintLayerRareData& EnsureRareData() {
     if (!rare_data_)
-      rare_data_ = std::make_unique<PaintLayerRareData>();
+      rare_data_ = MakeGarbageCollected<PaintLayerRareData>();
     return *rare_data_;
   }
 
@@ -1332,14 +1323,14 @@ class CORE_EXPORT PaintLayer : public DisplayItemClient {
       const {
     if (!ancestor_dependent_compositing_inputs_) {
       ancestor_dependent_compositing_inputs_ =
-          std::make_unique<AncestorDependentCompositingInputs>();
+          MakeGarbageCollected<AncestorDependentCompositingInputs>();
     }
     return *ancestor_dependent_compositing_inputs_;
   }
 
   // This is private because PaintLayerStackingNode is only for PaintLayer and
   // PaintLayerPaintOrderIterator.
-  PaintLayerStackingNode* StackingNode() const { return stacking_node_.get(); }
+  PaintLayerStackingNode* StackingNode() const { return stacking_node_; }
 
   void SetNeedsReorderOverlayOverflowControls(bool b) {
     needs_reorder_overlay_overflow_controls_ = b;
@@ -1439,15 +1430,16 @@ class CORE_EXPORT PaintLayer : public DisplayItemClient {
 
 #if DCHECK_IS_ON()
   mutable unsigned layer_list_mutation_allowed_ : 1;
+  bool is_destroyed_ = false;
 #endif
 
-  LayoutBoxModelObject* const layout_object_;
+  const Member<LayoutBoxModelObject> layout_object_;
 
-  PaintLayer* parent_;
-  PaintLayer* previous_;
-  PaintLayer* next_;
-  PaintLayer* first_;
-  PaintLayer* last_;
+  Member<PaintLayer> parent_;
+  Member<PaintLayer> previous_;
+  Member<PaintLayer> next_;
+  Member<PaintLayer> first_;
+  Member<PaintLayer> last_;
 
   // Our (x,y) coordinates are in our containing layer's coordinate space,
   // excluding positioning offset and scroll.
@@ -1464,28 +1456,22 @@ class CORE_EXPORT PaintLayer : public DisplayItemClient {
   LayoutUnit static_inline_position_;
   LayoutUnit static_block_position_;
 
+  CullRect previous_cull_rect_;
+
   // The first ancestor that is a scroll container. This is not a member of
   // AncestorDependentCompositingInputs as it is needed when
   // |needs_descendant_dependent_flags_update_| is true. In other words, it is
   // accessed and used out of band with normal compositing inputs updating.
-  const PaintLayer* ancestor_scroll_container_layer_;
+  Member<const PaintLayer> ancestor_scroll_container_layer_;
 
-  mutable std::unique_ptr<AncestorDependentCompositingInputs>
+  mutable Member<AncestorDependentCompositingInputs>
       ancestor_dependent_compositing_inputs_;
 
-  Persistent<PaintLayerScrollableArea> scrollable_area_;
+  Member<PaintLayerScrollableArea> scrollable_area_;
 
-  mutable std::unique_ptr<ClipRectsCache> clip_rects_cache_;
+  Member<PaintLayerStackingNode> stacking_node_;
 
-  std::unique_ptr<PaintLayerStackingNode> stacking_node_;
-
-  CullRect previous_cull_rect_;
-
-  std::unique_ptr<PaintLayerRareData> rare_data_;
-
-#if DCHECK_IS_ON()
-  PaintLayerStackingNode* stacking_parent_;
-#endif
+  Member<PaintLayerRareData> rare_data_;
 
   // For layer_list_mutation_allowed_.
   friend class PaintLayerListMutationDetector;
@@ -1499,6 +1485,25 @@ class CORE_EXPORT PaintLayer : public DisplayItemClient {
                            DescendantDependentFlagsStopsAtThrottledFrames);
   FRIEND_TEST_ALL_PREFIXES(PaintLayerTest,
                            PaintLayerTransformUpdatedOnStyleTransformAnimation);
+  FRIEND_TEST_ALL_PREFIXES(
+      PaintLayerOverlapTest,
+      FixedUnderTransformDoesNotExpandBoundingBoxForOverlap);
+  FRIEND_TEST_ALL_PREFIXES(PaintLayerOverlapTest,
+                           FixedUsesExpandedBoundingBoxForOverlap);
+  FRIEND_TEST_ALL_PREFIXES(PaintLayerOverlapTest,
+                           FixedInScrollerUsesExpandedBoundingBoxForOverlap);
+  FRIEND_TEST_ALL_PREFIXES(PaintLayerOverlapTest,
+                           NestedFixedUsesExpandedBoundingBoxForOverlap);
+  FRIEND_TEST_ALL_PREFIXES(PaintLayerOverlapTest,
+
+                           FixedWithExpandedBoundsForChild);
+  FRIEND_TEST_ALL_PREFIXES(PaintLayerOverlapTest,
+                           FixedWithClippedExpandedBoundsForChild);
+  FRIEND_TEST_ALL_PREFIXES(PaintLayerOverlapTest,
+                           FixedWithExpandedBoundsForGrandChild);
+  FRIEND_TEST_ALL_PREFIXES(PaintLayerOverlapTest,
+
+                           FixedWithExpandedBoundsForFixedChild);
 };
 
 #if DCHECK_IS_ON()
@@ -1506,18 +1511,18 @@ class PaintLayerListMutationDetector {
   STACK_ALLOCATED();
 
  public:
-  explicit PaintLayerListMutationDetector(const PaintLayer& layer)
+  explicit PaintLayerListMutationDetector(const PaintLayer* layer)
       : layer_(layer),
-        previous_mutation_allowed_state_(layer.layer_list_mutation_allowed_) {
-    layer.layer_list_mutation_allowed_ = false;
+        previous_mutation_allowed_state_(layer->layer_list_mutation_allowed_) {
+    layer->layer_list_mutation_allowed_ = false;
   }
 
   ~PaintLayerListMutationDetector() {
-    layer_.layer_list_mutation_allowed_ = previous_mutation_allowed_state_;
+    layer_->layer_list_mutation_allowed_ = previous_mutation_allowed_state_;
   }
 
  private:
-  const PaintLayer& layer_;
+  const PaintLayer* layer_;
   bool previous_mutation_allowed_state_;
 };
 #endif
@@ -1530,4 +1535,4 @@ CORE_EXPORT void showLayerTree(const blink::PaintLayer*);
 CORE_EXPORT void showLayerTree(const blink::LayoutObject*);
 #endif
 
-#endif  // Layer_h
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_PAINT_PAINT_LAYER_H_

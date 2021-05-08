@@ -62,7 +62,7 @@ class BaselineGroup {
   ItemPosition preference_;
   LayoutUnit max_ascent_;
   LayoutUnit max_descent_;
-  HashSet<const LayoutBox*> items_;
+  HashSet<UntracedMember<const LayoutBox>> items_;
 };
 
 // Boxes share an alignment context along a particular axis when they
@@ -197,4 +197,4 @@ class GridBaselineAlignment {
 
 }  // namespace blink
 
-#endif  // BaselineContext_h
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_GRID_BASELINE_ALIGNMENT_H_

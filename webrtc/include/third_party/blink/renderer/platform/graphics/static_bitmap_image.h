@@ -96,6 +96,10 @@ class PLATFORM_EXPORT StaticBitmapImage : public Image {
     return orientation_ == ImageOrientationEnum::kDefault;
   }
 
+  void SetOrientation(ImageOrientation orientation) {
+    orientation_ = orientation;
+  }
+
  protected:
   // Helper for sub-classes
   void DrawHelper(cc::PaintCanvas*,
@@ -129,4 +133,4 @@ struct DowncastTraits<StaticBitmapImage> {
 
 }  // namespace blink
 
-#endif
+#endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_STATIC_BITMAP_IMAGE_H_

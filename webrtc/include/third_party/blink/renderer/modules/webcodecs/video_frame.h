@@ -8,10 +8,13 @@
 #include <stdint.h>
 
 #include "base/optional.h"
+#include "third_party/blink/renderer/core/html/canvas/canvas_image_source.h"
 #include "third_party/blink/renderer/core/imagebitmap/image_bitmap_source.h"
+#include "third_party/blink/renderer/modules/canvas/canvas2d/canvas_image_source_util.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/modules/webcodecs/plane.h"
 #include "third_party/blink/renderer/modules/webcodecs/video_frame_handle.h"
+#include "third_party/blink/renderer/modules/webcodecs/video_frame_region.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/heap/heap_allocator.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
@@ -26,15 +29,19 @@ class VideoFrame;
 
 namespace blink {
 
-class ImageBitmap;
+class ArrayBufferOrArrayBufferView;
+class CanvasImageSource;
 class ExceptionState;
 class ExecutionContext;
 class PlaneInit;
 class ScriptPromise;
 class ScriptState;
 class VideoFrameInit;
+class VideoFramePlaneInit;
+class VideoFrameReadIntoOptions;
 
 class MODULES_EXPORT VideoFrame final : public ScriptWrappable,
+                                        public CanvasImageSource,
                                         public ImageBitmapSource {
   DEFINE_WRAPPERTYPEINFO();
 
@@ -49,13 +56,13 @@ class MODULES_EXPORT VideoFrame final : public ScriptWrappable,
 
   // video_frame.idl implementation.
   static VideoFrame* Create(ScriptState*,
-                            ImageBitmap*,
-                            VideoFrameInit*,
+                            const CanvasImageSourceUnion&,
+                            const VideoFrameInit*,
                             ExceptionState&);
   static VideoFrame* Create(ScriptState*,
                             const String& format,
-                            const HeapVector<Member<PlaneInit>>& planes,
-                            VideoFrameInit* init,
+                            const HeapVector<Member<PlaneInit>>&,
+                            const VideoFramePlaneInit*,
                             ExceptionState&);
 
   String format() const;
@@ -64,33 +71,35 @@ class MODULES_EXPORT VideoFrame final : public ScriptWrappable,
   uint32_t codedWidth() const;
   uint32_t codedHeight() const;
 
-  uint32_t cropLeft() const;
-  uint32_t cropTop() const;
-  uint32_t cropWidth() const;
-  uint32_t cropHeight() const;
+  VideoFrameRegion* codedRegion() const;
+  VideoFrameRegion* visibleRegion() const;
+
+  uint32_t cropLeft(ExecutionContext*) const;
+  uint32_t cropTop(ExecutionContext*) const;
+  uint32_t cropWidth(ExecutionContext*) const;
+  uint32_t cropHeight(ExecutionContext*) const;
 
   uint32_t displayWidth() const;
   uint32_t displayHeight() const;
 
-  base::Optional<uint64_t> timestamp() const;
+  base::Optional<int64_t> timestamp() const;
   base::Optional<uint64_t> duration() const;
+
+  uint32_t allocationSize(VideoFrameReadIntoOptions* options, ExceptionState&);
+
+  ScriptPromise readInto(ScriptState*,
+                         const ArrayBufferOrArrayBufferView& destination,
+                         VideoFrameReadIntoOptions* options,
+                         ExceptionState&);
 
   // Invalidates |handle_|, releasing underlying media::VideoFrame references.
   // This effectively "destroys" all frames sharing the same Handle.
   void close();
 
-  // DEPRECATED. Alias for close().
-  void destroy(ExecutionContext*);
-
   // Creates a clone of |this|, with a new Handle, referencing the same
   // media::VideoFrame. The cloned frame will not be closed when |this| is,
   // and its lifetime should be independently managed.
-  VideoFrame* clone(ScriptState*, ExceptionState&);
-  VideoFrame* CloneFromNative(ExecutionContext*);
-
-  ScriptPromise createImageBitmap(ScriptState*,
-                                  const ImageBitmapOptions*,
-                                  ExceptionState&);
+  VideoFrame* clone(ExceptionState&);
 
   // Convenience functions
   scoped_refptr<VideoFrameHandle> handle() const { return handle_; }
@@ -100,6 +109,16 @@ class MODULES_EXPORT VideoFrame final : public ScriptWrappable,
   void Trace(Visitor*) const override;
 
  private:
+  // CanvasImageSource implementation
+  scoped_refptr<Image> GetSourceImageForCanvas(SourceImageStatus*,
+                                               const FloatSize&) override;
+  bool WouldTaintOrigin() const override;
+  FloatSize ElementSize(const FloatSize&,
+                        const RespectImageOrientationEnum) const override;
+  bool IsVideoFrame() const override;
+  bool IsOpaque() const override;
+  bool IsAccelerated() const override;
+
   // ImageBitmapSource implementation
   static constexpr uint64_t kCpuEfficientFrameSize = 320u * 240u;
   IntSize BitmapSourceSize() const override;

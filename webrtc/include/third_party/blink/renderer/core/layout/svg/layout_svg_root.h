@@ -35,6 +35,7 @@ class CORE_EXPORT LayoutSVGRoot final : public LayoutReplaced {
  public:
   explicit LayoutSVGRoot(SVGElement*);
   ~LayoutSVGRoot() override;
+  void Trace(Visitor*) const override;
 
   bool IsEmbeddedThroughSVGImage() const;
   bool IsEmbeddedThroughFrameContainingSVGDocument() const;
@@ -176,9 +177,6 @@ class CORE_EXPORT LayoutSVGRoot final : public LayoutReplaced {
   void MapLocalToAncestor(const LayoutBoxModelObject* ancestor,
                           TransformState&,
                           MapCoordinatesFlags) const override;
-  const LayoutObject* PushMappingToContainer(
-      const LayoutBoxModelObject* ancestor_to_stop_at,
-      LayoutGeometryMap&) const override;
 
   bool CanHaveChildren() const override {
     NOT_DESTROYED();

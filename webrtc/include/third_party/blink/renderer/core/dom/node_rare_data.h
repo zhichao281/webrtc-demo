@@ -24,7 +24,9 @@
 
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/heap/heap.h"
+#include "third_party/blink/renderer/platform/heap/thread_state.h"
 #include "third_party/blink/renderer/platform/wtf/bit_field.h"
+#include "third_party/blink/renderer/platform/wtf/buildflags.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
 
 namespace blink {
@@ -105,8 +107,7 @@ class GC_PLUGIN_IGNORE(
 class GC_PLUGIN_IGNORE("Manual dispatch implemented in NodeData.")
     NodeRenderingData final : public NodeData {
  public:
-  NodeRenderingData(LayoutObject*,
-                    scoped_refptr<const ComputedStyle> computed_style);
+  NodeRenderingData(LayoutObject*, const ComputedStyle* computed_style);
   NodeRenderingData(const NodeRenderingData&) = delete;
   NodeRenderingData& operator=(const NodeRenderingData&) = delete;
 
@@ -116,21 +117,17 @@ class GC_PLUGIN_IGNORE("Manual dispatch implemented in NodeData.")
     layout_object_ = layout_object;
   }
 
-  const ComputedStyle* GetComputedStyle() const {
-    return computed_style_.get();
-  }
-  void SetComputedStyle(scoped_refptr<const ComputedStyle> computed_style);
+  const ComputedStyle* GetComputedStyle() const { return computed_style_; }
+  void SetComputedStyle(const ComputedStyle* computed_style);
 
   static NodeRenderingData& SharedEmptyData();
   bool IsSharedEmptyData() { return this == &SharedEmptyData(); }
 
-  void TraceAfterDispatch(Visitor* visitor) const {
-    NodeData::TraceAfterDispatch(visitor);
-  }
+  void TraceAfterDispatch(Visitor* visitor) const;
 
  private:
-  LayoutObject* layout_object_;
-  scoped_refptr<const ComputedStyle> computed_style_;
+  Member<LayoutObject> layout_object_;
+  Member<const ComputedStyle> computed_style_;
 };
 
 class GC_PLUGIN_IGNORE("Manual dispatch implemented in NodeData.") NodeRareData
@@ -227,6 +224,15 @@ class GC_PLUGIN_IGNORE("Manual dispatch implemented in NodeData.") NodeRareData
   // the timelines are alive as long as the node is alive.
   Member<HeapHashSet<Member<ScrollTimeline>>> scroll_timelines_;
 };
+
+#if BUILDFLAG(USE_V8_OILPAN)
+template <typename T>
+struct ThreadingTrait<
+    T,
+    std::enable_if_t<std::is_base_of<blink::NodeRareData, T>::value>> {
+  static constexpr ThreadAffinity kAffinity = kMainThreadOnly;
+};
+#endif  // USE_V8_OILPAN
 
 }  // namespace blink
 

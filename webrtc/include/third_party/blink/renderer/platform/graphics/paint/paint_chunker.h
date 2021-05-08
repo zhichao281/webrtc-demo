@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_PAINT_PAINT_CHUNKER_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_PAINT_PAINT_CHUNKER_H_
 
+#include "base/dcheck_is_on.h"
 #include "base/macros.h"
 #include "base/optional.h"
 #include "cc/input/layer_selection_bound.h"
@@ -52,6 +53,10 @@ class PLATFORM_EXPORT PaintChunker final {
     next_chunk_id_ = base::nullopt;
   }
   bool WillForceNewChunk() const { return will_force_new_chunk_; }
+
+  void SetShouldComputeContentsOpaque(bool should_compute_) {
+    should_compute_contents_opaque_ = should_compute_;
+  }
 
   void AppendByMoving(PaintChunk&&);
 
@@ -102,11 +107,14 @@ class PLATFORM_EXPORT PaintChunker final {
       PropertyTreeState::Uninitialized();
 
   Region last_chunk_known_to_be_opaque_region_;
+  bool last_chunk_text_known_to_be_on_opaque_background_ = true;
 
   // True when an item forces a new chunk (e.g., foreign display items), and for
   // the item following a forced chunk. PaintController also forces new chunks
   // before and after subsequences by calling ForceNewChunk().
   bool will_force_new_chunk_ = true;
+
+  bool should_compute_contents_opaque_ = true;
 
   Color candidate_background_color_ = Color::kTransparent;
   float candidate_background_area_ = 0;

@@ -26,6 +26,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_GRAPHICS_LAYER_CLIENT_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_GRAPHICS_LAYER_CLIENT_H_
 
+#include "base/dcheck_is_on.h"
 #include "third_party/blink/renderer/platform/geometry/layout_size.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
@@ -36,6 +37,7 @@ class GraphicsContext;
 class GraphicsLayer;
 class IntRect;
 class ScrollableArea;
+class PaintArtifactCompositor;
 
 enum GraphicsLayerPaintingPhaseFlags {
   kGraphicsLayerPaintBackground = (1 << 0),
@@ -75,6 +77,8 @@ class PLATFORM_EXPORT GraphicsLayerClient {
   virtual bool IsTrackingRasterInvalidations() const { return false; }
 
   virtual void GraphicsLayersDidChange() {}
+
+  virtual PaintArtifactCompositor* GetPaintArtifactCompositor() = 0;
 
   virtual String DebugName(const GraphicsLayer*) const = 0;
 

@@ -89,7 +89,7 @@ class CORE_EXPORT ChromeClientImpl final : public ChromeClient {
                              network::mojom::blink::WebSandboxFlags,
                              const SessionStorageNamespaceId&,
                              bool& consumed_user_gesture) override;
-  void Show(const base::UnguessableToken& opener_frame_token,
+  void Show(const blink::LocalFrameToken& opener_frame_token,
             NavigationPolicy navigation_policy,
             const IntRect& initial_rect,
             bool user_gesture) override;
@@ -131,13 +131,13 @@ class CORE_EXPORT ChromeClientImpl final : public ChromeClient {
                                     const String& default_value,
                                     String& result) override;
   bool TabsToLinks() override;
-  void InvalidateRect(const IntRect&) override;
-  void ScheduleAnimation(const LocalFrameView*,
-                         base::TimeDelta = base::TimeDelta()) override;
+  void InvalidateContainer() override;
+  void ScheduleAnimation(const LocalFrameView*, base::TimeDelta delay) override;
   IntRect ViewportToScreen(const IntRect&,
                            const LocalFrameView*) const override;
   float WindowToViewportScalar(LocalFrame*, const float) const override;
-  ScreenInfo GetScreenInfo(LocalFrame&) const override;
+  const ScreenInfo& GetScreenInfo(LocalFrame&) const override;
+  const ScreenInfos& GetScreenInfos(LocalFrame&) const override;
   void OverrideVisibleRectForMainFrame(LocalFrame& frame,
                                        IntRect* paint_rect) const override;
   float InputEventsScaleForEmulation() const override;
@@ -209,7 +209,7 @@ class CORE_EXPORT ChromeClientImpl final : public ChromeClient {
   void SetCursorForPlugin(const ui::Cursor&, LocalFrame*) override;
   void SetDelegatedInkMetadata(
       LocalFrame* frame,
-      std::unique_ptr<viz::DelegatedInkMetadata> metadata) override;
+      std::unique_ptr<gfx::DelegatedInkMetadata> metadata) override;
 
   // ChromeClientImpl:
   void SetNewWindowNavigationPolicy(WebNavigationPolicy);
@@ -323,4 +323,4 @@ struct DowncastTraits<ChromeClientImpl> {
 
 }  // namespace blink
 
-#endif
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_PAGE_CHROME_CLIENT_IMPL_H_

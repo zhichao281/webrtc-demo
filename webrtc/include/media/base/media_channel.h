@@ -51,7 +51,6 @@
 #include "rtc_base/string_encode.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/synchronization/mutex.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 
 namespace rtc {
 class Timing;
@@ -154,7 +153,7 @@ struct VideoOptions {
   }
 };
 
-class MediaChannel : public sigslot::has_slots<> {
+class MediaChannel {
  public:
   class NetworkInterface {
    public:
@@ -171,7 +170,7 @@ class MediaChannel : public sigslot::has_slots<> {
 
   explicit MediaChannel(const MediaConfig& config);
   MediaChannel();
-  ~MediaChannel() override;
+  virtual ~MediaChannel();
 
   virtual cricket::MediaType media_type() const = 0;
 
@@ -181,6 +180,9 @@ class MediaChannel : public sigslot::has_slots<> {
   // Called on the network when an RTP packet is received.
   virtual void OnPacketReceived(rtc::CopyOnWriteBuffer packet,
                                 int64_t packet_time_us) = 0;
+  // Called on the network thread after a transport has finished sending a
+  // packet.
+  virtual void OnPacketSent(const rtc::SentPacket& sent_packet) = 0;
   // Called when the socket's ability to send has changed.
   virtual void OnReadyToSend(bool ready) = 0;
   // Called when the network route used for sending packets changed.
@@ -206,6 +208,17 @@ class MediaChannel : public sigslot::has_slots<> {
   // Resets any cached StreamParams for an unsignaled RecvStream, and removes
   // any existing unsignaled streams.
   virtual void ResetUnsignaledRecvStream() = 0;
+  // Informs the media channel when the transport's demuxer criteria is updated.
+  // * OnDemuxerCriteriaUpdatePending() happens on the same thread that the
+  //   channel's streams are added and removed (worker thread).
+  // * OnDemuxerCriteriaUpdateComplete() happens on the thread where the demuxer
+  //   lives (network thread).
+  // Because the demuxer is updated asynchronously, there is a window of time
+  // where packets are arriving to the channel for streams that have already
+  // been removed on the worker thread. It is important NOT to treat these as
+  // new unsignalled ssrcs.
+  virtual void OnDemuxerCriteriaUpdatePending() = 0;
+  virtual void OnDemuxerCriteriaUpdateComplete() = 0;
   // Returns the absoulte sendtime extension id value from media channel.
   virtual int GetRtpSendTimeExtnId() const;
   // Set the frame encryptor to use on all outgoing frames. This is optional.
@@ -228,30 +241,21 @@ class MediaChannel : public sigslot::has_slots<> {
 
   // Base method to send packet using NetworkInterface.
   bool SendPacket(rtc::CopyOnWriteBuffer* packet,
-                  const rtc::PacketOptions& options) {
-    return DoSendPacket(packet, false, options);
-  }
+                  const rtc::PacketOptions& options);
 
   bool SendRtcp(rtc::CopyOnWriteBuffer* packet,
-                const rtc::PacketOptions& options) {
-    return DoSendPacket(packet, true, options);
-  }
+                const rtc::PacketOptions& options);
 
   int SetOption(NetworkInterface::SocketType type,
                 rtc::Socket::Option opt,
-                int option) RTC_LOCKS_EXCLUDED(network_interface_mutex_) {
-    webrtc::MutexLock lock(&network_interface_mutex_);
-    return SetOptionLocked(type, opt, option);
-  }
+                int option) RTC_LOCKS_EXCLUDED(network_interface_mutex_);
 
   // Corresponds to the SDP attribute extmap-allow-mixed, see RFC8285.
   // Set to true if it's allowed to mix one- and two-byte RTP header extensions
   // in the same stream. The setter and getter must only be called from
   // worker_thread.
-  void SetExtmapAllowMixed(bool extmap_allow_mixed) {
-    extmap_allow_mixed_ = extmap_allow_mixed;
-  }
-  bool ExtmapAllowMixed() const { return extmap_allow_mixed_; }
+  void SetExtmapAllowMixed(bool extmap_allow_mixed);
+  bool ExtmapAllowMixed() const;
 
   virtual webrtc::RtpParameters GetRtpSendParameters(uint32_t ssrc) const = 0;
   virtual webrtc::RTCError SetRtpSendParameters(
@@ -269,58 +273,27 @@ class MediaChannel : public sigslot::has_slots<> {
   int SetOptionLocked(NetworkInterface::SocketType type,
                       rtc::Socket::Option opt,
                       int option)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(network_interface_mutex_) {
-    if (!network_interface_)
-      return -1;
-    return network_interface_->SetOption(type, opt, option);
-  }
+      RTC_EXCLUSIVE_LOCKS_REQUIRED(network_interface_mutex_);
 
-  bool DscpEnabled() const { return enable_dscp_; }
+  bool DscpEnabled() const;
 
   // This is the DSCP value used for both RTP and RTCP channels if DSCP is
   // enabled. It can be changed at any time via |SetPreferredDscp|.
   rtc::DiffServCodePoint PreferredDscp() const
-      RTC_LOCKS_EXCLUDED(network_interface_mutex_) {
-    webrtc::MutexLock lock(&network_interface_mutex_);
-    return preferred_dscp_;
-  }
+      RTC_LOCKS_EXCLUDED(network_interface_mutex_);
 
   int SetPreferredDscp(rtc::DiffServCodePoint preferred_dscp)
-      RTC_LOCKS_EXCLUDED(network_interface_mutex_) {
-    webrtc::MutexLock lock(&network_interface_mutex_);
-    if (preferred_dscp == preferred_dscp_) {
-      return 0;
-    }
-    preferred_dscp_ = preferred_dscp;
-    return UpdateDscp();
-  }
+      RTC_LOCKS_EXCLUDED(network_interface_mutex_);
 
  private:
   // Apply the preferred DSCP setting to the underlying network interface RTP
   // and RTCP channels. If DSCP is disabled, then apply the default DSCP value.
-  int UpdateDscp() RTC_EXCLUSIVE_LOCKS_REQUIRED(network_interface_mutex_) {
-    rtc::DiffServCodePoint value =
-        enable_dscp_ ? preferred_dscp_ : rtc::DSCP_DEFAULT;
-    int ret =
-        SetOptionLocked(NetworkInterface::ST_RTP, rtc::Socket::OPT_DSCP, value);
-    if (ret == 0) {
-      ret = SetOptionLocked(NetworkInterface::ST_RTCP, rtc::Socket::OPT_DSCP,
-                            value);
-    }
-    return ret;
-  }
+  int UpdateDscp() RTC_EXCLUSIVE_LOCKS_REQUIRED(network_interface_mutex_);
 
   bool DoSendPacket(rtc::CopyOnWriteBuffer* packet,
                     bool rtcp,
                     const rtc::PacketOptions& options)
-      RTC_LOCKS_EXCLUDED(network_interface_mutex_) {
-    webrtc::MutexLock lock(&network_interface_mutex_);
-    if (!network_interface_)
-      return false;
-
-    return (!rtcp) ? network_interface_->SendPacket(packet, options)
-                   : network_interface_->SendRtcp(packet, options);
-  }
+      RTC_LOCKS_EXCLUDED(network_interface_mutex_);
 
   const bool enable_dscp_;
   // |network_interface_| can be accessed from the worker_thread and
@@ -536,6 +509,13 @@ struct VoiceReceiverInfo : public MediaReceiverInfo {
   // longer than 150 ms).
   int32_t interruption_count = 0;
   int32_t total_interruption_duration_ms = 0;
+  // Remote outbound stats derived by the received RTCP sender reports.
+  // https://w3c.github.io/webrtc-stats/#remoteoutboundrtpstats-dict*
+  absl::optional<int64_t> last_sender_report_timestamp_ms;
+  absl::optional<int64_t> last_sender_report_remote_timestamp_ms;
+  uint32_t sender_reports_packets_sent = 0;
+  uint64_t sender_reports_bytes_sent = 0;
+  uint64_t sender_reports_reports_count = 0;
 };
 
 struct VideoSenderInfo : public MediaSenderInfo {
@@ -548,6 +528,7 @@ struct VideoSenderInfo : public MediaSenderInfo {
   int nacks_rcvd = 0;
   int send_frame_width = 0;
   int send_frame_height = 0;
+  int frames = 0;
   int framerate_input = 0;
   int framerate_sent = 0;
   int aggregated_framerate_sent = 0;
@@ -657,14 +638,6 @@ struct VideoReceiverInfo : public MediaReceiverInfo {
   absl::optional<webrtc::TimingFrameInfo> timing_frame_info;
 };
 
-struct DataSenderInfo : public MediaSenderInfo {
-  uint32_t ssrc = 0;
-};
-
-struct DataReceiverInfo : public MediaReceiverInfo {
-  uint32_t ssrc = 0;
-};
-
 struct BandwidthEstimationInfo {
   int available_send_bandwidth = 0;
   int available_recv_bandwidth = 0;
@@ -716,17 +689,6 @@ struct VideoMediaInfo {
   std::vector<VideoReceiverInfo> receivers;
   RtpCodecParametersMap send_codecs;
   RtpCodecParametersMap receive_codecs;
-};
-
-struct DataMediaInfo {
-  DataMediaInfo();
-  ~DataMediaInfo();
-  void Clear() {
-    senders.clear();
-    receivers.clear();
-  }
-  std::vector<DataSenderInfo> senders;
-  std::vector<DataReceiverInfo> receivers;
 };
 
 struct RtcpParameters {
@@ -936,26 +898,17 @@ enum DataMessageType {
 // signal fires, on up the chain.
 struct ReceiveDataParams {
   // The in-packet stream indentifier.
-  // RTP data channels use SSRCs, SCTP data channels use SIDs.
-  union {
-    uint32_t ssrc;
-    int sid = 0;
-  };
+  // SCTP data channels use SIDs.
+  int sid = 0;
   // The type of message (binary, text, or control).
   DataMessageType type = DMT_TEXT;
   // A per-stream value incremented per packet in the stream.
   int seq_num = 0;
-  // A per-stream value monotonically increasing with time.
-  int timestamp = 0;
 };
 
 struct SendDataParams {
   // The in-packet stream indentifier.
-  // RTP data channels use SSRCs, SCTP data channels use SIDs.
-  union {
-    uint32_t ssrc;
-    int sid = 0;
-  };
+  int sid = 0;
   // The type of message (binary, text, or control).
   DataMessageType type = DMT_TEXT;
 
@@ -977,46 +930,6 @@ struct SendDataParams {
 };
 
 enum SendDataResult { SDR_SUCCESS, SDR_ERROR, SDR_BLOCK };
-
-struct DataSendParameters : RtpSendParameters<DataCodec> {};
-
-struct DataRecvParameters : RtpParameters<DataCodec> {};
-
-class DataMediaChannel : public MediaChannel {
- public:
-  DataMediaChannel();
-  explicit DataMediaChannel(const MediaConfig& config);
-  ~DataMediaChannel() override;
-
-  cricket::MediaType media_type() const override;
-  virtual bool SetSendParameters(const DataSendParameters& params) = 0;
-  virtual bool SetRecvParameters(const DataRecvParameters& params) = 0;
-
-  // RtpParameter methods are not supported for Data channel.
-  webrtc::RtpParameters GetRtpSendParameters(uint32_t ssrc) const override;
-  webrtc::RTCError SetRtpSendParameters(
-      uint32_t ssrc,
-      const webrtc::RtpParameters& parameters) override;
-
-  // TODO(pthatcher): Implement this.
-  virtual bool GetStats(DataMediaInfo* info);
-
-  virtual bool SetSend(bool send) = 0;
-  virtual bool SetReceive(bool receive) = 0;
-
-  void OnNetworkRouteChanged(const std::string& transport_name,
-                             const rtc::NetworkRoute& network_route) override {}
-
-  virtual bool SendData(const SendDataParams& params,
-                        const rtc::CopyOnWriteBuffer& payload,
-                        SendDataResult* result = NULL) = 0;
-  // Signals when data is received (params, data, len)
-  sigslot::signal3<const ReceiveDataParams&, const char*, size_t>
-      SignalDataReceived;
-  // Signal when the media channel is ready to send the stream. Arguments are:
-  //     writable(bool)
-  sigslot::signal1<bool> SignalReadyToSend;
-};
 
 }  // namespace cricket
 

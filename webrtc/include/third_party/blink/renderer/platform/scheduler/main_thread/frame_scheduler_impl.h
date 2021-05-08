@@ -33,6 +33,7 @@
 #include "third_party/blink/renderer/platform/scheduler/public/web_scheduling_priority.h"
 #include "third_party/blink/renderer/platform/scheduler/worker/worker_scheduler_proxy.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
+#include "third_party/perfetto/include/perfetto/tracing/traced_value_forward.h"
 
 namespace base {
 namespace sequence_manager {
@@ -40,7 +41,6 @@ class TaskQueue;
 }  // namespace sequence_manager
 namespace trace_event {
 class BlameContext;
-class TracedValue;
 }  // namespace trace_event
 }  // namespace base
 
@@ -96,7 +96,7 @@ class PLATFORM_EXPORT FrameSchedulerImpl : public FrameScheduler,
   void SetCrossOriginToMainFrame(bool cross_origin) override;
   bool IsCrossOriginToMainFrame() const override;
 
-  void SetIsAdFrame() override;
+  void SetIsAdFrame(bool is_ad_frame) override;
   bool IsAdFrame() const override;
 
   void TraceUrlChange(const String& url) override;
@@ -122,7 +122,7 @@ class PLATFORM_EXPORT FrameSchedulerImpl : public FrameScheduler,
       const WTF::String& name,
       WebScopedVirtualTimePauser::VirtualTaskDuration duration) override;
 
-  void OnFirstContentfulPaint() override;
+  void OnFirstContentfulPaintInMainFrame() override;
   void OnFirstMeaningfulPaint() override;
   void OnLoad() override;
   bool IsWaitingForContentfulPaint() const;
@@ -133,7 +133,6 @@ class PLATFORM_EXPORT FrameSchedulerImpl : public FrameScheduler,
   // created by an SVGImage). Virtual for testing.
   virtual bool IsOrdinary() const;
 
-  void AsValueInto(base::trace_event::TracedValue* state) const;
   bool IsExemptFromBudgetBasedThrottling() const override;
   std::unique_ptr<blink::mojom::blink::PauseSubresourceLoadingHandle>
   GetPauseSubresourceLoadingHandle() override;
@@ -203,6 +202,8 @@ class PLATFORM_EXPORT FrameSchedulerImpl : public FrameScheduler,
   void OnWebSchedulingTaskQueuePriorityChanged(MainThreadTaskQueue*);
 
   const base::UnguessableToken& GetAgentClusterId() const;
+
+  void WriteIntoTrace(perfetto::TracedValue context) const;
 
  protected:
   FrameSchedulerImpl(MainThreadSchedulerImpl* main_thread_scheduler,
@@ -305,6 +306,7 @@ class PLATFORM_EXPORT FrameSchedulerImpl : public FrameScheduler,
   static MainThreadTaskQueue::QueueTraits UnfreezableLoadingTaskQueueTraits();
   static MainThreadTaskQueue::QueueTraits LoadingControlTaskQueueTraits();
   static MainThreadTaskQueue::QueueTraits FindInPageTaskQueueTraits();
+  static MainThreadTaskQueue::QueueTraits InputBlockingQueueTraits();
 
   const FrameScheduler::FrameType frame_type_;
 
@@ -358,6 +360,9 @@ class PLATFORM_EXPORT FrameSchedulerImpl : public FrameScheduler,
   base::sequence_manager::TaskQueue::QueuePriority
       default_loading_task_priority_ =
           base::sequence_manager::TaskQueue::QueuePriority::kNormalPriority;
+  // Whether we should freeze task queues or not when KeepActive is true.
+  TraceableState<bool, TracingCategoryName::kInfo>
+      is_freeze_while_keep_active_enabled_;
 
   // These are the states of the Page.
   // They should be accessed via GetPageScheduler()->SetPageState().

@@ -196,15 +196,14 @@ class PLATFORM_EXPORT Path {
                              const FloatSize& top_left_radius,
                              const FloatSize& top_right_radius,
                              const FloatSize& bottom_left_radius,
-                             const FloatSize& bottom_right_radius);
+                             const FloatSize& bottom_right_radius,
+                             bool clockwise);
 
   bool SubtractPath(const Path&);
 
   // Updates the path to the union (inclusive-or) of itself with the given
   // argument.
   bool UnionPath(const Path& other);
-
-  bool IntersectPath(const Path& other);
 
  private:
   void AddEllipse(const FloatPoint&,
@@ -231,4 +230,4 @@ PLATFORM_EXPORT bool EllipseIsRenderable(float start_angle, float end_angle);
 
 }  // namespace blink
 
-#endif
+#endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_PATH_H_

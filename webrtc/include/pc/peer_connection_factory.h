@@ -37,7 +37,6 @@
 #include "api/transport/sctp_transport_factory_interface.h"
 #include "api/transport/webrtc_key_value_config.h"
 #include "call/call.h"
-#include "media/sctp/sctp_transport_internal.h"
 #include "p2p/base/port_allocator.h"
 #include "pc/channel_manager.h"
 #include "pc/connection_context.h"
@@ -117,6 +116,8 @@ class PeerConnectionFactory : public PeerConnectionFactoryInterface {
     return context_->signaling_thread();
   }
 
+  rtc::Thread* worker_thread() const { return context_->worker_thread(); }
+
   const Options& options() const {
     RTC_DCHECK_RUN_ON(signaling_thread());
     return options_;
@@ -137,7 +138,6 @@ class PeerConnectionFactory : public PeerConnectionFactoryInterface {
   virtual ~PeerConnectionFactory();
 
  private:
-  rtc::Thread* worker_thread() const { return context_->worker_thread(); }
   rtc::Thread* network_thread() const { return context_->network_thread(); }
 
   bool IsTrialEnabled(absl::string_view key) const;

@@ -12,8 +12,10 @@
 #include "media/base/video_color_space.h"
 #include "media/base/video_encoder.h"
 #include "media/base/video_frame_pool.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_video_encoder_output_callback.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_encoded_video_chunk_output_callback.h"
 #include "third_party/blink/renderer/modules/webcodecs/encoder_base.h"
+#include "third_party/blink/renderer/modules/webcodecs/gpu_factories_retriever.h"
+#include "third_party/blink/renderer/modules/webcodecs/hardware_preference.h"
 #include "third_party/blink/renderer/modules/webcodecs/video_frame.h"
 
 namespace media {
@@ -30,17 +32,17 @@ class VideoEncoderEncodeOptions;
 
 class MODULES_EXPORT VideoEncoderTraits {
  public:
-  enum class AccelerationPreference { kAllow, kDeny, kRequire };
   struct ParsedConfig final : public GarbageCollected<ParsedConfig> {
     media::VideoCodec codec;
     media::VideoCodecProfile profile;
     uint8_t level;
     media::VideoColorSpace color_space;
 
-    AccelerationPreference acc_pref;
+    HardwarePreference hw_pref;
 
     media::VideoEncoder::Options options;
     String codec_string;
+    base::Optional<gfx::Size> display_size;
 
     void Trace(Visitor*) const {}
   };
@@ -51,11 +53,12 @@ class MODULES_EXPORT VideoEncoderTraits {
   using Frame = VideoFrame;
   using EncodeOptions = VideoEncoderEncodeOptions;
   using OutputChunk = EncodedVideoChunk;
-  using OutputCallback = V8VideoEncoderOutputCallback;
+  using OutputCallback = V8EncodedVideoChunkOutputCallback;
   using MediaEncoder = media::VideoEncoder;
 
   // Can't be a virtual method, because it's used from base ctor.
   static const char* GetNameForDevTools();
+  static const char* GetName();
 };
 
 class MODULES_EXPORT VideoEncoder final
@@ -69,9 +72,12 @@ class MODULES_EXPORT VideoEncoder final
   VideoEncoder(ScriptState*, const VideoEncoderInit*, ExceptionState&);
   ~VideoEncoder() override;
 
+  static ScriptPromise isConfigSupported(ScriptState*,
+                                         const VideoEncoderConfig*,
+                                         ExceptionState&);
+
  private:
   using Base = EncoderBase<VideoEncoderTraits>;
-  using AccelerationPreference = VideoEncoderTraits::AccelerationPreference;
   using ParsedConfig = VideoEncoderTraits::ParsedConfig;
 
   void CallOutputCallback(
@@ -82,19 +88,15 @@ class MODULES_EXPORT VideoEncoder final
   void ProcessEncode(Request* request) override;
   void ProcessConfigure(Request* request) override;
   void ProcessReconfigure(Request* request) override;
-  void ProcessFlush(Request* request) override;
 
   void UpdateEncoderLog(std::string encoder_name, bool is_hw_accelerated);
 
-  void OnReceivedGpuFactories(Request*, media::GpuVideoAcceleratorFactories*);
 
   ParsedConfig* ParseConfig(const VideoEncoderConfig*,
                             ExceptionState&) override;
   bool VerifyCodecSupport(ParsedConfig*, ExceptionState&) override;
-  VideoFrame* CloneFrame(VideoFrame*, ExecutionContext*) override;
 
-  void CreateAndInitializeEncoderWithoutAcceleration(Request* request);
-  void CreateAndInitializeEncoderOnEncoderSupportKnown(
+  void ContinueConfigureWithGpuFactories(
       Request* request,
       media::GpuVideoAcceleratorFactories* gpu_factories);
   std::unique_ptr<media::VideoEncoder> CreateMediaVideoEncoder(

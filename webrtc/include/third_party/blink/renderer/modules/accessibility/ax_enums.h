@@ -105,21 +105,18 @@ enum AXTextFromNativeHTML {
 enum AXIgnoredReason {
   kAXActiveModalDialog,
   kAXAriaModalDialog,
-  kAXAncestorIsLeafNode,
   kAXAriaHiddenElement,
   kAXAriaHiddenSubtree,
   kAXEmptyAlt,
   kAXEmptyText,
   kAXInertElement,
   kAXInertSubtree,
-  kAXInheritsPresentation,
   kAXLabelContainer,
   kAXLabelFor,
   kAXNotRendered,
   kAXNotVisible,
   kAXPresentational,
   kAXProbablyPresentational,
-  kAXStaticTextUsedAsNameFor,
   kAXUninteresting
 };
 

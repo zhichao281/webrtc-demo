@@ -38,22 +38,21 @@
 #include "base/optional.h"
 #include "base/unguessable_token.h"
 #include "media/base/speech_recognition_client.h"
-#include "services/network/public/mojom/url_loader_factory.mojom-shared.h"
 #include "services/network/public/mojom/web_sandbox_flags.mojom-shared.h"
-#include "third_party/blink/public/common/feature_policy/feature_policy.h"
 #include "third_party/blink/public/common/loader/loading_behavior_flag.h"
 #include "third_party/blink/public/common/loader/url_loader_factory_bundle.h"
+#include "third_party/blink/public/common/permissions_policy/permissions_policy.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
+#include "third_party/blink/public/common/use_counter/use_counter_feature.h"
 #include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
 #include "third_party/blink/public/mojom/devtools/console_message.mojom-forward.h"
 #include "third_party/blink/public/mojom/frame/blocked_navigation_types.mojom-shared.h"
-#include "third_party/blink/public/mojom/frame/frame.mojom-shared.h"
 #include "third_party/blink/public/mojom/frame/frame_owner_element_type.mojom-shared.h"
 #include "third_party/blink/public/mojom/frame/lifecycle.mojom-shared.h"
+#include "third_party/blink/public/mojom/frame/triggering_event_info.mojom-shared.h"
 #include "third_party/blink/public/mojom/frame/user_activation_update_types.mojom-shared.h"
 #include "third_party/blink/public/mojom/media/renderer_audio_input_stream_factory.mojom-shared.h"
 #include "third_party/blink/public/mojom/portal/portal.mojom-shared.h"
-#include "third_party/blink/public/mojom/use_counter/css_property_id.mojom-shared.h"
 #include "third_party/blink/public/platform/blame_context.h"
 #include "third_party/blink/public/platform/cross_variant_mojo_util.h"
 #include "third_party/blink/public/platform/modules/service_worker/web_service_worker_provider.h"
@@ -100,7 +99,6 @@ class Rect;
 namespace blink {
 namespace mojom {
 enum class TreeScopeType;
-enum class WebFeature : int32_t;
 }  // namespace mojom
 
 class AssociatedInterfaceProvider;
@@ -365,8 +363,7 @@ class BLINK_EXPORT WebLocalFrameClient {
   virtual void DidCommitNavigation(
       WebHistoryCommitType commit_type,
       bool should_reset_browser_interface_broker,
-      network::mojom::WebSandboxFlags sandbox_flags,
-      const ParsedFeaturePolicy& feature_policy_header,
+      const ParsedPermissionsPolicy& permissions_policy_header,
       const DocumentPolicyFeatureState& document_policy_header) {}
 
   // A new document has just been committed as a result of evaluating
@@ -412,12 +409,15 @@ class BLINK_EXPORT WebLocalFrameClient {
   virtual void DidFinishLoad() {}
 
   // The navigation resulted in no change to the documents within the page.
-  // For example, the navigation may have just resulted in scrolling to a
-  // named anchor or a PopState event may have been dispatched.
+  // For example, the navigation may have just resulted in scrolling to a named
+  // anchor or a PopState event may have been dispatched.
+  // |is_synchronously_committed| is true if the navigation is synchronously
+  // committed from within Blink, as opposed to being driven by the browser's
+  // navigation stack.
   virtual void DidFinishSameDocumentNavigation(WebHistoryCommitType,
-                                               bool content_initiated,
-                                               bool is_history_api_navigation) {
-  }
+                                               bool is_synchronously_committed,
+                                               bool is_history_api_navigation,
+                                               bool is_client_redirect) {}
 
   // Called when a RenderFrame's page lifecycle state gets updated.
   virtual void DidSetPageLifecycleState() {}
@@ -518,30 +518,29 @@ class BLINK_EXPORT WebLocalFrameClient {
   // use for segregated histograms.
   virtual void DidObserveLoadingBehavior(LoadingBehaviorFlag) {}
 
-  // Blink hits the code path for a certain web feature for the first time on
-  // this frame. As a performance optimization, features already hit on other
+  // Blink hits the code path for a certain UseCounterFeature for the first time
+  // on this frame. As a performance optimization, features already hit on other
   // frames associated with the same page in the renderer are not currently
-  // reported. This is used for reporting UseCounter features histograms.
-  virtual void DidObserveNewFeatureUsage(mojom::WebFeature) {}
-  // Blink hits the code path for a certain CSS property (either an animated CSS
-  // property or not) for the first time on this frame. As a performance
-  // optimization, features already hit on other frames associated with the same
-  // page in the renderer are not currently reported. This is used for reporting
-  // UseCounter CSS histograms.
-  virtual void DidObserveNewCssPropertyUsage(
-      mojom::CSSSampleId /*css_property*/,
-      bool /*is_animated*/) {}
+  // reported.
+  virtual void DidObserveNewFeatureUsage(const UseCounterFeature&) {}
 
   // Reports that visible elements in the frame shifted (bit.ly/lsm-explainer).
   virtual void DidObserveLayoutShift(double score, bool after_input_or_scroll) {
   }
+
+  // Reports input timestamps for segmenting layout shifts by users inputs to
+  // create Session window.
+  virtual void DidObserveInputForLayoutShiftTracking(
+      base::TimeTicks timestamp) {}
 
   // Reports the number of LayoutBlock creation, and LayoutObject::UpdateLayout
   // calls. All values are deltas since the last calls of this function.
   virtual void DidObserveLayoutNg(uint32_t all_block_count,
                                   uint32_t ng_block_count,
                                   uint32_t all_call_count,
-                                  uint32_t ng_call_count) {}
+                                  uint32_t ng_call_count,
+                                  uint32_t flexbox_ng_block_count,
+                                  uint32_t grid_ng_block_count) {}
 
   enum class LazyLoadBehavior {
     kDeferredImage,    // An image is being deferred by the lazy load feature.
@@ -622,7 +621,10 @@ class BLINK_EXPORT WebLocalFrameClient {
   // Notifies the embedder that a WebAXObject is dirty and its state needs
   // to be serialized again. If |subtree| is true, the entire subtree is
   // dirty.
-  virtual void MarkWebAXObjectDirty(const WebAXObject&, bool subtree) {}
+  virtual void MarkWebAXObjectDirty(
+      const WebAXObject&,
+      bool subtree,
+      ax::mojom::Action event_from_action = ax::mojom::Action::kNone) {}
 
   // Audio Output Devices API --------------------------------------------
 
@@ -650,10 +652,6 @@ class BLINK_EXPORT WebLocalFrameClient {
   }
 
   virtual void OnStopLoading() {}
-
-  virtual void MaybeProxyURLLoaderFactory(
-      blink::CrossVariantMojoReceiver<
-          network::mojom::URLLoaderFactoryInterfaceBase>* factory_receiver) {}
 
   // Accessibility Object Model -------------------------------------------
 

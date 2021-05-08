@@ -46,11 +46,11 @@ class MODULES_EXPORT AXLayoutObject : public AXNodeObject {
  public:
   AXLayoutObject(LayoutObject*, AXObjectCacheImpl&);
   ~AXLayoutObject() override;
+  void Trace(Visitor*) const override;
 
-  // Public, overridden from AXObject.
-  LayoutObject* GetLayoutObject() const final { return layout_object_; }
+  // AXObject overrides:
+  LayoutObject* GetLayoutObject() const final;
   ScrollableArea* GetScrollableAreaIfScrollable() const final;
-  ax::mojom::blink::Role DetermineAccessibilityRole() override;
 
   // If this is an anonymous node, returns the node of its containing layout
   // block, otherwise returns the node of this layout object.
@@ -61,7 +61,7 @@ class MODULES_EXPORT AXLayoutObject : public AXNodeObject {
   Element* AnchorElement() const override;
 
  protected:
-  LayoutObject* layout_object_;
+  Member<LayoutObject> layout_object_;
 
   //
   // Overridden from AXObject.
@@ -71,8 +71,6 @@ class MODULES_EXPORT AXLayoutObject : public AXNodeObject {
   bool IsAXLayoutObject() const final;
 
   // Check object role or purpose.
-  bool IsEditable() const override;
-  bool IsRichlyEditable() const override;
   bool IsLineBreakingObject() const override;
   bool IsLinked() const override;
   bool IsOffScreen() const override;
@@ -88,21 +86,9 @@ class MODULES_EXPORT AXLayoutObject : public AXNodeObject {
 
   // Properties of static elements.
   ax::mojom::blink::ListStyle GetListStyle() const final;
-  String GetText() const override;
-  ax::mojom::blink::WritingDirection GetTextDirection() const final;
-  ax::mojom::blink::TextPosition GetTextPosition() const final;
-  void GetTextStyleAndTextDecorationStyle(
-      int32_t* text_style,
-      ax::mojom::blink::TextDecorationStyle* text_overline_style,
-      ax::mojom::blink::TextDecorationStyle* text_strikethrough_style,
-      ax::mojom::blink::TextDecorationStyle* text_underline_style) const final;
-
   // Inline text boxes.
   AXObject* NextOnLine() const override;
   AXObject* PreviousOnLine() const override;
-
-  // Properties of interactive elements.
-  String StringValue() const override;
 
   // AX name calc.
   String TextAlternative(bool recursive,
@@ -115,11 +101,6 @@ class MODULES_EXPORT AXLayoutObject : public AXNodeObject {
   // Hit testing.
   AXObject* AccessibilityHitTest(const IntPoint&) const override;
 
-  bool CanHaveChildren() const override;
-
-  // Notifications that this object may have changed.
-  void HandleActiveDescendantChanged() override;
-  void HandleAriaExpandedChanged() override;
   // Called when autofill/autocomplete state changes on a form control.
   void HandleAutofillStateChanged(WebAXAutofillState state) override;
 
@@ -149,8 +130,7 @@ class MODULES_EXPORT AXLayoutObject : public AXNodeObject {
 
   // If we can't determine a useful role from the DOM node, attempt to determine
   // a role from the layout object.
-  ax::mojom::blink::Role RoleFromLayoutObject(
-      ax::mojom::blink::Role dom_role) const override;
+  ax::mojom::blink::Role RoleFromLayoutObjectOrNode() const override;
 
  private:
   AXObject* AccessibilityImageMapHitTest(HTMLAreaElement*,
@@ -159,10 +139,6 @@ class MODULES_EXPORT AXLayoutObject : public AXNodeObject {
 
   LayoutRect ComputeElementRect() const;
   bool IsPlaceholder() const;
-
-  static ax::mojom::blink::TextDecorationStyle
-  TextDecorationStyleToAXTextDecorationStyle(
-      const ETextDecorationStyle text_decoration_style);
 
   DISALLOW_COPY_AND_ASSIGN(AXLayoutObject);
 };

@@ -24,7 +24,6 @@
 #include "base/process/process_handle.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
-#include "base/values.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 
@@ -43,6 +42,9 @@
 #endif
 
 namespace base {
+
+class DictionaryValue;
+class Value;
 
 // Full declaration is in process_metrics_iocounters.h.
 struct IoCounters;
@@ -194,14 +196,6 @@ class BASE_EXPORT ProcessMetrics {
   // otherwise.
   bool GetIOCounters(IoCounters* io_counters) const;
 
-  // Returns the number of bytes transferred to/from disk per second, across all
-  // threads of the process, in the interval since the last time the method was
-  // called.
-  //
-  // Since this API measures usage over an interval, it will return zero on the
-  // first call, and an actual value only on the second and subsequent calls.
-  uint64_t GetDiskUsageBytesPerSecond();
-
   // Returns the cumulative disk usage in bytes across all threads of the
   // process since process start.
   uint64_t GetCumulativeDiskUsageInBytes();
@@ -287,14 +281,12 @@ class BASE_EXPORT ProcessMetrics {
   uint64_t last_energy_impact_time_;
 #endif
 
-#if !defined(OS_IOS)
-#if defined(OS_APPLE)
+#if defined(OS_MAC)
   // Queries the port provider if it's set.
   mach_port_t TaskForPid(ProcessHandle process) const;
 
   PortProvider* port_provider_;
-#endif  // defined(OS_APPLE)
-#endif  // !defined(OS_IOS)
+#endif  // defined(OS_MAC)
 
   DISALLOW_COPY_AND_ASSIGN(ProcessMetrics);
 };

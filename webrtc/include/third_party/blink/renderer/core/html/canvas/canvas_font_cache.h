@@ -64,10 +64,10 @@ class CORE_EXPORT CanvasFontCache final
   LinkedHashSet<String> font_lru_list_;
   std::unique_ptr<FontCachePurgePreventer> main_cache_purge_preventer_;
   Member<Document> document_;
-  scoped_refptr<ComputedStyle> default_font_style_;
+  Member<ComputedStyle> default_font_style_;
   bool pruning_scheduled_;
 };
 
 }  // namespace blink
 
-#endif
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_HTML_CANVAS_CANVAS_FONT_CACHE_H_

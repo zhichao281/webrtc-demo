@@ -21,8 +21,8 @@
 #include "api/fec_controller_override.h"
 #include "api/transport/webrtc_key_value_config.h"
 #include "api/video_codecs/video_encoder.h"
+#include "api/video_codecs/vp9_profile.h"
 #include "common_video/include/video_frame_buffer_pool.h"
-#include "media/base/vp9_profile.h"
 #include "modules/video_coding/codecs/interface/libvpx_interface.h"
 #include "modules/video_coding/codecs/vp9/include/vp9.h"
 #include "modules/video_coding/codecs/vp9/vp9_frame_buffer_pool.h"
@@ -103,6 +103,12 @@ class LibvpxVp9Encoder : public VP9Encoder {
   size_t SteadyStateSize(int sid, int tid);
 
   void MaybeRewrapRawWithFormat(const vpx_img_fmt fmt);
+  // Prepares |raw_| to reference image data of |buffer|, or of mapped or scaled
+  // versions of |buffer|. Returns the buffer that got referenced as a result,
+  // allowing the caller to keep a reference to it until after encoding has
+  // finished. On failure to convert the buffer, null is returned.
+  rtc::scoped_refptr<VideoFrameBuffer> PrepareBufferForProfile0(
+      rtc::scoped_refptr<VideoFrameBuffer> buffer);
 
   const std::unique_ptr<LibvpxInterface> libvpx_;
   EncodedImage encoded_image_;

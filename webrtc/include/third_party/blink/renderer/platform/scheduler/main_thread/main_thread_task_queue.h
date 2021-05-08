@@ -18,6 +18,7 @@
 #include "third_party/blink/renderer/platform/scheduler/main_thread/agent_group_scheduler_impl.h"
 #include "third_party/blink/renderer/platform/scheduler/public/frame_scheduler.h"
 #include "third_party/blink/renderer/platform/scheduler/public/web_scheduling_priority.h"
+#include "third_party/perfetto/include/perfetto/tracing/traced_value_forward.h"
 
 namespace base {
 namespace sequence_manager {
@@ -264,6 +265,8 @@ class PLATFORM_EXPORT MainThreadTaskQueue
       return key;
     }
 
+    void WriteIntoTrace(perfetto::TracedValue context) const;
+
     bool can_be_deferred : 1;
     bool can_be_throttled : 1;
     bool can_be_intensively_throttled : 1;
@@ -291,6 +294,17 @@ class PLATFORM_EXPORT MainThreadTaskQueue
     QueueCreationParams SetWebSchedulingPriority(
         base::Optional<WebSchedulingPriority> priority) {
       web_scheduling_priority = priority;
+      return *this;
+    }
+
+    QueueCreationParams SetAgentGroupScheduler(
+        AgentGroupSchedulerImpl* scheduler) {
+      agent_group_scheduler = scheduler;
+      return *this;
+    }
+
+    QueueCreationParams SetFrameScheduler(FrameSchedulerImpl* scheduler) {
+      frame_scheduler = scheduler;
       return *this;
     }
 
@@ -346,17 +360,6 @@ class PLATFORM_EXPORT MainThreadTaskQueue
     }
 
     // Forwarded calls to |spec|.
-
-    QueueCreationParams SetAgentGroupScheduler(
-        AgentGroupSchedulerImpl* scheduler) {
-      agent_group_scheduler = scheduler;
-      return *this;
-    }
-
-    QueueCreationParams SetFrameScheduler(FrameSchedulerImpl* scheduler) {
-      frame_scheduler = scheduler;
-      return *this;
-    }
 
     QueueCreationParams SetShouldMonitorQuiescence(bool should_monitor) {
       spec = spec.SetShouldMonitorQuiescence(should_monitor);
@@ -497,6 +500,8 @@ class PLATFORM_EXPORT MainThreadTaskQueue
   base::WeakPtr<MainThreadTaskQueue> AsWeakPtr() {
     return weak_ptr_factory_.GetWeakPtr();
   }
+
+  void WriteIntoTrace(perfetto::TracedValue context) const;
 
  protected:
   void SetFrameSchedulerForTest(FrameSchedulerImpl* frame_scheduler);

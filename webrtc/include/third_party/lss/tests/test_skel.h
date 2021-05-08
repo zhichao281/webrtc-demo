@@ -59,6 +59,8 @@
 
 #include "linux_syscall_support.h"
 
+#define SKIP_TEST_EXIT_STATUS 77
+
 void assert_buffers_eq_len(const void *buf1, const void *buf2, size_t len) {
   const uint8_t *u8_1 = (const uint8_t *)buf1;
   const uint8_t *u8_2 = (const uint8_t *)buf2;

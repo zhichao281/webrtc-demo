@@ -84,7 +84,6 @@ enum class ResourceType : uint8_t {
   kXSLStyleSheet,
   kLinkPrefetch,
   kTextTrack,
-  kImportResource,
   kAudio,
   kVideo,
   kManifest,
@@ -602,4 +601,4 @@ class NonTextResourceFactory : public ResourceFactory {
 
 }  // namespace blink
 
-#endif
+#endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_LOADER_FETCH_RESOURCE_H_

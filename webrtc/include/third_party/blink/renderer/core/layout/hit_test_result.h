@@ -121,7 +121,7 @@ class CORE_EXPORT HitTestResult {
     SetInnerNode(node);
   }
   void SetNodeAndPosition(Node*,
-                          scoped_refptr<const NGPhysicalBoxFragment>,
+                          const NGPhysicalBoxFragment*,
                           const PhysicalOffset&);
 
   // Override an inner node previously set. The new node needs to be monolithic
@@ -150,8 +150,10 @@ class CORE_EXPORT HitTestResult {
   bool IsSelected(const HitTestLocation& location) const;
   String Title(TextDirection&) const;
   const AtomicString& AltDisplayString() const;
+  static Image* GetImage(const Node* node);
   Image* GetImage() const;
   IntRect ImageRect() const;
+  static KURL AbsoluteImageURL(const Node* node);
   KURL AbsoluteImageURL() const;
   KURL AbsoluteMediaURL() const;
   MediaStreamDescriptor* GetMediaStreamDescriptor() const;

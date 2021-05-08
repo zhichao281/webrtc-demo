@@ -25,9 +25,11 @@
 
 #include <memory>
 
+#include "base/dcheck_is_on.h"
 #include "base/macros.h"
+#include "base/types/pass_key.h"
 #include "third_party/blink/public/mojom/devtools/inspector_issue.mojom-blink-forward.h"
-#include "third_party/blink/public/mojom/frame/frame.mojom-blink.h"
+#include "third_party/blink/public/mojom/frame/text_autosizer_page_info.mojom-blink.h"
 #include "third_party/blink/public/mojom/page/page.mojom-blink.h"
 #include "third_party/blink/public/mojom/page/page_visibility_state.mojom-blink.h"
 #include "third_party/blink/public/platform/scheduler/web_agent_group_scheduler.h"
@@ -101,30 +103,19 @@ class CORE_EXPORT Page final : public GarbageCollected<Page>,
   friend class Settings;
 
  public:
-  // It is up to the platform to ensure that non-null clients are provided where
-  // required.
-  struct CORE_EXPORT PageClients final {
-    STACK_ALLOCATED();
-
-   public:
-    PageClients();
-
-    ChromeClient* chrome_client;
-    DISALLOW_COPY_AND_ASSIGN(PageClients);
-  };
-
   // Any pages not owned by a web view should be created using this method.
   static Page* CreateNonOrdinary(
-      PageClients& pages_clients,
+      ChromeClient& chrome_client,
       scheduler::WebAgentGroupScheduler& agent_group_scheduler);
 
   // An "ordinary" page is a fully-featured page owned by a web view.
   static Page* CreateOrdinary(
-      PageClients&,
+      ChromeClient& chrome_client,
       Page* opener,
       scheduler::WebAgentGroupScheduler& agent_group_scheduler);
 
-  Page(PageClients&,
+  Page(base::PassKey<Page>,
+       ChromeClient& chrome_client,
        scheduler::WebAgentGroupScheduler& agent_group_scheduler,
        bool is_ordinary);
   ~Page() override;
@@ -386,6 +377,9 @@ class CORE_EXPORT Page final : public GarbageCollected<Page>,
 
   static void PrepareForLeakDetection();
 
+  // Fully invalidate paint of all local frames in this page.
+  void InvalidatePaint();
+
  private:
   friend class ScopedPagePauser;
 
@@ -398,7 +392,7 @@ class CORE_EXPORT Page final : public GarbageCollected<Page>,
   void NotifyPluginsChanged() const;
 
   void InvalidateColorScheme();
-  void InvalidatePaint();
+
   // Typically, the main frame and Page should both be owned by the embedder,
   // which must call Page::willBeDestroyed() prior to destroying Page. This
   // call detaches the main frame and clears this pointer, thus ensuring that

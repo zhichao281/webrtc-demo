@@ -23,6 +23,10 @@
 #include "ui/gfx/geometry/scroll_offset.h"
 #include "ui/gfx/geometry/size_f.h"
 
+namespace power_scheduler {
+class PowerModeVoter;
+}  // namespace power_scheduler
+
 namespace viz {
 class CompositorFrame;
 }  // namespace viz
@@ -84,7 +88,7 @@ class SynchronousCompositorProxy : public blink::SynchronousInputHandler,
   void ZoomBy(float zoom_delta, const gfx::Point& anchor, ZoomByCallback) final;
   void SetMemoryPolicy(uint32_t bytes_limit) final;
   void ReclaimResources(uint32_t layer_tree_frame_sink_id,
-                        const Vector<viz::ReturnedResource>& resources) final;
+                        Vector<viz::ReturnedResource> resources) final;
   void SetScroll(const gfx::ScrollOffset& total_scroll_offset) final;
   void BeginFrame(const viz::BeginFrameArgs& args,
                   const WTF::HashMap<uint32_t, viz::FrameTimingDetails>&
@@ -122,6 +126,8 @@ class SynchronousCompositorProxy : public blink::SynchronousInputHandler,
   mojo::AssociatedRemote<mojom::blink::SynchronousCompositorHost> host_;
   mojo::AssociatedReceiver<mojom::blink::SynchronousCompositor> receiver_{this};
   bool use_in_process_zero_copy_software_draw_ = false;
+
+  std::unique_ptr<power_scheduler::PowerModeVoter> animation_power_mode_voter_;
 
   const bool viz_frame_submission_enabled_;
 

@@ -47,8 +47,7 @@ enum ThreadAffinity {
   kMainThreadOnly,
 };
 
-// TODO(mlippautz): Provide specializations.
-template <typename T>
+template <typename T, typename = void>
 struct ThreadingTrait {
   STATIC_ONLY(ThreadingTrait);
   static constexpr ThreadAffinity kAffinity = kAnyThread;
@@ -85,19 +84,11 @@ class PLATFORM_EXPORT ThreadState final {
   void DetachFromIsolate();
 
   ALWAYS_INLINE cppgc::AllocationHandle& allocation_handle() const {
-    return *allocation_handle_;
+    return allocation_handle_;
   }
+  ALWAYS_INLINE cppgc::HeapHandle& heap_handle() const { return heap_handle_; }
   ALWAYS_INLINE v8::CppHeap& cpp_heap() const { return *cpp_heap_; }
   ALWAYS_INLINE v8::Isolate* GetIsolate() const { return isolate_; }
-
-  // Forced garbage collection for testing:
-  //
-  // Collects garbage as long as live memory decreases (capped at 5).
-  void CollectAllGarbageForTesting(
-      BlinkGC::StackState stack_state =
-          BlinkGC::StackState::kNoHeapPointersOnStack);
-
-  void RunTerminationGC();
 
   void SafePoint(BlinkGC::StackState);
 
@@ -117,6 +108,26 @@ class PLATFORM_EXPORT ThreadState final {
         IsGarbageCollectionAllowed(cpp_heap().GetHeapHandle());
   }
 
+  // Waits until sweeping is done and invokes the given callback with
+  // the total sizes of live objects in Node and CSS arenas.
+  void CollectNodeAndCssStatistics(
+      base::OnceCallback<void(size_t allocated_node_bytes,
+                              size_t allocated_css_bytes)>);
+
+  bool IsIncrementalMarking();
+
+  // Forced garbage collection for testing:
+  //
+  // Collects garbage as long as live memory decreases (capped at 5).
+  void CollectAllGarbageForTesting(
+      BlinkGC::StackState stack_state =
+          BlinkGC::StackState::kNoHeapPointersOnStack);
+
+  void EnableDetachedGarbageCollectionsForTesting();
+
+  static ThreadState* AttachMainThreadForTesting(v8::Platform*);
+  static ThreadState* AttachCurrentThreadForTesting(v8::Platform*);
+
  private:
   // Main-thread ThreadState avoids TLS completely by using a regular global.
   // The object is manually managed and should not rely on global ctor/dtor.
@@ -126,13 +137,13 @@ class PLATFORM_EXPORT ThreadState final {
   static base::LazyInstance<WTF::ThreadSpecific<ThreadState*>>::Leaky
       thread_specific_;
 
-  explicit ThreadState();
+  explicit ThreadState(v8::Platform*);
   ~ThreadState();
 
-  // Handle is the most frequently accessed field as it is required for
-  // MakeGarbageCollected().
-  cppgc::AllocationHandle* allocation_handle_ = nullptr;
   std::unique_ptr<v8::CppHeap> cpp_heap_;
+  std::unique_ptr<v8::EmbedderRootsHandler> embedder_roots_handler_;
+  cppgc::AllocationHandle& allocation_handle_;
+  cppgc::HeapHandle& heap_handle_;
   v8::Isolate* isolate_ = nullptr;
   base::PlatformThreadId thread_id_;
   bool forced_scheduled_gc_for_testing_ = false;
@@ -143,7 +154,9 @@ class ThreadStateFor<kMainThreadOnly> {
   STATIC_ONLY(ThreadStateFor);
 
  public:
-  static ThreadState* GetState() { return ThreadState::MainThreadState(); }
+  static ALWAYS_INLINE ThreadState* GetState() {
+    return ThreadState::MainThreadState();
+  }
 };
 
 template <>
@@ -151,7 +164,9 @@ class ThreadStateFor<kAnyThread> {
   STATIC_ONLY(ThreadStateFor);
 
  public:
-  static ThreadState* GetState() { return ThreadState::Current(); }
+  static ALWAYS_INLINE ThreadState* GetState() {
+    return ThreadState::Current();
+  }
 };
 
 }  // namespace blink

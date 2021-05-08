@@ -261,8 +261,8 @@ wl_global_destroy(struct wl_global *global);
  * A filter function enables the server to decide which globals to
  * advertise to each client.
  *
- * When a wl_global filter is set, the given callback funtion will be
- * called during wl_global advertisment and binding.
+ * When a wl_global filter is set, the given callback function will be
+ * called during wl_global advertisement and binding.
  *
  * This function should return true if the global object should be made
  * visible to the client or false otherwise.

@@ -5,10 +5,11 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_HEAP_V8_WRAPPER_PROCESS_HEAP_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_HEAP_V8_WRAPPER_PROCESS_HEAP_H_
 
-#include "gin/public/v8_platform.h"
+#include "gin/public/cppgc.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "v8/include/cppgc/platform.h"
+#include "v8/include/cppgc/process-heap-statistics.h"
 
 namespace blink {
 
@@ -17,13 +18,15 @@ class PLATFORM_EXPORT ProcessHeap {
   STATIC_ONLY(ProcessHeap);
 
  public:
-  static void Init() {
-    cppgc::InitializeProcess(gin::V8Platform::Get()->GetPageAllocator());
+  static void Init() { gin::InitializeCppgcFromV8Platform(); }
+
+  static size_t TotalAllocatedObjectSize() {
+    return cppgc::ProcessHeapStatistics::TotalAllocatedObjectSize();
   }
 
-  static size_t TotalAllocatedObjectSize() { return 0; }
-
-  static size_t TotalAllocatedSpace() { return 0; }
+  static size_t TotalAllocatedSpace() {
+    return cppgc::ProcessHeapStatistics::TotalAllocatedSpace();
+  }
 };
 
 }  // namespace blink

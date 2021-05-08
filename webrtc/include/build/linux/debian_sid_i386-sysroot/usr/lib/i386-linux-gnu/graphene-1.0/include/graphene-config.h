@@ -15,10 +15,10 @@ extern "C" {
 
 # if defined(__SSE__) || \
    (defined(_M_X64) && (_M_X64 > 0))
-#define GRAPHENE_HAS_SSE 1
+/* #undef GRAPHENE_HAS_SSE */
 # endif
 
-# if defined(__ARM_NEON__)
+# if defined(__ARM_NEON__) || defined (_M_ARM64)
 /* #undef GRAPHENE_HAS_ARM_NEON */
 # endif
 

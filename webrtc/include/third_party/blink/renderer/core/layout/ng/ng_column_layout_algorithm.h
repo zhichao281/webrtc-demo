@@ -24,11 +24,15 @@ class CORE_EXPORT NGColumnLayoutAlgorithm
  public:
   NGColumnLayoutAlgorithm(const NGLayoutAlgorithmParams& params);
 
-  scoped_refptr<const NGLayoutResult> Layout() override;
+  const NGLayoutResult* Layout() override;
 
-  MinMaxSizesResult ComputeMinMaxSizes(const MinMaxSizesInput&) const override;
+  MinMaxSizesResult ComputeMinMaxSizes(
+      const MinMaxSizesFloatInput&) const override;
 
  private:
+  MinMaxSizesResult ComputeSpannersMinMaxSizes(
+      const NGBlockNode& search_parent) const;
+
   // Lay out as many children as we can. If |kNeedsEarlierBreak| is returned, it
   // means that we ran out of space at an unappealing location, and need to
   // relayout and break earlier (because we have a better breakpoint there). If
@@ -40,9 +44,8 @@ class CORE_EXPORT NGColumnLayoutAlgorithm
   // column that was laid out. The rows themselves don't create fragments. If
   // we're in a nested fragmentation context and completely out of outer
   // fragmentainer space, nullptr will be returned.
-  scoped_refptr<const NGLayoutResult> LayoutRow(
-      const NGBlockBreakToken* next_column_token,
-      NGMarginStrut*);
+  const NGLayoutResult* LayoutRow(const NGBlockBreakToken* next_column_token,
+                                  NGMarginStrut*);
 
   // Lay out a column spanner. The return value will tell whether to break
   // before the spanner or not. If |NGBreakStatus::kContinue| is returned, and
@@ -70,12 +73,6 @@ class CORE_EXPORT NGColumnLayoutAlgorithm
     return intrinsic_block_size_ - BorderScrollbarPadding().block_start;
   }
 
-  // Lay out again, this time with a predefined good breakpoint that we
-  // discovered in the first pass. This happens when we run out of space in a
-  // fragmentainer at an less-than-ideal location, due to breaking restrictions,
-  // such as break-before:avoid or break-after:avoid.
-  scoped_refptr<const NGLayoutResult> RelayoutAndBreakEarlier();
-
   // Get the percentage resolution size to use for column content (i.e. not
   // spanners).
   LogicalSize ColumnPercentageResolutionSize() const {
@@ -91,9 +88,6 @@ class CORE_EXPORT NGColumnLayoutAlgorithm
       const NGBlockNode& spanner,
       LayoutUnit block_offset) const;
   NGConstraintSpace CreateConstraintSpaceForMinMax() const;
-
-  // When set, this will specify where to break before or inside.
-  const NGEarlyBreak* early_break_ = nullptr;
 
   int used_column_count_;
   LayoutUnit column_inline_size_;

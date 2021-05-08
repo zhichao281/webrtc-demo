@@ -95,7 +95,7 @@ class MODULES_EXPORT EncoderBase
   virtual void ProcessEncode(Request* request) = 0;
   virtual void ProcessConfigure(Request* request) = 0;
   virtual void ProcessReconfigure(Request* request) = 0;
-  virtual void ProcessFlush(Request* request) = 0;
+  virtual void ProcessFlush(Request* request);
   virtual void ResetInternal();
 
   virtual bool CanReconfigure(InternalConfigType& original_config,
@@ -103,7 +103,6 @@ class MODULES_EXPORT EncoderBase
   virtual InternalConfigType* ParseConfig(const ConfigType*,
                                           ExceptionState&) = 0;
   virtual bool VerifyCodecSupport(InternalConfigType*, ExceptionState&) = 0;
-  virtual FrameType* CloneFrame(FrameType*, ExecutionContext*) = 0;
 
   std::unique_ptr<CodecLogger> logger_;
 
@@ -127,6 +126,8 @@ class MODULES_EXPORT EncoderBase
   // kEncode. This flag stops processing of new requests in the requests_ queue
   // till the current requests are finished.
   bool stall_request_processing_ = false;
+
+  bool first_output_after_configure_ = true;
 
   SEQUENCE_CHECKER(sequence_checker_);
 };

@@ -8,13 +8,13 @@
 #include <memory>
 #include <utility>
 
+#include "base/dcheck_is_on.h"
 #include "base/macros.h"
 #include "base/memory/ptr_util.h"
 #include "base/optional.h"
 #include "cc/input/layer_selection_bound.h"
 #include "third_party/blink/renderer/platform/geometry/int_rect.h"
 #include "third_party/blink/renderer/platform/geometry/layout_point.h"
-#include "third_party/blink/renderer/platform/graphics/contiguous_container.h"
 #include "third_party/blink/renderer/platform/graphics/paint/display_item.h"
 #include "third_party/blink/renderer/platform/graphics/paint/display_item_list.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_artifact.h"
@@ -22,7 +22,6 @@
 #include "third_party/blink/renderer/platform/graphics/paint/paint_chunker.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
-#include "third_party/blink/renderer/platform/wtf/assertions.h"
 #include "third_party/blink/renderer/platform/wtf/hash_functions.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
@@ -101,6 +100,10 @@ class PLATFORM_EXPORT PaintController {
 
   void EnsureChunk();
 
+  void SetShouldComputeContentsOpaque(bool should_compute) {
+    paint_chunker_.SetShouldComputeContentsOpaque(should_compute);
+  }
+
   void RecordHitTestData(const DisplayItemClient&,
                          const IntRect&,
                          TouchAction,
@@ -128,15 +131,6 @@ class PLATFORM_EXPORT PaintController {
 
   template <typename DisplayItemClass, typename... Args>
   void CreateAndAppend(Args&&... args) {
-    static_assert(WTF::IsSubclass<DisplayItemClass, DisplayItem>::value,
-                  "Can only createAndAppend subclasses of DisplayItem.");
-    static_assert(
-        sizeof(DisplayItemClass) <= kMaximumDisplayItemSize,
-        "DisplayItem subclass is larger than kMaximumDisplayItemSize.");
-    static_assert(kDisplayItemAlignment % alignof(DisplayItemClass) == 0,
-                  "DisplayItem subclass alignment is not a factor of "
-                  "kDisplayItemAlignment.");
-
     DisplayItemClass& display_item =
         new_paint_artifact_->GetDisplayItemList()
             .AllocateAndConstruct<DisplayItemClass>(
@@ -376,7 +370,7 @@ class PLATFORM_EXPORT PaintController {
 
   SubsequenceMarkers* GetSubsequenceMarkers(const DisplayItemClient&);
 
-  void CheckDuplicatePaintChunkId(const PaintChunk::Id&);
+  void ValidateNewChunkId(const PaintChunk::Id&);
 
 #if DCHECK_IS_ON()
   void ShowDebugDataInternal(DisplayItemList::JsonFlags) const;

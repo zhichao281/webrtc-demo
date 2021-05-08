@@ -42,6 +42,7 @@ enum spa_prop_info {
 					  *  is of the type of the property, the second
 					  *  one is a string with a user readable label
 					  *  for the value. */
+	SPA_PROP_INFO_container,	/**< type of container if any */
 };
 
 /** predefined properties for SPA_TYPE_OBJECT_Props */
@@ -78,6 +79,8 @@ enum spa_prop {
 						  *  channel (Array of Float) */
 	SPA_PROP_volumeBase,			/**< a volume base (Float) */
 	SPA_PROP_volumeStep,			/**< a volume step (Float) */
+	SPA_PROP_channelMap,			/**< a channelmap array
+						  * (Array (Id enum spa_audio_channel)) */
 
 	SPA_PROP_START_Video	= 0x20000,	/**< video related properties */
 	SPA_PROP_brightness,

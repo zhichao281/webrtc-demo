@@ -21,11 +21,9 @@ class CORE_EXPORT NGReplacedLayoutAlgorithm
  public:
   explicit NGReplacedLayoutAlgorithm(const NGLayoutAlgorithmParams& params);
 
-  MinMaxSizesResult ComputeMinMaxSizes(const MinMaxSizesInput&) const override;
-  scoped_refptr<const NGLayoutResult> Layout() override;
-
- private:
-  const LogicalSize natural_size_;
+  MinMaxSizesResult ComputeMinMaxSizes(
+      const MinMaxSizesFloatInput&) const override;
+  const NGLayoutResult* Layout() override;
 };
 
 }  // namespace blink

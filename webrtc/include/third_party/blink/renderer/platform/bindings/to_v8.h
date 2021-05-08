@@ -95,6 +95,15 @@ inline v8::Local<v8::Value> ToV8(const bindings::EnumerationBase& enumeration,
   return V8String(isolate, enumeration.AsCStr());
 }
 
+// Union
+inline v8::Local<v8::Value> ToV8(const bindings::UnionBase* union_value,
+                                 v8::Local<v8::Object> creation_context,
+                                 v8::Isolate* isolate) {
+  return union_value
+      ->ToV8Value(ScriptState::From(creation_context->CreationContext()))
+      .ToLocalChecked();
+}
+
 // Primitives
 
 inline v8::Local<v8::Value> ToV8(const String& value,
@@ -372,4 +381,4 @@ v8::Local<v8::Value> ToV8(const void* value,
 
 }  // namespace blink
 
-#endif  // ToV8ForPlatform_h
+#endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_BINDINGS_TO_V8_H_

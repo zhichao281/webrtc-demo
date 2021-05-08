@@ -65,6 +65,7 @@ enum PseudoId : uint8_t {
   kPseudoIdSelection,
   kPseudoIdScrollbar,
   kPseudoIdTargetText,
+  kPseudoIdHighlight,
   kPseudoIdSpellingError,
   kPseudoIdGrammarError,
   // Internal IDs follow:
@@ -83,7 +84,25 @@ enum PseudoId : uint8_t {
 };
 
 inline bool IsHighlightPseudoElement(PseudoId pseudo_id) {
-  return pseudo_id == kPseudoIdSelection || pseudo_id == kPseudoIdTargetText;
+  switch (pseudo_id) {
+    case kPseudoIdSelection:
+    case kPseudoIdTargetText:
+    case kPseudoIdHighlight:
+    case kPseudoIdSpellingError:
+    case kPseudoIdGrammarError:
+      return true;
+    default:
+      return false;
+  }
+}
+
+inline bool PseudoElementHasArguments(PseudoId pseudo_id) {
+  switch (pseudo_id) {
+    case kPseudoIdHighlight:
+      return true;
+    default:
+      return false;
+  }
 }
 
 enum class OutlineIsAuto : bool { kOff = false, kOn = true };
@@ -353,6 +372,25 @@ enum class EListStyleType : unsigned {
   kKatakanaIroha,
   kNone,
   kString,
+};
+
+enum class EBaselineShiftType : unsigned { kLength, kSub, kSuper };
+
+enum EPaintOrderType {
+  PT_NONE = 0,
+  PT_FILL = 1,
+  PT_STROKE = 2,
+  PT_MARKERS = 3
+};
+
+enum EPaintOrder {
+  kPaintOrderNormal,
+  kPaintOrderFillStrokeMarkers,
+  kPaintOrderFillMarkersStroke,
+  kPaintOrderStrokeFillMarkers,
+  kPaintOrderStrokeMarkersFill,
+  kPaintOrderMarkersFillStroke,
+  kPaintOrderMarkersStrokeFill
 };
 
 }  // namespace blink

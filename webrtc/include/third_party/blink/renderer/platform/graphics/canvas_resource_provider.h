@@ -114,10 +114,8 @@ class PLATFORM_EXPORT CanvasResourceProvider
 
   static std::unique_ptr<CanvasResourceProvider> CreateWebGPUImageProvider(
       const IntSize& size,
-      SkFilterQuality filter_quality,
       const CanvasResourceParams& params,
-      ShouldInitialize initialize_provider,
-      base::WeakPtr<WebGraphicsContext3DProviderWrapper>);
+      bool is_origin_top_left);
 
   static std::unique_ptr<CanvasResourceProvider> CreatePassThroughProvider(
       const IntSize& size,
@@ -238,6 +236,9 @@ class PLATFORM_EXPORT CanvasResourceProvider
   // method also calls FlushCanvas() to ensure that all operations are accounted
   // for in the digest.
   const IdentifiabilityPaintOpDigest& GetIdentifiablityPaintOpDigest();
+  virtual void OnAcquireRecyclableCanvasResource() {}
+  virtual void OnDestroyRecyclableCanvasResource(
+      const gpu::SyncToken& sync_token) {}
 
  protected:
   class CanvasImageProvider;
@@ -273,6 +274,10 @@ class PLATFORM_EXPORT CanvasResourceProvider
   virtual void RasterRecord(sk_sp<cc::PaintRecord>);
   CanvasImageProvider* GetOrCreateCanvasImageProvider();
   void TearDownSkSurface();
+
+  // Will only notify a will draw if its needed. This is initially done for the
+  // CanvasResourceProviderSharedImage use case.
+  virtual void WillDrawIfNeeded() {}
 
   ResourceProviderType type_;
   mutable sk_sp<SkSurface> surface_;  // mutable for lazy init
@@ -347,4 +352,4 @@ class PLATFORM_EXPORT CanvasResourceProvider
 
 }  // namespace blink
 
-#endif
+#endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_CANVAS_RESOURCE_PROVIDER_H_

@@ -35,6 +35,7 @@
 #include "third_party/blink/renderer/platform/mediastream/media_stream_source.h"
 #include "third_party/blink/renderer/platform/scheduler/public/frame_scheduler.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
+#include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
 
@@ -98,7 +99,7 @@ class MODULES_EXPORT MediaStreamTrack
   // Returns the enum value of the ready state.
   MediaStreamSource::ReadyState GetReadyState() { return ready_state_; }
 
-  MediaStreamComponent* Component() { return component_; }
+  MediaStreamComponent* Component() const { return component_; }
   bool Ended() const;
 
   void RegisterMediaStream(MediaStream*);
@@ -130,7 +131,7 @@ class MODULES_EXPORT MediaStreamTrack
   void applyConstraintsImageCapture(ScriptPromiseResolver*,
                                     const MediaTrackConstraints*);
 
-  std::string GetTrackLogString() const;
+  void SendLogMessage(const WTF::String& message);
 
   // Ensures that |feature_handle_for_scheduler_| is initialized.
   void EnsureFeatureHandleForScheduler();

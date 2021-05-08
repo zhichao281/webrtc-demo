@@ -74,6 +74,7 @@
 #include <vector>
 
 #include "api/adaptation/resource.h"
+#include "api/async_dns_resolver.h"
 #include "api/async_resolver_factory.h"
 #include "api/audio/audio_mixer.h"
 #include "api/audio_codecs/audio_decoder_factory.h"
@@ -403,12 +404,6 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
     // from consideration for gathering ICE candidates.
     bool disable_link_local_networks = false;
 
-    // If set to true, use RTP data channels instead of SCTP.
-    // TODO(deadbeef): Remove this. We no longer commit to supporting RTP data
-    // channels, though some applications are still working on moving off of
-    // them.
-    bool enable_rtp_data_channel = false;
-
     // Minimum bitrate at which screencast video tracks will be encoded at.
     // This means adding padding bits up to this bitrate, which can help
     // when switching from a static scene to one with motion.
@@ -639,6 +634,10 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
     // The delay before doing a usage histogram report for long-lived
     // PeerConnections. Used for testing only.
     absl::optional<int> report_usage_pattern_delay_ms;
+
+    // The ping interval (ms) when the connection is stable and writable. This
+    // parameter overrides the default value in the ICE implementation if set.
+    absl::optional<int> stable_writable_connection_ping_interval_ms;
     //
     // Don't forget to update operator== if adding something.
     //
@@ -1322,6 +1321,10 @@ struct RTC_EXPORT PeerConnectionDependencies final {
   // packet_socket_factory, not both.
   std::unique_ptr<cricket::PortAllocator> allocator;
   std::unique_ptr<rtc::PacketSocketFactory> packet_socket_factory;
+  // Factory for creating resolvers that look up hostnames in DNS
+  std::unique_ptr<webrtc::AsyncDnsResolverFactoryInterface>
+      async_dns_resolver_factory;
+  // Deprecated - use async_dns_resolver_factory
   std::unique_ptr<webrtc::AsyncResolverFactory> async_resolver_factory;
   std::unique_ptr<webrtc::IceTransportFactory> ice_transport_factory;
   std::unique_ptr<rtc::RTCCertificateGeneratorInterface> cert_generator;
@@ -1394,10 +1397,6 @@ class RTC_EXPORT PeerConnectionFactoryInterface
     // requirement, allowing unsecured media. Should only be used for
     // testing/debugging.
     bool disable_encryption = false;
-
-    // Deprecated. The only effect of setting this to true is that
-    // CreateDataChannel will fail, which is not that useful.
-    bool disable_sctp_data_channels = false;
 
     // If set to true, any platform-supported network monitoring capability
     // won't be used, and instead networks will only be updated via polling.

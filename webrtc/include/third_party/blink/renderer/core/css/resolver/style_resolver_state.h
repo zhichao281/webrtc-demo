@@ -30,11 +30,11 @@
 #include "third_party/blink/renderer/core/css/css_property_names.h"
 #include "third_party/blink/renderer/core/css/css_to_length_conversion_data.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_mode.h"
-#include "third_party/blink/renderer/core/css/pseudo_style_request.h"
 #include "third_party/blink/renderer/core/css/resolver/css_to_style_map.h"
 #include "third_party/blink/renderer/core/css/resolver/element_resolve_context.h"
 #include "third_party/blink/renderer/core/css/resolver/element_style_resources.h"
 #include "third_party/blink/renderer/core/css/resolver/font_builder.h"
+#include "third_party/blink/renderer/core/css/style_request.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/element.h"
 
@@ -53,16 +53,7 @@ class CORE_EXPORT StyleResolverState {
   enum class ElementType { kElement, kPseudoElement };
 
  public:
-  StyleResolverState(Document&,
-                     Element&,
-                     const ComputedStyle* parent_style = nullptr,
-                     const ComputedStyle* layout_parent_style = nullptr);
-  StyleResolverState(Document&,
-                     Element&,
-                     PseudoId,
-                     PseudoElementStyleRequest::RequestType,
-                     const ComputedStyle* parent_style,
-                     const ComputedStyle* layout_parent_style);
+  StyleResolverState(Document&, Element&, const StyleRequest& = StyleRequest());
   StyleResolverState(const StyleResolverState&) = delete;
   StyleResolverState& operator=(const StyleResolverState&) = delete;
   ~StyleResolverState();
@@ -93,14 +84,14 @@ class CORE_EXPORT StyleResolverState {
     return element_context_;
   }
 
-  void SetStyle(scoped_refptr<ComputedStyle>);
-  const ComputedStyle* Style() const { return style_.get(); }
-  ComputedStyle* Style() { return style_.get(); }
+  void SetStyle(ComputedStyle*);
+  const ComputedStyle* Style() const { return style_; }
+  ComputedStyle* Style() { return style_; }
   ComputedStyle& StyleRef() {
     DCHECK(style_);
     return *style_;
   }
-  scoped_refptr<ComputedStyle> TakeStyle();
+  ComputedStyle* TakeStyle();
 
   const CSSToLengthConversionData& CssToLengthConversionData() const {
     return css_to_length_conversion_data_;
@@ -121,21 +112,14 @@ class CORE_EXPORT StyleResolverState {
     return animation_update_;
   }
 
-  bool IsAnimationInterpolationMapReady() const {
-    return is_animation_interpolation_map_ready_;
-  }
-  void SetIsAnimationInterpolationMapReady() {
-    is_animation_interpolation_map_ready_ = true;
-  }
-
   Element* GetAnimatingElement() const;
 
-  void SetParentStyle(scoped_refptr<const ComputedStyle>);
-  const ComputedStyle* ParentStyle() const { return parent_style_.get(); }
+  void SetParentStyle(const ComputedStyle*);
+  const ComputedStyle* ParentStyle() const { return parent_style_; }
 
-  void SetLayoutParentStyle(scoped_refptr<const ComputedStyle>);
+  void SetLayoutParentStyle(const ComputedStyle*);
   const ComputedStyle* LayoutParentStyle() const {
-    return layout_parent_style_.get();
+    return layout_parent_style_;
   }
 
   ElementStyleResources& GetElementStyleResources() {
@@ -174,18 +158,12 @@ class CORE_EXPORT StyleResolverState {
   // stored in the MatchedPropertiesCache.
   const CSSValue& ResolveLightDarkPair(const CSSProperty&, const CSSValue&);
 
-  void SetCanCacheBaseStyle(bool state) { can_cache_base_style_ = state; }
   bool CanCacheBaseStyle() const { return can_cache_base_style_; }
 
- private:
-  StyleResolverState(Document&,
-                     Element&,
-                     PseudoElement*,
-                     PseudoElementStyleRequest::RequestType,
-                     ElementType,
-                     const ComputedStyle* parent_style,
-                     const ComputedStyle* layout_parent_style);
+  bool HadNoMatchedProperties() const { return had_no_matched_properties_; }
+  void SetHadNoMatchedProperties() { had_no_matched_properties_ = true; }
 
+ private:
   CSSToLengthConversionData UnzoomedLengthConversionData(
       const ComputedStyle* font_style) const;
 
@@ -193,31 +171,34 @@ class CORE_EXPORT StyleResolverState {
   Document* document_;
 
   // style_ is the primary output for each element's style resolve.
-  scoped_refptr<ComputedStyle> style_;
+  ComputedStyle* style_ = nullptr;
 
   CSSToLengthConversionData css_to_length_conversion_data_;
 
   // parent_style_ is not always just ElementResolveContext::ParentStyle(),
   // so we keep it separate.
-  scoped_refptr<const ComputedStyle> parent_style_;
+  const ComputedStyle* parent_style_;
   // This will almost-always be the same that parent_style_, except in the
   // presence of display: contents. This is the style against which we have to
   // do adjustment.
-  scoped_refptr<const ComputedStyle> layout_parent_style_;
+  const ComputedStyle* layout_parent_style_;
 
   CSSAnimationUpdate animation_update_;
-  bool is_animation_interpolation_map_ready_ = false;
-  PseudoElementStyleRequest::RequestType pseudo_request_type_;
+  StyleRequest::RequestType pseudo_request_type_;
 
   FontBuilder font_builder_;
 
+  PseudoElement* pseudo_element_;
   ElementStyleResources element_style_resources_;
-  Element* pseudo_element_;
   ElementType element_type_;
 
   // True if the base style can be cached to optimize style recalculations for
   // animation updates or transition retargeting.
   bool can_cache_base_style_ = false;
+
+  // Set to true if a given style resolve produced an empty MatchResult.
+  // This is used to return a nullptr style for pseudo-element style resolves.
+  bool had_no_matched_properties_ = false;
 };
 
 }  // namespace blink

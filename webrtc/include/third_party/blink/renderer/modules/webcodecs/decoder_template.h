@@ -20,6 +20,7 @@
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/modules/webcodecs/codec_config_eval.h"
 #include "third_party/blink/renderer/modules/webcodecs/codec_logger.h"
+#include "third_party/blink/renderer/modules/webcodecs/hardware_preference.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/heap.h"
@@ -73,6 +74,22 @@ class MODULES_EXPORT DecoderTemplate
                                           MediaConfigType* out_media_config,
                                           String* out_console_message) = 0;
 
+  // Gets the AccelerationPreference from a config.
+  // If derived classes do not override this, this will default to kAllow.
+  virtual HardwarePreference GetHardwarePreference(const ConfigType& config);
+
+  // Get the low delay preference from a config.
+  // If derived classes do not override this, this will default to false.
+  virtual bool GetLowDelayPreference(const ConfigType& config);
+
+  // Sets the HardwarePreference on the |decoder_|.
+  // The default implementation does nothing and must be overridden by derived
+  // classes if needed.
+  // Decoder
+  virtual void SetHardwarePreference(HardwarePreference preference);
+
+  MediaDecoderType* decoder() { return decoder_.get(); }
+
   // Convert a chunk to a DecoderBuffer. You can assume that the last
   // configuration sent to MakeMediaConfig() is the active configuration for
   // |chunk|. If there is an error in the conversion process, the resulting
@@ -94,8 +111,11 @@ class MODULES_EXPORT DecoderTemplate
 
     Type type;
 
-    // For kConfigure Requests.
+    // For kConfigure Requests. Prefer base::Optional<> to ensure values are
+    // only accessed on the proper request type.
     std::unique_ptr<MediaConfigType> media_config;
+    base::Optional<HardwarePreference> hw_pref;
+    base::Optional<bool> low_delay;
 
     // For kDecode Requests.
     scoped_refptr<media::DecoderBuffer> decoder_buffer;
@@ -123,7 +143,6 @@ class MODULES_EXPORT DecoderTemplate
   void OnInitializeDone(media::Status status);
   void OnDecodeDone(uint32_t id, media::Status);
   void OnFlushDone(media::Status);
-  void OnConfigureFlushDone(media::Status);
   void OnResetDone();
   void OnOutput(uint32_t reset_generation, scoped_refptr<MediaOutputType>);
 
@@ -150,6 +169,11 @@ class MODULES_EXPORT DecoderTemplate
   std::unique_ptr<CodecLogger> logger_;
 
   media::GpuVideoAcceleratorFactories* gpu_factories_ = nullptr;
+
+  // Cached config from the last kConfigure request which successfully completed
+  // initialization.
+  bool low_delay_ = false;
+  std::unique_ptr<MediaConfigType> active_config_;
 
   // TODO(sandersd): Store the last config, flush, and reset so that
   // duplicates can be elided.

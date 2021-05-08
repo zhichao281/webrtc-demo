@@ -7,15 +7,15 @@
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/ng/inline/ng_inline_item.h"
-#include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
 
 template <typename OffsetMappingBuilder>
 class NGInlineItemsBuilderTemplate;
+struct SVGInlineNodeData;
 
 // Data which is required for inline nodes.
-struct CORE_EXPORT NGInlineNodeData : NGInlineItemsData {
+struct CORE_EXPORT NGInlineNodeData final : NGInlineItemsData {
  public:
   bool IsBidiEnabled() const { return is_bidi_enabled_; }
   TextDirection BaseDirection() const {
@@ -34,6 +34,8 @@ struct CORE_EXPORT NGInlineNodeData : NGInlineItemsData {
                : *first_line_items_;
   }
 
+  void Trace(Visitor* visitor) const override;
+
  private:
   void SetBaseDirection(TextDirection direction) {
     base_direction_ = static_cast<unsigned>(direction);
@@ -41,7 +43,6 @@ struct CORE_EXPORT NGInlineNodeData : NGInlineItemsData {
 
   friend class NGInlineItemsBuilderTest;
   friend class NGInlineNode;
-  friend class NGInlineNodeLegacy;
   friend class NGInlineNodeForTest;
   friend class NGOffsetMappingTest;
 
@@ -53,7 +54,9 @@ struct CORE_EXPORT NGInlineNodeData : NGInlineItemsData {
   // Items have different ComputedStyle, and may also have different
   // text_content and ShapeResult if 'text-transform' is applied or fonts are
   // different.
-  std::unique_ptr<NGInlineItemsData> first_line_items_;
+  Member<NGInlineItemsData> first_line_items_;
+
+  Member<SVGInlineNodeData> svg_node_data_;
 
   unsigned is_bidi_enabled_ : 1;
   unsigned base_direction_ : 1;  // TextDirection

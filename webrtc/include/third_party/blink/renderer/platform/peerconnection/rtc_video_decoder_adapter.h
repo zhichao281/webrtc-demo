@@ -14,12 +14,13 @@
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "base/synchronization/lock.h"
+#include "build/build_config.h"
 #include "media/base/decode_status.h"
 #include "media/base/status.h"
+#include "media/base/supported_video_decoder_config.h"
 #include "media/base/video_codecs.h"
 #include "media/base/video_decoder.h"
 #include "media/base/video_decoder_config.h"
-#include "media/video/supported_video_decoder_config.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/deque.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
@@ -54,9 +55,14 @@ namespace blink {
 // way to synchronize this correctly.
 class PLATFORM_EXPORT RTCVideoDecoderAdapter : public webrtc::VideoDecoder {
  public:
-  // Minimum vertical resolution that we'll consider "not low resolution" for
-  // the purpose of falling back to software.
-  static constexpr int32_t kMinHeight = 320;
+  // Minimum resolution that we'll consider "not low resolution" for the purpose
+  // of falling back to software.
+#if defined(OS_CHROMEOS)
+  // Effectively opt-out CrOS, since it may cause tests to fail (b/179724180).
+  static constexpr int32_t kMinResolution = 2 * 2;
+#else
+  static constexpr int32_t kMinResolution = 320 * 240;
+#endif
 
   // Maximum number of decoder instances we'll allow before fallback to software
   // if the resolution is too low.  We'll allow more than this for high
@@ -143,6 +149,9 @@ class PLATFORM_EXPORT RTCVideoDecoderAdapter : public webrtc::VideoDecoder {
 
   // Decoding thread members.
   bool key_frame_required_ = true;
+  // Has anything been sent to Decode() yet?
+  bool have_started_decoding_ = false;
+
   // Shared members.
   base::Lock lock_;
   webrtc::VideoCodecType video_codec_type_ = webrtc::kVideoCodecGeneric;
@@ -154,6 +163,13 @@ class PLATFORM_EXPORT RTCVideoDecoderAdapter : public webrtc::VideoDecoder {
   // Record of timestamps that have been sent to be decoded. Removing a
   // timestamp will cause the frame to be dropped when it is output.
   WTF::Deque<base::TimeDelta> decode_timestamps_;
+  // Resolution of most recently decoded frame, or the initial resolution if we
+  // haven't decoded anything yet.  Since this is updated asynchronously, it's
+  // only an approximation of "most recently".
+  int32_t current_resolution_ = 0;
+  // Time since construction.  Cleared when we record that a frame has been
+  // successfully decoded.
+  base::Optional<base::TimeTicks> start_time_ GUARDED_BY(lock_);
 
   // Thread management.
   SEQUENCE_CHECKER(media_sequence_checker_);

@@ -11,6 +11,7 @@
 #include <stack>
 
 #include "base/atomicops.h"
+#include "base/dcheck_is_on.h"
 #include "base/gtest_prod_util.h"
 #include "base/macros.h"
 #include "base/memory/weak_ptr.h"
@@ -51,14 +52,10 @@
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
+#include "third_party/perfetto/include/perfetto/tracing/traced_value_forward.h"
 
 namespace base {
-
 class TaskObserver;
-
-namespace trace_event {
-class ConvertableToTraceFormat;
-}
 }  // namespace base
 
 namespace blink {
@@ -149,6 +146,10 @@ class PLATFORM_EXPORT MainThreadSchedulerImpl
     // base::SequencedTaskRunnerHandle::Get() returns the current active
     // per-ASG task runner instead of the per-thread task runner.
     bool mbi_override_task_runner_handle;
+
+    // If enabled, per-AgentGroupScheduler CompositorTaskRunner will be used
+    // instead of per-MainThreadScheduler CompositorTaskRunner.
+    bool mbi_compositor_task_runner_per_agent_scheduling_group;
   };
 
   static const char* UseCaseToString(UseCase use_case);
@@ -592,11 +593,11 @@ class PLATFORM_EXPORT MainThreadSchedulerImpl
              use_case_ == other.use_case_;
     }
 
-    void AsValueInto(base::trace_event::TracedValue* state) const;
-
     bool IsQueueEnabled(MainThreadTaskQueue* task_queue) const;
 
     TimeDomainType GetTimeDomainType() const;
+
+    void WriteIntoTrace(perfetto::TracedValue context) const;
 
    private:
     RAILMode rail_mode_{RAILMode::kAnimation};
@@ -651,13 +652,9 @@ class PLATFORM_EXPORT MainThreadSchedulerImpl
       MainThreadTaskQueue* queue);
 
   // Returns the serialized scheduler state for tracing.
-  std::unique_ptr<base::trace_event::ConvertableToTraceFormat> AsValue(
-      base::TimeTicks optional_now) const;
-  std::unique_ptr<base::trace_event::ConvertableToTraceFormat> AsValueLocked(
-      base::TimeTicks optional_now) const;
+  void WriteIntoTraceLocked(perfetto::TracedValue context,
+                            base::TimeTicks optional_now) const;
   void CreateTraceEventObjectSnapshotLocked() const;
-
-  std::string ToString() const;
 
   static bool ShouldPrioritizeInputEvent(const WebInputEvent& web_input_event);
 
@@ -799,9 +796,6 @@ class PLATFORM_EXPORT MainThreadSchedulerImpl
   // task.
   void DispatchOnTaskCompletionCallbacks();
 
-  void AsValueIntoLocked(base::trace_event::TracedValue*,
-                         base::TimeTicks optional_now) const;
-
   bool AllPagesFrozen() const;
 
   // Indicates that scheduler has been shutdown.
@@ -840,8 +834,6 @@ class PLATFORM_EXPORT MainThreadSchedulerImpl
   scoped_refptr<MainThreadTaskQueue> virtual_time_control_task_queue_;
   scoped_refptr<MainThreadTaskQueue>
       back_forward_cache_ipc_tracking_task_queue_;
-  std::unique_ptr<base::sequence_manager::TaskQueue::QueueEnabledVoter>
-      compositor_task_queue_enabled_voter_;
 
   using TaskQueueVoterMap = std::map<
       scoped_refptr<MainThreadTaskQueue>,
@@ -881,10 +873,11 @@ class PLATFORM_EXPORT MainThreadSchedulerImpl
   struct MainThreadOnly {
     MainThreadOnly(
         MainThreadSchedulerImpl* main_thread_scheduler_impl,
-        const scoped_refptr<MainThreadTaskQueue>& compositor_task_queue,
         const base::TickClock* time_source,
         base::TimeTicks now);
     ~MainThreadOnly();
+
+    bool IsInNestedRunloop();
 
     IdleTimeEstimator idle_time_estimator;
     TraceableState<UseCase, TracingCategoryName::kDefault> current_use_case;
@@ -963,8 +956,8 @@ class PLATFORM_EXPORT MainThreadSchedulerImpl
                std::vector<scoped_refptr<MainThreadTaskQueue>>>
         running_queues;
 
-    // True if a nested RunLoop is running.
-    bool nested_runloop;
+    // Depth of nested_runloop.
+    int nested_runloop_depth = 0;
 
     // High-priority for compositing events after input. This will cause
     // compositing events get a higher priority until the start of the next
