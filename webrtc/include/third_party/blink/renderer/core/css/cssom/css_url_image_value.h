@@ -20,12 +20,14 @@ class CORE_EXPORT CSSURLImageValue final : public CSSStyleImageValue {
   const String& url() const;
 
   // CSSStyleImageValue
-  base::Optional<IntSize> IntrinsicSize() const final;
+  absl::optional<IntSize> IntrinsicSize() const final;
 
   // CanvasImageSource
   ResourceStatus Status() const final;
-  scoped_refptr<Image> GetSourceImageForCanvas(SourceImageStatus*,
-                                               const FloatSize&) final;
+  scoped_refptr<Image> GetSourceImageForCanvas(
+      SourceImageStatus*,
+      const FloatSize&,
+      const AlphaDisposition alpha_disposition = kPremultiplyAlpha) final;
   bool IsAccelerated() const final;
 
   // CSSStyleValue

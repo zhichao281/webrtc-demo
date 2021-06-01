@@ -34,11 +34,11 @@
 namespace blink {
 
 class Event;
-class ListedElement;
 class HTMLFormControlElement;
 class HTMLFormControlsCollection;
 class HTMLImageElement;
-class RadioNodeListOrElement;
+class ListedElement;
+class V8UnionElementOrRadioNodeList;
 
 class CORE_EXPORT HTMLFormElement final : public HTMLElement {
   DEFINE_WRAPPERTYPEINFO();
@@ -105,7 +105,7 @@ class CORE_EXPORT HTMLFormElement final : public HTMLElement {
   const ListedElement::List& ListedElements() const;
   const HeapVector<Member<HTMLImageElement>>& ImageElements();
 
-  void AnonymousNamedGetter(const AtomicString& name, RadioNodeListOrElement&);
+  V8UnionElementOrRadioNodeList* AnonymousNamedGetter(const AtomicString& name);
   void InvalidateDefaultButtonStyle() const;
 
   // 'construct the entry list'

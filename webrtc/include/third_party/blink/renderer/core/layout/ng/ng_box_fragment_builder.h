@@ -6,6 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_NG_BOX_FRAGMENT_BUILDER_H_
 
 #include "base/dcheck_is_on.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/core/layout/geometry/box_sides.h"
 #include "third_party/blink/renderer/core/layout/geometry/physical_rect.h"
 #include "third_party/blink/renderer/core/layout/ng/geometry/ng_box_strut.h"
@@ -34,7 +35,7 @@ class CORE_EXPORT NGBoxFragmentBuilder final
 
  public:
   NGBoxFragmentBuilder(NGLayoutInputNode node,
-                       const ComputedStyle* style,
+                       scoped_refptr<const ComputedStyle> style,
                        const NGConstraintSpace* space,
                        WritingDirectionMode writing_direction)
       : NGContainerFragmentBuilder(node,
@@ -47,7 +48,7 @@ class CORE_EXPORT NGBoxFragmentBuilder final
   // Build a fragment for LayoutObject without NGLayoutInputNode. LayoutInline
   // has NGInlineItem but does not have corresponding NGLayoutInputNode.
   NGBoxFragmentBuilder(LayoutObject* layout_object,
-                       const ComputedStyle* style,
+                       scoped_refptr<const ComputedStyle> style,
                        WritingDirectionMode writing_direction)
       : NGContainerFragmentBuilder(/* node */ nullptr,
                                    std::move(style),
@@ -193,7 +194,7 @@ class CORE_EXPORT NGBoxFragmentBuilder final
   // children it may be omitted, if the break shouldn't affect the appeal of
   // breaking inside this container.
   void AddBreakBeforeChild(NGLayoutInputNode child,
-                           base::Optional<NGBreakAppeal> appeal,
+                           absl::optional<NGBreakAppeal> appeal,
                            bool is_forced_break);
 
   // Add a layout result. This involves appending the fragment and its relative
@@ -204,7 +205,7 @@ class CORE_EXPORT NGBoxFragmentBuilder final
   // offset will be calculated as normal.
   void AddResult(const NGLayoutResult&,
                  const LogicalOffset,
-                 base::Optional<LogicalOffset> relative_offset = base::nullopt,
+                 absl::optional<LogicalOffset> relative_offset = absl::nullopt,
                  bool propagate_oof_descendants = true);
 
   void AddChild(
@@ -213,12 +214,13 @@ class CORE_EXPORT NGBoxFragmentBuilder final
       const LayoutInline* inline_container = nullptr,
       const NGMarginStrut* margin_strut = nullptr,
       bool is_self_collapsing = false,
-      base::Optional<LogicalOffset> relative_offset = base::nullopt,
-      base::Optional<LayoutUnit> adjustment_for_oof_propagation = LayoutUnit());
+      absl::optional<LogicalOffset> relative_offset = absl::nullopt,
+      absl::optional<LayoutUnit> adjustment_for_oof_propagation = LayoutUnit());
 
   // Manually add a break token to the builder. Note that we're assuming that
   // this break token is for content in the same flow as this parent.
-  void AddBreakToken(const NGBreakToken*, bool is_in_parallel_flow = false);
+  void AddBreakToken(scoped_refptr<const NGBreakToken>,
+                     bool is_in_parallel_flow = false);
 
   void AddOutOfFlowLegacyCandidate(NGBlockNode,
                                    const NGLogicalStaticPosition&,
@@ -231,6 +233,12 @@ class CORE_EXPORT NGBoxFragmentBuilder final
   // the sum of the block-size of all previous fragments PLUS the one we're
   // building now.
   void SetConsumedBlockSize(LayoutUnit size) { consumed_block_size_ = size; }
+
+  // Set how much to adjust |consumed_block_size_| for legacy write-back. See
+  // NGBlockBreakToken::ConsumedBlockSizeForLegacy() for more details.
+  void SetConsumedBlockSizeLegacyAdjustment(LayoutUnit adjustment) {
+    consumed_block_size_legacy_adjustment_ = adjustment;
+  }
 
   // Set how much of the column block-size we've used so far. This will be used
   // to determine the block-size of any new columns added by descendant
@@ -252,11 +260,12 @@ class CORE_EXPORT NGBoxFragmentBuilder final
   void SetDidBreakSelf() { did_break_self_ = true; }
 
   // Store the previous break token, if one exists.
-  void SetPreviousBreakToken(const NGBlockBreakToken* break_token) {
-    previous_break_token_ = break_token;
+  void SetPreviousBreakToken(
+      scoped_refptr<const NGBlockBreakToken> break_token) {
+    previous_break_token_ = std::move(break_token);
   }
   const NGBlockBreakToken* PreviousBreakToken() const {
-    return previous_break_token_;
+    return previous_break_token_.get();
   }
 
   // Return true if we need to break before or inside any child, doesn't matter
@@ -269,7 +278,7 @@ class CORE_EXPORT NGBoxFragmentBuilder final
       return true;
     // Inline nodes produce a "finished" trailing break token even if we don't
     // need to block-fragment.
-    return last_inline_break_token_;
+    return last_inline_break_token_.get();
   }
 
   // Return true if we need to break before or inside any in-flow child that
@@ -377,18 +386,19 @@ class CORE_EXPORT NGBoxFragmentBuilder final
   void SetColumnSpanner(NGBlockNode spanner) { column_spanner_ = spanner; }
   bool FoundColumnSpanner() const { return !!column_spanner_; }
 
-  void SetLinesUntilClamp(const base::Optional<int>& value) {
+  void SetLinesUntilClamp(const absl::optional<int>& value) {
     lines_until_clamp_ = value;
   }
 
-  void SetEarlyBreak(const NGEarlyBreak* breakpoint, NGBreakAppeal appeal) {
+  void SetEarlyBreak(scoped_refptr<const NGEarlyBreak> breakpoint,
+                     NGBreakAppeal appeal) {
     early_break_ = breakpoint;
     break_appeal_ = appeal;
   }
-  bool HasEarlyBreak() const { return early_break_; }
+  bool HasEarlyBreak() const { return early_break_.get(); }
   const NGEarlyBreak& EarlyBreak() const {
-    DCHECK(early_break_);
-    return *early_break_;
+    DCHECK(early_break_.get());
+    return *early_break_.get();
   }
 
   // Set the highest break appeal found so far. This is either:
@@ -402,11 +412,11 @@ class CORE_EXPORT NGBoxFragmentBuilder final
   // do not provide a setter here.
 
   // Creates the fragment. Can only be called once.
-  const NGLayoutResult* ToBoxFragment() {
+  scoped_refptr<const NGLayoutResult> ToBoxFragment() {
     DCHECK_NE(BoxType(), NGPhysicalFragment::kInlineBox);
     return ToBoxFragment(GetWritingMode());
   }
-  const NGLayoutResult* ToInlineBoxFragment() {
+  scoped_refptr<const NGLayoutResult> ToInlineBoxFragment() {
     // The logical coordinate for inline box uses line-relative writing-mode,
     // not
     // flow-relative.
@@ -414,7 +424,7 @@ class CORE_EXPORT NGBoxFragmentBuilder final
     return ToBoxFragment(ToLineWritingMode(GetWritingMode()));
   }
 
-  const NGLayoutResult* Abort(NGLayoutResult::EStatus);
+  scoped_refptr<const NGLayoutResult> Abort(NGLayoutResult::EStatus);
 
   NGPhysicalFragment::NGBoxType BoxType() const;
   void SetBoxType(NGPhysicalFragment::NGBoxType box_type) {
@@ -486,7 +496,7 @@ class CORE_EXPORT NGBoxFragmentBuilder final
 
   // Sets the alignment baseline for this fragment.
   void SetBaseline(LayoutUnit baseline) { baseline_ = baseline; }
-  base::Optional<LayoutUnit> Baseline() const { return baseline_; }
+  absl::optional<LayoutUnit> Baseline() const { return baseline_; }
 
   // Sets the last baseline for this fragment.
   void SetLastBaseline(LayoutUnit baseline) {
@@ -494,7 +504,7 @@ class CORE_EXPORT NGBoxFragmentBuilder final
               NGBaselineAlgorithmType::kInlineBlock);
     last_baseline_ = baseline;
   }
-  base::Optional<LayoutUnit> LastBaseline() const { return last_baseline_; }
+  absl::optional<LayoutUnit> LastBaseline() const { return last_baseline_; }
 
   // The inline block baseline is at the block end margin edge under some
   // circumstances. This function updates |LastBaseline| in such cases.
@@ -505,7 +515,7 @@ class CORE_EXPORT NGBoxFragmentBuilder final
   }
 
   void SetTableColumnGeometries(
-      const NGTableFragmentData::ColumnGeometries* table_column_geometries) {
+      const NGTableFragmentData::ColumnGeometries& table_column_geometries) {
     table_column_geometries_ = table_column_geometries;
   }
 
@@ -532,6 +542,8 @@ class CORE_EXPORT NGBoxFragmentBuilder final
     grid_data_ = std::move(grid_data);
   }
 
+  const NGGridData& GetNGGridData() const { return *grid_data_.get(); }
+
   // The |NGFragmentItemsBuilder| for the inline formatting context of this box.
   NGFragmentItemsBuilder* ItemsBuilder() { return items_builder_; }
   void SetItemsBuilder(NGFragmentItemsBuilder* builder) {
@@ -553,8 +565,8 @@ class CORE_EXPORT NGBoxFragmentBuilder final
   };
 
   using InlineContainingBlockMap =
-      HeapHashMap<Member<const LayoutObject>,
-                  base::Optional<InlineContainingBlockGeometry>>;
+      HashMap<const LayoutObject*,
+              absl::optional<InlineContainingBlockGeometry>>;
 
   // Computes the geometry required for any inline containing blocks.
   // |inline_containing_block_map| is a map whose keys specify which inline
@@ -604,14 +616,14 @@ class CORE_EXPORT NGBoxFragmentBuilder final
     minimal_space_shortage_ = LayoutUnit::Max();
   }
 
-  const NGLayoutResult* ToBoxFragment(WritingMode);
+  scoped_refptr<const NGLayoutResult> ToBoxFragment(WritingMode);
 
   const NGFragmentGeometry* initial_fragment_geometry_ = nullptr;
   NGBoxStrut border_padding_;
   NGBoxStrut border_scrollbar_padding_;
   LogicalSize child_available_size_;
   LayoutUnit intrinsic_block_size_;
-  base::Optional<LogicalRect> inflow_bounds_;
+  absl::optional<LogicalRect> inflow_bounds_;
 
   NGFragmentItemsBuilder* items_builder_ = nullptr;
 
@@ -636,6 +648,7 @@ class CORE_EXPORT NGBoxFragmentBuilder final
   bool is_at_block_end_ = false;
   bool has_violating_break_ = false;
   LayoutUnit consumed_block_size_;
+  LayoutUnit consumed_block_size_legacy_adjustment_;
   LayoutUnit block_offset_for_additional_columns_;
   unsigned sequence_number_ = 0;
 
@@ -644,25 +657,25 @@ class CORE_EXPORT NGBoxFragmentBuilder final
 
   // The break-before value on the initial child we cannot honor. There's no
   // valid class A break point before a first child, only *between* siblings.
-  base::Optional<EBreakBetween> initial_break_before_;
+  absl::optional<EBreakBetween> initial_break_before_;
 
   // The break-after value of the previous in-flow sibling.
   EBreakBetween previous_break_after_ = EBreakBetween::kAuto;
 
-  base::Optional<LayoutUnit> baseline_;
-  base::Optional<LayoutUnit> last_baseline_;
+  absl::optional<LayoutUnit> baseline_;
+  absl::optional<LayoutUnit> last_baseline_;
 
   // Table specific types.
-  base::Optional<PhysicalRect> table_grid_rect_;
-  const NGTableFragmentData::ColumnGeometries* table_column_geometries_ =
-      nullptr;
-  const NGTableBorders* table_collapsed_borders_ = nullptr;
+  absl::optional<PhysicalRect> table_grid_rect_;
+  absl::optional<NGTableFragmentData::ColumnGeometries>
+      table_column_geometries_;
+  scoped_refptr<const NGTableBorders> table_collapsed_borders_;
   std::unique_ptr<NGTableFragmentData::CollapsedBordersGeometry>
       table_collapsed_borders_geometry_;
-  base::Optional<wtf_size_t> table_column_count_;
+  absl::optional<wtf_size_t> table_column_count_;
 
   // Table cell specific types.
-  base::Optional<wtf_size_t> table_cell_column_index_;
+  absl::optional<wtf_size_t> table_cell_column_index_;
 
   // Grid specific types.
   std::unique_ptr<NGGridData> grid_data_;
@@ -670,12 +683,12 @@ class CORE_EXPORT NGBoxFragmentBuilder final
   LogicalBoxSides sides_to_include_;
 
   scoped_refptr<SerializedScriptValue> custom_layout_data_;
-  base::Optional<int> lines_until_clamp_;
+  absl::optional<int> lines_until_clamp_;
 
   std::unique_ptr<NGMathMLPaintInfo> mathml_paint_info_;
-  base::Optional<NGLayoutResult::MathData> math_data_;
+  absl::optional<NGLayoutResult::MathData> math_data_;
 
-  const NGBlockBreakToken* previous_break_token_ = nullptr;
+  scoped_refptr<const NGBlockBreakToken> previous_break_token_;
 
 #if DCHECK_IS_ON()
   // Describes what size_.block_size represents; either the size of a single

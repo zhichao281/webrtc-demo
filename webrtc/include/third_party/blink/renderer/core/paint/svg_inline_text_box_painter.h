@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_PAINT_SVG_INLINE_TEXT_BOX_PAINTER_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_PAINT_SVG_INLINE_TEXT_BOX_PAINTER_H_
 
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/core/paint/svg_object_painter.h"
 #include "third_party/blink/renderer/core/style/computed_style_constants.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
@@ -94,7 +95,7 @@ class SVGInlineTextBoxPainter {
       SelectionState selection_state,
       const ComputedStyle& style,
       PaintController& paint_controller,
-      base::Optional<SelectionBoundsRecorder>& bounds_recorder);
+      absl::optional<SelectionBoundsRecorder>& bounds_recorder);
 
   const SVGInlineTextBox& svg_inline_text_box_;
 };

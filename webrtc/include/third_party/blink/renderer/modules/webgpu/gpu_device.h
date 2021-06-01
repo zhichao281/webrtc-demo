@@ -17,6 +17,7 @@
 namespace blink {
 
 class ExecutionContext;
+class HTMLCanvasElement;
 class HTMLVideoElement;
 class GPUAdapter;
 class GPUAdapter;
@@ -46,6 +47,7 @@ class GPUSamplerDescriptor;
 class GPUShaderModule;
 class GPUShaderModuleDescriptor;
 class GPUSupportedFeatures;
+class GPUSupportedLimits;
 class GPUTexture;
 class GPUTextureDescriptor;
 class ScriptPromiseResolver;
@@ -68,16 +70,18 @@ class GPUDevice final : public EventTargetWithInlineData,
   // gpu_device.idl
   GPUAdapter* adapter() const;
   GPUSupportedFeatures* features() const;
-  Vector<String> extensions();
+  GPUSupportedLimits* limits() const { return limits_; }
   ScriptPromise lost(ScriptState* script_state);
 
   GPUQueue* queue();
-  GPUQueue* defaultQueue();
 
   GPUBuffer* createBuffer(const GPUBufferDescriptor* descriptor);
   GPUTexture* createTexture(const GPUTextureDescriptor* descriptor,
                             ExceptionState& exception_state);
   GPUTexture* experimentalImportTexture(HTMLVideoElement* video,
+                                        unsigned int usage_flags,
+                                        ExceptionState& exception_state);
+  GPUTexture* experimentalImportTexture(HTMLCanvasElement* canvas,
                                         unsigned int usage_flags,
                                         ExceptionState& exception_state);
   GPUSampler* createSampler(const GPUSamplerDescriptor* descriptor);
@@ -103,12 +107,6 @@ class GPUDevice final : public EventTargetWithInlineData,
       ScriptState* script_state,
       const GPURenderPipelineDescriptor* descriptor);
   ScriptPromise createComputePipelineAsync(
-      ScriptState* script_state,
-      const GPUComputePipelineDescriptor* descriptor);
-  ScriptPromise createReadyRenderPipeline(
-      ScriptState* script_state,
-      const GPURenderPipelineDescriptor* descriptor);
-  ScriptPromise createReadyComputePipeline(
       ScriptState* script_state,
       const GPUComputePipelineDescriptor* descriptor);
 
@@ -154,6 +152,7 @@ class GPUDevice final : public EventTargetWithInlineData,
 
   Member<GPUAdapter> adapter_;
   Member<GPUSupportedFeatures> features_;
+  Member<GPUSupportedLimits> limits_;
   Member<GPUQueue> queue_;
   Member<LostProperty> lost_property_;
   std::unique_ptr<

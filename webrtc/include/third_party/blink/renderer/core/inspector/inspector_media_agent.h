@@ -5,9 +5,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_INSPECTOR_INSPECTOR_MEDIA_AGENT_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_INSPECTOR_INSPECTOR_MEDIA_AGENT_H_
 
-#include <memory>
-#include <vector>
-
 #include "third_party/blink/public/web/web_media_inspector.h"
 #include "third_party/blink/renderer/core/inspector/inspected_frames.h"
 #include "third_party/blink/renderer/core/inspector/inspector_base_agent.h"
@@ -15,13 +12,17 @@
 
 namespace blink {
 
-class LocalFrame;
+class InspectedFrames;
+class WorkerGlobalScope;
+class ExecutionContext;
 
 class CORE_EXPORT InspectorMediaAgent final
     : public InspectorBaseAgent<protocol::Media::Metainfo> {
  public:
-  explicit InspectorMediaAgent(InspectedFrames*);
+  explicit InspectorMediaAgent(InspectedFrames*, WorkerGlobalScope*);
   ~InspectorMediaAgent() override;
+
+  ExecutionContext* GetTargetExecutionContext() const;
 
   // BaseAgent methods.
   void Restore() override;
@@ -46,7 +47,11 @@ class CORE_EXPORT InspectorMediaAgent final
  private:
   void RegisterAgent();
 
-  Member<LocalFrame> frame_;
+  // This is null while inspecting workers.
+  Member<InspectedFrames> inspected_frames_;
+  // This is null while inspecting frames.
+  Member<WorkerGlobalScope> worker_global_scope_;
+
   InspectorAgentState::Boolean enabled_;
   DISALLOW_COPY_AND_ASSIGN(InspectorMediaAgent);
 };

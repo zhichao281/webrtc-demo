@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_MATHML_NG_MATH_PADDED_LAYOUT_ALGORITHM_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_MATHML_NG_MATH_PADDED_LAYOUT_ALGORITHM_H_
 
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/core/layout/ng/mathml/ng_math_row_layout_algorithm.h"
 
 namespace blink {
@@ -16,7 +17,7 @@ class CORE_EXPORT NGMathPaddedLayoutAlgorithm
  public:
   explicit NGMathPaddedLayoutAlgorithm(const NGLayoutAlgorithmParams& params);
 
-  const NGLayoutResult* Layout() final;
+  scoped_refptr<const NGLayoutResult> Layout() final;
 
   MinMaxSizesResult ComputeMinMaxSizes(
       const MinMaxSizesFloatInput&) const final;
@@ -24,8 +25,8 @@ class CORE_EXPORT NGMathPaddedLayoutAlgorithm
  private:
   LayoutUnit RequestedLSpace() const;
   LayoutUnit RequestedVOffset() const;
-  base::Optional<LayoutUnit> RequestedAscent(LayoutUnit content_ascent) const;
-  base::Optional<LayoutUnit> RequestedDescent(LayoutUnit content_descent) const;
+  absl::optional<LayoutUnit> RequestedAscent(LayoutUnit content_ascent) const;
+  absl::optional<LayoutUnit> RequestedDescent(LayoutUnit content_descent) const;
 
   void GatherChildren(NGBlockNode* base, NGBoxFragmentBuilder* = nullptr) const;
 };

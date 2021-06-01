@@ -458,9 +458,13 @@ BASE_EXPORT bool WriteFile(const FilePath& filename, span<const uint8_t> data);
 BASE_EXPORT bool WriteFile(const FilePath& filename, StringPiece data);
 
 #if defined(OS_POSIX) || defined(OS_FUCHSIA)
-// Appends |data| to |fd|. Does not close |fd| when done.  Returns true iff
-// |size| bytes of |data| were written to |fd|.
-BASE_EXPORT bool WriteFileDescriptor(const int fd, const char* data, int size);
+// Appends |data| to |fd|. Does not close |fd| when done.  Returns true iff all
+// of |data| were written to |fd|.
+BASE_EXPORT bool WriteFileDescriptor(int fd, span<const uint8_t> data);
+
+// WriteFileDescriptor() variant that takes a StringPiece so callers don't have
+// to do manual conversions from a char span to a uint8_t span.
+BASE_EXPORT bool WriteFileDescriptor(int fd, StringPiece data);
 
 // Allocates disk space for the file referred to by |fd| for the byte range
 // starting at |offset| and continuing for |size| bytes. The file size will be
@@ -471,11 +475,14 @@ BASE_EXPORT bool WriteFileDescriptor(const int fd, const char* data, int size);
 BASE_EXPORT bool AllocateFileRegion(File* file, int64_t offset, size_t size);
 #endif
 
-// Appends |data| to |filename|.  Returns true iff |size| bytes of |data| were
-// written to |filename|.
+// Appends |data| to |filename|.  Returns true iff |data| were written to
+// |filename|.
 BASE_EXPORT bool AppendToFile(const FilePath& filename,
-                              const char* data,
-                              int size);
+                              span<const uint8_t> data);
+
+// AppendToFile() variant that takes a StringPiece so callers don't have to do
+// manual conversions from a char span to a uint8_t span.
+BASE_EXPORT bool AppendToFile(const FilePath& filename, StringPiece data);
 
 // Gets the current working directory for the process.
 BASE_EXPORT bool GetCurrentDirectory(FilePath* path);

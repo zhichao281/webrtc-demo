@@ -24,10 +24,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <initializer_list>
 #include <iosfwd>
-#include <map>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -39,13 +40,13 @@
 #include "base/strings/string_piece.h"
 #include "base/trace_event/base_tracing_forward.h"
 #include "base/value_iterators.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/abseil-cpp/absl/types/variant.h"
 
 namespace base {
 
 class DictionaryValue;
 class ListValue;
-class Value;
 
 // The Value class is the base class for Values. A Value can be instantiated
 // via passing the appropriate type or backing storage to the constructor.
@@ -194,10 +195,10 @@ class BASE_EXPORT Value {
   bool is_list() const { return type() == Type::LIST; }
 
   // These will return nullopt / nullptr if the type does not match.
-  Optional<bool> GetIfBool() const;
-  Optional<int> GetIfInt() const;
+  absl::optional<bool> GetIfBool() const;
+  absl::optional<int> GetIfInt() const;
   // Implicitly converts from int if necessary.
-  Optional<double> GetIfDouble() const;
+  absl::optional<double> GetIfDouble() const;
   const std::string* GetIfString() const;
   const BlobStorage* GetIfBlob() const;
 
@@ -294,14 +295,14 @@ class BASE_EXPORT Value {
   Value* FindKeyOfType(StringPiece key, Type type);
   const Value* FindKeyOfType(StringPiece key, Type type) const;
 
-  // These are convenience forms of `FindKey`. They return `base`:nullopt| if
+  // These are convenience forms of `FindKey`. They return absl::nullopt if
   // the value is not found or doesn't have the type specified in the
   // function's name.
-  base::Optional<bool> FindBoolKey(StringPiece key) const;
-  base::Optional<int> FindIntKey(StringPiece key) const;
+  absl::optional<bool> FindBoolKey(StringPiece key) const;
+  absl::optional<int> FindIntKey(StringPiece key) const;
   // Note `FindDoubleKey()` will auto-convert INTEGER keys to their double
   // value, for consistency with `GetDouble()`.
-  base::Optional<double> FindDoubleKey(StringPiece key) const;
+  absl::optional<double> FindDoubleKey(StringPiece key) const;
 
   // `FindStringKey` returns `nullptr` if value is not found or not a string.
   const std::string* FindStringKey(StringPiece key) const;
@@ -363,8 +364,8 @@ class BASE_EXPORT Value {
   // Note: This requires that `type()` is Type::DICTIONARY.
   //
   // Example:
-  //   Optional<Value> maybe_value = dict.ExtractKey("foo");
-  Optional<Value> ExtractKey(StringPiece key);
+  //   absl::optional<Value> maybe_value = dict.ExtractKey("foo");
+  absl::optional<Value> ExtractKey(StringPiece key);
 
   // Searches a hierarchy of dictionary values for a given value. If a path
   // of dictionaries exist, returns the item at that path. If any of the path
@@ -409,9 +410,9 @@ class BASE_EXPORT Value {
 
   // Convenience accessors used when the expected type of a value is known.
   // Similar to Find<Type>Key() but accepts paths instead of keys.
-  base::Optional<bool> FindBoolPath(StringPiece path) const;
-  base::Optional<int> FindIntPath(StringPiece path) const;
-  base::Optional<double> FindDoublePath(StringPiece path) const;
+  absl::optional<bool> FindBoolPath(StringPiece path) const;
+  absl::optional<int> FindIntPath(StringPiece path) const;
+  absl::optional<double> FindDoublePath(StringPiece path) const;
   const std::string* FindStringPath(StringPiece path) const;
   std::string* FindStringPath(StringPiece path);
   const BlobStorage* FindBlobPath(StringPiece path) const;
@@ -482,8 +483,8 @@ class BASE_EXPORT Value {
   // instead.
   //
   // Example:
-  //   Optional<Value> maybe_value = value.ExtractPath("foo.bar");
-  Optional<Value> ExtractPath(StringPiece path);
+  //   absl::optional<Value> maybe_value = value.ExtractPath("foo.bar");
+  absl::optional<Value> ExtractPath(StringPiece path);
 
   using dict_iterator_proxy = detail::dict_iterator_proxy;
   using const_dict_iterator_proxy = detail::const_dict_iterator_proxy;
@@ -635,12 +636,9 @@ class BASE_EXPORT Value {
 
 // DictionaryValue provides a key-value dictionary with (optional) "path"
 // parsing for recursive access; see the comment at the top of the file. Keys
-// are `std`:string|s and should be UTF-8 encoded.
+// are std::string's and should be UTF-8 encoded.
 class BASE_EXPORT DictionaryValue : public Value {
  public:
-  using const_iterator = LegacyDictStorage::const_iterator;
-  using iterator = LegacyDictStorage::iterator;
-
   // Returns `value` if it is a dictionary, nullptr otherwise.
   static std::unique_ptr<DictionaryValue> From(std::unique_ptr<Value> value);
 
@@ -651,12 +649,6 @@ class BASE_EXPORT DictionaryValue : public Value {
   // Returns true if the current dictionary has a value for the given key.
   // DEPRECATED, use `Value::FindKey(key)` instead.
   bool HasKey(StringPiece key) const;
-
-  // Returns the number of Values in this dictionary.
-  size_t size() const { return dict().size(); }
-
-  // Returns whether the dictionary is empty.
-  bool empty() const { return dict().empty(); }
 
   // Clears any current contents of this dictionary.
   // DEPRECATED, use `Value::DictClear()` instead.
@@ -815,25 +807,16 @@ class BASE_EXPORT DictionaryValue : public Value {
     Iterator(const Iterator& other);
     ~Iterator();
 
-    bool IsAtEnd() const { return it_ == target_.end(); }
+    bool IsAtEnd() const { return it_ == target_.DictItems().end(); }
     void Advance() { ++it_; }
 
     const std::string& key() const { return it_->first; }
-    const Value& value() const { return *it_->second; }
+    const Value& value() const { return it_->second; }
 
    private:
     const DictionaryValue& target_;
-    LegacyDictStorage::const_iterator it_;
+    detail::const_dict_iterator it_;
   };
-
-  // Iteration.
-  // DEPRECATED, use `Value::DictItems()` instead.
-  iterator begin() { return dict().begin(); }
-  iterator end() { return dict().end(); }
-
-  // DEPRECATED, use `Value::DictItems()` instead.
-  const_iterator begin() const { return dict().begin(); }
-  const_iterator end() const { return dict().end(); }
 
   // DEPRECATED, use `Value::Clone()` instead.
   // TODO(crbug.com/646113): Delete this and migrate callsites.
@@ -923,13 +906,6 @@ class BASE_EXPORT ListValue : public Value {
   // DEPRECATED, use `GetList()::erase()` instead.
   bool Remove(const Value& value, size_t* index);
 
-  // Removes the element at `iter`. If `out_value` is NULL, the value will be
-  // deleted, otherwise ownership of the value is passed back to the caller.
-  // Returns an iterator pointing to the location of the element that
-  // followed the erased element.
-  // DEPRECATED, use `GetList()::erase()` instead.
-  iterator Erase(iterator iter, std::unique_ptr<Value>* out_value);
-
   using Value::Append;
   // Appends a Value to the end of the list.
   // DEPRECATED, use `Value::Append()` instead.
@@ -939,16 +915,10 @@ class BASE_EXPORT ListValue : public Value {
   // DEPRECATED, use `Value::Append()` instead.
   void AppendBoolean(bool in_value);
   void AppendInteger(int in_value);
-  void AppendDouble(double in_value);
   void AppendString(StringPiece in_value);
   void AppendString(const std::u16string& in_value);
   // DEPRECATED, use `Value::Append()` in a loop instead.
   void AppendStrings(const std::vector<std::string>& in_values);
-
-  // Appends a Value if it's not already present. Returns true if successful,
-  // or false if the value was already
-  // DEPRECATED, use `std::find()` with `Value::Append()` instead.
-  bool AppendIfNotPresent(std::unique_ptr<Value> in_value);
 
   using Value::Insert;
   // Insert a Value at index.
@@ -967,15 +937,16 @@ class BASE_EXPORT ListValue : public Value {
   void Swap(ListValue* other);
 
   // Iteration.
-  // DEPRECATED, use `GetList()::begin()` instead.
-  iterator begin() { return GetList().begin(); }
-  // DEPRECATED, use `GetList()::end()` instead.
-  iterator end() { return GetList().end(); }
-
-  // DEPRECATED, use `GetList()::begin()` instead.
-  const_iterator begin() const { return GetList().begin(); }
-  // DEPRECATED, use `GetList()::end()` instead.
-  const_iterator end() const { return GetList().end(); }
+  //
+  // ListValue no longer supports iteration. Instead, use GetList() to get the
+  // underlying list:
+  //
+  // for (const auto& entry : list_value.GetList()) {
+  //   ...
+  //
+  // for (auto it = list_value.GetList().begin();
+  //      it != list_value.GetList().end(); ++it) {
+  //   ...
 
   // DEPRECATED, use `Value::Clone()` instead.
   // TODO(crbug.com/646113): Delete this and migrate callsites.

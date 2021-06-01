@@ -37,7 +37,7 @@ constexpr bool IsPowerOfTwo(T value) {
 }
 
 // Round down |size| to a multiple of alignment, which must be a power of two.
-inline size_t AlignDown(size_t size, size_t alignment) {
+inline constexpr size_t AlignDown(size_t size, size_t alignment) {
   DCHECK(IsPowerOfTwo(alignment));
   return size & ~(alignment - 1);
 }
@@ -51,7 +51,7 @@ inline T* AlignDown(T* ptr, size_t alignment) {
 }
 
 // Round up |size| to a multiple of alignment, which must be a power of two.
-inline size_t AlignUp(size_t size, size_t alignment) {
+inline constexpr size_t AlignUp(size_t size, size_t alignment) {
   DCHECK(IsPowerOfTwo(alignment));
   return (size + alignment - 1) & ~(alignment - 1);
 }
@@ -62,17 +62,6 @@ template <typename T, typename = typename std::enable_if<sizeof(T) == 1>::type>
 inline T* AlignUp(T* ptr, size_t alignment) {
   return reinterpret_cast<T*>(
       AlignUp(reinterpret_cast<size_t>(ptr), alignment));
-}
-
-// Deprecated. Use AlignUp() instead.
-inline size_t Align(size_t size, size_t alignment) {
-  return AlignUp(size, alignment);
-}
-
-// Deprecated. Use AlignUp() instead.
-template <typename T, typename = typename std::enable_if<sizeof(T) == 1>::type>
-inline T* Align(T* ptr, size_t alignment) {
-  return AlignUp(ptr, alignment);
 }
 
 // CountLeadingZeroBits(value) returns the number of zero bits following the

@@ -10,11 +10,17 @@
 #include "base/allocator/partition_allocator/partition_cookie.h"
 #include "base/allocator/partition_allocator/partition_ref_count.h"
 #include "base/allocator/partition_allocator/random.h"
-#include "base/partition_alloc_buildflags.h"
 #include "build/build_config.h"
 
 #if defined(OS_WIN)
 #include <windows.h>
+#endif
+
+// Prefetch *x into memory.
+#if defined(__clang__) || defined(COMPILER_GCC)
+#define PA_PREFETCH(x) __builtin_prefetch(x)
+#else
+#define PA_PREFETCH(x)
 #endif
 
 namespace base {

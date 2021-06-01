@@ -5,7 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_INLINE_NG_LINE_BREAKER_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_INLINE_NG_LINE_BREAKER_H_
 
-#include "base/optional.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/ng/exclusions/ng_line_layout_opportunity.h"
 #include "third_party/blink/renderer/core/layout/ng/inline/ng_inline_item_result.h"
@@ -57,10 +57,10 @@ class CORE_EXPORT NGLineBreaker {
   bool IsFinished() const { return item_index_ >= Items().size(); }
 
   // Create an NGInlineBreakToken for the last line returned by NextLine().
-  const NGInlineBreakToken* CreateBreakToken(const NGLineInfo&) const;
+  scoped_refptr<NGInlineBreakToken> CreateBreakToken(const NGLineInfo&) const;
 
-  void PropagateBreakToken(const NGBlockBreakToken*);
-  HeapVector<Member<const NGBlockBreakToken>>& PropagatedBreakTokens() {
+  void PropagateBreakToken(scoped_refptr<const NGBlockBreakToken>);
+  Vector<scoped_refptr<const NGBlockBreakToken>>& PropagatedBreakTokens() {
     return propagated_break_tokens_;
   }
 
@@ -93,7 +93,7 @@ class CORE_EXPORT NGLineBreaker {
 
  private:
   const String& Text() const { return text_content_; }
-  const HeapVector<NGInlineItem>& Items() const { return items_data_.items; }
+  const Vector<NGInlineItem>& Items() const { return items_data_.items; }
 
   String TextContentForLineBreak() const;
 
@@ -208,12 +208,10 @@ class CORE_EXPORT NGLineBreaker {
   bool HasHyphen() const { return hyphen_index_.has_value(); }
   LayoutUnit AddHyphen(NGInlineItemResults* item_results,
                        wtf_size_t index,
-                       NGInlineItemResult* item_result,
-                       const NGInlineItem& item);
+                       NGInlineItemResult* item_result);
   LayoutUnit AddHyphen(NGInlineItemResults* item_results, wtf_size_t index);
   LayoutUnit AddHyphen(NGInlineItemResults* item_results,
-                       NGInlineItemResult* item_result,
-                       const NGInlineItem& item);
+                       NGInlineItemResult* item_result);
   LayoutUnit RemoveHyphen(NGInlineItemResults* item_results);
   void RestoreLastHyphen(NGInlineItemResults* item_results);
   void FinalizeHyphen(NGInlineItemResults* item_results);
@@ -283,8 +281,8 @@ class CORE_EXPORT NGLineBreaker {
 
   const NGConstraintSpace& constraint_space_;
   NGExclusionSpace* exclusion_space_;
-  const NGInlineBreakToken* break_token_;
-  const ComputedStyle* current_style_ = nullptr;
+  scoped_refptr<const NGInlineBreakToken> break_token_;
+  scoped_refptr<const ComputedStyle> current_style_;
 
   LazyLineBreakIterator break_iterator_;
   HarfBuzzShaper shaper_;
@@ -292,7 +290,7 @@ class CORE_EXPORT NGLineBreaker {
   bool previous_line_had_forced_break_ = false;
   const Hyphenation* hyphenation_ = nullptr;
 
-  base::Optional<wtf_size_t> hyphen_index_;
+  absl::optional<wtf_size_t> hyphen_index_;
   bool has_any_hyphens_ = false;
 
   // Cache the result of |ComputeTrailingCollapsibleSpace| to avoid shaping
@@ -301,7 +299,7 @@ class CORE_EXPORT NGLineBreaker {
     NGInlineItemResult* item_result;
     scoped_refptr<const ShapeResultView> collapsed_shape_result;
   };
-  base::Optional<TrailingCollapsibleSpace> trailing_collapsible_space_;
+  absl::optional<TrailingCollapsibleSpace> trailing_collapsible_space_;
 
   // Keep track of handled float items. See HandleFloat().
   const NGPositionedFloatVector& leading_floats_;
@@ -322,7 +320,7 @@ class CORE_EXPORT NGLineBreaker {
   // if 'unicode-bidi: plaintext'.
   TextDirection base_direction_;
 
-  HeapVector<Member<const NGBlockBreakToken>> propagated_break_tokens_;
+  Vector<scoped_refptr<const NGBlockBreakToken>> propagated_break_tokens_;
 
   // Fields for `box-decoration-break: clone`.
   unsigned cloned_box_decorations_count_ = 0;
@@ -335,7 +333,7 @@ class CORE_EXPORT NGLineBreaker {
     wtf_size_t from_item_index;
     wtf_size_t to_index;
   };
-  base::Optional<RewindIndex> last_rewind_;
+  absl::optional<RewindIndex> last_rewind_;
 };
 
 }  // namespace blink

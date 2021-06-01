@@ -5,7 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_INLINE_NG_OFFSET_MAPPING_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_INLINE_NG_OFFSET_MAPPING_H_
 
-#include "base/optional.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/node.h"
 #include "third_party/blink/renderer/core/editing/forward.h"
@@ -73,12 +73,10 @@ class CORE_EXPORT NGOffsetMappingUnit {
 
   void AssertValid() const;
 
-  void Trace(Visitor*) const;
-
  private:
   NGOffsetMappingUnitType type_ = NGOffsetMappingUnitType::kIdentity;
 
-  Member<const LayoutObject> layout_object_;
+  const LayoutObject* layout_object_;
   // TODO(yosin): We should rename |dom_start_| and |dom_end_| to appropriate
   // names since |layout_object_| is for generated text, these offsets are
   // offset in |LayoutText::text_| instead of DOM node.
@@ -98,12 +96,13 @@ class CORE_EXPORT NGOffsetMappingUnit {
 // object that stores the mapping information between DOM positions and offsets
 // in the text content string of the context.
 // See design doc https://goo.gl/CJbxky for details.
-class CORE_EXPORT NGOffsetMapping final
-    : public GarbageCollected<NGOffsetMapping> {
+class CORE_EXPORT NGOffsetMapping {
+  USING_FAST_MALLOC(NGOffsetMapping);
+
  public:
-  using UnitVector = HeapVector<NGOffsetMappingUnit>;
+  using UnitVector = Vector<NGOffsetMappingUnit>;
   using RangeMap =
-      HeapHashMap<Member<const Node>, std::pair<unsigned, unsigned>>;
+      HashMap<Persistent<const Node>, std::pair<unsigned, unsigned>>;
 
   NGOffsetMapping(UnitVector&&, RangeMap&&, String);
   NGOffsetMapping(const NGOffsetMapping&) = delete;
@@ -174,7 +173,7 @@ class CORE_EXPORT NGOffsetMapping final
 
   // Returns the text content offset corresponding to the given position.
   // Returns nullopt when the position is not laid out in this context.
-  base::Optional<unsigned> GetTextContentOffset(const Position&) const;
+  absl::optional<unsigned> GetTextContentOffset(const Position&) const;
 
   // Starting from the given position, searches for non-collapsed content in
   // the anchor node in forward/backward direction and returns the position
@@ -191,7 +190,7 @@ class CORE_EXPORT NGOffsetMapping final
 
   // Maps the given position to a text content offset, and then returns the text
   // content character before the offset. Returns nullopt if it does not exist.
-  base::Optional<UChar> GetCharacterBefore(const Position&) const;
+  absl::optional<UChar> GetCharacterBefore(const Position&) const;
 
   // ------ Mapping APIs from text content to DOM ------
 
@@ -231,11 +230,6 @@ class CORE_EXPORT NGOffsetMapping final
   // control characters. Returns true otherwise.
   bool HasBidiControlCharactersOnly(unsigned start, unsigned end) const;
 
-  void Trace(Visitor* visitor) const {
-    visitor->Trace(units_);
-    visitor->Trace(ranges_);
-  }
-
  private:
   // The NGOffsetMappingUnits of the inline formatting context in osrted order.
   UnitVector units_;
@@ -251,7 +245,5 @@ class CORE_EXPORT NGOffsetMapping final
 CORE_EXPORT LayoutBlockFlow* NGInlineFormattingContextOf(const Position&);
 
 }  // namespace blink
-
-WTF_ALLOW_CLEAR_UNUSED_SLOTS_WITH_MEM_FUNCTIONS(blink::NGOffsetMappingUnit)
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_INLINE_NG_OFFSET_MAPPING_H_

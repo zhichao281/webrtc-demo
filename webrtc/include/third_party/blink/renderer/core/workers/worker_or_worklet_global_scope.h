@@ -62,9 +62,7 @@ class CORE_EXPORT WorkerOrWorkletGlobalScope : public EventTargetWithInlineData,
   const AtomicString& InterfaceName() const override;
 
   // ScriptWrappable
-  v8::Local<v8::Value> Wrap(v8::Isolate*,
-                            v8::Local<v8::Object> creation_context) final;
-  v8::MaybeLocal<v8::Value> WrapV2(ScriptState*) final;
+  v8::MaybeLocal<v8::Value> Wrap(ScriptState*) final;
   v8::Local<v8::Object> AssociateWithWrapper(
       v8::Isolate*,
       const WrapperTypeInfo*,
@@ -153,7 +151,7 @@ class CORE_EXPORT WorkerOrWorkletGlobalScope : public EventTargetWithInlineData,
 
   void SetSandboxFlags(network::mojom::blink::WebSandboxFlags mask);
 
-  void SetDefersLoadingForResourceFetchers(WebURLLoader::DeferType defers);
+  void SetDefersLoadingForResourceFetchers(LoaderFreezeMode);
 
   virtual int GetOutstandingThrottledLimit() const;
 

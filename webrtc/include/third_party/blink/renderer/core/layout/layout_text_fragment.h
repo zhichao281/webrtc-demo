@@ -56,7 +56,7 @@ class CORE_EXPORT LayoutTextFragment : public LayoutText {
                                              LegacyLayout);
 
   Position PositionForCaretOffset(unsigned) const override;
-  base::Optional<unsigned> CaretOffsetForPosition(
+  absl::optional<unsigned> CaretOffsetForPosition(
       const Position&) const override;
 
   unsigned Start() const {
@@ -118,10 +118,9 @@ class CORE_EXPORT LayoutTextFragment : public LayoutText {
   Text* AssociatedTextNode() const;
   LayoutText* GetFirstLetterPart() const override;
 
-  LayoutTextFragment(Node*, StringImpl*, int start_offset, int length);
-
  protected:
   friend class LayoutObjectFactory;
+  LayoutTextFragment(Node*, StringImpl*, int start_offset, int length);
   void WillBeDestroyed() override;
 
  private:

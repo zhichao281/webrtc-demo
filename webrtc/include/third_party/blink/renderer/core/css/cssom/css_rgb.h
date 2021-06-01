@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_CSS_CSSOM_CSS_RGB_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_CSSOM_CSS_RGB_H_
 
+#include "third_party/blink/renderer/bindings/core/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/cssom/css_color_value.h"
 #include "third_party/blink/renderer/core/css/cssom/css_numeric_value.h"
@@ -19,11 +20,11 @@ class CORE_EXPORT CSSRGB final : public CSSColorValue {
 
  public:
   // Constructor defined in the IDL.
-  static CSSRGB* Create(const CSSNumberish&,
-                        const CSSNumberish&,
-                        const CSSNumberish&,
-                        const CSSNumberish&,
-                        ExceptionState&);
+  static CSSRGB* Create(const V8CSSNumberish* r,
+                        const V8CSSNumberish* g,
+                        const V8CSSNumberish* b,
+                        const V8CSSNumberish* alpha,
+                        ExceptionState& exception_state);
 
   // Internal constructor used by blink.
   explicit CSSRGB(const Color&);
@@ -33,14 +34,14 @@ class CORE_EXPORT CSSRGB final : public CSSColorValue {
          CSSNumericValue*);
 
   // Getters and setters from the IDL
-  void r(CSSNumberish& r) { r.SetCSSNumericValue(r_); }
-  void g(CSSNumberish& g) { g.SetCSSNumericValue(g_); }
-  void b(CSSNumberish& b) { b.SetCSSNumericValue(b_); }
-  void alpha(CSSNumberish& alpha) { alpha.SetCSSNumericValue(alpha_); }
-  void setR(const CSSNumberish&, ExceptionState&);
-  void setG(const CSSNumberish&, ExceptionState&);
-  void setB(const CSSNumberish&, ExceptionState&);
-  void setAlpha(const CSSNumberish&, ExceptionState&);
+  V8CSSNumberish* r() const;
+  V8CSSNumberish* g() const;
+  V8CSSNumberish* b() const;
+  V8CSSNumberish* alpha() const;
+  void setR(const V8CSSNumberish* r, ExceptionState& exception_state);
+  void setG(const V8CSSNumberish* g, ExceptionState& exception_state);
+  void setB(const V8CSSNumberish* b, ExceptionState& exception_state);
+  void setAlpha(const V8CSSNumberish* alpha, ExceptionState& exception_state);
 
   void Trace(Visitor* visitor) const override {
     visitor->Trace(r_);

@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGPU_GPU_CANVAS_CONTEXT_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGPU_GPU_CANVAS_CONTEXT_H_
 
+#include "third_party/blink/renderer/bindings/modules/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_rendering_context_factory.h"
 #include "third_party/blink/renderer/modules/webgpu/gpu_swap_chain.h"
@@ -45,7 +46,8 @@ class GPUCanvasContext : public CanvasRenderingContext {
 
   // CanvasRenderingContext implementation
   ContextType GetContextType() const override;
-  void SetCanvasGetContextResult(RenderingContext&) final;
+  V8RenderingContext* AsV8RenderingContext() final;
+  V8OffscreenRenderingContext* AsV8OffscreenRenderingContext() final;
   scoped_refptr<StaticBitmapImage> GetImage() final { return nullptr; }
   void SetIsInHiddenPage(bool) override {}
   void SetIsBeingDisplayed(bool) override {}
@@ -61,7 +63,6 @@ class GPUCanvasContext : public CanvasRenderingContext {
   cc::Layer* CcLayer() const final;
 
   // OffscreenCanvas-specific methods
-  void SetOffscreenCanvasGetContextResult(OffscreenRenderingContext&) final;
   bool PushFrame() final;
   ImageBitmap* TransferToImageBitmap(ScriptState*) final;
 
@@ -74,8 +75,6 @@ class GPUCanvasContext : public CanvasRenderingContext {
   // gpu_canvas_context.idl
   GPUSwapChain* configureSwapChain(const GPUSwapChainDescriptor* descriptor,
                                    ExceptionState&);
-  ScriptPromise getSwapChainPreferredFormat(ScriptState* script_state,
-                                            GPUDevice* device);
   String getSwapChainPreferredFormat(const GPUAdapter* adapter);
 
  private:

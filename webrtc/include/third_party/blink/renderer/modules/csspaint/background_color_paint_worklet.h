@@ -5,9 +5,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_CSSPAINT_BACKGROUND_COLOR_PAINT_WORKLET_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_CSSPAINT_BACKGROUND_COLOR_PAINT_WORKLET_H_
 
-#include <memory>
-
 #include "base/macros.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/core/animation/keyframe_effect_model.h"
 #include "third_party/blink/renderer/modules/csspaint/native_paint_worklet.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
@@ -35,7 +34,7 @@ class MODULES_EXPORT BackgroundColorPaintWorklet : public NativePaintWorklet {
                              const Node*,
                              const Vector<Color>& animated_colors,
                              const Vector<double>& offsets,
-                             const base::Optional<double>& progress);
+                             const absl::optional<double>& progress);
 
   // Get the animated colors and offsets from the animation keyframes. Moreover,
   // we obtain the progress of the animation from the main thread, such that if
@@ -47,7 +46,7 @@ class MODULES_EXPORT BackgroundColorPaintWorklet : public NativePaintWorklet {
   static bool GetBGColorPaintWorkletParams(Node* node,
                                            Vector<Color>* animated_colors,
                                            Vector<double>* offsets,
-                                           base::Optional<double>* progress);
+                                           absl::optional<double>* progress);
 
   // Shared code that is being called in multiple places.
   static Animation* GetAnimationIfCompositable(const Element* element);

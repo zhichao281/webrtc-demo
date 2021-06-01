@@ -6,7 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_NG_FRAGMENT_CHILD_ITERATOR_H_
 
 #include "base/containers/span.h"
-#include "base/optional.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/ng/inline/ng_fragment_item.h"
 #include "third_party/blink/renderer/core/layout/ng/inline/ng_inline_cursor.h"
@@ -66,7 +66,7 @@ class CORE_EXPORT NGFragmentChildIterator {
     const NGLink& Link() const { return link_; }
 
     const NGPhysicalBoxFragment* BoxFragment() const {
-      return To<NGPhysicalBoxFragment>(link_.fragment.Get());
+      return To<NGPhysicalBoxFragment>(link_.fragment);
     }
     const NGFragmentItem* FragmentItem() const {
       if (!cursor_)
@@ -105,7 +105,7 @@ class CORE_EXPORT NGFragmentChildIterator {
 
    private:
     NGLink link_;
-    base::Optional<NGInlineCursor> cursor_;
+    absl::optional<NGInlineCursor> cursor_;
     const NGBlockBreakToken* block_break_token_ = nullptr;
     bool break_token_for_fragmentainer_only_ = false;
   };
@@ -118,7 +118,7 @@ class CORE_EXPORT NGFragmentChildIterator {
   NGFragmentChildIterator(
       const NGInlineCursor& parent,
       const NGBlockBreakToken* parent_break_token,
-      base::span<const Member<const NGBreakToken>> child_break_tokens);
+      base::span<const NGBreakToken* const> child_break_tokens);
 
   bool AdvanceChildFragment();
   void UpdateSelfFromFragment(
@@ -132,7 +132,7 @@ class CORE_EXPORT NGFragmentChildIterator {
   const NGPhysicalBoxFragment* parent_fragment_ = nullptr;
   const NGBlockBreakToken* parent_break_token_ = nullptr;
   Current current_;
-  base::span<const Member<const NGBreakToken>> child_break_tokens_;
+  base::span<const NGBreakToken* const> child_break_tokens_;
   wtf_size_t child_fragment_idx_ = 0;
   wtf_size_t child_break_token_idx_ = 0;
   bool is_fragmentation_context_root_ = false;

@@ -6,7 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_NG_LAYOUT_INPUT_NODE_H_
 
 #include "base/dcheck_is_on.h"
-#include "base/optional.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/display_lock/display_lock_context.h"
 #include "third_party/blink/renderer/core/layout/geometry/axis.h"
@@ -107,12 +107,15 @@ class CORE_EXPORT NGLayoutInputNode {
     return box_->ShouldBeConsideredAsReplaced();
   }
   bool IsListItem() const { return IsBlock() && box_->IsLayoutNGListItem(); }
+  // Returns the list marker if |this.IsListItem()| with an outside list marker.
+  // Otherwise |nullptr|.
+  NGBlockNode ListMarkerBlockNodeIfListItem() const;
   bool IsListMarker() const {
     return IsBlock() && box_->IsLayoutNGOutsideListMarker();
   }
   bool ListMarkerOccupiesWholeLine() const {
     DCHECK(IsListMarker());
-    return To<LayoutNGOutsideListMarker>(box_.Get())->NeedsOccupyWholeLine();
+    return To<LayoutNGOutsideListMarker>(box_)->NeedsOccupyWholeLine();
   }
   bool IsButton() const { return IsBlock() && box_->IsLayoutNGButton(); }
   bool IsFieldsetContainer() const {
@@ -130,7 +133,7 @@ class CORE_EXPORT NGLayoutInputNode {
   bool IsSlider() const;
   // Return true if this node is for a slider thumb in <input type=range>.
   bool IsSliderThumb() const;
-  bool IsSVGText() const;
+  bool IsSvgText() const;
   bool IsTable() const { return IsBlock() && box_->IsTable(); }
   bool IsNGTable() const { return IsTable() && box_->IsLayoutNGMixin(); }
 
@@ -190,7 +193,7 @@ class CORE_EXPORT NGLayoutInputNode {
   // Returns true if this node should pass its percentage resolution block-size
   // to its children. Typically only quirks-mode, auto block-size, block nodes.
   bool UseParentPercentageResolutionBlockSizeForChildren() const {
-    auto* layout_block = DynamicTo<LayoutBlock>(box_.Get());
+    auto* layout_block = DynamicTo<LayoutBlock>(box_);
     if (IsBlock() && layout_block) {
       return LayoutBoxUtils::SkipContainingBlockForPercentHeightCalculation(
           layout_block);
@@ -203,8 +206,8 @@ class CORE_EXPORT NGLayoutInputNode {
   // ComputeReplacedSize can use it to compute actual replaced size.
   // Corresponds to Legacy's LayoutReplaced::IntrinsicSizingInfo.
   // Use NGBlockNode::GetAspectRatio to get the aspect ratio.
-  void IntrinsicSize(base::Optional<LayoutUnit>* computed_inline_size,
-                     base::Optional<LayoutUnit>* computed_block_size) const;
+  void IntrinsicSize(absl::optional<LayoutUnit>* computed_inline_size,
+                     absl::optional<LayoutUnit>* computed_block_size) const;
 
   // Returns the next sibling.
   NGLayoutInputNode NextSibling() const;
@@ -315,17 +318,15 @@ class CORE_EXPORT NGLayoutInputNode {
   void ShowNodeTree() const;
 #endif
 
-  void Trace(Visitor* visitor) const { visitor->Trace(box_); }
-
  protected:
   NGLayoutInputNode(LayoutBox* box, NGLayoutInputNodeType type)
       : box_(box), type_(type) {}
 
   void GetOverrideIntrinsicSize(
-      base::Optional<LayoutUnit>* computed_inline_size,
-      base::Optional<LayoutUnit>* computed_block_size) const;
+      absl::optional<LayoutUnit>* computed_inline_size,
+      absl::optional<LayoutUnit>* computed_block_size) const;
 
-  Member<LayoutBox> box_;
+  LayoutBox* box_;
 
   unsigned type_ : 1;  // NGLayoutInputNodeType
 };

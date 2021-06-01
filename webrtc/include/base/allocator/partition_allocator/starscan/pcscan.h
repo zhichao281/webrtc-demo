@@ -15,20 +15,10 @@
 #include "base/base_export.h"
 #include "base/compiler_specific.h"
 
-#if defined(__has_attribute)
-#if __has_attribute(require_constant_initialization)
-#define PA_CONSTINIT __attribute__((require_constant_initialization))
-#else
-#define PA_CONSTINIT
-#endif
-#endif
-
 #define PCSCAN_DISABLE_SAFEPOINTS 0
 
 namespace base {
 namespace internal {
-
-class PCScanTask;
 
 [[noreturn]] BASE_EXPORT NOINLINE NOT_TAIL_CALLED void DoubleFreeAttempt();
 
@@ -55,8 +45,25 @@ class BASE_EXPORT PCScan final {
     kScheduleOnlyForTesting,
   };
 
+  enum class ClearType : uint8_t {
+    // Clear in the scanning task.
+    kLazy,
+    // Eagerly clear quarantined objects on MoveToQuarantine().
+    kEager,
+  };
+
+  // Based on the provided mode, PCScan will try to use a certain
+  // WriteProtector, if supported by the system.
+  enum class WantedWriteProtectionMode : uint8_t {
+    kDisabled,
+    kEnabled,
+  };
+
   PCScan(const PCScan&) = delete;
   PCScan& operator=(const PCScan&) = delete;
+
+  // Initializes PCScan and prepares internal data structures.
+  static void Initialize(WantedWriteProtectionMode);
 
   // Registers a root for scanning.
   static void RegisterScannableRoot(Root* root);
@@ -64,7 +71,9 @@ class BASE_EXPORT PCScan final {
   // quarantined objects.
   static void RegisterNonScannableRoot(Root* root);
 
-  ALWAYS_INLINE static void MoveToQuarantine(void* ptr, size_t slot_size);
+  ALWAYS_INLINE static void MoveToQuarantine(void* ptr,
+                                             size_t usable_size,
+                                             size_t slot_size);
 
   // Performs scanning only if a certain quarantine threshold was reached.
   static void PerformScanIfNeeded(InvocationMode invocation_mode);
@@ -85,9 +94,13 @@ class BASE_EXPORT PCScan final {
   static void DisableStackScanning();
   static bool IsStackScanningEnabled();
 
-  // Notify PCScan that a new thread was created/destroyed.
+  // Notify PCScan that a new thread was created/destroyed. Can be called for
+  // uninitialized PCScan (before Initialize()).
   static void NotifyThreadCreated(void* stack_top);
   static void NotifyThreadDestroyed();
+
+  // Define when clearing should happen (on free() or in scanning task).
+  static void SetClearType(ClearType);
 
   static void UninitForTesting();
 
@@ -96,7 +109,8 @@ class BASE_EXPORT PCScan final {
  private:
   class PCScanThread;
   friend class PCScanTask;
-  friend class PCScanTest;
+  friend class PartitionAllocPCScanTest;
+  friend class PCScanInternal;
 
   enum class State : uint8_t {
     // PCScan task is not scheduled.
@@ -125,15 +139,16 @@ class BASE_EXPORT PCScan final {
   static void FinishScanForTesting();
 
   // Reinitialize internal structures (e.g. card table).
-  static void ReinitForTesting();
+  static void ReinitForTesting(WantedWriteProtectionMode);
 
   size_t epoch() const { return scheduler_.epoch(); }
 
-  // PA_CONSTINIT for fast access (avoiding static thread-safe initialization).
-  static PCScan instance_ PA_CONSTINIT;
+  // CONSTINIT for fast access (avoiding static thread-safe initialization).
+  static PCScan instance_ CONSTINIT;
 
   PCScanScheduler scheduler_{};
   std::atomic<State> state_{State::kNotRunning};
+  ClearType clear_type_{ClearType::kLazy};
 };
 
 // To please Chromium's clang plugin.
@@ -165,7 +180,9 @@ ALWAYS_INLINE void PCScan::JoinScanIfNeeded() {
     instance.JoinScan();
 }
 
-ALWAYS_INLINE void PCScan::MoveToQuarantine(void* ptr, size_t slot_size) {
+ALWAYS_INLINE void PCScan::MoveToQuarantine(void* ptr,
+                                            size_t usable_size,
+                                            size_t slot_size) {
   PCScan& instance = Instance();
   auto* quarantine = QuarantineBitmapFromPointer(QuarantineBitmapType::kMutator,
                                                  instance.epoch(), ptr);
@@ -175,6 +192,13 @@ ALWAYS_INLINE void PCScan::MoveToQuarantine(void* ptr, size_t slot_size) {
     DoubleFreeAttempt();
 
   const bool is_limit_reached = instance.scheduler_.AccountFreed(slot_size);
+  if (instance.clear_type_ == ClearType::kEager) {
+    // We need to distinguish between usable_size and slot_size in this context:
+    // - for large buckets usable_size can be noticeably smaller than slot_size;
+    // - usable_size is safe as it doesn't cover extras as opposed to slot_size.
+    memset(ptr, 0, usable_size);
+  }
+
   if (UNLIKELY(is_limit_reached)) {
     // Perform a quick check if another scan is already in progress.
     if (instance.IsInProgress())

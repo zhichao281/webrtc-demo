@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_MATHML_MATHML_OPERATOR_ELEMENT_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_MATHML_MATHML_OPERATOR_ELEMENT_H_
 
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/core/mathml/mathml_element.h"
 #include "third_party/blink/renderer/platform/wtf/text/character_names.h"
 
@@ -49,7 +50,7 @@ class CORE_EXPORT MathMLOperatorElement final : public MathMLElement {
   void CheckFormAfterSiblingChange();
 
  private:
-  base::Optional<OperatorContent> operator_content_;
+  absl::optional<OperatorContent> operator_content_;
   // Operator properties calculated from dictionary and attributes.
   // It contains dirty flags to allow efficient dictionary updating.
   struct Properties {

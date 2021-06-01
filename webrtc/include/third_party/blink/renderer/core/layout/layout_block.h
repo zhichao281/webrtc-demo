@@ -24,8 +24,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_LAYOUT_BLOCK_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_LAYOUT_BLOCK_H_
 
-#include <memory>
-
 #include "base/dcheck_is_on.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/layout_box.h"
@@ -39,12 +37,11 @@ class LineLayoutBox;
 class NGBlockNode;
 class WordMeasurement;
 
-typedef HeapListHashSet<Member<LayoutBox>, 16> TrackedLayoutBoxListHashSet;
-typedef HeapHashMap<WeakMember<const LayoutBlock>,
-                    Member<TrackedLayoutBoxListHashSet>>
+typedef WTF::ListHashSet<LayoutBox*, 16> TrackedLayoutBoxListHashSet;
+typedef WTF::HashMap<const LayoutBlock*,
+                     std::unique_ptr<TrackedLayoutBoxListHashSet>>
     TrackedDescendantsMap;
-typedef HeapHashMap<WeakMember<const LayoutBox>, Member<LayoutBlock>>
-    TrackedContainerMap;
+typedef WTF::HashMap<const LayoutBox*, LayoutBlock*> TrackedContainerMap;
 typedef Vector<WordMeasurement, 64> WordMeasurements;
 
 enum ContainingBlockState { kNewContainingBlock, kSameContainingBlock };
@@ -109,10 +106,9 @@ enum ContainingBlockState { kNewContainingBlock, kSameContainingBlock };
 class CORE_EXPORT LayoutBlock : public LayoutBox {
  protected:
   explicit LayoutBlock(ContainerNode*);
+  ~LayoutBlock() override;
 
  public:
-  void Trace(Visitor*) const override;
-
   LayoutObject* FirstChild() const {
     NOT_DESTROYED();
     DCHECK_EQ(Children(), VirtualChildren());
@@ -462,7 +458,7 @@ class CORE_EXPORT LayoutBlock : public LayoutBox {
   virtual bool HasLineIfEmpty() const;
   // Returns baseline offset if we can get |SimpleFontData| from primary font.
   // Or returns no value if we can't get font data.
-  base::Optional<LayoutUnit> BaselineForEmptyLine(
+  absl::optional<LayoutUnit> BaselineForEmptyLine(
       LineDirectionMode line_direction) const;
 
  protected:
@@ -481,8 +477,8 @@ class CORE_EXPORT LayoutBlock : public LayoutBox {
 
   LayoutUnit FirstLineBoxBaseline() const override;
   LayoutUnit InlineBlockBaseline(LineDirectionMode) const override;
-  base::Optional<LayoutUnit> FirstLineBoxBaselineOverride() const;
-  base::Optional<LayoutUnit> InlineBlockBaselineOverride(
+  absl::optional<LayoutUnit> FirstLineBoxBaselineOverride() const;
+  absl::optional<LayoutUnit> InlineBlockBaselineOverride(
       LineDirectionMode) const;
 
   bool HitTestOverflowControl(

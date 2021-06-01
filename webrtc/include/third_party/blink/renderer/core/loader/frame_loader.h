@@ -38,11 +38,11 @@
 #include "base/callback_helpers.h"
 #include "base/macros.h"
 #include "services/network/public/mojom/web_sandbox_flags.mojom-blink-forward.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
 #include "third_party/blink/public/mojom/loader/request_context_frame_type.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/page_state/page_state.mojom-blink.h"
 #include "third_party/blink/public/platform/scheduler/web_scoped_virtual_time_pauser.h"
-#include "third_party/blink/public/platform/web_url_loader.h"
 #include "third_party/blink/public/web/web_document_loader.h"
 #include "third_party/blink/public/web/web_frame_load_type.h"
 #include "third_party/blink/public/web/web_navigation_type.h"
@@ -55,6 +55,7 @@
 #include "third_party/blink/renderer/core/loader/history_item.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/loader/fetch/fetch_client_settings_object.h"
+#include "third_party/blink/renderer/platform/loader/fetch/loader_freeze_mode.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
 
@@ -133,12 +134,12 @@ class CORE_EXPORT FrameLoader final {
 
   DocumentLoader* GetDocumentLoader() const { return document_loader_.Get(); }
 
-  void SetDefersLoading(WebURLLoader::DeferType defer);
+  void SetDefersLoading(LoaderFreezeMode mode);
 
   void DidExplicitOpen();
 
   String UserAgent() const;
-  base::Optional<blink::UserAgentMetadata> UserAgentMetadata() const;
+  absl::optional<blink::UserAgentMetadata> UserAgentMetadata() const;
 
   void DispatchDidClearWindowObjectInMainWorld();
   void DispatchDidClearDocumentOfWindowObject();
@@ -181,7 +182,7 @@ class CORE_EXPORT FrameLoader final {
   // events and abort XHR requests. Returns true if the frame is ready to
   // receive the next document commit, or false otherwise.
   bool DetachDocument(SecurityOrigin* committing_origin,
-                      base::Optional<Document::UnloadEventTiming>*);
+                      absl::optional<Document::UnloadEventTiming>*);
 
   bool ShouldClose(bool is_reload = false);
 
@@ -194,7 +195,7 @@ class CORE_EXPORT FrameLoader final {
   // If the dispatch of the unload event is not due to a commit, both parameters
   // should be null.
   void DispatchUnloadEvent(SecurityOrigin* committing_origin,
-                           base::Optional<Document::UnloadEventTiming>*);
+                           absl::optional<Document::UnloadEventTiming>*);
 
   bool AllowPlugins();
 
@@ -259,7 +260,7 @@ class CORE_EXPORT FrameLoader final {
 
   // Commits the given |document_loader|.
   void CommitDocumentLoader(DocumentLoader* document_loader,
-                            const base::Optional<Document::UnloadEventTiming>&,
+                            const absl::optional<Document::UnloadEventTiming>&,
                             HistoryItem* previous_history_item,
                             CommitReason);
 

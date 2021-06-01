@@ -7,6 +7,7 @@
 
 #include "build/build_config.h"
 #include "mojo/public/cpp/bindings/struct_traits.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/common_export.h"
 #include "third_party/blink/public/common/context_menu_data/untrustworthy_context_menu_params.h"
 #include "third_party/blink/public/mojom/context_menu/context_menu.mojom.h"
@@ -36,7 +37,7 @@ struct BLINK_COMMON_EXPORT
     return r.link_text;
   }
 
-  static base::Optional<blink::Impression> impression(
+  static absl::optional<blink::Impression> impression(
       const blink::UntrustworthyContextMenuParams& r) {
     return r.impression;
   }

@@ -31,7 +31,6 @@
 #ifndef THIRD_PARTY_BLINK_PUBLIC_WEB_WEB_FRAME_H_
 #define THIRD_PARTY_BLINK_PUBLIC_WEB_WEB_FRAME_H_
 
-#include <memory>
 #include "cc/paint/paint_canvas.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
 #include "third_party/blink/public/mojom/frame/tree_scope_type.mojom-shared.h"
@@ -76,8 +75,10 @@ class BLINK_EXPORT WebFrame {
 
   virtual bool IsWebLocalFrame() const = 0;
   virtual WebLocalFrame* ToWebLocalFrame() = 0;
+  virtual const WebLocalFrame* ToWebLocalFrame() const = 0;
   virtual bool IsWebRemoteFrame() const = 0;
   virtual WebRemoteFrame* ToWebRemoteFrame() = 0;
+  virtual const WebRemoteFrame* ToWebRemoteFrame() const = 0;
 
   bool Swap(WebFrame*);
 
@@ -161,6 +162,10 @@ class BLINK_EXPORT WebFrame {
   // the given node is not a frame, iframe or if the frame is empty.
   static WebFrame* FromFrameOwnerElement(const WebNode&);
 
+  // Whether the owner element of this frame is in the document tree or the
+  // shadow tree, per https://w3c.github.io/webcomponents/spec/shadow/.
+  mojom::TreeScopeType GetTreeScopeType() const { return scope_; }
+
   // This identifier represents the stable identifier between a
   // LocalFrame  <--> RenderFrameHostImpl or a
   // RemoteFrame <--> RenderFrameProxyHost in the browser process.
@@ -169,8 +174,6 @@ class BLINK_EXPORT WebFrame {
 #if INSIDE_BLINK
   static WebFrame* FromCoreFrame(Frame*);
   static Frame* ToCoreFrame(const WebFrame&);
-
-  bool InShadowTree() const { return scope_ == mojom::TreeScopeType::kShadow; }
 #endif
 
  protected:

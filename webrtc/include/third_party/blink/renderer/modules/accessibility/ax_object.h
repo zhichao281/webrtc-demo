@@ -35,7 +35,7 @@
 
 #include "base/dcheck_is_on.h"
 #include "base/macros.h"
-#include "base/optional.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/web/web_ax_enums.h"
 #include "third_party/blink/renderer/core/accessibility/axid.h"
 #include "third_party/blink/renderer/core/dom/element.h"
@@ -349,7 +349,6 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
 
 #if defined(AX_FAIL_FAST_BUILD)
   bool is_adding_children_ = false;
-  bool is_loading_inline_boxes_ = false;
 #endif
 
  public:
@@ -439,7 +438,6 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
 
   // Check object role or purpose.
   ax::mojom::blink::Role RoleValue() const;
-  bool IsAnchor() const;
 
   // Returns true if this object is an ARIA text field, i.e. it is neither an
   // <input> nor a <textarea>, but it has an ARIA role of textbox, searchbox or
@@ -455,9 +453,7 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   bool IsHeading() const;
   bool IsImage() const;
   virtual bool IsInputImage() const;
-  bool IsLandmarkRelated() const;
   bool IsLink() const;
-  virtual bool IsInPageLinkTarget() const;
   bool IsMenu() const;
   bool IsMenuRelated() const;
   bool IsMeter() const;
@@ -676,6 +672,10 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   virtual String ImageDataUrl(const IntSize& max_size) const {
     return g_null_atom;
   }
+  // If this element points to another element in the same page, e.g.
+  // <a href="#foo">, this will return the AXObject for the target.
+  // The object returned should be unignored. If necessary, it will return
+  // a descendant of the actual target.
   virtual AXObject* InPageLinkTarget() const { return nullptr; }
   virtual AccessibilityOrientation Orientation() const;
   virtual ax::mojom::blink::ListStyle GetListStyle() const {
@@ -711,7 +711,8 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
 
   // Load inline text boxes for just this node, even if
   // settings->inlineTextBoxAccessibilityEnabled() is false.
-  virtual void LoadInlineTextBoxes();
+  void LoadInlineTextBoxes();
+  virtual void LoadInlineTextBoxesRecursive();
 
   // Walk the AXObjects on the same line.
   virtual AXObject* NextOnLine() const;
@@ -722,7 +723,7 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   // of this attribute. As an optimization, goes up until the deepest line
   // breaking object which, in most cases, is the paragraph containing this
   // object.
-  base::Optional<const DocumentMarker::MarkerType>
+  absl::optional<const DocumentMarker::MarkerType>
   GetAriaSpellingOrGrammarMarker() const;
 
   // For all inline text objects: Returns the horizontal pixel offset of each
@@ -1134,6 +1135,11 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
                                         Node* node,
                                         LayoutObject* layout_object = nullptr);
 
+  // Compute parent for an AccessibleNode, which is not backed up a DOM node
+  // or layout object.
+  static AXObject* ComputeAccessibleNodeParent(AXObjectCacheImpl& cache,
+                                               AccessibleNode& accessible_node);
+
   // Returns true if |parent_| is null and not at the root.
   bool IsMissingParent() const;
 
@@ -1324,10 +1330,6 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   // Return the equivalent ARIA name for an enumerated role, or g_null_atom.
   static const AtomicString& ARIARoleName(ax::mojom::blink::Role);
 
-  // For a native role get the equivalent ARIA role for use in the xml-roles
-  // object attribute.
-  static const AtomicString& GetEquivalentAriaRoleName(ax::mojom::blink::Role);
-
   // Return the equivalent internal role name as a string.
   static const String InternalRoleName(ax::mojom::blink::Role);
 
@@ -1356,6 +1358,10 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
 
   // What should the role be assuming an ARIA role is not present?
   virtual ax::mojom::blink::Role NativeRoleIgnoringAria() const = 0;
+
+  // Get the role to be used in StringAttribute::kRole, which is used in the
+  // xml-roles object attribute.
+  const AtomicString& GetRoleAttributeStringForObjectAttribute();
 
   // Returns a string representation of this object.
   // |cached_values_only| avoids recomputing cached values, and thus can be
@@ -1498,6 +1504,8 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
       ax::mojom::blink::StringAttribute attribute,
       const std::string& value,
       uint32_t max_len = kMaxStringAttributeLength) const;
+
+  static bool is_loading_inline_boxes_;
 
   static unsigned number_of_live_ax_objects_;
 

@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_PUBLIC_COMMON_WIDGET_VISUAL_PROPERTIES_MOJOM_TRAITS_H_
 #define THIRD_PARTY_BLINK_PUBLIC_COMMON_WIDGET_VISUAL_PROPERTIES_MOJOM_TRAITS_H_
 
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/common_export.h"
 #include "third_party/blink/public/common/widget/visual_properties.h"
 #include "third_party/blink/public/mojom/widget/visual_properties.mojom-shared.h"
@@ -47,7 +48,7 @@ struct BLINK_COMMON_EXPORT StructTraits<blink::mojom::VisualPropertiesDataView,
     return r.compositor_viewport_pixel_rect;
   }
 
-  static base::Optional<cc::BrowserControlsParams> browser_controls_params(
+  static absl::optional<cc::BrowserControlsParams> browser_controls_params(
       const blink::VisualProperties& r) {
     return r.browser_controls_params;
   }
@@ -56,7 +57,7 @@ struct BLINK_COMMON_EXPORT StructTraits<blink::mojom::VisualPropertiesDataView,
     return r.scroll_focused_node_into_view;
   }
 
-  static base::Optional<viz::LocalSurfaceId> local_surface_id(
+  static absl::optional<viz::LocalSurfaceId> local_surface_id(
       const blink::VisualProperties& r) {
     return r.local_surface_id;
   }

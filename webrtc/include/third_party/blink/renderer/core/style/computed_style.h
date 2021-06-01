@@ -147,7 +147,7 @@ class WebkitTextStrokeColor;
 // Blink. It acts as a container where the computed value of every CSS property
 // can be stored and retrieved:
 //
-//   auto* style = ComputedStyle::CreateInitialStyleSingleton();
+//   auto style = ComputedStyle::CreateInitialStyleSingleton();
 //   style->SetDisplay(EDisplay::kNone); //'display' keyword property
 //   style->Display();
 //
@@ -196,8 +196,8 @@ class WebkitTextStrokeColor;
 //
 // Since this class is huge, do not mark all of it CORE_EXPORT.  Instead,
 // export only the methods you need below.
-class ComputedStyle final : public GarbageCollected<ComputedStyle>,
-                            public ComputedStyleBase {
+class ComputedStyle : public ComputedStyleBase,
+                      public RefCounted<ComputedStyle> {
   // Needed to allow access to private/protected getters of fields to allow diff
   // generation
   friend class ComputedStyleBase;
@@ -208,6 +208,7 @@ class ComputedStyle final : public GarbageCollected<ComputedStyle>,
   // Accesses GetColor().
   friend class ComputedStyleUtils;
   // These get visited and unvisited colors separately.
+  friend class css_longhand::AccentColor;
   friend class css_longhand::BackgroundColor;
   friend class css_longhand::BorderBottomColor;
   friend class css_longhand::BorderLeftColor;
@@ -273,13 +274,17 @@ class ComputedStyle final : public GarbageCollected<ComputedStyle>,
   friend class StyleResolver;
 
  protected:
-  mutable Member<StyleCachedData> cached_data_;
+  mutable std::unique_ptr<StyleCachedData> cached_data_;
 
   StyleCachedData& EnsureCachedData() const;
 
   bool HasCachedPseudoElementStyles() const;
   PseudoElementStyleCache* GetPseudoElementStyleCache() const;
   PseudoElementStyleCache& EnsurePseudoElementStyleCache() const;
+
+  Vector<AtomicString>* GetVariableNamesCache() const;
+  Vector<AtomicString>& EnsureVariableNamesCache() const;
+  void ClearVariableNamesCache() const;
 
  private:
   // TODO(sashab): Move these private members to the bottom of ComputedStyle.
@@ -291,14 +296,13 @@ class ComputedStyle final : public GarbageCollected<ComputedStyle>,
 
   ALWAYS_INLINE ComputedStyle(PassKey, const ComputedStyle&);
   ALWAYS_INLINE explicit ComputedStyle(PassKey);
-  CORE_EXPORT void Trace(Visitor*) const;
 
   // Create the per-document/context singleton that is used for shallow-copying
   // into new instances.
-  CORE_EXPORT static ComputedStyle* CreateInitialStyleSingleton();
+  CORE_EXPORT static scoped_refptr<ComputedStyle> CreateInitialStyleSingleton();
 
   // Shallow copy into a new instance sharing DataPtrs.
-  CORE_EXPORT static ComputedStyle* Clone(const ComputedStyle&);
+  CORE_EXPORT static scoped_refptr<ComputedStyle> Clone(const ComputedStyle&);
 
   // Find out how two ComputedStyles differ. Used for figuring out if style
   // recalc needs to propagate style changes down the tree. The constants are
@@ -381,7 +385,8 @@ class ComputedStyle final : public GarbageCollected<ComputedStyle>,
   CORE_EXPORT const ComputedStyle* GetCachedPseudoElementStyle(
       PseudoId,
       const AtomicString& pseudo_argument = g_null_atom) const;
-  const ComputedStyle* AddCachedPseudoElementStyle(const ComputedStyle*) const;
+  const ComputedStyle* AddCachedPseudoElementStyle(
+      scoped_refptr<const ComputedStyle>) const;
   void ClearCachedPseudoElementStyles() const;
 
   /**
@@ -1112,7 +1117,7 @@ class ComputedStyle final : public GarbageCollected<ComputedStyle>,
   // accent-color
   const StyleAutoColor& AccentColor() const { return AccentColorInternal(); }
   // An empty optional means the accent-color is 'auto'
-  base::Optional<Color> AccentColorResolved() const;
+  absl::optional<Color> AccentColorResolved() const;
 
   // Comparison operators
   // FIXME: Replace callers of operator== wth a named method instead, e.g.
@@ -1161,9 +1166,10 @@ class ComputedStyle final : public GarbageCollected<ComputedStyle>,
 
   // Variables.
   bool HasVariables() const;
-  CORE_EXPORT HashSet<AtomicString> GetVariableNames() const;
-  CORE_EXPORT StyleInheritedVariables* InheritedVariables() const;
-  CORE_EXPORT StyleNonInheritedVariables* NonInheritedVariables() const;
+  CORE_EXPORT size_t GetVariableNamesCount() const;
+  CORE_EXPORT const Vector<AtomicString>& GetVariableNames() const;
+  CORE_EXPORT const StyleInheritedVariables* InheritedVariables() const;
+  CORE_EXPORT const StyleNonInheritedVariables* NonInheritedVariables() const;
 
   CORE_EXPORT void SetVariableData(const AtomicString&,
                                    scoped_refptr<CSSVariableData>,
@@ -1415,7 +1421,8 @@ class ComputedStyle final : public GarbageCollected<ComputedStyle>,
   // Will-change utility functions.
   bool HasWillChangeCompositingHint() const;
   bool HasWillChangeOpacityHint() const {
-    return WillChangeProperties().Contains(CSSPropertyID::kOpacity);
+    return WillChangeProperties().Contains(CSSPropertyID::kOpacity) ||
+           WillChangeProperties().Contains(CSSPropertyID::kAliasWebkitOpacity);
   }
   bool HasWillChangeTransformHint() const;
   bool HasWillChangeFilterHint() const {
@@ -2601,9 +2608,7 @@ class ComputedStyle final : public GarbageCollected<ComputedStyle>,
   }
 
   mojom::blink::ColorScheme UsedColorScheme() const {
-    return RuntimeEnabledFeatures::CSSColorSchemeUARenderingEnabled()
-               ? ComputedColorScheme()
-               : mojom::blink::ColorScheme::kLight;
+    return ComputedColorScheme();
   }
 
   mojom::blink::ColorScheme UsedColorSchemeForInitialColors() const {
@@ -3000,6 +3005,8 @@ class ComputedStyle final : public GarbageCollected<ComputedStyle>,
   FRIEND_TEST_ALL_PREFIXES(ComputedStyleTest, InitialVariableNames);
   FRIEND_TEST_ALL_PREFIXES(ComputedStyleTest,
                            InitialAndInheritedAndNonInheritedVariableNames);
+  FRIEND_TEST_ALL_PREFIXES(ComputedStyleTest,
+                           GetVariableNamesWithInitialData_Invalidation);
   FRIEND_TEST_ALL_PREFIXES(StyleCascadeTest, ForcedVisitedBackgroundColor);
   FRIEND_TEST_ALL_PREFIXES(
       ComputedStyleTest,

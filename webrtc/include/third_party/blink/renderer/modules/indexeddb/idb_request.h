@@ -37,11 +37,8 @@
 #include "base/memory/scoped_refptr.h"
 #include "third_party/blink/public/common/indexeddb/web_idb_types.h"
 #include "third_party/blink/public/mojom/indexeddb/indexeddb.mojom-blink-forward.h"
-#include "third_party/blink/public/platform/web_blob_info.h"
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_value.h"
-#include "third_party/blink/renderer/bindings/modules/v8/idb_object_store_or_idb_index.h"
-#include "third_party/blink/renderer/bindings/modules/v8/idb_object_store_or_idb_index_or_idb_cursor.h"
 #include "third_party/blink/renderer/core/dom/dom_string_list.h"
 #include "third_party/blink/renderer/core/dom/events/event_listener.h"
 #include "third_party/blink/renderer/core/dom/events/event_queue.h"
@@ -64,6 +61,7 @@ class ExceptionState;
 class IDBCursor;
 struct IDBDatabaseMetadata;
 class IDBValue;
+class V8UnionIDBCursorOrIDBIndexOrIDBObjectStore;
 
 class MODULES_EXPORT IDBRequest : public EventTargetWithInlineData,
                                   public ActiveScriptWrappable<IDBRequest>,
@@ -71,7 +69,8 @@ class MODULES_EXPORT IDBRequest : public EventTargetWithInlineData,
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  using Source = IDBObjectStoreOrIDBIndexOrIDBCursor;
+  using Source = V8UnionIDBCursorOrIDBIndexOrIDBObjectStore;
+
   // Container for async tracing state.
   //
   // The documentation for TRACE_EVENT_NESTABLE_ASYNC_{BEGIN,END} suggests
@@ -177,11 +176,14 @@ class MODULES_EXPORT IDBRequest : public EventTargetWithInlineData,
                             IDBTransaction* source,
                             AsyncTraceState);
   static IDBRequest* Create(ScriptState*,
-                            const Source&,
+                            const Source*,
                             IDBTransaction*,
                             AsyncTraceState);
 
-  IDBRequest(ScriptState*, const Source&, IDBTransaction*, AsyncTraceState);
+  IDBRequest(ScriptState* script_state,
+             const Source* source,
+             IDBTransaction* transaction,
+             AsyncTraceState metrics);
   ~IDBRequest() override;
 
   void Trace(Visitor*) const override;
@@ -189,7 +191,7 @@ class MODULES_EXPORT IDBRequest : public EventTargetWithInlineData,
   v8::Isolate* GetIsolate() const { return isolate_; }
   ScriptValue result(ScriptState*, ExceptionState&);
   DOMException* error(ExceptionState&) const;
-  void source(ScriptState*, Source&) const;
+  const Source* source(ScriptState* script_state) const;
   IDBTransaction* transaction() const { return transaction_.Get(); }
 
   bool isResultDirty() const { return result_dirty_; }
@@ -389,7 +391,7 @@ class MODULES_EXPORT IDBRequest : public EventTargetWithInlineData,
 
   void ClearPutOperationBlobs() { transit_blob_handles_.clear(); }
 
-  Source source_;
+  Member<const Source> source_;
   Member<IDBAny> result_;
   Member<DOMException> error_;
 

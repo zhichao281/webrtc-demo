@@ -7,6 +7,7 @@
 
 #include "base/dcheck_is_on.h"
 #include "base/memory/scoped_refptr.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/geometry/logical_size.h"
 #include "third_party/blink/renderer/core/layout/ng/exclusions/ng_exclusion_space.h"
@@ -44,21 +45,19 @@ class CORE_EXPORT NGContainerFragmentBuilder : public NGFragmentBuilder {
 
   struct ChildWithOffset {
     DISALLOW_NEW();
-    ChildWithOffset(LogicalOffset offset, const NGPhysicalFragment* fragment)
+    ChildWithOffset(LogicalOffset offset,
+                    scoped_refptr<const NGPhysicalFragment> fragment)
         : offset(offset), fragment(std::move(fragment)) {}
-
-    void Trace(Visitor*) const;
 
     // We store logical offsets (instead of the final physical), as we can't
     // convert into the physical coordinate space until we know our final size.
     LogicalOffset offset;
-    Member<const NGPhysicalFragment> fragment;
+    scoped_refptr<const NGPhysicalFragment> fragment;
   };
 
-  using ChildrenVector = HeapVector<ChildWithOffset, 4>;
+  using ChildrenVector = Vector<ChildWithOffset, 4>;
   using MulticolCollection =
-      HeapHashMap<Member<LayoutBox>,
-                  Member<NGMulticolWithPendingOOFs<LogicalOffset>>>;
+      HashMap<LayoutBox*, NGMulticolWithPendingOOFs<LogicalOffset>>;
 
   LayoutUnit BfcLineOffset() const { return bfc_line_offset_; }
   void SetBfcLineOffset(LayoutUnit bfc_line_offset) {
@@ -67,7 +66,7 @@ class CORE_EXPORT NGContainerFragmentBuilder : public NGFragmentBuilder {
 
   // The BFC block-offset is where this fragment was positioned within the BFC.
   // If it is not set, this fragment may be placed anywhere within the BFC.
-  const base::Optional<LayoutUnit>& BfcBlockOffset() const {
+  const absl::optional<LayoutUnit>& BfcBlockOffset() const {
     return bfc_block_offset_;
   }
   void SetBfcBlockOffset(LayoutUnit bfc_block_offset) {
@@ -89,6 +88,9 @@ class CORE_EXPORT NGContainerFragmentBuilder : public NGFragmentBuilder {
   void SetUnpositionedListMarker(const NGUnpositionedListMarker& marker) {
     DCHECK(!unpositioned_list_marker_ || !marker);
     unpositioned_list_marker_ = marker;
+  }
+  void ClearUnpositionedListMarker() {
+    unpositioned_list_marker_ = NGUnpositionedListMarker();
   }
 
   void ReplaceChild(wtf_size_t index,
@@ -126,7 +128,7 @@ class CORE_EXPORT NGContainerFragmentBuilder : public NGFragmentBuilder {
           NGLogicalStaticPosition::kInlineStart,
       NGLogicalStaticPosition::BlockEdge = NGLogicalStaticPosition::kBlockStart,
       bool needs_block_offset_adjustment = true,
-      const base::Optional<LogicalRect> containing_block_rect = base::nullopt);
+      const absl::optional<LogicalRect> containing_block_rect = absl::nullopt);
 
   void AddOutOfFlowChildCandidate(
       const NGLogicalOutOfFlowPositionedNode& candidate);
@@ -152,14 +154,14 @@ class CORE_EXPORT NGContainerFragmentBuilder : public NGFragmentBuilder {
   // store such inner multicols for later use.
   void AddMulticolWithPendingOOFs(
       const NGBlockNode& multicol,
-      NGMulticolWithPendingOOFs<LogicalOffset>* multicol_info =
-          MakeGarbageCollected<NGMulticolWithPendingOOFs<LogicalOffset>>());
+      NGMulticolWithPendingOOFs<LogicalOffset> multicol_info =
+          NGMulticolWithPendingOOFs<LogicalOffset>());
 
   void SwapOutOfFlowPositionedCandidates(
-      HeapVector<NGLogicalOutOfFlowPositionedNode>* candidates);
+      Vector<NGLogicalOutOfFlowPositionedNode>* candidates);
 
   void SwapOutOfFlowFragmentainerDescendants(
-      HeapVector<NGLogicalOutOfFlowPositionedNode>* descendants);
+      Vector<NGLogicalOutOfFlowPositionedNode>* descendants);
 
   void SwapMulticolsWithPendingOOFs(
       MulticolCollection* multicols_with_pending_oofs);
@@ -192,7 +194,7 @@ class CORE_EXPORT NGContainerFragmentBuilder : public NGFragmentBuilder {
     return !multicols_with_pending_oofs_.IsEmpty();
   }
 
-  HeapVector<NGLogicalOutOfFlowPositionedNode>*
+  Vector<NGLogicalOutOfFlowPositionedNode>*
   MutableOutOfFlowPositionedCandidates() {
     return &oof_positioned_candidates_;
   }
@@ -280,7 +282,7 @@ class CORE_EXPORT NGContainerFragmentBuilder : public NGFragmentBuilder {
   friend class NGPhysicalFragment;
 
   NGContainerFragmentBuilder(NGLayoutInputNode node,
-                             const ComputedStyle* style,
+                             scoped_refptr<const ComputedStyle> style,
                              const NGConstraintSpace* space,
                              WritingDirectionMode writing_direction)
       : NGFragmentBuilder(std::move(style), writing_direction),
@@ -294,22 +296,23 @@ class CORE_EXPORT NGContainerFragmentBuilder : public NGFragmentBuilder {
       LogicalOffset child_offset,
       LogicalOffset relative_offset,
       const LayoutInline* inline_container = nullptr,
-      base::Optional<LayoutUnit> adjustment_for_oof_propagation = LayoutUnit());
+      absl::optional<LayoutUnit> adjustment_for_oof_propagation = LayoutUnit());
 
-  void AddChildInternal(const NGPhysicalFragment*, const LogicalOffset&);
+  void AddChildInternal(scoped_refptr<const NGPhysicalFragment>,
+                        const LogicalOffset&);
 
   NGLayoutInputNode node_;
   const NGConstraintSpace* space_;
 
   LayoutUnit bfc_line_offset_;
-  base::Optional<LayoutUnit> bfc_block_offset_;
+  absl::optional<LayoutUnit> bfc_block_offset_;
   NGMarginStrut end_margin_strut_;
   NGExclusionSpace exclusion_space_;
 
-  HeapVector<NGLogicalOutOfFlowPositionedNode> oof_positioned_candidates_;
-  HeapVector<NGLogicalOutOfFlowPositionedNode>
+  Vector<NGLogicalOutOfFlowPositionedNode> oof_positioned_candidates_;
+  Vector<NGLogicalOutOfFlowPositionedNode>
       oof_positioned_fragmentainer_descendants_;
-  HeapVector<NGLogicalOutOfFlowPositionedNode> oof_positioned_descendants_;
+  Vector<NGLogicalOutOfFlowPositionedNode> oof_positioned_descendants_;
 
   MulticolCollection multicols_with_pending_oofs_;
 
@@ -320,9 +323,9 @@ class CORE_EXPORT NGContainerFragmentBuilder : public NGFragmentBuilder {
   // Only used by the NGBoxFragmentBuilder subclass, but defined here to avoid
   // a virtual function call.
   NGBreakTokenVector child_break_tokens_;
-  const NGInlineBreakToken* last_inline_break_token_ = nullptr;
+  scoped_refptr<const NGInlineBreakToken> last_inline_break_token_;
 
-  const NGEarlyBreak* early_break_ = nullptr;
+  scoped_refptr<const NGEarlyBreak> early_break_;
   NGBreakAppeal break_appeal_ = kBreakAppealLastResort;
 
   // See NGLayoutResult::AnnotationOverflow().

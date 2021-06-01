@@ -170,6 +170,8 @@ class WebRuntimeFeatures {
   BLINK_PLATFORM_EXPORT static void EnableWebBluetooth(bool);
   BLINK_PLATFORM_EXPORT static void
   EnableWebBluetoothRemoteCharacteristicNewWriteValue(bool);
+  BLINK_PLATFORM_EXPORT static void EnableWebBluetoothManufacturerDataFilter(
+      bool);
   BLINK_PLATFORM_EXPORT static void EnableWebGLDraftExtensions(bool);
   BLINK_PLATFORM_EXPORT static void EnableWebGLImageChromium(bool);
   BLINK_PLATFORM_EXPORT static void EnableWebGPU(bool);
@@ -234,14 +236,11 @@ class WebRuntimeFeatures {
       bool);
   BLINK_PLATFORM_EXPORT static void EnableContentIndex(bool);
   BLINK_PLATFORM_EXPORT static void EnableRestrictGamepadAccess(bool);
-  BLINK_PLATFORM_EXPORT static void EnableConversionMeasurementInfraSupport(
-      bool);
 
   BLINK_PLATFORM_EXPORT static void EnableTargetBlankImpliesNoOpener(bool);
 
   BLINK_PLATFORM_EXPORT static void EnableParseUrlProtocolHandler(bool);
 
-  BLINK_PLATFORM_EXPORT static void EnableCSSColorSchemeUARendering(bool);
   BLINK_PLATFORM_EXPORT static void EnableDocumentTransition(bool);
 
  private:

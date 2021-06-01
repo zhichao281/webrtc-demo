@@ -6,7 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_INLINE_NG_INLINE_BOX_STATE_H_
 
 #include "base/dcheck_is_on.h"
-#include "base/optional.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/core/layout/geometry/logical_rect.h"
 #include "third_party/blink/renderer/core/layout/ng/inline/ng_line_box_fragment_builder.h"
 #include "third_party/blink/renderer/core/style/computed_style_constants.h"
@@ -40,13 +40,17 @@ struct NGInlineBoxState {
  public:
   unsigned fragment_start = 0;
   const NGInlineItem* item = nullptr;
-  Persistent<const ComputedStyle> style;
+  const ComputedStyle* style = nullptr;
 
   // Points to style->GetFont(), or |scaled_font| in an SVG <text>.
   const Font* font;
   // A storage of SVG scaled font. Do not touch this outside of
   // InitializeFont().
-  base::Optional<Font> scaled_font;
+  absl::optional<Font> scaled_font;
+
+  // SVG scaling factor for this box. We use a font of which size is
+  // css-specified-size * scaling_factor.
+  float scaling_factor;
 
   // The united metrics for the current box. This includes all objects in this
   // box, including descendants, and adjusted by placement properties such as
@@ -77,6 +81,14 @@ struct NGInlineBoxState {
   bool include_used_fonts = false;
   bool has_box_placeholder = false;
   bool needs_box_fragment = false;
+
+  // If you add new data members, update the move constructor.
+
+  NGInlineBoxState() = default;
+  // Needs the move constructor for Vector<NGInlineBoxState>.
+  NGInlineBoxState(const NGInlineBoxState&& state);
+  NGInlineBoxState(const NGInlineBoxState&) = delete;
+  NGInlineBoxState& operator=(const NGInlineBoxState&) = delete;
 
   // Initialize |font| and |scaled_font|. This should be called after setting
   // |style|.
@@ -273,7 +285,7 @@ class CORE_EXPORT NGInlineLayoutStateStack {
 
     void UpdateFragmentEdges(Vector<BoxData, 4>& list);
 
-    const NGLayoutResult* CreateBoxFragment(NGLogicalLineItems*);
+    scoped_refptr<const NGLayoutResult> CreateBoxFragment(NGLogicalLineItems*);
   };
 
   Vector<NGInlineBoxState, 4> stack_;

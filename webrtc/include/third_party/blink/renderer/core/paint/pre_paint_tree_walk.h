@@ -6,6 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_PAINT_PRE_PAINT_TREE_WALK_H_
 
 #include "base/dcheck_is_on.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/core/paint/paint_invalidator.h"
 #include "third_party/blink/renderer/core/paint/paint_property_tree_builder.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
@@ -67,7 +68,7 @@ class CORE_EXPORT PrePaintTreeWalk final {
 #endif
     }
 
-    base::Optional<PaintPropertyTreeBuilderContext> tree_builder_context;
+    absl::optional<PaintPropertyTreeBuilderContext> tree_builder_context;
 
     PaintInvalidatorContext paint_invalidator_context;
 
@@ -173,8 +174,5 @@ class CORE_EXPORT PrePaintTreeWalk final {
 };
 
 }  // namespace blink
-
-WTF_ALLOW_CLEAR_UNUSED_SLOTS_WITH_MEM_FUNCTIONS(
-    blink::PrePaintTreeWalk::PrePaintTreeWalkContext)
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_PAINT_PRE_PAINT_TREE_WALK_H_

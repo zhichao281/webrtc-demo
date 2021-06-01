@@ -28,9 +28,9 @@ class XRWebGLBinding final : public ScriptWrappable {
   XRWebGLBinding(XRSession*, WebGLRenderingContextBase*, bool webgl2);
   ~XRWebGLBinding() override = default;
 
-  static XRWebGLBinding* Create(XRSession*,
-                                const XRWebGLRenderingContext&,
-                                ExceptionState&);
+  static XRWebGLBinding* Create(XRSession* session,
+                                const V8XRWebGLRenderingContext* context,
+                                ExceptionState& exception_state);
 
   XRSession* session() const { return session_; }
 

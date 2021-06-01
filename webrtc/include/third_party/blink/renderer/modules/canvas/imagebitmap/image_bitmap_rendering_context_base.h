@@ -19,7 +19,7 @@ namespace blink {
 
 class ImageBitmap;
 class ImageLayerBridge;
-class HTMLCanvasElementOrOffscreenCanvas;
+class V8UnionHTMLCanvasElementOrOffscreenCanvas;
 
 class MODULES_EXPORT ImageBitmapRenderingContextBase
     : public CanvasRenderingContext {
@@ -38,7 +38,7 @@ class MODULES_EXPORT ImageBitmapRenderingContextBase
   }
 
   bool CanCreateCanvas2dResourceProvider() const;
-  void getHTMLOrOffscreenCanvas(HTMLCanvasElementOrOffscreenCanvas&) const;
+  V8UnionHTMLCanvasElementOrOffscreenCanvas* getHTMLOrOffscreenCanvas() const;
 
   void SetIsInHiddenPage(bool) override {}
   void SetIsBeingDisplayed(bool) override {}

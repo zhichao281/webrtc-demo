@@ -38,6 +38,7 @@
 #include "third_party/blink/public/platform/web_url_loader.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/loader/fetch/fetch_parameters.h"
+#include "third_party/blink/renderer/platform/loader/fetch/loader_freeze_mode.h"
 #include "third_party/blink/renderer/platform/loader/fetch/preload_key.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_load_priority.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_load_scheduler.h"
@@ -65,7 +66,7 @@ class Resource;
 class ResourceError;
 class ResourceLoadObserver;
 class ResourceTimingInfo;
-class SubresourceWebBundle;
+class SubresourceWebBundleList;
 class WebBackForwardCacheLoaderHelper;
 class WebCodeCacheLoader;
 struct ResourceFetcherInit;
@@ -225,7 +226,11 @@ class PLATFORM_EXPORT ResourceFetcher
 
   MHTMLArchive* Archive() const { return archive_.Get(); }
 
-  void SetDefersLoading(WebURLLoader::DeferType);
+  // Set the deferring state of each loader owned by this ResourceFetcher. This
+  // method must be called when the page freezing state changes.
+  // TODO(yhirano): Rename this to a more easily recognizable name.
+  void SetDefersLoading(LoaderFreezeMode);
+
   void StopFetching();
 
   bool ShouldDeferImageLoad(const KURL&) const;
@@ -307,10 +312,8 @@ class PLATFORM_EXPORT ResourceFetcher
     scheduler_->SetOptimizationGuideHints(std::move(optimization_hints));
   }
 
-  void AddSubresourceWebBundle(SubresourceWebBundle& subresource_web_bundle);
-  void RemoveSubresourceWebBundle(SubresourceWebBundle& subresource_web_bundle);
   void AttachWebBundleTokenIfNeeded(ResourceRequest&) const;
-  bool ShouldBeLoadedFromWebBundle(const KURL&) const;
+  SubresourceWebBundleList* GetOrCreateSubresourceWebBundleList();
 
   BackForwardCacheLoaderHelper* GetBackForwardCacheLoaderHelper() {
     return back_forward_cache_loader_helper_;
@@ -336,7 +339,7 @@ class PLATFORM_EXPORT ResourceFetcher
       ResourceType,
       const ResourceRequestHead&,
       ResourcePriority::VisibilityStatus,
-      FetchParameters::DeferOption = FetchParameters::kNoDefer,
+      FetchParameters::DeferOption = FetchParameters::DeferOption::kNoDefer,
       FetchParameters::SpeculativePreloadType =
           FetchParameters::SpeculativePreloadType::kNotSpeculative,
       bool is_link_preload = false);
@@ -344,7 +347,7 @@ class PLATFORM_EXPORT ResourceFetcher
   // |virtual_time_pauser| is an output parameter. PrepareRequest may
   // create a new WebScopedVirtualTimePauser and set it to
   // |virtual_time_pauser|.
-  base::Optional<ResourceRequestBlockedReason> PrepareRequest(
+  absl::optional<ResourceRequestBlockedReason> PrepareRequest(
       FetchParameters&,
       const ResourceFactory&,
       WebScopedVirtualTimePauser& virtual_time_pauser);
@@ -473,7 +476,8 @@ class PLATFORM_EXPORT ResourceFetcher
 
   HeapMojoRemote<mojom::blink::BlobRegistry> blob_registry_remote_;
 
-  HeapHashSet<Member<SubresourceWebBundle>> subresource_web_bundles_;
+  // Lazily initialized when the first <link rel=webbundle> is inserted.
+  Member<SubresourceWebBundleList> subresource_web_bundles_;
 
   // This is not in the bit field below because we want to use AutoReset.
   bool is_in_request_resource_ = false;

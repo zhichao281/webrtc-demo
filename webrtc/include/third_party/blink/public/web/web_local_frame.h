@@ -11,11 +11,11 @@
 #include "base/callback.h"
 #include "base/i18n/rtl.h"
 #include "base/memory/weak_ptr.h"
-#include "base/optional.h"
 #include "base/types/pass_key.h"
 #include "base/unguessable_token.h"
 #include "components/viz/common/surfaces/frame_sink_id.h"
 #include "services/network/public/mojom/web_sandbox_flags.mojom-shared.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/context_menu_data/untrustworthy_context_menu_params.h"
 #include "third_party/blink/public/common/css/page_size_type.h"
 #include "third_party/blink/public/common/frame/frame_ad_evidence.h"
@@ -230,8 +230,7 @@ class WebLocalFrame : public WebFrame {
       CrossVariantMojoAssociatedReceiver<mojom::WidgetInterfaceBase> widget,
       const viz::FrameSinkId& frame_sink_id,
       bool is_for_nested_main_frame = false,
-      bool hidden = false,
-      bool never_composited = false);
+      bool hidden = false);
 
   // Returns the frame identified by the given name.  This method supports
   // pseudo-names like _self, _top, and _blank and otherwise performs the same
@@ -247,7 +246,7 @@ class WebLocalFrame : public WebFrame {
   // Returns the embedding token for this frame or nullopt if the frame hasn't
   // committed a navigation. This token changes when a new document is committed
   // in this WebLocalFrame.
-  virtual const base::Optional<base::UnguessableToken>& GetEmbeddingToken()
+  virtual const absl::optional<base::UnguessableToken>& GetEmbeddingToken()
       const = 0;
 
   // Navigation Ping --------------------------------------------------------
@@ -370,6 +369,9 @@ class WebLocalFrame : public WebFrame {
   // Returns the world ID associated with |script_context|.
   virtual int32_t GetScriptContextWorldId(
       v8::Local<v8::Context> script_context) const = 0;
+  virtual v8::Local<v8::Context> GetScriptContextFromWorldId(
+      v8::Isolate* isolate,
+      int world_id) const = 0;
 
   // Executes script in the context of the current page and returns the value
   // that the script evaluated to with callback. Script execution can be
@@ -769,7 +771,7 @@ class WebLocalFrame : public WebFrame {
   virtual void SetAdEvidence(const blink::FrameAdEvidence& ad_evidence) = 0;
 
   // See blink::LocalFrame::AdEvidence()
-  virtual const base::Optional<blink::FrameAdEvidence>& AdEvidence() = 0;
+  virtual const absl::optional<blink::FrameAdEvidence>& AdEvidence() = 0;
 
   // True iff a script tagged as an ad was on the v8 stack when the frame was
   // created and the frame is a subframe. This is not currently propagated when
@@ -869,9 +871,8 @@ class WebLocalFrame : public WebFrame {
           widget_host,
       CrossVariantMojoAssociatedReceiver<mojom::WidgetInterfaceBase> widget,
       const viz::FrameSinkId& frame_sink_id,
-      bool is_for_nested_main_frame = false,
-      bool hidden = false,
-      bool never_composited = false) = 0;
+      bool is_for_nested_main_frame,
+      bool hidden) = 0;
 };
 
 }  // namespace blink

@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_FONTS_SHAPING_SHAPING_LINE_BREAKER_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_FONTS_SHAPING_SHAPING_LINE_BREAKER_H_
 
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/run_segmenter.h"
 #include "third_party/blink/renderer/platform/geometry/layout_unit.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
@@ -35,8 +36,8 @@ class PLATFORM_EXPORT ShapingLineBreaker final {
  public:
   // Callback function to reshape line edges.
   //
-  // std::function is forbidden in Chromium and base::Callback is way too
-  // expensive so we resort to a good old function pointer instead.
+  // std::function is forbidden in Chromium and base::RepeatingCallback is way
+  // too expensive so we resort to a good old function pointer instead.
   using ShapeCallback = scoped_refptr<ShapeResult> (*)(void* context,
                                                        unsigned start,
                                                        unsigned end);
@@ -54,7 +55,7 @@ class PLATFORM_EXPORT ShapingLineBreaker final {
 
    public:
     // Indicates the limits of the space run.
-    base::Optional<unsigned> non_hangable_run_end;
+    absl::optional<unsigned> non_hangable_run_end;
 
     // Indicates the resulting break offset.
     unsigned break_offset;
@@ -122,7 +123,7 @@ class PLATFORM_EXPORT ShapingLineBreaker final {
           is_hyphenated(hyphenated) {}
 
     unsigned offset;
-    base::Optional<unsigned> non_hangable_run_end;
+    absl::optional<unsigned> non_hangable_run_end;
     bool is_hyphenated;
   };
   BreakOpportunity PreviousBreakOpportunity(unsigned offset,

@@ -7,6 +7,7 @@
 
 #include "third_party/blink/renderer/core/core_export.h"
 
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/core/layout/layout_inline.h"
 #include "third_party/blink/renderer/core/layout/ng/geometry/ng_static_position.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_block_node.h"
@@ -30,18 +31,16 @@ struct NGContainingBlock {
   // The relative offset is stored separately to ensure that it is applied after
   // fragmentation: https://www.w3.org/TR/css-break-3/#transforms.
   OffsetType relative_offset;
-  Member<const NGPhysicalFragment> fragment;
+  scoped_refptr<const NGPhysicalFragment> fragment;
 
   NGContainingBlock() : fragment(nullptr) {}
 
   NGContainingBlock(OffsetType offset,
                     OffsetType relative_offset,
-                    const NGPhysicalFragment* fragment)
+                    scoped_refptr<const NGPhysicalFragment> fragment)
       : offset(offset),
         relative_offset(relative_offset),
         fragment(std::move(fragment)) {}
-
-  void Trace(Visitor* visitor) const { visitor->Trace(fragment); }
 };
 
 // If an out-of-flow positioned element is inside a nested fragmentation
@@ -50,8 +49,7 @@ struct NGContainingBlock {
 // needed to perform layout on the OOF descendants once they make their way to
 // the outermost context.
 template <typename OffsetType>
-struct NGMulticolWithPendingOOFs
-    : public GarbageCollected<NGMulticolWithPendingOOFs<OffsetType>> {
+struct NGMulticolWithPendingOOFs {
  public:
   // If no fixedpos containing block was found, |multicol_offset| will be
   // relative to the outer fragmentation context root. Otherwise, it will be
@@ -70,10 +68,6 @@ struct NGMulticolWithPendingOOFs
       NGContainingBlock<OffsetType> fixedpos_containing_block)
       : multicol_offset(multicol_offset),
         fixedpos_containing_block(fixedpos_containing_block) {}
-
-  void Trace(Visitor* visitor) const {
-    visitor->Trace(fixedpos_containing_block);
-  }
 };
 
 // A physical out-of-flow positioned-node is an element with the style
@@ -95,7 +89,7 @@ struct CORE_EXPORT NGPhysicalOutOfFlowPositionedNode {
   using VerticalEdge = NGPhysicalStaticPosition::VerticalEdge;
 
  public:
-  Member<LayoutBox> box;
+  LayoutBox* box;
   // Unpacked NGPhysicalStaticPosition.
   PhysicalOffset static_position;
   unsigned static_position_horizontal_edge : 2;
@@ -103,7 +97,7 @@ struct CORE_EXPORT NGPhysicalOutOfFlowPositionedNode {
   // Whether or not this is an NGPhysicalOOFNodeForFragmentation.
   unsigned is_for_fragmentation : 1;
   // Continuation root of the optional inline container.
-  Member<const LayoutInline> inline_container;
+  const LayoutInline* inline_container;
 
   NGPhysicalOutOfFlowPositionedNode(
       NGBlockNode node,
@@ -131,9 +125,6 @@ struct CORE_EXPORT NGPhysicalOutOfFlowPositionedNode {
     return {static_position, GetStaticPositionHorizontalEdge(),
             GetStaticPositionVerticalEdge()};
   }
-
-  void Trace(Visitor* visitor) const;
-  void TraceAfterDispatch(Visitor*) const;
 };
 
 // When fragmentation comes into play, we no longer place a positioned-node as
@@ -176,8 +167,6 @@ struct CORE_EXPORT NGPhysicalOOFNodeForFragmentation final
         fixedpos_containing_block(fixedpos_containing_block) {
     is_for_fragmentation = true;
   }
-
-  void TraceAfterDispatch(Visitor* visitor) const;
 };
 
 // The logical version of above. It is used within a an algorithm pass (within
@@ -190,15 +179,15 @@ struct NGLogicalOutOfFlowPositionedNode final {
   DISALLOW_NEW();
 
  public:
-  Member<LayoutBox> box;
+  LayoutBox* box;
   NGLogicalStaticPosition static_position;
   // Continuation root of the optional inline container.
-  Member<const LayoutInline> inline_container;
+  const LayoutInline* inline_container;
   bool needs_block_offset_adjustment;
   const LayoutUnit fragmentainer_consumed_block_size;
   NGContainingBlock<LogicalOffset> containing_block;
   NGContainingBlock<LogicalOffset> fixedpos_containing_block;
-  base::Optional<LogicalRect> containing_block_rect;
+  absl::optional<LogicalRect> containing_block_rect;
 
   NGLogicalOutOfFlowPositionedNode(
       NGBlockNode node,
@@ -209,7 +198,7 @@ struct NGLogicalOutOfFlowPositionedNode final {
           NGContainingBlock<LogicalOffset>(),
       NGContainingBlock<LogicalOffset> fixedpos_containing_block =
           NGContainingBlock<LogicalOffset>(),
-      const base::Optional<LogicalRect> containing_block_rect = base::nullopt)
+      const absl::optional<LogicalRect> containing_block_rect = absl::nullopt)
       : box(node.GetLayoutBox()),
         static_position(static_position),
         inline_container(inline_container),
@@ -223,22 +212,8 @@ struct NGLogicalOutOfFlowPositionedNode final {
   }
 
   NGBlockNode Node() const { return NGBlockNode(box); }
-
-  void Trace(Visitor* visitor) const {
-    visitor->Trace(box);
-    visitor->Trace(inline_container);
-    visitor->Trace(containing_block);
-    visitor->Trace(fixedpos_containing_block);
-  }
 };
 
 }  // namespace blink
-
-WTF_ALLOW_CLEAR_UNUSED_SLOTS_WITH_MEM_FUNCTIONS(
-    blink::NGPhysicalOutOfFlowPositionedNode)
-WTF_ALLOW_CLEAR_UNUSED_SLOTS_WITH_MEM_FUNCTIONS(
-    blink::NGPhysicalOOFNodeForFragmentation)
-WTF_ALLOW_CLEAR_UNUSED_SLOTS_WITH_MEM_FUNCTIONS(
-    blink::NGLogicalOutOfFlowPositionedNode)
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_NG_OUT_OF_FLOW_POSITIONED_NODE_H_

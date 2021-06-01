@@ -68,7 +68,7 @@ class CORE_EXPORT ScriptCustomElementDefinition final
   void RunFormResetCallback(Element& element) override;
   void RunFormDisabledCallback(Element& element, bool is_disabled) override;
   void RunFormStateRestoreCallback(Element& element,
-                                   const FileOrUSVStringOrFormData& value,
+                                   const V8ControlValue* value,
                                    const String& mode) override;
 
  private:

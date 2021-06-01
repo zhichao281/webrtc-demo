@@ -5,8 +5,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_ACCELERATED_STATIC_BITMAP_IMAGE_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_ACCELERATED_STATIC_BITMAP_IMAGE_H_
 
-#include <memory>
-
 #include "base/memory/weak_ptr.h"
 #include "base/single_thread_task_runner.h"
 #include "base/threading/thread_checker.h"
@@ -97,6 +95,10 @@ class PLATFORM_EXPORT AcceleratedStaticBitmapImage final
                      bool unpack_flip_y,
                      const IntPoint& dest_point,
                      const IntRect& source_sub_rectangle) override;
+
+  bool CopyToResourceProvider(
+      CanvasResourceProvider* resource_provider) override;
+
   // To be called on sender thread before performing a transfer to a different
   // thread.
   void Transfer() final;

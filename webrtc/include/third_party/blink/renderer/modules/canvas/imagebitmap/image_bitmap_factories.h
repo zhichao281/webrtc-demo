@@ -38,6 +38,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_image_bitmap_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/image_bitmap_source.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/core/fileapi/file_reader_loader.h"
 #include "third_party/blink/renderer/core/fileapi/file_reader_loader_client.h"
@@ -70,11 +71,11 @@ class MODULES_EXPORT ImageBitmapFactories final
   ImageBitmapFactories();
 
   static ScriptPromise CreateImageBitmap(ScriptState*,
-                                         const ImageBitmapSourceUnion&,
+                                         const V8ImageBitmapSource*,
                                          const ImageBitmapOptions*,
                                          ExceptionState&);
   static ScriptPromise CreateImageBitmap(ScriptState*,
-                                         const ImageBitmapSourceUnion&,
+                                         const V8ImageBitmapSource*,
                                          int sx,
                                          int sy,
                                          int sw,
@@ -83,7 +84,7 @@ class MODULES_EXPORT ImageBitmapFactories final
                                          ExceptionState&);
   static ScriptPromise CreateImageBitmap(ScriptState*,
                                          ImageBitmapSource*,
-                                         base::Optional<IntRect> crop_rect,
+                                         absl::optional<IntRect> crop_rect,
                                          const ImageBitmapOptions*,
                                          ExceptionState&);
 
@@ -91,7 +92,7 @@ class MODULES_EXPORT ImageBitmapFactories final
   static ScriptPromise createImageBitmap(
       ScriptState* script_state,
       LocalDOMWindow&,
-      const ImageBitmapSourceUnion& bitmap_source,
+      const V8ImageBitmapSource* bitmap_source,
       const ImageBitmapOptions* options,
       ExceptionState& exception_state) {
     return CreateImageBitmap(script_state, bitmap_source, options,
@@ -100,7 +101,7 @@ class MODULES_EXPORT ImageBitmapFactories final
   static ScriptPromise createImageBitmap(
       ScriptState* script_state,
       LocalDOMWindow&,
-      const ImageBitmapSourceUnion& bitmap_source,
+      const V8ImageBitmapSource* bitmap_source,
       int sx,
       int sy,
       int sw,
@@ -115,7 +116,7 @@ class MODULES_EXPORT ImageBitmapFactories final
   static ScriptPromise createImageBitmap(
       ScriptState* script_state,
       WorkerGlobalScope&,
-      const ImageBitmapSourceUnion& bitmap_source,
+      const V8ImageBitmapSource* bitmap_source,
       const ImageBitmapOptions* options,
       ExceptionState& exception_state) {
     return CreateImageBitmap(script_state, bitmap_source, options,
@@ -124,7 +125,7 @@ class MODULES_EXPORT ImageBitmapFactories final
   static ScriptPromise createImageBitmap(
       ScriptState* script_state,
       WorkerGlobalScope&,
-      const ImageBitmapSourceUnion& bitmap_source,
+      const V8ImageBitmapSource* bitmap_source,
       int sx,
       int sy,
       int sw,
@@ -148,7 +149,7 @@ class MODULES_EXPORT ImageBitmapFactories final
                                   public FileReaderLoaderClient {
    public:
     static ImageBitmapLoader* Create(ImageBitmapFactories& factory,
-                                     base::Optional<IntRect> crop_rect,
+                                     absl::optional<IntRect> crop_rect,
                                      const ImageBitmapOptions* options,
                                      ScriptState* script_state) {
       return MakeGarbageCollected<ImageBitmapLoader>(factory, crop_rect,
@@ -156,7 +157,7 @@ class MODULES_EXPORT ImageBitmapFactories final
     }
 
     ImageBitmapLoader(ImageBitmapFactories&,
-                      base::Optional<IntRect> crop_rect,
+                      absl::optional<IntRect> crop_rect,
                       ScriptState*,
                       const ImageBitmapOptions*);
 
@@ -193,7 +194,7 @@ class MODULES_EXPORT ImageBitmapFactories final
     std::unique_ptr<FileReaderLoader> loader_;
     Member<ImageBitmapFactories> factory_;
     Member<ScriptPromiseResolver> resolver_;
-    base::Optional<IntRect> crop_rect_;
+    absl::optional<IntRect> crop_rect_;
     Member<const ImageBitmapOptions> options_;
   };
 
@@ -201,7 +202,7 @@ class MODULES_EXPORT ImageBitmapFactories final
   static ScriptPromise CreateImageBitmapFromBlob(
       ScriptState*,
       ImageBitmapSource*,
-      base::Optional<IntRect> crop_rect,
+      absl::optional<IntRect> crop_rect,
       const ImageBitmapOptions*);
 
   void AddLoader(ImageBitmapLoader*);

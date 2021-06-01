@@ -31,9 +31,9 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_WEBSOCKETS_DOM_WEBSOCKET_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_WEBSOCKETS_DOM_WEBSOCKET_H_
 
-#include <stddef.h>
-#include <stdint.h>
-#include <memory>
+#include <cstddef>
+#include <cstdint>
+
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
 #include "third_party/blink/renderer/core/dom/events/event_listener.h"
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
@@ -60,7 +60,7 @@ class DOMArrayBuffer;
 class DOMArrayBufferView;
 class ExceptionState;
 class ExecutionContext;
-class StringOrStringSequence;
+class V8UnionStringOrStringSequence;
 
 class MODULES_EXPORT DOMWebSocket
     : public EventTargetWithInlineData,
@@ -82,10 +82,10 @@ class MODULES_EXPORT DOMWebSocket
   static DOMWebSocket* Create(ExecutionContext*,
                               const String& url,
                               ExceptionState&);
-  static DOMWebSocket* Create(ExecutionContext*,
+  static DOMWebSocket* Create(ExecutionContext* execution_context,
                               const String& url,
-                              const StringOrStringSequence& protocols,
-                              ExceptionState&);
+                              const V8UnionStringOrStringSequence* protocols,
+                              ExceptionState& exception_state);
 
   explicit DOMWebSocket(ExecutionContext*);
   ~DOMWebSocket() override;

@@ -47,6 +47,7 @@ namespace blink {
 class FlexItem;
 class FlexLine;
 class FlexLayoutAlgorithm;
+class NGFlexLayoutAlgorithm;
 class LayoutBox;
 struct MinMaxSizes;
 
@@ -62,7 +63,7 @@ enum class TransformedWritingMode {
   kBottomToTopWritingMode
 };
 
-typedef HeapVector<FlexItem, 8> FlexItemVector;
+typedef Vector<FlexItem, 8> FlexItemVector;
 
 class AutoClearOverrideLogicalHeight {
   STACK_ALLOCATED();
@@ -126,7 +127,7 @@ class FlexItem {
            LayoutUnit flex_base_content_size,
            MinMaxSizes min_max_main_sizes,
            // Ignored for legacy, required for NG:
-           base::Optional<MinMaxSizes> min_max_cross_sizes,
+           absl::optional<MinMaxSizes> min_max_cross_sizes,
            LayoutUnit main_axis_border_padding,
            LayoutUnit cross_axis_border_padding,
            NGPhysicalBoxStrut physical_margins,
@@ -191,15 +192,13 @@ class FlexItem {
                                     bool is_wrap_reverse,
                                     bool is_deprecated_webkit_box);
 
-  void Trace(Visitor*) const;
-
   const FlexLayoutAlgorithm* algorithm_;
   wtf_size_t line_number_;
-  Member<LayoutBox> box_;
-  Member<const ComputedStyle> style_;
+  LayoutBox* box_;
+  const ComputedStyle& style_;
   const LayoutUnit flex_base_content_size_;
   const MinMaxSizes min_max_main_sizes_;
-  const base::Optional<MinMaxSizes> min_max_cross_sizes_;
+  const absl::optional<MinMaxSizes> min_max_cross_sizes_;
   const LayoutUnit hypothetical_main_content_size_;
   const LayoutUnit main_axis_border_padding_;
   const LayoutUnit cross_axis_border_padding_;
@@ -222,7 +221,7 @@ class FlexItem {
   bool needs_relayout_for_stretch_;
 
   NGBlockNode ng_input_node_;
-  Member<const NGLayoutResult> layout_result_;
+  scoped_refptr<const NGLayoutResult> layout_result_;
 };
 
 class FlexItemVectorView {
@@ -449,16 +448,14 @@ class FlexLayoutAlgorithm {
                                     LogicalSize percent_resolution_sizes);
   static LayoutUnit GapBetweenLines(const ComputedStyle& style,
                                     LogicalSize percent_resolution_sizes);
-
-  void Trace(Visitor*) const;
-
   const LayoutUnit gap_between_items_;
   const LayoutUnit gap_between_lines_;
 
  private:
+  friend class NGFlexLayoutAlgorithm;
   EOverflow MainAxisOverflowForChild(const LayoutBox& child) const;
 
-  Member<const ComputedStyle> style_;
+  const ComputedStyle* style_;
   const LayoutUnit line_break_length_;
   FlexItemVector all_items_;
   Vector<FlexLine> flex_lines_;
@@ -470,7 +467,5 @@ inline const FlexLine* FlexItem::Line() const {
 }
 
 }  // namespace blink
-
-WTF_ALLOW_CLEAR_UNUSED_SLOTS_WITH_MEM_FUNCTIONS(blink::FlexItem)
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_FLEXIBLE_BOX_ALGORITHM_H_

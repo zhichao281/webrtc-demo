@@ -35,10 +35,10 @@
 #include <utility>
 
 #include "base/i18n/rtl.h"
-#include "base/optional.h"
 #include "base/unguessable_token.h"
 #include "media/base/speech_recognition_client.h"
 #include "services/network/public/mojom/web_sandbox_flags.mojom-shared.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/loader/loading_behavior_flag.h"
 #include "third_party/blink/public/common/loader/url_loader_factory_bundle.h"
 #include "third_party/blink/public/common/permissions_policy/permissions_policy.h"
@@ -128,6 +128,11 @@ struct MobileFriendliness;
 struct WebConsoleMessage;
 struct ContextMenuData;
 struct WebPluginParams;
+
+enum class SyncCondition {
+  kNotForced,  // Sync only if the value has changed since the last call.
+  kForced,     // Force a sync even if the value is unchanged.
+};
 
 class BLINK_EXPORT WebLocalFrameClient {
  public:
@@ -454,9 +459,15 @@ class BLINK_EXPORT WebLocalFrameClient {
 
   // Editing -------------------------------------------------------------
 
-  // These methods allow the client to intercept and overrule editing
-  // operations.
-  virtual void DidChangeSelection(bool is_selection_empty) {}
+  // These methods allow the client to intercept editing operations.
+
+  // Called when the selection may have changed (Note, that due to
+  // http://crbug.com/632920 the selection may not have changed). Additionally,
+  // in some circumstances the browser selection may be known to not match the
+  // last synced value, in which case SyncCondition::kForced is passed to force
+  // an update even if the selection appears unchanged since the last call.
+  virtual void DidChangeSelection(bool is_selection_empty,
+                                  SyncCondition force_sync) {}
   virtual void DidChangeContents() {}
 
   // UI ------------------------------------------------------------------
@@ -464,7 +475,7 @@ class BLINK_EXPORT WebLocalFrameClient {
   // Update a context menu data for testing.
   virtual void UpdateContextMenuDataForTesting(
       const ContextMenuData&,
-      const base::Optional<gfx::Point>&) {}
+      const absl::optional<gfx::Point>&) {}
 
   // Called when a new element gets focused. |from_element| is the previously
   // focused element, |to_element| is the newly focused one. Either can be null.
@@ -601,8 +612,8 @@ class BLINK_EXPORT WebLocalFrameClient {
   // Asks the embedder what values to send for User Agent client hints
   // (or nullopt if none).  Used only when UserAgentOverride() is non-empty;
   // Platform::current()->UserAgentMetadata() is used otherwise.
-  virtual base::Optional<UserAgentMetadata> UserAgentMetadataOverride() {
-    return base::nullopt;
+  virtual absl::optional<UserAgentMetadata> UserAgentMetadataOverride() {
+    return absl::nullopt;
   }
 
   // Do not track ----------------------------------------------------
@@ -694,8 +705,12 @@ class BLINK_EXPORT WebLocalFrameClient {
     return false;
   }
 
-  // Update the current frame selection to the browser.
-  virtual void SyncSelectionIfRequired() {}
+  // Update the current frame selection to the browser if it has changed since
+  // the last call. Note that this only synchronizes the selection, if the
+  // TextInputState may have changed call DidChangeSelection instead.
+  // If the browser selection may not match the last synced
+  // value, SyncCondition::kForced can be passed to force a sync.
+  virtual void SyncSelectionIfRequired(SyncCondition force_sync) {}
 
   // TODO(https://crbug.com/787252): Remove the methods below and use the
   // Supplement mechanism.
@@ -710,6 +725,11 @@ class BLINK_EXPORT WebLocalFrameClient {
   virtual void AssociateInputAndOutputForAec(
       const base::UnguessableToken& input_stream_id,
       const std::string& output_device_id) {}
+
+  // Notifies the observers of the origins for which subresource redirect
+  // optimizations can be preloaded.
+  virtual void PreloadSubresourceOptimizationsForOrigins(
+      const std::vector<WebSecurityOrigin>& origins) {}
 
   // Called immediately following the first compositor-driven (frame-generating)
   // layout that happened after an interesting document lifecycle change (see

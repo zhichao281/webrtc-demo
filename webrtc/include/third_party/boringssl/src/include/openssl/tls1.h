@@ -203,9 +203,6 @@ extern "C" {
 // ExtensionType value from RFC7627
 #define TLSEXT_TYPE_extended_master_secret 23
 
-// ExtensionType value from draft-ietf-tokbind-negotiation-10
-#define TLSEXT_TYPE_token_binding 24
-
 // ExtensionType value from draft-ietf-quic-tls. Drafts 00 through 32 use
 // 0xffa5 which is part of the Private Use section of the registry, and it
 // collides with TLS-LTS and, based on scans, something else too (though this
@@ -253,9 +250,9 @@ extern "C" {
 // extension number.
 #define TLSEXT_TYPE_application_settings 17513
 
-// ExtensionType values from draft-ietf-tls-esni-09. This is not an IANA defined
+// ExtensionType values from draft-ietf-tls-esni-10. This is not an IANA defined
 // extension number.
-#define TLSEXT_TYPE_encrypted_client_hello 0xfe09
+#define TLSEXT_TYPE_encrypted_client_hello 0xfe0a
 #define TLSEXT_TYPE_ech_is_inner 0xda09
 #define TLSEXT_TYPE_ech_outer_extensions 0xfd00
 

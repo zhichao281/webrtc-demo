@@ -46,15 +46,15 @@
 namespace blink {
 
 class CSSFontFace;
+class CSSPropertyValueSet;
 class CSSValue;
 class DOMArrayBuffer;
 class DOMArrayBufferView;
 class Document;
 class ExceptionState;
 class FontFaceDescriptors;
-class StringOrArrayBufferOrArrayBufferView;
-class CSSPropertyValueSet;
 class StyleRuleFontFace;
+class V8UnionArrayBufferOrArrayBufferViewOrString;
 struct FontMetricsOverride;
 
 class CORE_EXPORT FontFace : public ScriptWrappable,
@@ -65,10 +65,11 @@ class CORE_EXPORT FontFace : public ScriptWrappable,
  public:
   enum LoadStatusType { kUnloaded, kLoading, kLoaded, kError };
 
-  static FontFace* Create(ExecutionContext*,
-                          const AtomicString& family,
-                          StringOrArrayBufferOrArrayBufferView&,
-                          const FontFaceDescriptors*);
+  static FontFace* Create(
+      ExecutionContext* execution_context,
+      const AtomicString& family,
+      const V8UnionArrayBufferOrArrayBufferViewOrString* source,
+      const FontFaceDescriptors* descriptors);
   static FontFace* Create(Document*, const StyleRuleFontFace*);
 
   explicit FontFace(ExecutionContext*);

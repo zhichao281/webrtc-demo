@@ -69,7 +69,7 @@ class MODULES_EXPORT ProcessedLocalAudioSource final
     return audio_processing_properties_;
   }
 
-  base::Optional<blink::AudioProcessingProperties>
+  absl::optional<blink::AudioProcessingProperties>
   GetAudioProcessingProperties() const final;
 
   // The following accessors are valid after the source is started (when the
@@ -108,7 +108,8 @@ class MODULES_EXPORT ProcessedLocalAudioSource final
                base::TimeTicks audio_capture_time,
                double volume,
                bool key_pressed) override;
-  void OnCaptureError(const std::string& message) override;
+  void OnCaptureError(media::AudioCapturerSource::ErrorCode code,
+                      const std::string& message) override;
   void OnCaptureMuted(bool is_muted) override;
   void OnCaptureProcessorCreated(
       media::AudioProcessorControls* controls) override;

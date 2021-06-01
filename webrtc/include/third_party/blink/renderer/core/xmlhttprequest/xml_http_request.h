@@ -31,6 +31,7 @@
 #include "services/network/public/mojom/url_loader_factory.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_trust_token.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/core/dom/document_parser_client.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
@@ -54,8 +55,6 @@
 
 namespace blink {
 
-class
-    DocumentOrBlobOrArrayBufferOrArrayBufferViewOrFormDataOrURLSearchParamsOrUSVString;
 class Blob;
 class BlobDataHandle;
 class DOMArrayBuffer;
@@ -134,9 +133,8 @@ class XMLHttpRequest final : public XMLHttpRequestEventTarget,
             const KURL&,
             bool async,
             ExceptionState&);
-  void send(
-      const DocumentOrBlobOrArrayBufferOrArrayBufferViewOrFormDataOrURLSearchParamsOrUSVString&,
-      ExceptionState&);
+  void send(const V8UnionDocumentOrXMLHttpRequestBodyInit* body,
+            ExceptionState& exception_state);
   void abort();
   void Dispose();
   void setRequestHeader(const AtomicString& name,
@@ -275,10 +273,7 @@ class XMLHttpRequest final : public XMLHttpRequestEventTarget,
   // Handles didFail() call for timeout.
   void HandleDidTimeout();
 
-  void HandleRequestError(DOMExceptionCode,
-                          const AtomicString&,
-                          int64_t,
-                          int64_t);
+  void HandleRequestError(DOMExceptionCode, const AtomicString&);
 
   void UpdateContentTypeAndCharset(const AtomicString& content_type,
                                    const String& charset);

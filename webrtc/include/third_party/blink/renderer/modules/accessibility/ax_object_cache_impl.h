@@ -52,6 +52,7 @@
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "ui/accessibility/ax_enums.mojom-blink-forward.h"
+#include "ui/accessibility/ax_mode.h"
 
 namespace blink {
 
@@ -65,14 +66,17 @@ class MODULES_EXPORT AXObjectCacheImpl
     : public AXObjectCacheBase,
       public mojom::blink::PermissionObserver {
  public:
-  static AXObjectCache* Create(Document&);
+  static AXObjectCache* Create(Document&, const ui::AXMode&);
 
-  explicit AXObjectCacheImpl(Document&);
+  AXObjectCacheImpl(Document&, const ui::AXMode&);
   ~AXObjectCacheImpl() override;
   void Trace(Visitor*) const override;
 
   Document& GetDocument() { return *document_; }
   AXObject* FocusedObject();
+
+  const ui::AXMode& GetAXMode() override;
+  void SetAXMode(const ui::AXMode&) override;
 
   void Dispose() override;
 
@@ -209,8 +213,15 @@ class MODULES_EXPORT AXObjectCacheImpl
 
   // Get an AXObject* backed by the passed-in DOM node or the node's layout
   // object, whichever is available.
+  // If it no longer the correct type of AXObject (AXNodeObject/AXLayoutObject),
+  // will Invalidate() the AXObject so that it is refreshed with a new object
+  // when safe to do so.
   AXObject* Get(const Node*);
   AXObject* Get(const LayoutObject*);
+
+  // Return true if the object is still part of the tree, meaning that ancestors
+  // exist or can be repaired all the way to the root.
+  bool IsStillInTree(AXObject*);
 
   AXObject* FirstAccessibleObjectFromNode(const Node*);
 
@@ -277,6 +288,9 @@ class MODULES_EXPORT AXObjectCacheImpl
   // set of aria-owned children.
   void GetAriaOwnedChildren(const AXObject* owner,
                             HeapVector<Member<AXObject>>& owned_children);
+
+  // Given a <map> element, get the image currently associated with it, if any.
+  AXObject* GetAXImageForMap(HTMLMapElement& map);
 
   // Adds |object| to |fixed_or_sticky_node_ids_| if it has a fixed or sticky
   // position.
@@ -365,9 +379,6 @@ class MODULES_EXPORT AXObjectCacheImpl
   AXObject* CreateFromInlineTextBox(AbstractInlineTextBox*);
   void Remove(AXID);
 
-  // Given a <map> element, get the image currently associated with it, if any.
-  AXObject* GetAXImageForMap(HTMLMapElement& map);
-
  private:
   struct AXEventParams final : public GarbageCollected<AXEventParams> {
     AXEventParams(AXObject* target,
@@ -433,11 +444,12 @@ class MODULES_EXPORT AXObjectCacheImpl
   void MarkElementDirtyWithCleanLayout(const Node*, bool subtree);
 
   Member<Document> document_;
+  ui::AXMode ax_mode_;
   HeapHashMap<AXID, Member<AXObject>> objects_;
   // LayoutObject and AbstractInlineTextBox are not on the Oilpan heap so we
   // do not use HeapHashMap for those mappings.
   HeapHashMap<Member<AccessibleNode>, AXID> accessible_node_mapping_;
-  HeapHashMap<Member<const LayoutObject>, AXID> layout_object_mapping_;
+  HashMap<const LayoutObject*, AXID> layout_object_mapping_;
   HeapHashMap<Member<const Node>, AXID> node_object_mapping_;
   HashMap<AbstractInlineTextBox*, AXID> inline_text_box_object_mapping_;
   int modification_count_;

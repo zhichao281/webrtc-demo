@@ -32,6 +32,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_BINDINGS_CORE_V8_V8_BINDING_FOR_CORE_H_
 #define THIRD_PARTY_BLINK_RENDERER_BINDINGS_CORE_V8_V8_BINDING_FOR_CORE_H_
 
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/bindings/core/v8/native_value_traits.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_value.h"
 #include "third_party/blink/renderer/bindings/core/v8/to_v8_for_core.h"
@@ -304,7 +305,7 @@ CORE_EXPORT float ToRestrictedFloat(v8::Isolate*,
                                     v8::Local<v8::Value>,
                                     ExceptionState&);
 
-inline base::Optional<base::Time> ToCoreNullableDate(
+inline absl::optional<base::Time> ToCoreNullableDate(
     v8::Isolate* isolate,
     v8::Local<v8::Value> object,
     ExceptionState& exception_state) {
@@ -313,14 +314,14 @@ inline base::Optional<base::Time> ToCoreNullableDate(
   //   NaN time value, then set the value of the element to the empty string;
   // We'd like to return same values for |null| and an invalid Date object.
   if (object->IsNull())
-    return base::nullopt;
+    return absl::nullopt;
   if (!object->IsDate()) {
     exception_state.ThrowTypeError("The provided value is not a Date.");
-    return base::nullopt;
+    return absl::nullopt;
   }
   double time_value = object.As<v8::Date>()->ValueOf();
   if (!std::isfinite(time_value))
-    return base::nullopt;
+    return absl::nullopt;
   return base::Time::FromJsTime(time_value);
 }
 

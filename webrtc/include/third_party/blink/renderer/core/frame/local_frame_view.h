@@ -48,7 +48,6 @@
 #include "third_party/blink/renderer/platform/geometry/int_rect.h"
 #include "third_party/blink/renderer/platform/geometry/layout_size.h"
 #include "third_party/blink/renderer/platform/graphics/color.h"
-#include "third_party/blink/renderer/platform/graphics/compositing/paint_artifact_compositor.h"
 #include "third_party/blink/renderer/platform/graphics/compositor_element_id.h"
 #include "third_party/blink/renderer/platform/graphics/paint/cull_rect.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_controller.h"
@@ -94,6 +93,7 @@ class LayoutView;
 class LocalFrame;
 class MobileFriendlinessChecker;
 class Page;
+class PaintArtifactCompositor;
 class PaintLayer;
 class PaintLayerScrollableArea;
 class PaintTimingDetector;
@@ -111,6 +111,7 @@ struct IntrinsicSizingInfo;
 struct MobileFriendliness;
 struct PhysicalOffset;
 struct PhysicalRect;
+struct PreCompositedLayerInfo;
 
 typedef uint64_t DOMTimeStamp;
 using LayerTreeFlags = unsigned;
@@ -298,11 +299,11 @@ class CORE_EXPORT LocalFrameView final
   // or sticky so that we can support HasStickyViewportConstrainedObject().
   enum ViewportConstrainedType { kFixed = 0, kSticky = 1 };
   // Fixed-position and viewport-constrained sticky-position objects.
-  typedef HeapHashSet<Member<LayoutObject>> ObjectSet;
+  typedef HashSet<LayoutObject*> ObjectSet;
   void AddViewportConstrainedObject(LayoutObject&, ViewportConstrainedType);
   void RemoveViewportConstrainedObject(LayoutObject&, ViewportConstrainedType);
   const ObjectSet* ViewportConstrainedObjects() const {
-    return viewport_constrained_objects_;
+    return viewport_constrained_objects_.get();
   }
   bool HasViewportConstrainedObjects() const {
     return viewport_constrained_objects_ &&
@@ -656,12 +657,8 @@ class CORE_EXPORT LocalFrameView final
   void CrossOriginToMainFrameChanged();
   void CrossOriginToParentFrameChanged();
 
-  void SetVisualViewportOrOverlayNeedsRepaint() {
-    visual_viewport_or_overlay_needs_repaint_ = true;
-  }
-  bool VisualViewportOrOverlayNeedsRepaint() const {
-    return visual_viewport_or_overlay_needs_repaint_;
-  }
+  void SetVisualViewportOrOverlayNeedsRepaint();
+  bool VisualViewportOrOverlayNeedsRepaintForTesting() const;
 
   LayoutUnit CaretWidth() const;
 
@@ -979,7 +976,7 @@ class CORE_EXPORT LocalFrameView final
 
   LayoutSize size_;
 
-  typedef HeapHashSet<Member<LayoutEmbeddedObject>> EmbeddedObjectSet;
+  typedef HashSet<scoped_refptr<LayoutEmbeddedObject>> EmbeddedObjectSet;
   EmbeddedObjectSet part_update_set_;
 
   Member<LocalFrame> frame_;
@@ -1002,7 +999,7 @@ class CORE_EXPORT LocalFrameView final
 
   // Used for tracking the frame's size and replicating it to the browser
   // process when it changes.
-  base::Optional<IntSize> frame_size_;
+  absl::optional<IntSize> frame_size_;
 
   AtomicString media_type_;
   AtomicString media_type_when_not_printing_;
@@ -1018,7 +1015,7 @@ class CORE_EXPORT LocalFrameView final
 
   Member<ScrollableAreaSet> scrollable_areas_;
   Member<ScrollableAreaSet> animating_scrollable_areas_;
-  Member<ObjectSet> viewport_constrained_objects_;
+  std::unique_ptr<ObjectSet> viewport_constrained_objects_;
   // Number of entries in viewport_constrained_objects_ that are sticky.
   unsigned sticky_position_object_count_;
   ObjectSet background_attachment_fixed_objects_;

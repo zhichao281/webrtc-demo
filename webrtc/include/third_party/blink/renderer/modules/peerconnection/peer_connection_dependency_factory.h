@@ -14,6 +14,7 @@
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/platform/heap/thread_state.h"
 #include "third_party/blink/renderer/platform/mojo/mojo_binding_context.h"
 #include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
@@ -56,6 +57,9 @@ class MODULES_EXPORT PeerConnectionDependencyFactory
     : public GarbageCollected<PeerConnectionDependencyFactory>,
       public Supplement<ExecutionContext>,
       public ExecutionContextLifecycleObserver {
+  USING_PRE_FINALIZER(PeerConnectionDependencyFactory,
+                      CleanupPeerConnectionFactory);
+
  public:
   static const char kSupplementName[];
 
@@ -144,7 +148,7 @@ class MODULES_EXPORT PeerConnectionDependencyFactory
   void EnsureWebRtcAudioDeviceImpl();
 
  private:
-  // ExecutionContextLifecycleObserver overrides:
+  // ExecutionContextLifecycleObserver:
   void ContextDestroyed() override;
 
   // Functions related to Stun probing trial to determine how fast we could send
@@ -165,12 +169,14 @@ class MODULES_EXPORT PeerConnectionDependencyFactory
   void CreateIpcNetworkManagerOnNetworkThread(
       base::WaitableEvent* event,
       std::unique_ptr<MdnsResponderAdapter> mdns_responder);
-  void DeleteIpcNetworkManager(base::WaitableEvent* event);
+  static void DeleteIpcNetworkManager(
+      std::unique_ptr<IpcNetworkManager> network_manager,
+      base::WaitableEvent* event);
   void CleanupPeerConnectionFactory();
 
   // network_manager_ must be deleted on the network thread. The network manager
   // uses |p2p_socket_dispatcher_|.
-  std::unique_ptr<blink::IpcNetworkManager> network_manager_;
+  std::unique_ptr<IpcNetworkManager> network_manager_;
   std::unique_ptr<IpcPacketSocketFactory> socket_factory_;
 
   scoped_refptr<webrtc::PeerConnectionFactoryInterface> pc_factory_;

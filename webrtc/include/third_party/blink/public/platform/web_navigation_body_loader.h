@@ -5,14 +5,13 @@
 #ifndef THIRD_PARTY_BLINK_PUBLIC_PLATFORM_WEB_NAVIGATION_BODY_LOADER_H_
 #define THIRD_PARTY_BLINK_PUBLIC_PLATFORM_WEB_NAVIGATION_BODY_LOADER_H_
 
-#include <memory>
-
 #include "base/containers/span.h"
-#include "base/optional.h"
 #include "base/time/time.h"
 #include "mojo/public/cpp/base/big_buffer.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/blink/public/mojom/loader/code_cache.mojom-forward.h"
+#include "third_party/blink/public/platform/web_loader_freeze_mode.h"
 #include "third_party/blink/public/platform/web_url_error.h"
-#include "third_party/blink/public/platform/web_url_loader.h"
 
 namespace blink {
 
@@ -41,21 +40,23 @@ class BLINK_EXPORT WebNavigationBodyLoader {
         int64_t total_encoded_body_length,
         int64_t total_decoded_body_length,
         bool should_report_corb_blocking,
-        const base::Optional<WebURLError>& error) = 0;
+        const absl::optional<WebURLError>& error) = 0;
   };
 
   // It should be safe to destroy WebNavigationBodyLoader at any moment,
   // including from inside any client notification.
   virtual ~WebNavigationBodyLoader() {}
 
-  // While deferred, data will be read on the renderer side but will not invoke
+  // While frozen, data will be read on the renderer side but will not invoke
   // any web-exposed behavior such as dispatching messages or handling
   // redirects. This method can be called multiple times at any moment.
-  virtual void SetDefersLoading(WebURLLoader::DeferType defers) = 0;
+  virtual void SetDefersLoading(WebLoaderFreezeMode mode) = 0;
 
   // Starts loading the body. Client must be non-null, and will receive
   // the body, code cache and final result.
-  virtual void StartLoadingBody(Client*, bool use_isolated_code_cache) = 0;
+  virtual void StartLoadingBody(
+      Client*,
+      blink::mojom::CodeCacheHost* code_cache_host) = 0;
 };
 
 }  // namespace blink

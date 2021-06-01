@@ -16,8 +16,9 @@
 namespace blink {
 
 class MessagePort;
-class ServiceWorkerClient;
 class ServiceWorker;
+class ServiceWorkerClient;
+class V8UnionClientOrMessagePortOrServiceWorker;
 
 class MODULES_EXPORT ExtendableMessageEvent final : public ExtendableEvent {
   DEFINE_WRAPPERTYPEINFO();
@@ -72,7 +73,7 @@ class MODULES_EXPORT ExtendableMessageEvent final : public ExtendableEvent {
   bool isDataDirty() const { return false; }
   const String& origin() const { return origin_; }
   const String& lastEventId() const { return last_event_id_; }
-  void source(ClientOrServiceWorkerOrMessagePort& result) const;
+  V8UnionClientOrMessagePortOrServiceWorker* source() const;
   MessagePortArray ports() const;
 
   const AtomicString& InterfaceName() const override;

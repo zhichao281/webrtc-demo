@@ -30,6 +30,7 @@
 
 #include "base/memory/weak_ptr.h"
 #include "mojo/public/cpp/bindings/pending_associated_remote.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/mojom/indexeddb/indexeddb.mojom-blink.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 
@@ -50,11 +51,11 @@ class WebIDBCallbacks : public mojom::blink::IDBCallbacks {
       mojo::PendingAssociatedRemote<mojom::blink::IDBCursor> cursor_info,
       std::unique_ptr<IDBKey> key,
       std::unique_ptr<IDBKey> primary_key,
-      base::Optional<std::unique_ptr<IDBValue>> optional_value) = 0;
+      absl::optional<std::unique_ptr<IDBValue>> optional_value) = 0;
   virtual void SuccessCursorContinue(
       std::unique_ptr<IDBKey>,
       std::unique_ptr<IDBKey> primary_key,
-      base::Optional<std::unique_ptr<IDBValue>>) = 0;
+      absl::optional<std::unique_ptr<IDBValue>>) = 0;
   virtual void SuccessArray(Vector<mojom::blink::IDBReturnValuePtr> values) = 0;
   virtual void SuccessValue(mojom::blink::IDBReturnValuePtr value) = 0;
   virtual void SuccessKey(std::unique_ptr<IDBKey> key) = 0;

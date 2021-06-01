@@ -34,7 +34,6 @@
 
 #include "base/single_thread_task_runner.h"
 #include "third_party/blink/public/mojom/timing/resource_timing.mojom-blink.h"
-#include "third_party/blink/renderer/bindings/core/v8/string_or_double.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/dom_high_res_time_stamp.h"
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
@@ -80,9 +79,10 @@ class ScriptPromise;
 class ScriptState;
 class ScriptValue;
 class SecurityOrigin;
-class StringOrPerformanceMeasureOptions;
 class UserTiming;
 class V8ObjectBuilder;
+class V8UnionDoubleOrString;
+class V8UnionPerformanceMeasureOptionsOrString;
 
 using PerformanceEntryVector = HeapVector<Member<PerformanceEntry>>;
 using PerformanceEntryDeque = HeapDeque<Member<PerformanceEntry>>;
@@ -267,17 +267,17 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
                               ExceptionState&);
 
   PerformanceMeasure* measure(
-      ScriptState*,
+      ScriptState* script_state,
       const AtomicString& measure_name,
-      const StringOrPerformanceMeasureOptions& start_or_options,
-      ExceptionState&);
+      const V8UnionPerformanceMeasureOptionsOrString* start_or_options,
+      ExceptionState& exception_state);
 
   PerformanceMeasure* measure(
-      ScriptState*,
+      ScriptState* script_state,
       const AtomicString& measure_name,
-      const StringOrPerformanceMeasureOptions& start_or_options,
+      const V8UnionPerformanceMeasureOptionsOrString* start_or_options,
       const String& end,
-      ExceptionState&);
+      ExceptionState& exception_state);
 
   void clearMeasures(const AtomicString& measure_name);
   void clearMeasures() { return clearMeasures(AtomicString()); }
@@ -334,20 +334,19 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
                       base::TimeTicks start_time);
 
   PerformanceMeasure* MeasureInternal(
-      ScriptState*,
+      ScriptState* script_state,
       const AtomicString& measure_name,
-      const StringOrPerformanceMeasureOptions& start,
-      base::Optional<String> end_mark,
-      ExceptionState&);
+      const V8UnionPerformanceMeasureOptionsOrString* start_or_options,
+      absl::optional<String> end_mark,
+      ExceptionState& exception_state);
 
-  PerformanceMeasure* MeasureWithDetail(
-      ScriptState*,
-      const AtomicString& measure_name,
-      const base::Optional<StringOrDouble>& start,
-      const base::Optional<double>& duration,
-      const base::Optional<StringOrDouble>& end,
-      const ScriptValue& detail,
-      ExceptionState&);
+  PerformanceMeasure* MeasureWithDetail(ScriptState* script_state,
+                                        const AtomicString& measure_name,
+                                        const V8UnionDoubleOrString* start,
+                                        const absl::optional<double>& duration,
+                                        const V8UnionDoubleOrString* end,
+                                        const ScriptValue& detail,
+                                        ExceptionState& exception_state);
 
   void CopySecondaryBuffer();
   PerformanceEntryVector getEntriesByTypeInternal(

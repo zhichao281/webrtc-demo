@@ -154,6 +154,7 @@
 #include <openssl/aead.h>
 #include <openssl/curve25519.h>
 #include <openssl/err.h>
+#include <openssl/hpke.h>
 #include <openssl/lhash.h>
 #include <openssl/mem.h>
 #include <openssl/span.h>
@@ -162,7 +163,6 @@
 
 #include "../crypto/err/internal.h"
 #include "../crypto/internal.h"
-#include "../crypto/hpke/internal.h"
 
 
 #if defined(OPENSSL_WINDOWS)
@@ -1431,10 +1431,11 @@ bool tls13_verify_psk_binder(SSL_HANDSHAKE *hs, SSL_SESSION *session,
 
 class ECHServerConfig {
  public:
+  static constexpr bool kAllowUniquePtr = true;
   ECHServerConfig() : is_retry_config_(false), initialized_(false) {}
-  ECHServerConfig(ECHServerConfig &&other) = default;
+  ECHServerConfig(const ECHServerConfig &other) = delete;
   ~ECHServerConfig() = default;
-  ECHServerConfig &operator=(ECHServerConfig &&) = default;
+  ECHServerConfig &operator=(ECHServerConfig &&) = delete;
 
   // Init parses |ech_config| as an ECHConfig and saves a copy of |private_key|.
   // It returns true on success and false on error. It will also error if
@@ -1443,45 +1444,31 @@ class ECHServerConfig {
   bool Init(Span<const uint8_t> ech_config, Span<const uint8_t> private_key,
             bool is_retry_config);
 
-  // SupportsCipherSuite returns true when this ECHConfig supports the HPKE
-  // ciphersuite composed of |kdf_id| and |aead_id|. This function must only be
-  // called on an initialized object.
-  bool SupportsCipherSuite(uint16_t kdf_id, uint16_t aead_id) const;
+  // SetupContext sets up |ctx| for a new connection, given the specified
+  // HPKE ciphersuite and encapsulated KEM key. It returns true on success and
+  // false on error. This function may only be called on an initialized object.
+  bool SetupContext(EVP_HPKE_CTX *ctx, uint16_t kdf_id, uint16_t aead_id,
+                    Span<const uint8_t> enc) const;
 
-  Span<const uint8_t> raw() const {
+  Span<const uint8_t> ech_config() const {
     assert(initialized_);
-    return raw_;
-  }
-  Span<const uint8_t> public_key() const {
-    assert(initialized_);
-    return public_key_;
-  }
-  Span<const uint8_t> private_key() const {
-    assert(initialized_);
-    return MakeConstSpan(private_key_, sizeof(private_key_));
-  }
-  Span<const uint8_t> config_id_sha256() const {
-    assert(initialized_);
-    return MakeConstSpan(config_id_sha256_, sizeof(config_id_sha256_));
+    return ech_config_;
   }
   bool is_retry_config() const {
     assert(initialized_);
     return is_retry_config_;
   }
+  uint8_t config_id() const {
+    assert(initialized_);
+    return config_id_;
+  }
 
  private:
-  Array<uint8_t> raw_;
-  Span<const uint8_t> public_key_;
+  Array<uint8_t> ech_config_;
   Span<const uint8_t> cipher_suites_;
+  ScopedEVP_HPKE_KEY key_;
 
-  // private_key_ is the key corresponding to |public_key|. For clients, it must
-  // be empty (|private_key_present_ == false|). For servers, it must be a valid
-  // X25519 private key.
-  uint8_t private_key_[X25519_PRIVATE_KEY_LEN];
-
-  // config_id_ stores the precomputed result of |ConfigID| for
-  // |EVP_HPKE_HKDF_SHA256|.
-  uint8_t config_id_sha256_[8];
+  uint8_t config_id_;
 
   bool is_retry_config_ : 1;
   bool initialized_ : 1;
@@ -1504,11 +1491,13 @@ OPENSSL_EXPORT bool ssl_decode_client_hello_inner(
 // otherwise, regardless of whether the decrypt was successful. It sets
 // |out_encoded_client_hello_inner| to true if the decryption fails, and false
 // otherwise.
-bool ssl_client_hello_decrypt(
-    EVP_HPKE_CTX *hpke_ctx, Array<uint8_t> *out_encoded_client_hello_inner,
-    bool *out_is_decrypt_error, const SSL_CLIENT_HELLO *client_hello_outer,
-    uint16_t kdf_id, uint16_t aead_id, Span<const uint8_t> config_id,
-    Span<const uint8_t> enc, Span<const uint8_t> payload);
+bool ssl_client_hello_decrypt(EVP_HPKE_CTX *hpke_ctx,
+                              Array<uint8_t> *out_encoded_client_hello_inner,
+                              bool *out_is_decrypt_error,
+                              const SSL_CLIENT_HELLO *client_hello_outer,
+                              uint16_t kdf_id, uint16_t aead_id,
+                              uint8_t config_id, Span<const uint8_t> enc,
+                              Span<const uint8_t> payload);
 
 // tls13_ech_accept_confirmation computes the server's ECH acceptance signal,
 // writing it to |out|. It returns true on success, and false on failure.
@@ -1801,12 +1790,6 @@ struct SSL_HANDSHAKE {
   // peer_key is the peer's ECDH key for a TLS 1.2 client.
   Array<uint8_t> peer_key;
 
-  // negotiated_token_binding_version is used by a server to store the
-  // on-the-wire encoding of the Token Binding protocol version to advertise in
-  // the ServerHello/EncryptedExtensions if the Token Binding extension is to be
-  // sent.
-  uint16_t negotiated_token_binding_version;
-
   // cert_compression_alg_id, for a server, contains the negotiated certificate
   // compression algorithm for this client. It is only valid if
   // |cert_compression_negotiated| is true.
@@ -1870,8 +1853,8 @@ struct SSL_HANDSHAKE {
   // influence the handshake on match.
   UniquePtr<SSL_HANDSHAKE_HINTS> hints;
 
-  // ech_accept, on the server, indicates whether the server should overwrite
-  // part of ServerHello.random with the ECH accept_confirmation value.
+  // ech_accept, on the server, indicates whether the server negotiated ECH and
+  // is handshaking with the inner ClientHello.
   bool ech_accept : 1;
 
   // ech_present, on the server, indicates whether the ClientHello contained an
@@ -1971,6 +1954,10 @@ struct SSL_HANDSHAKE {
   // which implemented TLS 1.3 incorrectly.
   bool apply_jdk11_workaround : 1;
 
+  // can_release_private_key is true if the private key will no longer be used
+  // in this handshake.
+  bool can_release_private_key : 1;
+
   // client_version is the value sent or received in the ClientHello version.
   uint16_t client_version = 0;
 
@@ -1981,6 +1968,9 @@ struct SSL_HANDSHAKE {
   // early_data_written is the amount of early data that has been written by the
   // record layer.
   uint16_t early_data_written = 0;
+
+  // ech_config_id is the ECH config sent by the client.
+  uint8_t ech_config_id = 0;
 
   // session_id is the session ID in the ClientHello.
   uint8_t session_id[SSL_MAX_SSL_SESSION_ID_LENGTH] = {0};
@@ -2539,10 +2529,6 @@ struct SSL3_STATE {
   // key_update_count is the number of consecutive KeyUpdates received.
   uint8_t key_update_count = 0;
 
-  // The negotiated Token Binding key parameter. Only valid if
-  // |token_binding_negotiated| is set.
-  uint8_t negotiated_token_binding_param = 0;
-
   // skip_early_data instructs the record layer to skip unexpected early data
   // messages when 0RTT is rejected.
   bool skip_early_data : 1;
@@ -2590,9 +2576,6 @@ struct SSL3_STATE {
 
   // early_data_accepted is true if early data was accepted by the server.
   bool early_data_accepted : 1;
-
-  // token_binding_negotiated is set if Token Binding was negotiated.
-  bool token_binding_negotiated : 1;
 
   // alert_dispatch is true there is an alert in |send_alert| to be sent.
   bool alert_dispatch : 1;
@@ -2887,9 +2870,6 @@ struct SSL_CONFIG {
   // along with their corresponding ALPS values.
   GrowableArray<ALPSConfig> alps_configs;
 
-  // Contains a list of supported Token Binding key parameters.
-  Array<uint8_t> token_binding_params;
-
   // Contains the QUIC transport params that this endpoint will send.
   Array<uint8_t> quic_transport_params;
 
@@ -2970,7 +2950,7 @@ bool ssl_is_key_type_supported(int key_type);
 bool ssl_compare_public_and_private_key(const EVP_PKEY *pubkey,
                                        const EVP_PKEY *privkey);
 bool ssl_cert_check_private_key(const CERT *cert, const EVP_PKEY *privkey);
-int ssl_get_new_session(SSL_HANDSHAKE *hs, int is_server);
+bool ssl_get_new_session(SSL_HANDSHAKE *hs);
 int ssl_encrypt_ticket(SSL_HANDSHAKE *hs, CBB *out, const SSL_SESSION *session);
 int ssl_ctx_rotate_ticket_encryption_key(SSL_CTX *ctx);
 
@@ -3526,7 +3506,7 @@ struct ssl_ctx_st {
   // advertise support.
   bool channel_id_enabled : 1;
 
-  // grease_enabled is whether draft-davidben-tls-grease-01 is enabled.
+  // grease_enabled is whether GREASE (RFC 8701) is enabled.
   bool grease_enabled : 1;
 
   // allow_unknown_alpn_protos is whether the client allows unsolicited ALPN
@@ -3798,7 +3778,7 @@ struct ssl_ech_server_config_list_st {
   ssl_ech_server_config_list_st &operator=(
       const ssl_ech_server_config_list_st &) = delete;
 
-  bssl::GrowableArray<bssl::ECHServerConfig> configs;
+  bssl::GrowableArray<bssl::UniquePtr<bssl::ECHServerConfig>> configs;
   CRYPTO_refcount_t references = 1;
 
  private:

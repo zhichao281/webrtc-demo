@@ -8,9 +8,11 @@
 #include "base/allocator/buildflags.h"
 #include "base/allocator/partition_allocator/partition_alloc_config.h"
 #include "base/base_export.h"
-#include "base/feature_list.h"
+#include "base/compiler_specific.h"
 
 namespace base {
+
+struct Feature;
 
 namespace features {
 
@@ -26,13 +28,9 @@ extern const BASE_EXPORT Feature kPartitionAllocLargeThreadCacheSize;
 
 extern const BASE_EXPORT Feature kPartitionAllocPCScanMUAwareScheduler;
 extern const BASE_EXPORT Feature kPartitionAllocPCScanStackScanning;
+extern const BASE_EXPORT Feature kPartitionAllocDCScan;
 
 extern const BASE_EXPORT Feature kPartitionAllocLazyCommit;
-
-// TODO(bartekn): Clean up.
-ALWAYS_INLINE bool IsPartitionAllocGigaCageEnabled() {
-  return true;
-}
 
 }  // namespace features
 }  // namespace base

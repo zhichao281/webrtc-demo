@@ -12,17 +12,13 @@
 #include <stdint.h>
 
 #include <memory>
-#include <string>
-#include <utility>
-#include <vector>
 
 #include "base/base_export.h"
-#include "base/cpu.h"
+#include "base/compiler_specific.h"
 #include "base/gtest_prod_util.h"
 #include "base/macros.h"
-#include "base/optional.h"
 #include "base/process/process_handle.h"
-#include "base/threading/platform_thread.h"
+#include "base/strings/string_piece.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
@@ -39,6 +35,16 @@
 #if defined(OS_WIN)
 #include "base/win/scoped_handle.h"
 #include "base/win/windows_types.h"
+#endif
+
+#if defined(OS_LINUX) || defined(OS_CHROMEOS) || defined(OS_ANDROID) || \
+    defined(OS_AIX)
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "base/cpu.h"
+#include "base/threading/platform_thread.h"
 #endif
 
 namespace base {
@@ -77,7 +83,7 @@ BASE_EXPORT int64_t TimeValToMicroseconds(const struct timeval& tv);
 // To obtain consistent memory metrics, use the memory_instrumentation service.
 //
 // For further documentation on memory, see
-// https://chromium.googlesource.com/chromium/src/+/HEAD/docs/README.md
+// https://chromium.googlesource.com/chromium/src/+/HEAD/docs/README.md#Memory
 class BASE_EXPORT ProcessMetrics {
  public:
   ~ProcessMetrics();
@@ -118,13 +124,13 @@ class BASE_EXPORT ProcessMetrics {
   //
   // Since this API measures usage over an interval, it will return zero on the
   // first call, and an actual value only on the second and subsequent calls.
-  double GetPlatformIndependentCPUUsage();
+  double GetPlatformIndependentCPUUsage() WARN_UNUSED_RESULT;
 
   // Returns the cumulative CPU usage across all threads of the process since
   // process start. In case of multi-core processors, a process can consume CPU
   // at a rate higher than wall-clock time, e.g. two cores at full utilization
   // will result in a time delta of 2 seconds/per 1 wall-clock second.
-  TimeDelta GetCumulativeCPUUsage();
+  TimeDelta GetCumulativeCPUUsage() WARN_UNUSED_RESULT;
 
 #if defined(OS_LINUX) || defined(OS_CHROMEOS) || defined(OS_ANDROID) || \
     defined(OS_AIX)
@@ -294,12 +300,6 @@ class BASE_EXPORT ProcessMetrics {
 // Returns the memory committed by the system in KBytes.
 // Returns 0 if it can't compute the commit charge.
 BASE_EXPORT size_t GetSystemCommitCharge();
-
-// Returns the number of bytes in a memory page. Do not use this to compute
-// the number of pages in a block of memory for calling mincore(). On some
-// platforms, e.g. iOS, mincore() uses a different page size from what is
-// returned by GetPageSize().
-BASE_EXPORT size_t GetPageSize();
 
 // Returns the maximum number of file descriptors that can be open by a process
 // at once. If the number is unavailable, a conservative best guess is returned.

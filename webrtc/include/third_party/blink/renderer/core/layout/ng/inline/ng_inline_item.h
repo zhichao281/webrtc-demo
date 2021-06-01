@@ -5,19 +5,15 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_INLINE_NG_INLINE_ITEM_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_INLINE_NG_INLINE_ITEM_H_
 
+#include <unicode/ubidi.h>
+
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/layout_inline.h"
 #include "third_party/blink/renderer/core/layout/ng/inline/ng_inline_item_segment.h"
-#include "third_party/blink/renderer/core/layout/ng/inline/ng_offset_mapping.h"
 #include "third_party/blink/renderer/core/layout/ng/inline/ng_text_type.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_style_variant.h"
-#include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/run_segmenter.h"
-#include "third_party/blink/renderer/platform/fonts/shaping/shape_result.h"
 #include "third_party/blink/renderer/platform/text/text_direction.h"
-
-#include <unicode/ubidi.h>
-#include <unicode/uscript.h>
 
 namespace blink {
 
@@ -102,13 +98,13 @@ class CORE_EXPORT NGInlineItem {
   // optimization if this is false.
   bool ShouldCreateBoxFragment() const {
     if (Type() == kOpenTag || Type() == kCloseTag)
-      return To<LayoutInline>(layout_object_.Get())->ShouldCreateBoxFragment();
+      return To<LayoutInline>(layout_object_)->ShouldCreateBoxFragment();
     DCHECK_EQ(Type(), kAtomicInline);
     return false;
   }
   void SetShouldCreateBoxFragment() {
     DCHECK(Type() == kOpenTag || Type() == kCloseTag);
-    To<LayoutInline>(layout_object_.Get())->SetShouldCreateBoxFragment();
+    To<LayoutInline>(layout_object_)->SetShouldCreateBoxFragment();
   }
 
   unsigned StartOffset() const { return start_offset_; }
@@ -182,7 +178,7 @@ class CORE_EXPORT NGInlineItem {
 
   // Returns a screen-size font for SVG text.
   // Returns Style()->GetFont() otherwise.
-  const Font& FontWithSVGScaling() const;
+  const Font& FontWithSvgScaling() const;
 
   // Get or set the whitespace collapse type at the end of this item.
   NGCollapseType EndCollapseType() const {
@@ -214,12 +210,12 @@ class CORE_EXPORT NGInlineItem {
     is_end_collapsible_newline_ = is_newline;
   }
 
-  static void Split(HeapVector<NGInlineItem>&, unsigned index, unsigned offset);
+  static void Split(Vector<NGInlineItem>&, unsigned index, unsigned offset);
 
   // RunSegmenter properties.
   unsigned SegmentData() const { return segment_data_; }
   static void SetSegmentData(const RunSegmenter::RunSegmenterRange& range,
-                             HeapVector<NGInlineItem>* items);
+                             Vector<NGInlineItem>* items);
 
   RunSegmenter::RunSegmenterRange CreateRunSegmenterRange() const {
     return NGInlineItemSegment::UnpackSegmentData(start_offset_, end_offset_,
@@ -237,7 +233,7 @@ class CORE_EXPORT NGInlineItem {
       shape_result_ = nullptr;
     bidi_level_ = level;
   }
-  static unsigned SetBidiLevel(HeapVector<NGInlineItem>&,
+  static unsigned SetBidiLevel(Vector<NGInlineItem>&,
                                unsigned index,
                                unsigned end_offset,
                                UBiDiLevel);
@@ -247,15 +243,13 @@ class CORE_EXPORT NGInlineItem {
 
   String ToString() const;
 
-  void Trace(Visitor* visitor) const;
-
  private:
   void ComputeBoxProperties();
 
   unsigned start_offset_;
   unsigned end_offset_;
   scoped_refptr<const ShapeResult> shape_result_;
-  Member<LayoutObject> layout_object_;
+  LayoutObject* layout_object_;
 
   NGInlineItemType type_;
   unsigned text_type_ : 3;          // NGTextType
@@ -282,47 +276,6 @@ inline void NGInlineItem::AssertEndOffset(unsigned offset) const {
   DCHECK_LE(offset, end_offset_);
 }
 
-// Represents a text content with a list of NGInlineItem. A node may have an
-// additional NGInlineItemsData for ::first-line pseudo element.
-struct CORE_EXPORT NGInlineItemsData
-    : public GarbageCollected<NGInlineItemsData> {
- public:
-  NGInlineItemsData() = default;
-  virtual ~NGInlineItemsData() = default;
-  // Text content for all inline items represented by a single NGInlineNode.
-  // Encoded either as UTF-16 or latin-1 depending on the content.
-  String text_content;
-  HeapVector<NGInlineItem> items;
-
-  // Cache RunSegmenter segments when at least one item has multiple runs.
-  // Set to nullptr when all items has only single run, which is common case for
-  // most writing systems. However, in multi-script writing systems such as
-  // Japanese, almost every item has multiple runs.
-  std::unique_ptr<NGInlineItemSegments> segments;
-
-  // The DOM to text content offset mapping of this inline node.
-  Member<NGOffsetMapping> offset_mapping;
-
-  bool IsValidOffset(unsigned index, unsigned offset) const {
-    return index < items.size() && items[index].IsValidOffset(offset);
-  }
-
-  void AssertOffset(unsigned index, unsigned offset) const {
-    items[index].AssertOffset(offset);
-  }
-  void AssertEndOffset(unsigned index, unsigned offset) const {
-    items[index].AssertEndOffset(offset);
-  }
-
-  // Get a list of |kOpenTag| that are open at |size|.
-  using OpenTagItems = Vector<const NGInlineItem*, 16>;
-  void GetOpenTagItems(wtf_size_t size, OpenTagItems* open_items) const;
-
-  virtual void Trace(Visitor* visitor) const;
-};
-
 }  // namespace blink
-
-WTF_ALLOW_CLEAR_UNUSED_SLOTS_WITH_MEM_FUNCTIONS(blink::NGInlineItem)
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_INLINE_NG_INLINE_ITEM_H_

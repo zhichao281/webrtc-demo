@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_SANITIZER_API_SANITIZER_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_SANITIZER_API_SANITIZER_H_
 
+#include "third_party/blink/renderer/bindings/modules/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/core/dom/node.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/modules/sanitizer_api/sanitizer_config_impl.h"
@@ -19,8 +20,6 @@ class ExceptionState;
 class ExecutionContext;
 class SanitizerConfig;
 class ScriptState;
-class StringOrDocumentFragmentOrDocument;
-class StringOrTrustedHTMLOrDocumentFragmentOrDocument;
 
 enum ElementKind {
   kCustom,
@@ -38,12 +37,12 @@ class MODULES_EXPORT Sanitizer final : public ScriptWrappable {
   explicit Sanitizer(ExecutionContext*, const SanitizerConfig*);
   ~Sanitizer() override;
 
-  String sanitizeToString(ScriptState*,
-                          StringOrDocumentFragmentOrDocument&,
-                          ExceptionState&);
-  DocumentFragment* sanitize(ScriptState*,
-                             StringOrTrustedHTMLOrDocumentFragmentOrDocument&,
-                             ExceptionState&);
+  String sanitizeToString(ScriptState* script_state,
+                          const V8SanitizerInput* input,
+                          ExceptionState& exception_state);
+  DocumentFragment* sanitize(ScriptState* script_state,
+                             const V8SanitizerInputWithTrustedHTML* input,
+                             ExceptionState& exception_state);
 
   SanitizerConfig* config() const;
   static SanitizerConfig* defaultConfig();
@@ -59,16 +58,16 @@ class MODULES_EXPORT Sanitizer final : public ScriptWrappable {
   void AttrFormatter(HashMap<String, Vector<String>>&,
                      const Vector<std::pair<String, Vector<String>>>&);
 
-  DocumentFragment* PrepareFragment(LocalDOMWindow*,
-                                    ScriptState*,
-                                    StringOrDocumentFragmentOrDocument&,
-                                    ExceptionState&);
+  DocumentFragment* PrepareFragment(LocalDOMWindow* window,
+                                    ScriptState* script_state,
+                                    const V8SanitizerInput* input,
+                                    ExceptionState& exception_state);
   DocumentFragment* DoSanitizing(DocumentFragment*,
                                  LocalDOMWindow*,
                                  ExceptionState&);
-  DocumentFragment* SanitizeImpl(ScriptState*,
-                                 StringOrDocumentFragmentOrDocument&,
-                                 ExceptionState&);
+  DocumentFragment* SanitizeImpl(ScriptState* script_state,
+                                 const V8SanitizerInput* input,
+                                 ExceptionState& exception_state);
 
   SanitizerConfigImpl config_;
   Member<const SanitizerConfig> config_dictionary_;

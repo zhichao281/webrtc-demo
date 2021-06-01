@@ -20,9 +20,9 @@ class CORE_EXPORT CSSHSL final : public CSSColorValue {
  public:
   // Constructor defined in the IDL.
   static CSSHSL* Create(CSSNumericValue* hue,
-                        const CSSNumberish& saturation,
-                        const CSSNumberish& lightness,
-                        const CSSNumberish& alpha,
+                        const V8CSSNumberish* saturation,
+                        const V8CSSNumberish* lightness,
+                        const V8CSSNumberish* alpha,
                         ExceptionState& exception_state);
 
   // Internal constructor used by blink.
@@ -33,14 +33,14 @@ class CORE_EXPORT CSSHSL final : public CSSColorValue {
          CSSNumericValue*);
 
   // Getters and setters from the IDL
-  Member<CSSNumericValue> h() { return h_; }
-  void s(CSSNumberish& g) { g.SetCSSNumericValue(s_); }
-  void l(CSSNumberish& b) { b.SetCSSNumericValue(l_); }
-  void alpha(CSSNumberish& alpha) { alpha.SetCSSNumericValue(alpha_); }
-  void setH(CSSNumericValue*, ExceptionState&);
-  void setS(const CSSNumberish&, ExceptionState&);
-  void setL(const CSSNumberish&, ExceptionState&);
-  void setAlpha(const CSSNumberish&, ExceptionState&);
+  Member<CSSNumericValue> h() const { return h_; }
+  V8CSSNumberish* s() const;
+  V8CSSNumberish* l() const;
+  V8CSSNumberish* alpha() const;
+  void setH(CSSNumericValue* h, ExceptionState& exception_state);
+  void setS(const V8CSSNumberish* s, ExceptionState& exception_state);
+  void setL(const V8CSSNumberish* l, ExceptionState& exception_state);
+  void setAlpha(const V8CSSNumberish* alpha, ExceptionState& exception_state);
 
   void Trace(Visitor* visitor) const override {
     visitor->Trace(h_);

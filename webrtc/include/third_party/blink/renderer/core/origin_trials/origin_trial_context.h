@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_ORIGIN_TRIALS_ORIGIN_TRIAL_CONTEXT_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_ORIGIN_TRIALS_ORIGIN_TRIAL_CONTEXT_H_
 
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/origin_trials/trial_token.h"
 #include "third_party/blink/public/common/origin_trials/trial_token_validator.h"
 #include "third_party/blink/renderer/core/core_export.h"
@@ -32,12 +33,12 @@ enum class OriginTrialStatus {
 struct OriginTrialTokenResult {
   OriginTrialTokenResult(const String& raw_token,
                          OriginTrialTokenStatus status,
-                         const base::Optional<TrialToken>& parsed_token);
+                         const absl::optional<TrialToken>& parsed_token);
   ~OriginTrialTokenResult() = default;
 
   String raw_token;
   OriginTrialTokenStatus status;
-  base::Optional<TrialToken> parsed_token;
+  absl::optional<TrialToken> parsed_token;
 };
 
 struct OriginTrialResult {

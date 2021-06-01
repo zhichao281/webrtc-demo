@@ -9,6 +9,7 @@
 
 #if DCHECK_IS_ON()
 
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/paint/fragment_data.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
@@ -47,7 +48,7 @@ class FindPaintOffsetNeedingUpdateScope {
     DCHECK_EQ(old_paint_offset_, paint_offset) << object_;
 
     const TransformPaintPropertyNodeOrAlias* new_parent = nullptr;
-    base::Optional<FloatSize> new_translation;
+    absl::optional<FloatSize> new_translation;
     if (const auto* properties = fragment_data_.PaintProperties()) {
       if (const auto* translation = properties->PaintOffsetTranslation()) {
         new_parent = translation->Parent();
@@ -66,7 +67,7 @@ class FindPaintOffsetNeedingUpdateScope {
   const bool& is_actually_needed_;
   PhysicalOffset old_paint_offset_;
   const TransformPaintPropertyNodeOrAlias* old_parent_ = nullptr;
-  base::Optional<FloatSize> old_translation_;
+  absl::optional<FloatSize> old_translation_;
 };
 
 }  // namespace blink

@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_WORKERS_WORKLET_MODULE_RESPONSES_MAP_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_WORKERS_WORKLET_MODULE_RESPONSES_MAP_H_
 
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/loader/modulescript/module_script_creation_params.h"
 #include "third_party/blink/renderer/core/loader/modulescript/module_script_fetcher.h"
@@ -50,7 +51,7 @@ class CORE_EXPORT WorkletModuleResponsesMap final
   // Called on worklet threads.
   void SetEntryParams(const KURL&,
                       ModuleType,
-                      const base::Optional<ModuleScriptCreationParams>&)
+                      const absl::optional<ModuleScriptCreationParams>&)
       LOCKS_EXCLUDED(mutex_);
 
   // Called when the associated document is destroyed and clears the map.
@@ -76,11 +77,11 @@ class CORE_EXPORT WorkletModuleResponsesMap final
     void AddClient(
         ModuleScriptFetcher::Client* client,
         scoped_refptr<base::SingleThreadTaskRunner> client_task_runner);
-    void SetParams(const base::Optional<ModuleScriptCreationParams>& params);
+    void SetParams(const absl::optional<ModuleScriptCreationParams>& params);
 
    private:
     State state_ = State::kFetching;
-    base::Optional<ModuleScriptCreationParams> params_;
+    absl::optional<ModuleScriptCreationParams> params_;
     HashMap<CrossThreadPersistent<ModuleScriptFetcher::Client>,
             scoped_refptr<base::SingleThreadTaskRunner>>
         clients_;

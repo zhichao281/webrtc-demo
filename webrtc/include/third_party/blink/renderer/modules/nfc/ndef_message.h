@@ -6,6 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_NFC_NDEF_MESSAGE_H_
 
 #include "services/device/public/mojom/nfc.mojom-blink-forward.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
@@ -16,9 +17,6 @@ class ExceptionState;
 class ExecutionContext;
 class NDEFMessageInit;
 class NDEFRecord;
-class StringOrArrayBufferOrArrayBufferViewOrNDEFMessageInit;
-
-using NDEFMessageSource = StringOrArrayBufferOrArrayBufferViewOrNDEFMessageInit;
 
 class MODULES_EXPORT NDEFMessage final : public ScriptWrappable {
   DEFINE_WRAPPERTYPEINFO();
@@ -30,9 +28,9 @@ class MODULES_EXPORT NDEFMessage final : public ScriptWrappable {
                              const NDEFMessageInit*,
                              ExceptionState&,
                              bool is_embedded = false);
-  static NDEFMessage* Create(const ExecutionContext*,
-                             const NDEFMessageSource&,
-                             ExceptionState&);
+  static NDEFMessage* Create(const ExecutionContext* execution_context,
+                             const V8NDEFMessageSource* source,
+                             ExceptionState& exception_state);
   static NDEFMessage* CreateAsPayloadOfSmartPoster(const ExecutionContext*,
                                                    const NDEFMessageInit*,
                                                    ExceptionState&);

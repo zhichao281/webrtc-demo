@@ -31,14 +31,12 @@
 
 namespace blink {
 
-class HTMLElement;
-
-class LayoutWordBreak final : public LayoutText {
+class LayoutWordBreak : public LayoutText {
  public:
-  explicit LayoutWordBreak(HTMLElement*);
+  explicit LayoutWordBreak(Node* node);
 
   Position PositionForCaretOffset(unsigned offset) const final;
-  base::Optional<unsigned> CaretOffsetForPosition(const Position&) const final;
+  absl::optional<unsigned> CaretOffsetForPosition(const Position&) const final;
 
   const char* GetName() const override {
     NOT_DESTROYED();

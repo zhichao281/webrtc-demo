@@ -12,7 +12,6 @@
 #include "third_party/blink/renderer/core/dom/dom_node_ids.h"
 #include "third_party/blink/renderer/core/paint/paint_timing_detector.h"
 #include "third_party/blink/renderer/core/paint/text_element_timing.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
@@ -202,9 +201,8 @@ class CORE_EXPORT TextRecordsManager {
   // Once LayoutObject* is destroyed, |visible_objects_| and
   // |invisible_objects_| must immediately clear the corresponding record from
   // themselves.
-  HeapHashMap<Member<const LayoutObject>, std::unique_ptr<TextRecord>>
-      visible_objects_;
-  HeapHashSet<Member<const LayoutObject>> invisible_objects_;
+  HashMap<const LayoutObject*, std::unique_ptr<TextRecord>> visible_objects_;
+  HashSet<const LayoutObject*> invisible_objects_;
 
   Deque<base::WeakPtr<TextRecord>> texts_queued_for_paint_time_;
   // These are text records created to notify Element Timing of texts which are

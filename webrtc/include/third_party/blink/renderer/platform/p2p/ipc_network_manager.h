@@ -38,6 +38,8 @@ class IpcNetworkManager : public rtc::NetworkManagerBase,
       std::unique_ptr<webrtc::MdnsResponderInterface> mdns_responder);
   ~IpcNetworkManager() override;
 
+  void PLATFORM_EXPORT ContextDestroyed();
+
   // Weak pointers may only be dereferenced on the signaling thread.
   base::WeakPtr<IpcNetworkManager> PLATFORM_EXPORT
   AsWeakPtrForSignalingThread();
@@ -58,9 +60,9 @@ class IpcNetworkManager : public rtc::NetworkManagerBase,
 
   // 'this' is created on the network thread, whereas the `NetworkListManager`
   // is owned by the main thread, so it needs to be accessed in a thread-safe
-  // manner. `this` is indirectly owned by `PeerConnectionDependencyFactory`,
-  // which also owns the network list manager, so this should be never be null.
-  CrossThreadWeakPersistent<NetworkListManager> network_list_manager_;
+  // manner. The `NetworkListManager` will be reset once the context is
+  // destroyed, so the strong reference will not cause a leak.
+  CrossThreadPersistent<NetworkListManager> network_list_manager_;
   std::unique_ptr<webrtc::MdnsResponderInterface> mdns_responder_;
   int start_count_ = 0;
   bool network_list_received_ = false;

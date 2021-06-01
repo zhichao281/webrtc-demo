@@ -22,9 +22,9 @@ class CORE_EXPORT NGColumnLayoutAlgorithm
                                NGBoxFragmentBuilder,
                                NGBlockBreakToken> {
  public:
-  NGColumnLayoutAlgorithm(const NGLayoutAlgorithmParams& params);
+  explicit NGColumnLayoutAlgorithm(const NGLayoutAlgorithmParams& params);
 
-  const NGLayoutResult* Layout() override;
+  scoped_refptr<const NGLayoutResult> Layout() override;
 
   MinMaxSizesResult ComputeMinMaxSizes(
       const MinMaxSizesFloatInput&) const override;
@@ -44,8 +44,9 @@ class CORE_EXPORT NGColumnLayoutAlgorithm
   // column that was laid out. The rows themselves don't create fragments. If
   // we're in a nested fragmentation context and completely out of outer
   // fragmentainer space, nullptr will be returned.
-  const NGLayoutResult* LayoutRow(const NGBlockBreakToken* next_column_token,
-                                  NGMarginStrut*);
+  scoped_refptr<const NGLayoutResult> LayoutRow(
+      const NGBlockBreakToken* next_column_token,
+      NGMarginStrut*);
 
   // Lay out a column spanner. The return value will tell whether to break
   // before the spanner or not. If |NGBreakStatus::kContinue| is returned, and
@@ -54,6 +55,20 @@ class CORE_EXPORT NGColumnLayoutAlgorithm
   NGBreakStatus LayoutSpanner(NGBlockNode spanner_node,
                               const NGBlockBreakToken* break_token,
                               NGMarginStrut*);
+
+  // Attempt to position the list-item marker (if any) beside the child
+  // fragment. This requires the fragment to have a baseline. If it doesn't,
+  // we'll keep the unpositioned marker around, so that we can retry with a
+  // later fragment (if any). If we reach the end of layout and still have an
+  // unpositioned marker, it can be placed by calling
+  // PositionAnyUnclaimedListMarker().
+  void AttemptToPositionListMarker(const NGPhysicalBoxFragment& child_fragment,
+                                   LayoutUnit block_offset);
+
+  // At the end of layout, if no column or spanner were able to position the
+  // list-item marker, position the marker at the beginning of the multicol
+  // container.
+  void PositionAnyUnclaimedListMarker();
 
   // Propagate the baseline from the given |child| if needed.
   void PropagateBaselineFromChild(const NGPhysicalBoxFragment& child,

@@ -23,7 +23,7 @@ class CORE_EXPORT AnimationTimeline : public ScriptWrappable {
  public:
   struct PhaseAndTime {
     TimelinePhase phase;
-    base::Optional<base::TimeDelta> time;
+    absl::optional<base::TimeDelta> time;
     bool operator==(const PhaseAndTime& other) const {
       return phase == other.phase && time == other.time;
     }
@@ -35,12 +35,12 @@ class CORE_EXPORT AnimationTimeline : public ScriptWrappable {
   AnimationTimeline(Document*);
   ~AnimationTimeline() override = default;
 
-  virtual void currentTime(CSSNumberish&);
-  base::Optional<AnimationTimeDelta> CurrentTime();
-  base::Optional<double> CurrentTimeMilliseconds();
-  base::Optional<double> CurrentTimeSeconds();
+  virtual V8CSSNumberish* currentTime();
+  absl::optional<AnimationTimeDelta> CurrentTime();
+  absl::optional<double> CurrentTimeMilliseconds();
+  absl::optional<double> CurrentTimeSeconds();
 
-  virtual void duration(CSSNumberish&);
+  virtual V8CSSNumberish* duration();
 
   String phase();
   TimelinePhase Phase() { return CurrentPhaseAndTime().phase; }
@@ -62,7 +62,7 @@ class CORE_EXPORT AnimationTimeline : public ScriptWrappable {
   //
   // Changing scroll-linked animation start_time initialization is under
   // consideration here: https://github.com/w3c/csswg-drafts/issues/2075.
-  virtual base::Optional<base::TimeDelta> InitialStartTimeForAnimations() = 0;
+  virtual absl::optional<base::TimeDelta> InitialStartTimeForAnimations() = 0;
   Document* GetDocument() { return document_; }
   virtual void AnimationAttached(Animation*);
   virtual void AnimationDetached(Animation*);
@@ -99,6 +99,11 @@ class CORE_EXPORT AnimationTimeline : public ScriptWrappable {
 
   void MarkAnimationsCompositorPending(bool source_changed = false);
 
+  // Checks for animations of composited properties that would have no effect
+  // and marks them as pending if this changes.
+  void MarkPendingIfCompositorPropertyAnimationChanges(
+      const PaintArtifactCompositor*);
+
   using ReplaceableAnimationsMap =
       HeapHashMap<Member<Element>, Member<HeapVector<Member<Animation>>>>;
   void getReplaceableAnimations(
@@ -119,7 +124,7 @@ class CORE_EXPORT AnimationTimeline : public ScriptWrappable {
 
   std::unique_ptr<CompositorAnimationTimeline> compositor_timeline_;
 
-  base::Optional<PhaseAndTime> last_current_phase_and_time_;
+  absl::optional<PhaseAndTime> last_current_phase_and_time_;
 };
 
 }  // namespace blink

@@ -1,5 +1,5 @@
 This is a testharness.js-based test.
-Found 3761 tests; 3738 PASS, 23 FAIL, 0 TIMEOUT, 0 NOTRUN.
+Found 3763 tests; 3741 PASS, 22 FAIL, 0 TIMEOUT, 0 NOTRUN.
 PASS idl_test setup
 PASS idl_test validation
 PASS Partial interface Document: original interface defined
@@ -234,6 +234,7 @@ PASS HTMLElement interface: attribute draggable
 PASS HTMLElement interface: attribute spellcheck
 PASS HTMLElement interface: attribute autocapitalize
 PASS HTMLElement interface: attribute innerText
+PASS HTMLElement interface: attribute outerText
 PASS HTMLElement interface: operation attachInternals()
 PASS HTMLElement interface: attribute onabort
 PASS HTMLElement interface: attribute onauxclick
@@ -328,6 +329,7 @@ PASS HTMLElement interface: document.createElement("noscript") must inherit prop
 PASS HTMLElement interface: document.createElement("noscript") must inherit property "spellcheck" with the proper type
 PASS HTMLElement interface: document.createElement("noscript") must inherit property "autocapitalize" with the proper type
 PASS HTMLElement interface: document.createElement("noscript") must inherit property "innerText" with the proper type
+PASS HTMLElement interface: document.createElement("noscript") must inherit property "outerText" with the proper type
 PASS HTMLElement interface: document.createElement("noscript") must inherit property "attachInternals()" with the proper type
 PASS HTMLElement interface: document.createElement("noscript") must inherit property "onabort" with the proper type
 PASS HTMLElement interface: document.createElement("noscript") must inherit property "onauxclick" with the proper type
@@ -3598,7 +3600,7 @@ PASS HTMLSlotElement interface: existence and properties of interface prototype 
 PASS HTMLSlotElement interface: attribute name
 PASS HTMLSlotElement interface: operation assignedNodes(optional AssignedNodesOptions)
 PASS HTMLSlotElement interface: operation assignedElements(optional AssignedNodesOptions)
-FAIL HTMLSlotElement interface: operation assign((Element or Text)...) assert_equals: property has wrong .length expected 0 but got 1
+PASS HTMLSlotElement interface: operation assign((Element or Text)...)
 PASS HTMLSlotElement must be primary interface of document.createElement("slot")
 PASS Stringification of document.createElement("slot")
 PASS HTMLSlotElement interface: document.createElement("slot") must inherit property "name" with the proper type

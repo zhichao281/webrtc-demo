@@ -10,6 +10,7 @@
 #include "base/callback.h"
 #include "base/memory/scoped_refptr.h"
 #include "cc/paint/node_id.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/platform/web_vector.h"
 #include "third_party/blink/renderer/core/content_capture/content_holder.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
@@ -113,7 +114,7 @@ class TaskSession final : public GarbageCollected<TaskSession> {
     size_t total_sent_nodes_ = 0;
     // Histogram could be disabed in low time resolution OS, see
     // base::TimeTicks::IsHighResolution and ContentCaptureTask.
-    base::Optional<SentNodeCountCallback> callback_;
+    absl::optional<SentNodeCountCallback> callback_;
   };
 
   TaskSession();

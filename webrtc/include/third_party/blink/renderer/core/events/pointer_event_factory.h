@@ -27,6 +27,10 @@ class CORE_EXPORT PointerEventFactory {
   DISALLOW_NEW();
 
  public:
+  // Returns the pointerType string for the PointerType enum.
+  static const AtomicString& PointerTypeNameForWebPointPointerType(
+      WebPointerProperties::PointerType type);
+
   PointerEventFactory();
   ~PointerEventFactory();
 
@@ -114,6 +118,14 @@ class CORE_EXPORT PointerEventFactory {
     }
     int RawId() const { return second; }
   } IncomingId;
+
+  using IncomingIdToPointerIdMap =
+      HashMap<IncomingId,
+              PointerId,
+              WTF::PairHash<int, int>,
+              WTF::PairHashTraits<WTF::UnsignedWithZeroKeyHashTraits<int>,
+                                  WTF::UnsignedWithZeroKeyHashTraits<int>>>;
+
   typedef struct PointerAttributes {
     IncomingId incoming_id;
     bool is_active_buttons;
@@ -153,12 +165,7 @@ class CORE_EXPORT PointerEventFactory {
       LocalDOMWindow* view);
 
   PointerId current_id_;
-  HashMap<IncomingId,
-          PointerId,
-          WTF::PairHash<int, int>,
-          WTF::PairHashTraits<WTF::UnsignedWithZeroKeyHashTraits<int>,
-                              WTF::UnsignedWithZeroKeyHashTraits<int>>>
-      pointer_incoming_id_mapping_;
+  IncomingIdToPointerIdMap pointer_incoming_id_mapping_;
   PointerIdKeyMap<PointerAttributes> pointer_id_mapping_;
   int primary_id_[static_cast<int>(
                       WebPointerProperties::PointerType::kMaxValue) +

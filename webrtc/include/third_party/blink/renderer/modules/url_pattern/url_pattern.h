@@ -6,6 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_URL_PATTERN_URL_PATTERN_H_
 
 #include "base/types/pass_key.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/liburlpattern/parse.h"
 
@@ -19,7 +20,6 @@ class ExceptionState;
 class URLPatternComponentResult;
 class URLPatternInit;
 class URLPatternResult;
-class USVStringOrURLPatternInit;
 
 class URLPattern : public ScriptWrappable {
   DEFINE_WRAPPERTYPEINFO();
@@ -39,16 +39,16 @@ class URLPattern : public ScriptWrappable {
              Component* hash,
              base::PassKey<URLPattern> key);
 
-  bool test(const USVStringOrURLPatternInit& input,
+  bool test(const V8URLPatternInput* input,
             const String& base_url,
             ExceptionState& exception_state) const;
-  bool test(const USVStringOrURLPatternInit& input,
+  bool test(const V8URLPatternInput* input,
             ExceptionState& exception_state) const;
 
-  URLPatternResult* exec(const USVStringOrURLPatternInit& input,
+  URLPatternResult* exec(const V8URLPatternInput* input,
                          const String& base_url,
                          ExceptionState& exception_state) const;
-  URLPatternResult* exec(const USVStringOrURLPatternInit& input,
+  URLPatternResult* exec(const V8URLPatternInput* input,
                          ExceptionState& exception_state) const;
 
   String protocol() const;
@@ -81,7 +81,7 @@ class URLPattern : public ScriptWrappable {
   // A utility function to determine if a given |input| matches the pattern
   // or not.  Returns |true| if there is a match and |false| otherwise.  If
   // |result| is not nullptr then the URLPatternResult contents will be filled.
-  bool Match(const USVStringOrURLPatternInit& input,
+  bool Match(const V8URLPatternInput* input,
              const String& base_url,
              URLPatternResult* result,
              ExceptionState& exception_state) const;

@@ -14,9 +14,10 @@
 namespace blink {
 
 class MediaStreamComponent;
+class ReadableStreamTransferringOptimizer;
 
 class MODULES_EXPORT MediaStreamAudioTrackUnderlyingSource
-    : public AudioFrameQueueUnderlyingSource,
+    : public AudioDataQueueUnderlyingSource,
       public WebMediaStreamAudioSink {
   USING_PRE_FINALIZER(MediaStreamAudioTrackUnderlyingSource,
                       DisconnectFromTrack);
@@ -38,6 +39,9 @@ class MODULES_EXPORT MediaStreamAudioTrackUnderlyingSource
   void OnSetFormat(const media::AudioParameters& params) override;
 
   MediaStreamComponent* Track() const { return track_.Get(); }
+
+  std::unique_ptr<ReadableStreamTransferringOptimizer>
+  GetTransferringOptimizer();
 
   void ContextDestroyed() override;
   void Trace(Visitor*) const override;

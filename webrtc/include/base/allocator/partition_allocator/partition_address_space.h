@@ -6,7 +6,10 @@
 #define BASE_ALLOCATOR_PARTITION_ALLOCATOR_PARTITION_ADDRESS_SPACE_H_
 
 #include <algorithm>
+#include <array>
+#include <limits>
 
+#include "base/allocator/buildflags.h"
 #include "base/allocator/partition_allocator/address_pool_manager_types.h"
 #include "base/allocator/partition_allocator/partition_alloc_check.h"
 #include "base/allocator/partition_allocator/partition_alloc_config.h"
@@ -15,7 +18,6 @@
 #include "base/base_export.h"
 #include "base/bits.h"
 #include "base/notreached.h"
-#include "base/partition_alloc_buildflags.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
 
@@ -25,6 +27,47 @@ namespace internal {
 
 // The feature is not applicable to 32-bit address space.
 #if defined(PA_HAS_64_BITS_POINTERS)
+
+struct GigaCageProperties {
+  size_t size;
+  size_t alignment;
+  size_t alignment_offset;
+};
+
+template <size_t N>
+GigaCageProperties CalculateGigaCageProperties(
+    const std::array<size_t, N>& pool_sizes) {
+  size_t size_sum = 0;
+  size_t alignment = 0;
+  size_t alignment_offset;
+  // The goal is to find properties such that each pool's start address is
+  // aligned to its own size. To achieve that, the largest pool will serve
+  // as an anchor (the first one, if there are more) and it'll be used to
+  // determine the core alignment. The sizes of pools before the anchor will
+  // determine the offset within the core alignment at which the GigaCage will
+  // start.
+  // If this algorithm doesn't find the proper alignment, it means such an
+  // alignment doesn't exist.
+  for (size_t pool_size : pool_sizes) {
+    PA_CHECK(bits::IsPowerOfTwo(pool_size));
+    if (pool_size > alignment) {
+      alignment = pool_size;
+      // This may underflow, leading to a very high value, so use modulo
+      // |alignment| to bring it down.
+      alignment_offset = (alignment - size_sum) & (alignment - 1);
+    }
+    size_sum += pool_size;
+  }
+  // Use PA_CHECK because we can't correctly proceed if any pool's start address
+  // isn't aligned to its own size. Exact initial value of |sample_address|
+  // doesn't matter as long as |address % alignment == alignment_offset|.
+  uintptr_t sample_address = alignment_offset + 7 * alignment;
+  for (size_t pool_size : pool_sizes) {
+    PA_CHECK(!(sample_address & (pool_size - 1)));
+    sample_address += pool_size;
+  }
+  return GigaCageProperties{size_sum, alignment, alignment_offset};
+}
 
 // Reserves address space for PartitionAllocator.
 class BASE_EXPORT PartitionAddressSpace {
@@ -70,6 +113,37 @@ class BASE_EXPORT PartitionAddressSpace {
     return brp_pool_base_address_;
   }
 
+#if BUILDFLAG(ENABLE_BRP_DIRECTMAP_SUPPORT)
+  static ALWAYS_INLINE uintptr_t BRPPoolEnd() {
+    return brp_pool_base_address_ + kBRPPoolSize;
+  }
+
+  static ALWAYS_INLINE uintptr_t BRPPoolOffset(uintptr_t address) {
+    return address & kBRPPoolOffsetMask;
+  }
+
+  static uint16_t* ReservationOffsetTable() {
+    return reinterpret_cast<uint16_t*>(BRPPoolEnd() - kBRPPoolOffsetTableSize);
+  }
+
+  static uint16_t* ReservationOffsetPointer(uintptr_t address) {
+    PA_DCHECK(IsInBRPPool(reinterpret_cast<const void*>(address)));
+    size_t table_index = BRPPoolOffset(address) >> kSuperPageShift;
+    PA_DCHECK(table_index < (kBRPPoolSize >> kSuperPageShift));
+    return ReservationOffsetTable() + table_index;
+  }
+
+  static const uint16_t* EndOfReservationOffsetTable() {
+    return reinterpret_cast<uint16_t*>(reinterpret_cast<uintptr_t>(
+        ReservationOffsetTable() +
+        internal::PartitionAddressSpace::kBRPPoolOffsetTableActualSize));
+  }
+
+  static constexpr uint16_t kNotInDirectMap =
+      std::numeric_limits<uint16_t>::max();
+
+#endif  // BUILDFLAG(ENABLE_BRP_DIRECTMAP_SUPPORT)
+
   // PartitionAddressSpace is static_only class.
   PartitionAddressSpace() = delete;
   PartitionAddressSpace(const PartitionAddressSpace&) = delete;
@@ -101,37 +175,67 @@ class BASE_EXPORT PartitionAddressSpace {
 
   static constexpr size_t kGigaBytes = 1024 * 1024 * 1024;
 
-  // Pool sizes are flexible, as long as each pool is aligned on its own size
-  // boundary and the size is a power of two. The entire region is aligned on
-  // the max pool size boundary, so the further pools only need to care about
-  // the shift from the beginning of the region (for clarity, the pool sizes are
-  // declared in the order the pools are allocated).
+  // Pool sizes have to be the power of two. Each pool will be aligned at its
+  // own size boundary.
   //
-  // For example, [8GiB,4GiB,4GiB], [8GiB,4GiB,2GiB,1GiB] would work, but
-  // [4GiB,8GiB] wouldn't (the 2nd pool is aligned on 4GiB but needs 8GiB),
-  // and [4GiB,4GiB,8GiB] would.
+  // In theory, pools can be allocated separately in the address space. However,
+  // due to the above restriction to have BRP pool be preceded by another pool,
+  // better to have them occupy contiguous addresses. Therefore, care has to be
+  // taken when choosing sizes, if more than 2 pools are needed. For example,
+  // with sizes [8GiB,4GiB,8GiB], it'd be impossible to align each pool at its
+  // own size boundary while keeping them next to each other.
+  // CalculateGigaCageProperties() has non-debug run-time checks to ensure that.
   static constexpr size_t kNonBRPPoolSize = 8 * kGigaBytes;
   static constexpr size_t kBRPPoolSize = 8 * kGigaBytes;
+  static constexpr std::array<size_t, 2> kPoolSizes = {kNonBRPPoolSize,
+                                                       kBRPPoolSize};
 
-  static constexpr size_t kDesiredAddressSpaceSize =
-      kNonBRPPoolSize + kBRPPoolSize;
-  static constexpr size_t kReservedAddressSpaceAlignment =
-      std::max(kNonBRPPoolSize, kBRPPoolSize);
+#if BUILDFLAG(ENABLE_BRP_DIRECTMAP_SUPPORT)
+  // (For defined(PA_HAS_64_BITS_POINTERS))
+  // The last SuperPage inside NonBRPPool is used as a table to get the
+  // reservation start address when an address inside of BRP pool is given. Each
+  // entry of the table is prepared for each super page (inside BRP pool):
+  //
+  //  |<------ reserved size (SuperPageSize-aligned) ------>|
+  //  +----------+----------+-------------------+-----------+
+  //  |SuperPage0|SuperPage1|        ...        |SuperPage K|
+  //  +----------+----------+-------------------+-----------+
+  //
+  // the table entries for reserved SuperPages have the numbers of SuperPages
+  // between the reservation start and each reserved SuperPage:
+  // +----------+----------+--------------------+-----------+
+  // |Entry for |Entry for |         ...        |Entry for  |
+  // |SuperPage0|SuperPage1|                    |SuperPage K|
+  // +----------+----------+--------------------+-----------+
+  // |     0    |    1     |         ...        |      K    |
+  // +----------+----------+--------------------+-----------+
+  // 65535 is used as a special number: "not used for direct-map allocation".
+  //
+  // So when we have an address Z, ((Z >> SuperPageShift) - (the entry for Z))
+  // << SuperPageShift is the reservation start when allocating an address space
+  // which contains Z.
+
+  // The size of the table is (kBRPPoolSize / kSuperPageSize) * sizeof(each
+  // table entry). Since kBRPPoolSize / kSuperPageSize < MAX_UINT16, each
+  // table entry is uint16_t. So the size is AlignUp((kBRPPoolSize /
+  // kSuperPageSize) * sizeof(uint16_t), kSuperPageSize).
+  static constexpr size_t kBRPPoolOffsetTableActualSize =
+      (kBRPPoolSize >> kSuperPageShift) * sizeof(uint16_t);
+  static constexpr size_t kBRPPoolOffsetTableSize =
+      bits::AlignUp(kBRPPoolOffsetTableActualSize, kSuperPageSize);
+
+  static_assert(kBRPPoolOffsetTableSize == kSuperPageSize,
+                "kBRPPoolOffsetTableSize should be equal to kSuperPageSize, "
+                "because the table should be as small as possible.");
+  static_assert((kBRPPoolSize >> kSuperPageShift) < kNotInDirectMap,
+                "Offsets should be smaller than kNotInDirectMap.");
+#else
+  static constexpr size_t kBRPPoolOffsetTableSize = 0;
+#endif  // BUILDFLAG(ENABLE_BRP_DIRECTMAP_SUPPORT)
 
   static_assert(bits::IsPowerOfTwo(kNonBRPPoolSize) &&
                     bits::IsPowerOfTwo(kBRPPoolSize),
                 "Each pool size should be a power of two.");
-  static_assert(bits::IsPowerOfTwo(kReservedAddressSpaceAlignment),
-                "kReservedAddressSpaceAlignment should be a power of two.");
-  static_assert(kReservedAddressSpaceAlignment >= kNonBRPPoolSize &&
-                    kReservedAddressSpaceAlignment >= kBRPPoolSize,
-                "kReservedAddressSpaceAlignment should be larger or equal to "
-                "each pool size.");
-  static_assert(kReservedAddressSpaceAlignment % kNonBRPPoolSize == 0 &&
-                    (kReservedAddressSpaceAlignment + kNonBRPPoolSize) %
-                            kBRPPoolSize ==
-                        0,
-                "Each pool should be aligned to its own size");
 
   // Masks used to easy determine belonging to a pool.
   static constexpr uintptr_t kNonBRPPoolOffsetMask =
@@ -151,21 +255,49 @@ class BASE_EXPORT PartitionAddressSpace {
 };
 
 ALWAYS_INLINE internal::pool_handle GetNonBRPPool() {
-  // This file is included from checked_ptr.h. This will result in a cycle if it
-  // includes partition_alloc_features.h where IsPartitionAllocGigaCageEnabled
-  // resides, because it includes Finch headers which may include checked_ptr.h.
-  // TODO(bartekn): Uncomment once Finch is no longer used there.
-  // PA_DCHECK(IsPartitionAllocGigaCageEnabled());
   return PartitionAddressSpace::GetNonBRPPool();
 }
 
 ALWAYS_INLINE internal::pool_handle GetBRPPool() {
-  // TODO(bartekn): Uncomment once Finch is no longer used there (see above).
-  // PA_DCHECK(IsPartitionAllocGigaCageEnabled());
   return PartitionAddressSpace::GetBRPPool();
 }
 
 #endif  // defined(PA_HAS_64_BITS_POINTERS)
+
+#if BUILDFLAG(ENABLE_BRP_DIRECTMAP_SUPPORT) && defined(PA_HAS_64_BITS_POINTERS)
+ALWAYS_INLINE constexpr uint16_t NotInDirectMapOffsetTag() {
+  return internal::PartitionAddressSpace::kNotInDirectMap;
+}
+
+ALWAYS_INLINE uint16_t* ReservationOffsetPointer(uintptr_t address) {
+  return internal::PartitionAddressSpace::ReservationOffsetPointer(address);
+}
+
+ALWAYS_INLINE const uint16_t* EndOfReservationOffsetTable() {
+  return internal::PartitionAddressSpace::EndOfReservationOffsetTable();
+}
+
+// If the given address doesn't point to direct-map allocated memory,
+// returns 0.
+ALWAYS_INLINE uintptr_t GetDirectMapReservationStart(void* address) {
+  PA_DCHECK(internal::PartitionAddressSpace::IsInBRPPool(address));
+  uintptr_t ptr_as_uintptr = reinterpret_cast<uintptr_t>(address);
+  uint16_t* offset_ptr =
+      internal::PartitionAddressSpace::ReservationOffsetPointer(ptr_as_uintptr);
+  if (*offset_ptr == internal::NotInDirectMapOffsetTag())
+    return 0;
+  uintptr_t reservation_start =
+      (ptr_as_uintptr & kSuperPageBaseMask) -
+      (static_cast<size_t>(*offset_ptr) << kSuperPageShift);
+  PA_DCHECK(internal::PartitionAddressSpace::IsInBRPPool(
+      reinterpret_cast<void*>(reservation_start)));
+  PA_DCHECK(*internal::PartitionAddressSpace::ReservationOffsetPointer(
+                reservation_start) == 0);
+  return reservation_start;
+}
+
+#endif  //  BUILDFLAG(ENABLE_BRP_DIRECTMAP_SUPPORT) &&
+        //  defined(PA_HAS_64_BITS_POINTERS)
 
 }  // namespace internal
 

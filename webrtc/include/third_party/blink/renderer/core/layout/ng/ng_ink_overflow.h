@@ -7,6 +7,7 @@
 
 #include "base/dcheck_is_on.h"
 #include "build/build_config.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/geometry/physical_rect.h"
 
@@ -115,7 +116,7 @@ class CORE_EXPORT NGInkOverflow {
                           const PhysicalSize& size,
                           PhysicalRect* ink_overflow_out);
 
-  static base::Optional<PhysicalRect> ComputeTextInkOverflow(
+  static absl::optional<PhysicalRect> ComputeTextInkOverflow(
       const NGTextFragmentPaintInfo& text_info,
       const ComputedStyle& style,
       const PhysicalSize& size);

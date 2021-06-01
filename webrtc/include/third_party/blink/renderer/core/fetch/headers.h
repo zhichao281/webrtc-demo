@@ -6,6 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_FETCH_HEADERS_H_
 
 #include "third_party/blink/renderer/bindings/core/v8/iterable.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/fetch/fetch_header_list.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
@@ -33,8 +34,9 @@ class CORE_EXPORT Headers final : public ScriptWrappable,
     kNoneGuard
   };
 
-  static Headers* Create(ExceptionState&);
-  static Headers* Create(const HeadersInit&, ExceptionState&);
+  static Headers* Create(ExceptionState& exception_state);
+  static Headers* Create(const V8HeadersInit* init,
+                         ExceptionState& exception_state);
 
   // Shares the FetchHeaderList. Called when creating a Request or Response.
   static Headers* Create(FetchHeaderList*);
@@ -57,6 +59,9 @@ class CORE_EXPORT Headers final : public ScriptWrappable,
 
   // These methods should only be called when size() would return 0.
   void FillWith(const Headers*, ExceptionState&);
+  void FillWith(const V8HeadersInit* init, ExceptionState& exception_state);
+  // TODO(crbug.com/1181288): Remove the old IDL union version.
+  // Old IDL dictionaries still use old IDL unions.
   void FillWith(const HeadersInit&, ExceptionState&);
 
   // https://fetch.spec.whatwg.org/#concept-headers-remove-privileged-no-cors-request-headers

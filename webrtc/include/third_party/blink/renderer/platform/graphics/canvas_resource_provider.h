@@ -146,7 +146,7 @@ class PLATFORM_EXPORT CanvasResourceProvider
   // WebGraphicsContext3DProvider::DestructionObserver implementation.
   void OnContextDestroyed() override;
 
-  cc::PaintCanvas* Canvas();
+  cc::PaintCanvas* Canvas(bool needs_will_draw = false);
   void ReleaseLockedImages();
   sk_sp<cc::PaintRecord> FlushCanvas();
   const CanvasResourceParams& ColorParams() const { return params_; }
@@ -272,6 +272,11 @@ class PLATFORM_EXPORT CanvasResourceProvider
   // change.
   cc::PaintImage MakeImageSnapshot();
   virtual void RasterRecord(sk_sp<cc::PaintRecord>);
+  void RasterRecordOOP(sk_sp<cc::PaintRecord> last_recording,
+                       bool needs_clear,
+                       gpu::Mailbox mailbox);
+  void RestoreBackBufferOOP(const cc::PaintImage&);
+
   CanvasImageProvider* GetOrCreateCanvasImageProvider();
   void TearDownSkSurface();
 

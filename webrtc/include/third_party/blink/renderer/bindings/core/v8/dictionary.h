@@ -26,6 +26,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_BINDINGS_CORE_V8_DICTIONARY_H_
 #define THIRD_PARTY_BLINK_RENDERER_BINDINGS_CORE_V8_DICTIONARY_H_
 
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_value.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/core/core_export.h"
@@ -99,22 +100,22 @@ class CORE_EXPORT Dictionary final {
   //    where the stored value is |undefined|), returns nothing.
   //  - Otherwise, returns the value.
   template <typename IDLType>
-  base::Optional<typename IDLType::ImplType> Get(
+  absl::optional<typename IDLType::ImplType> Get(
       const StringView& key,
       ExceptionState& exception_state) const {
     v8::Local<v8::Value> v8_value;
     DCHECK(!exception_state.HadException());
     if (!Get(key, v8_value, exception_state))
-      return base::nullopt;
+      return absl::nullopt;
     DCHECK(!exception_state.HadException());
     DCHECK(!v8_value.IsEmpty());
     if (v8_value->IsUndefined())
-      return base::nullopt;
+      return absl::nullopt;
 
     auto value = NativeValueTraits<IDLType>::NativeValue(isolate_, v8_value,
                                                          exception_state);
     if (exception_state.HadException())
-      return base::nullopt;
+      return absl::nullopt;
     return value;
   }
 

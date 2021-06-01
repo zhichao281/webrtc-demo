@@ -38,7 +38,7 @@
 
 namespace blink {
 
-class StringOrTrustedScriptURL;
+class V8UnionStringOrTrustedScriptURL;
 
 class SVGAnimatedString : public ScriptWrappable,
                           public SVGAnimatedProperty<SVGString> {
@@ -51,8 +51,9 @@ class SVGAnimatedString : public ScriptWrappable,
                                        attribute_name,
                                        MakeGarbageCollected<SVGString>()) {}
 
-  virtual void setBaseVal(const StringOrTrustedScriptURL&, ExceptionState&);
-  virtual void baseVal(StringOrTrustedScriptURL&);
+  virtual V8UnionStringOrTrustedScriptURL* baseVal();
+  virtual void setBaseVal(const V8UnionStringOrTrustedScriptURL* value,
+                          ExceptionState& exception_state);
 
   virtual String animVal();
 

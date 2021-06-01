@@ -35,8 +35,8 @@
 
 #include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/optional.h"
 #include "base/time/time.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_property.h"
@@ -143,17 +143,17 @@ class CORE_EXPORT Animation : public EventTargetWithInlineData,
   //                             next frame
   //  AnimationTimeDelta() > 0 - if this animation requires an update
   //                             after 'n' units of time
-  base::Optional<AnimationTimeDelta> TimeToEffectChange();
+  absl::optional<AnimationTimeDelta> TimeToEffectChange();
 
   void cancel();
 
-  void currentTime(CSSNumberish&) const;
-  base::Optional<AnimationTimeDelta> CurrentTimeInternal() const;
-  void setCurrentTime(CSSNumberish, ExceptionState& exception_state);
-  void setCurrentTime(CSSNumberish);
+  V8CSSNumberish* currentTime() const;
+  absl::optional<AnimationTimeDelta> CurrentTimeInternal() const;
+  void setCurrentTime(const V8CSSNumberish* current_time,
+                      ExceptionState& exception_state);
   void SetCurrentTimeInternal(AnimationTimeDelta);
 
-  base::Optional<AnimationTimeDelta> UnlimitedCurrentTime() const;
+  absl::optional<AnimationTimeDelta> UnlimitedCurrentTime() const;
 
   // https://drafts.csswg.org/web-animations/#play-states
   String PlayStateString() const;
@@ -209,12 +209,12 @@ class CORE_EXPORT Animation : public EventTargetWithInlineData,
   virtual void setTimeline(AnimationTimeline* timeline);
   Document* GetDocument() const;
 
-  void startTime(CSSNumberish&) const;
-  base::Optional<AnimationTimeDelta> StartTimeInternal() const {
+  V8CSSNumberish* startTime() const;
+  absl::optional<AnimationTimeDelta> StartTimeInternal() const {
     return start_time_;
   }
-  virtual void setStartTime(CSSNumberish, ExceptionState&);
-  void setStartTime(CSSNumberish);
+  virtual void setStartTime(const V8CSSNumberish* start_time,
+                            ExceptionState& exception_state);
 
   const AnimationEffect* effect() const { return content_.Get(); }
   AnimationEffect* effect() { return content_.Get(); }
@@ -304,6 +304,17 @@ class CORE_EXPORT Animation : public EventTargetWithInlineData,
 
   base::TimeDelta ComputeCompositorTimeOffset() const;
 
+  // Updates |compositor_property_animations_have_no_effect_| and marks the
+  // animation as pending if it changes.
+  void MarkPendingIfCompositorPropertyAnimationChanges(
+      const PaintArtifactCompositor*);
+  bool CompositorPropertyAnimationsHaveNoEffectForTesting() const {
+    return compositor_property_animations_have_no_effect_;
+  }
+  bool AnimationHasNoEffectForTesting() const {
+    return animation_has_no_effect_;
+  }
+
  protected:
   DispatchEventResult DispatchEventInternal(Event&) override;
   void AddedEventListener(const AtomicString& event_type,
@@ -316,7 +327,7 @@ class CORE_EXPORT Animation : public EventTargetWithInlineData,
   }
 
  private:
-  void SetHoldTimeAndPhase(base::Optional<AnimationTimeDelta> new_hold_time,
+  void SetHoldTimeAndPhase(absl::optional<AnimationTimeDelta> new_hold_time,
                            TimelinePhase new_hold_phase);
   void ResetHoldTimeAndPhase();
   bool ValidateHoldTimeAndPhase() const;
@@ -325,7 +336,7 @@ class CORE_EXPORT Animation : public EventTargetWithInlineData,
   void ForceServiceOnNextFrame();
 
   AnimationTimeDelta EffectEnd() const;
-  bool Limited(base::Optional<AnimationTimeDelta> current_time) const;
+  bool Limited(absl::optional<AnimationTimeDelta> current_time) const;
 
   // Playback rate that will take effect once any pending tasks are resolved.
   // If there are no pending tasks, then the effective playback rate equals the
@@ -333,9 +344,9 @@ class CORE_EXPORT Animation : public EventTargetWithInlineData,
   double EffectivePlaybackRate() const;
   void ApplyPendingPlaybackRate();
 
-  base::Optional<AnimationTimeDelta> CalculateStartTime(
+  absl::optional<AnimationTimeDelta> CalculateStartTime(
       AnimationTimeDelta current_time) const;
-  base::Optional<AnimationTimeDelta> CalculateCurrentTime() const;
+  absl::optional<AnimationTimeDelta> CalculateCurrentTime() const;
   TimelinePhase CalculateCurrentPhase() const;
 
   void BeginUpdatingState();
@@ -378,7 +389,7 @@ class CORE_EXPORT Animation : public EventTargetWithInlineData,
   void PlayInternal(AutoRewind auto_rewind, ExceptionState& exception_state);
 
   void ResetPendingTasks();
-  base::Optional<double> TimelineTime() const;
+  absl::optional<double> TimelineTime() const;
 
   void ScheduleAsyncFinish();
   void AsyncFinishMicrotask();
@@ -397,11 +408,11 @@ class CORE_EXPORT Animation : public EventTargetWithInlineData,
   // The pending playback rate is not currently in effect. It typically takes
   // effect when running a scheduled task in response to the animation being
   // ready.
-  base::Optional<double> pending_playback_rate_;
-  base::Optional<AnimationTimeDelta> start_time_;
-  base::Optional<AnimationTimeDelta> hold_time_;
-  base::Optional<TimelinePhase> hold_phase_;
-  base::Optional<AnimationTimeDelta> previous_current_time_;
+  absl::optional<double> pending_playback_rate_;
+  absl::optional<AnimationTimeDelta> start_time_;
+  absl::optional<AnimationTimeDelta> hold_time_;
+  absl::optional<TimelinePhase> hold_phase_;
+  absl::optional<AnimationTimeDelta> previous_current_time_;
   bool reset_current_time_on_resume_ = false;
 
   unsigned sequence_number_;
@@ -460,18 +471,18 @@ class CORE_EXPORT Animation : public EventTargetWithInlineData,
     // AnimationTimeDelta for start_time_ and hold_time_.
     explicit CompositorState(Animation& animation)
         : start_time(animation.start_time_
-                         ? base::make_optional(
+                         ? absl::make_optional(
                                animation.start_time_.value().InSecondsF())
-                         : base::nullopt),
+                         : absl::nullopt),
           hold_time(animation.hold_time_
-                        ? base::make_optional(
+                        ? absl::make_optional(
                               animation.hold_time_.value().InSecondsF())
-                        : base::nullopt),
+                        : absl::nullopt),
           playback_rate(animation.EffectivePlaybackRate()),
           effect_changed(false),
           pending_action(animation.start_time_ ? kNone : kStart) {}
-    base::Optional<double> start_time;
-    base::Optional<double> hold_time;
+    absl::optional<double> start_time;
+    absl::optional<double> hold_time;
     double playback_rate;
     bool effect_changed;
     CompositorAction pending_action;
@@ -528,7 +539,15 @@ class CORE_EXPORT Animation : public EventTargetWithInlineData,
   base::TimeTicks last_display_lock_update_time_ = base::TimeTicks();
   bool is_in_display_locked_subtree_ = false;
 
-  FRIEND_TEST_ALL_PREFIXES(AnimationAnimationTestCompositeAfterPaint,
+  // True if we animate compositor properties but they would have no effect due
+  // to being optimized out on the compositor. Updated in |Animation::PreCommit|
+  // and |MarkPendingIfCompositorPropertyAnimationChanges|.
+  bool compositor_property_animations_have_no_effect_;
+  // True if the only reason for not running the animation on the compositor is
+  // that the animation would have no effect. Updated in |Animation::PreCommit|.
+  bool animation_has_no_effect_;
+
+  FRIEND_TEST_ALL_PREFIXES(AnimationAnimationTestCompositing,
                            NoCompositeWithoutCompositedElementId);
   FRIEND_TEST_ALL_PREFIXES(AnimationAnimationTestNoCompositing,
                            PendingActivityWithFinishedEventListener);

@@ -72,8 +72,6 @@
 #include "base/check_op.h"
 #include "base/compiler_specific.h"
 #include "base/numerics/safe_math.h"
-#include "base/optional.h"
-#include "base/strings/string_piece.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 
@@ -83,6 +81,7 @@
 
 #if defined(OS_APPLE)
 #include <CoreFoundation/CoreFoundation.h>
+#include <mach/mach_time.h>
 // Avoid Mac system header macro leak.
 #undef TYPE_BOOL
 #endif
@@ -156,21 +155,6 @@ class BASE_EXPORT TimeDelta {
   // Converts a frequency in Hertz (cycles per second) into a period.
   static constexpr TimeDelta FromHz(double frequency);
 
-  // From Go's doc at https://golang.org/pkg/time/#ParseDuration
-  //   [ParseDuration] parses a duration string. A duration string is
-  //   a possibly signed sequence of decimal numbers, each with optional
-  //   fraction and a unit suffix, such as "300ms", "-1.5h" or "2h45m".
-  //   Valid time units are "ns", "us" "ms", "s", "m", "h".
-  //
-  // Special values that are allowed without specifying units:
-  //  "0", "+0", "-0" -> TimeDelta()
-  //  "inf", "+inf"   -> TimeDelta::Max()
-  //  "-inf"          -> TimeDelta::Min()
-  // Returns |base::nullopt| when parsing fails. Numbers larger than 2^63-1
-  // will fail parsing. Overflowing `number * unit` will return +/-inf, as
-  // appropriate.
-  static Optional<TimeDelta> FromString(StringPiece duration_string);
-
   // Converts an integer value representing TimeDelta to a class. This is used
   // when deserializing a |TimeDelta| structure, using a value known to be
   // compatible. It is not provided as a constructor because the integer type
@@ -190,6 +174,14 @@ class BASE_EXPORT TimeDelta {
   // reasonable time delta we might compare it to. Adding or subtracting the
   // minimum time delta to a time or another time delta has an undefined result.
   static constexpr TimeDelta Min();
+
+  // Returns the maximum time delta which is not equivalent to infinity. Only
+  // subtracting a finite time delta from this time delta has a defined result.
+  static constexpr TimeDelta FiniteMax();
+
+  // Returns the minimum time delta which is not equivalent to -infinity. Only
+  // adding a finite time delta to this time delta has a defined result.
+  static constexpr TimeDelta FiniteMin();
 
   // Returns the internal numeric value of the TimeDelta object. Please don't
   // use this and do arithmetic on it, as it is more error prone than using the
@@ -329,7 +321,9 @@ class BASE_EXPORT TimeDelta {
     return TimeDelta(
         (is_inf() || a.is_zero() || a.is_inf()) ? delta_ : (delta_ % a.delta_));
   }
-  TimeDelta& operator%=(TimeDelta other) { return *this = (*this % other); }
+  constexpr TimeDelta& operator%=(TimeDelta other) {
+    return *this = (*this % other);
+  }
 
   // Comparison operators.
   constexpr bool operator==(TimeDelta other) const {
@@ -969,6 +963,16 @@ constexpr TimeDelta TimeDelta::Min() {
   return TimeDelta(std::numeric_limits<int64_t>::min());
 }
 
+// static
+constexpr TimeDelta TimeDelta::FiniteMax() {
+  return TimeDelta(std::numeric_limits<int64_t>::max() - 1);
+}
+
+// static
+constexpr TimeDelta TimeDelta::FiniteMin() {
+  return TimeDelta(std::numeric_limits<int64_t>::min() + 1);
+}
+
 // For logging use only.
 BASE_EXPORT std::ostream& operator<<(std::ostream& os, Time time);
 
@@ -1023,6 +1027,8 @@ class BASE_EXPORT TimeTicks : public time_internal::TimeBase<TimeTicks> {
 
 #if defined(OS_MAC)
   static TimeTicks FromMachAbsoluteTime(uint64_t mach_absolute_time);
+
+  static mach_timebase_info_data_t* MachTimebaseInfo();
 #endif  // defined(OS_MAC)
 
 #if defined(OS_ANDROID) || BUILDFLAG(IS_CHROMEOS_ASH)

@@ -6,6 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_INLINE_NG_INLINE_ITEM_RESULT_H_
 
 #include "base/dcheck_is_on.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/core/layout/ng/geometry/ng_box_strut.h"
 #include "third_party/blink/renderer/core/layout/ng/inline/ng_text_offset.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_positioned_float.h"
@@ -42,12 +43,12 @@ struct CORE_EXPORT NGInlineItemResult {
     return hyphen_shape_result->SnappedWidth().ClampNegativeToZero();
   }
 
+  // Compute/clear |hyphen_string| and |hyphen_shape_result|.
+  void ShapeHyphen();
   void ClearHyphen() {
     hyphen_string = String();
     hyphen_shape_result = nullptr;
   }
-
-  void Trace(Visitor* visitor) const;
 
   // The NGInlineItem and its index.
   const NGInlineItem* item;
@@ -57,7 +58,7 @@ struct CORE_EXPORT NGInlineItemResult {
   NGTextOffset text_offset;
 
   // Indicates the limits of the trailing space run.
-  base::Optional<unsigned> non_hangable_run_end;
+  absl::optional<unsigned> non_hangable_run_end;
 
   // Inline size of this item.
   LayoutUnit inline_size;
@@ -77,12 +78,12 @@ struct CORE_EXPORT NGInlineItemResult {
   scoped_refptr<const ShapeResult> hyphen_shape_result;
 
   // NGLayoutResult for atomic inline items.
-  Member<const NGLayoutResult> layout_result;
+  scoped_refptr<const NGLayoutResult> layout_result;
 
   // NGPositionedFloat for floating inline items. Should only be present for
   // positioned floats (not unpositioned). It indicates where it was placed
   // within the BFC.
-  Member<NGPositionedFloat> positioned_float = nullptr;
+  absl::optional<NGPositionedFloat> positioned_float;
 
   // Margins, borders, and padding for open tags.
   // Margins are set for atomic inlines too.
@@ -154,10 +155,8 @@ struct CORE_EXPORT NGInlineItemResult {
 };
 
 // Represents a set of NGInlineItemResult that form a line box.
-using NGInlineItemResults = HeapVector<NGInlineItemResult, 32>;
+using NGInlineItemResults = Vector<NGInlineItemResult, 32>;
 
 }  // namespace blink
-
-WTF_ALLOW_CLEAR_UNUSED_SLOTS_WITH_MEM_FUNCTIONS(blink::NGInlineItemResult)
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_INLINE_NG_INLINE_ITEM_RESULT_H_

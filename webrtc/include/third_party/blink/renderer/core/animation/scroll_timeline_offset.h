@@ -5,7 +5,9 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_ANIMATION_SCROLL_TIMELINE_OFFSET_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_ANIMATION_SCROLL_TIMELINE_OFFSET_H_
 
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_scroll_timeline_element_based_offset.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/core/css/css_style_sheet.h"
 #include "third_party/blink/renderer/core/css/properties/css_parsing_utils.h"
 #include "third_party/blink/renderer/core/scroll/scroll_types.h"
@@ -47,12 +49,12 @@ class CORE_EXPORT ScrollTimelineOffset final
   // orientation.
   //
   // Returns nullopt if the offset cannot be resolved.
-  base::Optional<double> ResolveOffset(Node* scroll_source,
+  absl::optional<double> ResolveOffset(Node* scroll_source,
                                        ScrollOrientation,
                                        double max_offset,
                                        double default_offset);
 
-  ScrollTimelineOffsetValue ToScrollTimelineOffsetValue() const;
+  V8ScrollTimelineOffset* ToV8ScrollTimelineOffset() const;
   bool IsDefaultValue() const {
     return !length_based_offset_ && !element_based_offset_;
   }

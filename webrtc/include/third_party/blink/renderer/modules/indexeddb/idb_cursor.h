@@ -32,7 +32,6 @@
 #include "base/memory/scoped_refptr.h"
 #include "third_party/blink/public/common/indexeddb/web_idb_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_value.h"
-#include "third_party/blink/renderer/bindings/modules/v8/idb_object_store_or_idb_index.h"
 #include "third_party/blink/renderer/modules/indexeddb/idb_key.h"
 #include "third_party/blink/renderer/modules/indexeddb/idb_request.h"
 #include "third_party/blink/renderer/modules/indexeddb/indexed_db.h"
@@ -45,20 +44,21 @@ class ExceptionState;
 class IDBTransaction;
 class IDBValue;
 class ScriptState;
+class V8UnionIDBIndexOrIDBObjectStore;
 
 class IDBCursor : public ScriptWrappable {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  using Source = IDBObjectStoreOrIDBIndex;
+  using Source = V8UnionIDBIndexOrIDBObjectStore;
 
   static mojom::IDBCursorDirection StringToDirection(const String& mode_string);
 
-  IDBCursor(std::unique_ptr<WebIDBCursor>,
-            mojom::IDBCursorDirection,
-            IDBRequest*,
-            const Source&,
-            IDBTransaction*);
+  IDBCursor(std::unique_ptr<WebIDBCursor> backend,
+            mojom::blink::IDBCursorDirection direction,
+            IDBRequest* request,
+            const Source* source,
+            IDBTransaction* transaction);
   ~IDBCursor() override;
 
   void Trace(Visitor*) const override;
@@ -75,7 +75,7 @@ class IDBCursor : public ScriptWrappable {
   ScriptValue primaryKey(ScriptState*);
   ScriptValue value(ScriptState*);
   IDBRequest* request() { return request_.Get(); }
-  void source(Source&) const;
+  const Source* source() const;
 
   IDBRequest* update(ScriptState*, const ScriptValue&, ExceptionState&);
   void advance(unsigned, ExceptionState&);
@@ -110,7 +110,7 @@ class IDBCursor : public ScriptWrappable {
   std::unique_ptr<WebIDBCursor> backend_;
   Member<IDBRequest> request_;
   const mojom::IDBCursorDirection direction_;
-  Source source_;
+  Member<const Source> source_;
   Member<IDBTransaction> transaction_;
   bool got_value_ = false;
   bool key_dirty_ = true;

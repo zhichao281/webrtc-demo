@@ -5,10 +5,12 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_BINDINGS_V8_SET_RETURN_VALUE_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_BINDINGS_V8_SET_RETURN_VALUE_H_
 
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/renderer/platform/bindings/dictionary_base.h"
 #include "third_party/blink/renderer/platform/bindings/dom_data_store.h"
 #include "third_party/blink/renderer/platform/bindings/dom_wrapper_world.h"
+#include "third_party/blink/renderer/platform/bindings/enumeration_base.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/bindings/v8_binding.h"
 #include "third_party/blink/renderer/platform/bindings/v8_per_isolate_data.h"
@@ -68,7 +70,7 @@ struct V8ReturnValue {
                          ScriptWrappable* wrappable,
                          v8::Local<v8::Context> creation_context) {
     v8::Local<v8::Value> wrapper;
-    if (!wrappable->WrapV2(ScriptState::From(creation_context))
+    if (!wrappable->Wrap(ScriptState::From(creation_context))
              .ToLocal(&wrapper)) {
       return;
     }
@@ -434,6 +436,16 @@ void V8SetReturnValue(const CallbackInfo& info,
   V8SetReturnValue(info, v8_value);
 }
 
+// EnumerationBase
+template <typename CallbackInfo, typename... ExtraArgs>
+void V8SetReturnValue(const CallbackInfo& info,
+                      const bindings::EnumerationBase& enumeration,
+                      v8::Isolate* isolate,
+                      ExtraArgs... extra_args) {
+  V8PerIsolateData::From(isolate)->GetStringCache()->SetReturnValueFromString(
+      info.GetReturnValue(), enumeration.AsString().Impl());
+}
+
 // Exposed objects
 PLATFORM_EXPORT v8::Local<v8::Value> GetExposedInterfaceObject(
     v8::Isolate* isolate,
@@ -462,7 +474,7 @@ inline void V8SetReturnValue(const v8::PropertyCallbackInfo<v8::Value>& info,
 // Nullable types
 template <typename CallbackInfo, typename T, typename... ExtraArgs>
 void V8SetReturnValue(const CallbackInfo& info,
-                      base::Optional<T> value,
+                      absl::optional<T> value,
                       ExtraArgs... extra_args) {
   if (value.has_value()) {
     V8SetReturnValue(info, value.value(),

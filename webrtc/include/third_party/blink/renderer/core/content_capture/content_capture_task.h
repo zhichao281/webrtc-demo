@@ -9,6 +9,7 @@
 
 #include "base/time/time.h"
 #include "cc/paint/node_id.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/core/content_capture/content_capture_task_histogram_reporter.h"
 #include "third_party/blink/renderer/core/content_capture/task_session.h"
 #include "third_party/blink/renderer/core/core_export.h"
@@ -144,8 +145,8 @@ class CORE_EXPORT ContentCaptureTask
   std::unique_ptr<TaskDelay> task_delay_;
 
   scoped_refptr<ContentCaptureTaskHistogramReporter> histogram_reporter_;
-  base::Optional<TaskState> task_stop_for_testing_;
-  base::Optional<Vector<cc::NodeInfo>> captured_content_for_testing_;
+  absl::optional<TaskState> task_stop_for_testing_;
+  absl::optional<Vector<cc::NodeInfo>> captured_content_for_testing_;
 };
 
 }  // namespace blink

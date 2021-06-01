@@ -26,6 +26,7 @@
 #include "api/media_stream_interface.h"
 #include "api/rtc_error.h"
 #include "api/rtp_parameters.h"
+#include "api/transport/data_channel_transport_interface.h"
 #include "api/transport/rtp/rtp_source.h"
 #include "api/video/video_content_type.h"
 #include "api/video/video_sink_interface.h"
@@ -50,7 +51,7 @@
 #include "rtc_base/socket.h"
 #include "rtc_base/string_encode.h"
 #include "rtc_base/strings/string_builder.h"
-#include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/task_utils/pending_task_safety_flag.h"
 
 namespace rtc {
 class Timing;
@@ -168,15 +169,15 @@ class MediaChannel {
     virtual ~NetworkInterface() {}
   };
 
-  explicit MediaChannel(const MediaConfig& config);
-  MediaChannel();
+  MediaChannel(const MediaConfig& config,
+               webrtc::TaskQueueBase* network_thread);
+  explicit MediaChannel(webrtc::TaskQueueBase* network_thread);
   virtual ~MediaChannel();
 
   virtual cricket::MediaType media_type() const = 0;
 
   // Sets the abstract interface class for sending RTP/RTCP data.
-  virtual void SetInterface(NetworkInterface* iface)
-      RTC_LOCKS_EXCLUDED(network_interface_mutex_);
+  virtual void SetInterface(NetworkInterface* iface);
   // Called on the network when an RTP packet is received.
   virtual void OnPacketReceived(rtc::CopyOnWriteBuffer packet,
                                 int64_t packet_time_us) = 0;
@@ -248,7 +249,7 @@ class MediaChannel {
 
   int SetOption(NetworkInterface::SocketType type,
                 rtc::Socket::Option opt,
-                int option) RTC_LOCKS_EXCLUDED(network_interface_mutex_);
+                int option);
 
   // Corresponds to the SDP attribute extmap-allow-mixed, see RFC8285.
   // Set to true if it's allowed to mix one- and two-byte RTP header extensions
@@ -272,38 +273,42 @@ class MediaChannel {
  protected:
   int SetOptionLocked(NetworkInterface::SocketType type,
                       rtc::Socket::Option opt,
-                      int option)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(network_interface_mutex_);
+                      int option) RTC_RUN_ON(network_thread_);
 
   bool DscpEnabled() const;
 
   // This is the DSCP value used for both RTP and RTCP channels if DSCP is
   // enabled. It can be changed at any time via |SetPreferredDscp|.
-  rtc::DiffServCodePoint PreferredDscp() const
-      RTC_LOCKS_EXCLUDED(network_interface_mutex_);
+  rtc::DiffServCodePoint PreferredDscp() const;
+  void SetPreferredDscp(rtc::DiffServCodePoint new_dscp);
 
-  int SetPreferredDscp(rtc::DiffServCodePoint preferred_dscp)
-      RTC_LOCKS_EXCLUDED(network_interface_mutex_);
+  rtc::scoped_refptr<webrtc::PendingTaskSafetyFlag> network_safety();
+
+  // Utility implementation for derived classes (video/voice) that applies
+  // the packet options and passes the data onwards to `SendPacket`.
+  void SendRtp(const uint8_t* data,
+               size_t len,
+               const webrtc::PacketOptions& options);
+
+  void SendRtcp(const uint8_t* data, size_t len);
 
  private:
   // Apply the preferred DSCP setting to the underlying network interface RTP
   // and RTCP channels. If DSCP is disabled, then apply the default DSCP value.
-  int UpdateDscp() RTC_EXCLUSIVE_LOCKS_REQUIRED(network_interface_mutex_);
+  void UpdateDscp() RTC_RUN_ON(network_thread_);
 
   bool DoSendPacket(rtc::CopyOnWriteBuffer* packet,
                     bool rtcp,
-                    const rtc::PacketOptions& options)
-      RTC_LOCKS_EXCLUDED(network_interface_mutex_);
+                    const rtc::PacketOptions& options);
 
   const bool enable_dscp_;
-  // |network_interface_| can be accessed from the worker_thread and
-  // from any MediaEngine threads. This critical section is to protect accessing
-  // of network_interface_ object.
-  mutable webrtc::Mutex network_interface_mutex_;
-  NetworkInterface* network_interface_
-      RTC_GUARDED_BY(network_interface_mutex_) = nullptr;
-  rtc::DiffServCodePoint preferred_dscp_
-      RTC_GUARDED_BY(network_interface_mutex_) = rtc::DSCP_DEFAULT;
+  const rtc::scoped_refptr<webrtc::PendingTaskSafetyFlag> network_safety_
+      RTC_PT_GUARDED_BY(network_thread_);
+  webrtc::TaskQueueBase* const network_thread_;
+  NetworkInterface* network_interface_ RTC_GUARDED_BY(network_thread_) =
+      nullptr;
+  rtc::DiffServCodePoint preferred_dscp_ RTC_GUARDED_BY(network_thread_) =
+      rtc::DSCP_DEFAULT;
   bool extmap_allow_mixed_ = false;
 };
 
@@ -761,9 +766,11 @@ struct AudioRecvParameters : RtpParameters<AudioCodec> {};
 
 class VoiceMediaChannel : public MediaChannel, public Delayable {
  public:
-  VoiceMediaChannel() {}
-  explicit VoiceMediaChannel(const MediaConfig& config)
-      : MediaChannel(config) {}
+  explicit VoiceMediaChannel(webrtc::TaskQueueBase* network_thread)
+      : MediaChannel(network_thread) {}
+  VoiceMediaChannel(const MediaConfig& config,
+                    webrtc::TaskQueueBase* network_thread)
+      : MediaChannel(config, network_thread) {}
   ~VoiceMediaChannel() override {}
 
   cricket::MediaType media_type() const override;
@@ -831,9 +838,11 @@ struct VideoRecvParameters : RtpParameters<VideoCodec> {};
 
 class VideoMediaChannel : public MediaChannel, public Delayable {
  public:
-  VideoMediaChannel() {}
-  explicit VideoMediaChannel(const MediaConfig& config)
-      : MediaChannel(config) {}
+  explicit VideoMediaChannel(webrtc::TaskQueueBase* network_thread)
+      : MediaChannel(network_thread) {}
+  VideoMediaChannel(const MediaConfig& config,
+                    webrtc::TaskQueueBase* network_thread)
+      : MediaChannel(config, network_thread) {}
   ~VideoMediaChannel() override {}
 
   cricket::MediaType media_type() const override;
@@ -884,15 +893,6 @@ class VideoMediaChannel : public MediaChannel, public Delayable {
   virtual std::vector<webrtc::RtpSource> GetSources(uint32_t ssrc) const = 0;
 };
 
-enum DataMessageType {
-  // Chrome-Internal use only.  See SctpDataMediaChannel for the actual PPID
-  // values.
-  DMT_NONE = 0,
-  DMT_CONTROL = 1,
-  DMT_BINARY = 2,
-  DMT_TEXT = 3,
-};
-
 // Info about data received in DataMediaChannel.  For use in
 // DataMediaChannel::SignalDataReceived and in all of the signals that
 // signal fires, on up the chain.
@@ -901,32 +901,9 @@ struct ReceiveDataParams {
   // SCTP data channels use SIDs.
   int sid = 0;
   // The type of message (binary, text, or control).
-  DataMessageType type = DMT_TEXT;
+  webrtc::DataMessageType type = webrtc::DataMessageType::kText;
   // A per-stream value incremented per packet in the stream.
   int seq_num = 0;
-};
-
-struct SendDataParams {
-  // The in-packet stream indentifier.
-  int sid = 0;
-  // The type of message (binary, text, or control).
-  DataMessageType type = DMT_TEXT;
-
-  // TODO(pthatcher): Make |ordered| and |reliable| true by default?
-  // For SCTP, whether to send messages flagged as ordered or not.
-  // If false, messages can be received out of order.
-  bool ordered = false;
-  // For SCTP, whether the messages are sent reliably or not.
-  // If false, messages may be lost.
-  bool reliable = false;
-  // For SCTP, if reliable == false, provide partial reliability by
-  // resending up to this many times.  Either count or millis
-  // is supported, not both at the same time.
-  int max_rtx_count = 0;
-  // For SCTP, if reliable == false, provide partial reliability by
-  // resending for up to this many milliseconds.  Either count or millis
-  // is supported, not both at the same time.
-  int max_rtx_ms = 0;
 };
 
 enum SendDataResult { SDR_SUCCESS, SDR_ERROR, SDR_BLOCK };

@@ -67,12 +67,16 @@
 #ifndef API_PEER_CONNECTION_INTERFACE_H_
 #define API_PEER_CONNECTION_INTERFACE_H_
 
+#include <stdint.h>
 #include <stdio.h>
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "absl/base/attributes.h"
+#include "absl/types/optional.h"
 #include "api/adaptation/resource.h"
 #include "api/async_dns_resolver.h"
 #include "api/async_resolver_factory.h"
@@ -81,6 +85,7 @@
 #include "api/audio_codecs/audio_encoder_factory.h"
 #include "api/audio_options.h"
 #include "api/call/call_factory_interface.h"
+#include "api/candidate.h"
 #include "api/crypto/crypto_options.h"
 #include "api/data_channel_interface.h"
 #include "api/dtls_transport_interface.h"
@@ -88,15 +93,18 @@
 #include "api/ice_transport_interface.h"
 #include "api/jsep.h"
 #include "api/media_stream_interface.h"
+#include "api/media_types.h"
 #include "api/neteq/neteq_factory.h"
 #include "api/network_state_predictor.h"
 #include "api/packet_socket_factory.h"
 #include "api/rtc_error.h"
 #include "api/rtc_event_log/rtc_event_log_factory_interface.h"
 #include "api/rtc_event_log_output.h"
+#include "api/rtp_parameters.h"
 #include "api/rtp_receiver_interface.h"
 #include "api/rtp_sender_interface.h"
 #include "api/rtp_transceiver_interface.h"
+#include "api/scoped_refptr.h"
 #include "api/sctp_transport_interface.h"
 #include "api/set_local_description_observer_interface.h"
 #include "api/set_remote_description_observer_interface.h"
@@ -109,19 +117,27 @@
 #include "api/transport/sctp_transport_factory_interface.h"
 #include "api/transport/webrtc_key_value_config.h"
 #include "api/turn_customizer.h"
+#include "api/video/video_bitrate_allocator_factory.h"
 #include "media/base/media_config.h"
 #include "media/base/media_engine.h"
 // TODO(bugs.webrtc.org/7447): We plan to provide a way to let applications
 // inject a PacketSocketFactory and/or NetworkManager, and not expose
-// PortAllocator in the PeerConnection api.
+// PortAllocator in the PeerConnection api. This will let us remove nogncheck.
+#include "p2p/base/port.h"            // nogncheck
 #include "p2p/base/port_allocator.h"  // nogncheck
+// TODO(https://crbug.com/1212611) Remove once includes fixed in nearby.
+#include "rtc_base/event.h"
+#include "rtc_base/network.h"
+#include "rtc_base/network_constants.h"
 #include "rtc_base/network_monitor_factory.h"
+#include "rtc_base/ref_count.h"
 #include "rtc_base/rtc_certificate.h"
 #include "rtc_base/rtc_certificate_generator.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_stream_adapter.h"
 #include "rtc_base/system/rtc_export.h"
+#include "rtc_base/thread.h"
 
 namespace rtc {
 class Thread;
@@ -904,9 +920,24 @@ class RTC_EXPORT PeerConnectionInterface : public rtc::RefCountInterface {
   // Also, calling CreateDataChannel is the only way to get a data "m=" section
   // in SDP, so it should be done before CreateOffer is called, if the
   // application plans to use data channels.
+  virtual RTCErrorOr<rtc::scoped_refptr<DataChannelInterface>>
+  CreateDataChannelOrError(const std::string& label,
+                           const DataChannelInit* config) {
+    return RTCError(RTCErrorType::INTERNAL_ERROR, "dummy function called");
+  }
+  // TODO(crbug.com/788659): Remove "virtual" below and default implementation
+  // above once mock in Chrome is fixed.
+  ABSL_DEPRECATED("Use CreateDataChannelOrError")
   virtual rtc::scoped_refptr<DataChannelInterface> CreateDataChannel(
       const std::string& label,
-      const DataChannelInit* config) = 0;
+      const DataChannelInit* config) {
+    auto result = CreateDataChannelOrError(label, config);
+    if (!result.ok()) {
+      return nullptr;
+    } else {
+      return result.MoveValue();
+    }
+  }
 
   // NOTE: For the following 6 methods, it's only safe to dereference the
   // SessionDescriptionInterface on signaling_thread() (for example, calling
@@ -1432,6 +1463,7 @@ class RTC_EXPORT PeerConnectionFactoryInterface
       PeerConnectionDependencies dependencies);
   // Deprecated creator - does not return an error code on error.
   // TODO(bugs.webrtc.org:12238): Deprecate and remove.
+  ABSL_DEPRECATED("Use CreatePeerConnectionOrError")
   virtual rtc::scoped_refptr<PeerConnectionInterface> CreatePeerConnection(
       const PeerConnectionInterface::RTCConfiguration& configuration,
       PeerConnectionDependencies dependencies);
@@ -1445,6 +1477,7 @@ class RTC_EXPORT PeerConnectionFactoryInterface
   // responsibility of the caller to delete it. It can be safely deleted after
   // Close has been called on the returned PeerConnection, which ensures no
   // more observer callbacks will be invoked.
+  ABSL_DEPRECATED("Use CreatePeerConnectionOrError")
   virtual rtc::scoped_refptr<PeerConnectionInterface> CreatePeerConnection(
       const PeerConnectionInterface::RTCConfiguration& configuration,
       std::unique_ptr<cricket::PortAllocator> allocator,

@@ -121,7 +121,7 @@ class MODULES_EXPORT IDBObjectStore final : public ScriptWrappable {
 
   IDBIndex* createIndex(ScriptState* script_state,
                         const String& name,
-                        const StringOrStringSequence& key_path,
+                        const V8UnionStringOrStringSequence* key_path,
                         const IDBIndexParameters* options,
                         ExceptionState& exception_state) {
     return createIndex(script_state, name, IDBKeyPath(key_path), options,
@@ -135,7 +135,7 @@ class MODULES_EXPORT IDBObjectStore final : public ScriptWrappable {
   // Exposed for the use of IDBCursor::update().
   IDBRequest* DoPut(ScriptState*,
                     mojom::IDBPutMode,
-                    const IDBRequest::Source&,
+                    const IDBRequest::Source*,
                     const ScriptValue&,
                     const IDBKey*,
                     ExceptionState&);

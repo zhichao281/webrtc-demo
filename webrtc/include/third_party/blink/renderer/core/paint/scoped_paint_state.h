@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_PAINT_SCOPED_PAINT_STATE_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_PAINT_SCOPED_PAINT_STATE_H_
 
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/core/layout/layout_box.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_physical_fragment.h"
 #include "third_party/blink/renderer/core/paint/paint_info.h"
@@ -115,8 +116,8 @@ class ScopedPaintState {
   const FragmentData* fragment_to_paint_;
   const PaintInfo& input_paint_info_;
   PhysicalOffset paint_offset_;
-  base::Optional<PaintInfo> adjusted_paint_info_;
-  base::Optional<ScopedPaintChunkProperties> chunk_properties_;
+  absl::optional<PaintInfo> adjusted_paint_info_;
+  absl::optional<ScopedPaintChunkProperties> chunk_properties_;
   bool paint_offset_translation_as_drawing_ = false;
 };
 

@@ -13,7 +13,6 @@
 
 #include "base/base_export.h"
 #include "base/callback_forward.h"
-#include "base/files/file_path.h"
 #include "base/gtest_prod_util.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
@@ -25,6 +24,7 @@ namespace debug {
 FORWARD_DECLARE_TEST(SystemMetricsTest, ParseMeminfo);
 }
 
+class FilePath;
 struct SystemMemoryInfoKB;
 
 class BASE_EXPORT SysInfo {
@@ -160,6 +160,7 @@ class BASE_EXPORT SysInfo {
 
   // Overrides |lsb_release| and |lsb_release_time|. Overrides cannot be nested.
   // Call ResetChromeOSVersionInfoForTest() to restore the previous values.
+  // Prefer base::test::ScopedChromeOSVersionInfo to calling this function.
   static void SetChromeOSVersionInfoForTest(const std::string& lsb_release,
                                             const Time& lsb_release_time);
 

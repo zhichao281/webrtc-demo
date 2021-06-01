@@ -5,7 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_HTML_CUSTOM_ELEMENT_INTERNALS_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_HTML_CUSTOM_ELEMENT_INTERNALS_H_
 
-#include "third_party/blink/renderer/bindings/core/v8/file_or_usv_string_or_form_data.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/core/dom/qualified_name.h"
 #include "third_party/blink/renderer/core/html/forms/labels_node_list.h"
 #include "third_party/blink/renderer/core/html/forms/listed_element.h"
@@ -30,11 +30,10 @@ class CORE_EXPORT ElementInternals : public ScriptWrappable,
   HTMLElement& Target() const { return *target_; }
   void DidUpgrade();
 
-  using ControlValue = FileOrUSVStringOrFormData;
-  // IDL attributes/operations
-  void setFormValue(const ControlValue& value, ExceptionState& exception_state);
-  void setFormValue(const ControlValue& value,
-                    const ControlValue& state,
+  void setFormValue(const V8ControlValue* value,
+                    ExceptionState& exception_state);
+  void setFormValue(const V8ControlValue* value,
+                    const V8ControlValue* state,
                     ExceptionState& exception_state);
   HTMLFormElement* form(ExceptionState& exception_state) const;
   void setValidity(ValidityStateFlags* flags, ExceptionState& exception_state);
@@ -64,11 +63,11 @@ class CORE_EXPORT ElementInternals : public ScriptWrappable,
 
   void SetElementAttribute(const QualifiedName& name, Element* element);
   Element* GetElementAttribute(const QualifiedName& name);
-  base::Optional<HeapVector<Member<Element>>> GetElementArrayAttribute(
+  absl::optional<HeapVector<Member<Element>>> GetElementArrayAttribute(
       const QualifiedName& name) const;
   void SetElementArrayAttribute(
       const QualifiedName& name,
-      const base::Optional<HeapVector<Member<Element>>>& elements);
+      const absl::optional<HeapVector<Member<Element>>>& elements);
   bool HasAttribute(const QualifiedName& attribute) const;
   const HashMap<QualifiedName, AtomicString>& GetAttributes() const;
 
@@ -102,8 +101,8 @@ class CORE_EXPORT ElementInternals : public ScriptWrappable,
 
   Member<HTMLElement> target_;
 
-  ControlValue value_;
-  ControlValue state_;
+  Member<const V8ControlValue> value_;
+  Member<const V8ControlValue> state_;
   bool is_disabled_ = false;
   Member<ValidityStateFlags> validity_flags_;
   Member<Element> validation_anchor_;

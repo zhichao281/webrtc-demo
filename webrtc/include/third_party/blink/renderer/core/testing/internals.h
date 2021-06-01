@@ -325,9 +325,6 @@ class Internals final : public ScriptWrappable {
   bool canHyphenate(const AtomicString& locale);
   void setMockHyphenation(const AtomicString& locale);
 
-  bool isOverwriteModeEnabled(Document*);
-  void toggleOverwriteModeEnabled(Document*);
-
   unsigned numberOfScrollableAreas(Document*);
 
   bool isPageBoxVisible(Document*, int page_number);
@@ -335,8 +332,6 @@ class Internals final : public ScriptWrappable {
   InternalSettings* settings() const;
   InternalRuntimeFlags* runtimeFlags() const;
   unsigned workerThreadCount() const;
-
-  bool isFormControlsRefreshEnabled() const;
 
   String resolveModuleSpecifier(const String& specifier,
                                 const String& base_url_string,

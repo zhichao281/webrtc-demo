@@ -38,8 +38,8 @@
 namespace blink {
 
 class Document;
-class DoubleOrAutoKeyword;
 class ExecutionContext;
+class V8UnionAutoKeywordOrDouble;
 class VTTCue;
 class VTTRegion;
 class VTTScanner;
@@ -118,11 +118,12 @@ class CORE_EXPORT VTTCue final : public TextTrackCue {
   bool snapToLines() const { return snap_to_lines_; }
   void setSnapToLines(bool);
 
-  void line(DoubleOrAutoKeyword&) const;
-  void setLine(const DoubleOrAutoKeyword&);
+  V8UnionAutoKeywordOrDouble* line() const;
+  void setLine(const V8UnionAutoKeywordOrDouble* position);
 
-  void position(DoubleOrAutoKeyword&) const;
-  void setPosition(const DoubleOrAutoKeyword&, ExceptionState&);
+  V8UnionAutoKeywordOrDouble* position() const;
+  void setPosition(const V8UnionAutoKeywordOrDouble* position,
+                   ExceptionState& exception_state);
 
   double size() const { return cue_size_; }
   void setSize(double, ExceptionState&);
@@ -144,7 +145,7 @@ class CORE_EXPORT VTTCue final : public TextTrackCue {
 
   void UpdatePastAndFutureNodes(double movie_time) override;
 
-  base::Optional<double> GetNextIntraCueTime(double movie_time) const override;
+  absl::optional<double> GetNextIntraCueTime(double movie_time) const override;
 
   void RemoveDisplayTree(RemovalNotification) override;
 

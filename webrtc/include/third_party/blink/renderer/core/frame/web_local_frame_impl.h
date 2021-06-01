@@ -129,7 +129,7 @@ class CORE_EXPORT WebLocalFrameImpl final
   WebFrame* FindFrameByName(const WebString& name) override;
   void SetEmbeddingToken(
       const base::UnguessableToken& embedding_token) override;
-  const base::Optional<base::UnguessableToken>& GetEmbeddingToken()
+  const absl::optional<base::UnguessableToken>& GetEmbeddingToken()
       const override;
   void SendPings(const WebURL& destination_url) override;
   void StartReload(WebFrameLoadType) override;
@@ -170,6 +170,9 @@ class CORE_EXPORT WebLocalFrameImpl final
   v8::Local<v8::Context> MainWorldScriptContext() const override;
   int32_t GetScriptContextWorldId(
       v8::Local<v8::Context> script_context) const override;
+  v8::Local<v8::Context> GetScriptContextFromWorldId(
+      v8::Isolate* isolate,
+      int world_id) const override;
   void RequestExecuteScriptAndReturnValue(const WebScriptSource&,
                                           bool user_gesture,
                                           WebScriptExecutionCallback*) override;
@@ -306,7 +309,7 @@ class CORE_EXPORT WebLocalFrameImpl final
   WebPerformance Performance() const override;
   bool IsAdSubframe() const override;
   void SetAdEvidence(const blink::FrameAdEvidence& ad_evidence) override;
-  const base::Optional<blink::FrameAdEvidence>& AdEvidence() override;
+  const absl::optional<blink::FrameAdEvidence>& AdEvidence() override;
   bool IsSubframeCreatedByAdScript() override;
   gfx::Size SpoolSizeInPixelsForTesting(const gfx::Size& page_size_in_pixels,
                                         uint32_t page_count) override;
@@ -488,7 +491,7 @@ class CORE_EXPORT WebLocalFrameImpl final
   void ShowContextMenu(
       mojo::PendingAssociatedRemote<mojom::blink::ContextMenuClient> client,
       const blink::ContextMenuData& data,
-      const base::Optional<gfx::Point>& host_context_menu_location);
+      const absl::optional<gfx::Point>& host_context_menu_location);
 
   virtual void Trace(Visitor*) const;
 
@@ -509,8 +512,10 @@ class CORE_EXPORT WebLocalFrameImpl final
   // to call these on a WebLocalFrameImpl.
   bool IsWebLocalFrame() const override;
   WebLocalFrame* ToWebLocalFrame() override;
+  const WebLocalFrame* ToWebLocalFrame() const override;
   bool IsWebRemoteFrame() const override;
   WebRemoteFrame* ToWebRemoteFrame() override;
+  const WebRemoteFrame* ToWebRemoteFrame() const override;
   void CreateFrameWidgetInternal(
       base::PassKey<WebLocalFrame> pass_key,
       CrossVariantMojoAssociatedRemote<
@@ -523,8 +528,7 @@ class CORE_EXPORT WebLocalFrameImpl final
           mojo_widget,
       const viz::FrameSinkId& frame_sink_id,
       bool is_for_nested_main_frame,
-      bool hidden,
-      bool never_composited) override;
+      bool hidden) override;
 
   HitTestResult HitTestResultForVisualViewportPos(const IntPoint&);
 

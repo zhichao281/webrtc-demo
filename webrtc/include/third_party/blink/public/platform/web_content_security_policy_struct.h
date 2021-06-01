@@ -32,6 +32,7 @@
 #define THIRD_PARTY_BLINK_PUBLIC_PLATFORM_WEB_CONTENT_SECURITY_POLICY_STRUCT_H_
 
 #include "services/network/public/mojom/content_security_policy.mojom-shared.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/platform/web_vector.h"
 
@@ -103,7 +104,7 @@ struct WebContentSecurityPolicy {
   bool use_reporting_api;
   WebVector<WebString> report_endpoints;
   network::mojom::CSPRequireTrustedTypesFor require_trusted_types_for;
-  base::Optional<WebCSPTrustedTypes> trusted_types;
+  absl::optional<WebCSPTrustedTypes> trusted_types;
   WebVector<WebString> parsing_errors;
 };
 

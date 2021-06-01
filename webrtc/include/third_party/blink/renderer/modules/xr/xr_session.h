@@ -168,21 +168,21 @@ class XRSession final
   // |native_origin_information| describes native origin relative to which the
   // transform is expressed.
   // |maybe_plane_id| is an ID of the plane to which the anchor should be
-  // attached - set to base::nullopt if the plane is not to be attached to any
+  // attached - set to absl::nullopt if the plane is not to be attached to any
   // plane.
   ScriptPromise CreateAnchorHelper(
       ScriptState* script_state,
       const blink::TransformationMatrix& native_origin_from_anchor,
-      const device::mojom::blink::XRNativeOriginInformation&
+      const device::mojom::blink::XRNativeOriginInformationPtr&
           native_origin_information,
-      base::Optional<uint64_t> maybe_plane_id,
+      absl::optional<uint64_t> maybe_plane_id,
       ExceptionState& exception_state);
 
   // Helper POD type containing the information needed for anchor creation in
   // case the anchor needs to be transformed to be expressed relative to a
   // stationary reference space.
   struct ReferenceSpaceInformation {
-    device::mojom::blink::XRNativeOriginInformation native_origin;
+    device::mojom::blink::XRNativeOriginInformationPtr native_origin;
     blink::TransformationMatrix mojo_from_space;
   };
 
@@ -191,7 +191,7 @@ class XRSession final
   // for anchor creation (i.e. the native origin set in the struct will be
   // describing a stationary space). If a stationary reference space is not
   // available, the method returns nullopt.
-  base::Optional<ReferenceSpaceInformation> GetStationaryReferenceSpace() const;
+  absl::optional<ReferenceSpaceInformation> GetStationaryReferenceSpace() const;
 
   int requestAnimationFrame(V8XRFrameRequestCallback* callback);
   void cancelAnimationFrame(int id);
@@ -250,8 +250,8 @@ class XRSession final
   void OnFocusChanged();
   void OnFrame(
       double timestamp,
-      const base::Optional<gpu::MailboxHolder>& output_mailbox_holder,
-      const base::Optional<gpu::MailboxHolder>& camera_image_mailbox_holder);
+      const absl::optional<gpu::MailboxHolder>& output_mailbox_holder,
+      const absl::optional<gpu::MailboxHolder>& camera_image_mailbox_holder);
 
   // XRInputSourceButtonListener
   void OnButtonEvent(
@@ -275,7 +275,7 @@ class XRSession final
   bool EmulatedPosition() const {
     // If we don't have display info then we should be using the identity
     // reference space, which by definition will be emulating the position.
-    if (!pending_view_parameters_.size()) {
+    if (pending_views_.IsEmpty()) {
       return true;
     }
 
@@ -284,11 +284,9 @@ class XRSession final
 
   // Immersive sessions currently use two views for VR, and only a single view
   // for smartphone immersive AR mode.
-  bool StereoscopicViews() { return pending_view_parameters_.size() >= 2; }
+  bool StereoscopicViews() { return pending_views_.size() >= 2; }
 
-  void UpdateEyeParameters(
-      const device::mojom::blink::VREyeParametersPtr& left_eye,
-      const device::mojom::blink::VREyeParametersPtr& right_eye);
+  void UpdateViews(const Vector<device::mojom::blink::XRViewPtr>& views);
   void UpdateStageParameters(
       uint32_t stage_parameters_id,
       const device::mojom::blink::VRStageParametersPtr& stage_parameters);
@@ -333,7 +331,7 @@ class XRSession final
   // Note: currently, the information about the mojo_from_-floor-type spaces is
   // stored elsewhere, this method will not work for those reference space
   // types.
-  base::Optional<TransformationMatrix> GetMojoFrom(
+  absl::optional<TransformationMatrix> GetMojoFrom(
       device::mojom::blink::XRReferenceSpaceType space_type) const;
 
   XRCPUDepthInformation* GetCpuDepthInformation(
@@ -379,7 +377,7 @@ class XRSession final
   HeapVector<Member<XRImageTrackingResult>> ImageTrackingResults(
       ExceptionState&);
 
-  const base::Optional<gfx::Size>& CameraImageSize() const {
+  const absl::optional<gfx::Size>& CameraImageSize() const {
     return camera_image_size_;
   }
 
@@ -554,11 +552,10 @@ class XRSession final
 
   // Populated iff the raw camera feature has been enabled and the session
   // received a frame from the device that contained the camera image.
-  base::Optional<gfx::Size> camera_image_size_;
+  absl::optional<gfx::Size> camera_image_size_;
 
-  uint32_t view_parameters_id_ = 0;
   HeapVector<Member<XRViewData>> views_;
-  Vector<device::mojom::blink::VREyeParametersPtr> pending_view_parameters_;
+  Vector<device::mojom::blink::XRViewPtr> pending_views_;
 
   Member<XRInputSourceArray> input_sources_;
   Member<XRWebGLLayer> prev_base_layer_;

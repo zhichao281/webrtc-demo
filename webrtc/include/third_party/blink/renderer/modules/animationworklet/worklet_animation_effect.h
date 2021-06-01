@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_ANIMATIONWORKLET_WORKLET_ANIMATION_EFFECT_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_ANIMATIONWORKLET_WORKLET_ANIMATION_EFFECT_H_
 
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/core/animation/timing.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
@@ -18,7 +19,7 @@ class MODULES_EXPORT WorkletAnimationEffect : public ScriptWrappable {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  WorkletAnimationEffect(base::Optional<base::TimeDelta> local_time,
+  WorkletAnimationEffect(absl::optional<base::TimeDelta> local_time,
                          const Timing& timing);
 
   // Because getTiming needs to be used below, SpecifiedTiming will be used to
@@ -30,20 +31,22 @@ class MODULES_EXPORT WorkletAnimationEffect : public ScriptWrappable {
   EffectTiming* getTiming() const;
   ComputedEffectTiming* getComputedTiming() const;
 
-  base::Optional<double> localTime() const;
-  void setLocalTime(base::Optional<double> time_ms);
-  base::Optional<base::TimeDelta> local_time() const;
+  absl::optional<double> localTime() const;
+  void setLocalTime(absl::optional<double> time_ms);
+  absl::optional<base::TimeDelta> local_time() const;
 
  private:
   void UpdateInheritedTime(double inherited_time) const;
 
-  base::Optional<base::TimeDelta> local_time_;
+  absl::optional<base::TimeDelta> local_time_;
   // We chose to not call this variable "timing_" to avoid confusion with the
   // above function call getTiming() which returns a pointer to an EffectTiming
   // object, as is defined in worklet_animation_effect.idl.
   const Timing specified_timing_;
   mutable Timing::CalculatedTiming calculated_;
-  mutable base::Optional<double> last_update_time_;
+  // last_update_time_ has type base::TimeDelta to match the type of local_time_
+  // since it is a cached value of local_time_
+  mutable absl::optional<base::TimeDelta> last_update_time_;
 };
 
 }  // namespace blink

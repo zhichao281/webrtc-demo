@@ -10,6 +10,7 @@
 #include <memory>
 
 #include "base/check.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/modules/webgpu/dawn_enum_conversions.h"
 #include "third_party/blink/renderer/modules/webgpu/dawn_object.h"
 #include "third_party/blink/renderer/platform/heap/heap_allocator.h"
@@ -20,7 +21,6 @@
 
 namespace blink {
 
-class DoubleSequenceOrGPUColorDict;
 class GPUColorDict;
 class GPUProgrammableStage;
 class GPUImageCopyTexture;
@@ -33,7 +33,9 @@ class UnsignedLongEnforceRangeSequenceOrGPUOrigin3DDict;
 // individually.
 WGPUColor AsDawnColor(const Vector<double>&);
 WGPUColor AsDawnType(const GPUColorDict*);
-WGPUColor AsDawnType(const DoubleSequenceOrGPUColorDict*);
+WGPUColor AsDawnType(const V8GPUColor* webgpu_color);
+WGPUExtent3D AsDawnType(const V8GPUExtent3D* webgpu_extent, GPUDevice* device);
+// TODO(crbug.com/1181288): Remove the old IDL union version.
 WGPUExtent3D AsDawnType(
     const UnsignedLongEnforceRangeSequenceOrGPUExtent3DDict*,
     GPUDevice* device);

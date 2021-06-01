@@ -5,6 +5,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_HTML_CUSTOM_CUSTOM_ELEMENT_TEST_HELPERS_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_HTML_CUSTOM_CUSTOM_ELEMENT_TEST_HELPERS_H_
 
+#include <utility>
+
 #include "base/macros.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/element.h"
@@ -17,8 +19,6 @@
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/heap/heap.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
-
-#include <utility>
 
 namespace blink {
 
@@ -115,7 +115,7 @@ class TestCustomElementDefinition : public CustomElementDefinition {
   }
 
   void RunFormStateRestoreCallback(Element& element,
-                                   const FileOrUSVStringOrFormData& value,
+                                   const V8ControlValue* value,
                                    const String& mode) override {
     NOTREACHED() << "definition does not have restoreValueCallback";
   }

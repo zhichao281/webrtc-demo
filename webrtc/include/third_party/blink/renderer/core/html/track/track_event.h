@@ -32,7 +32,7 @@
 namespace blink {
 
 class TrackEventInit;
-class VideoTrackOrAudioTrackOrTextTrack;
+class V8UnionAudioTrackOrTextTrackOrVideoTrack;
 
 class CORE_EXPORT TrackEvent final : public Event {
   DEFINE_WRAPPERTYPEINFO();
@@ -57,7 +57,7 @@ class CORE_EXPORT TrackEvent final : public Event {
 
   const AtomicString& InterfaceName() const override;
 
-  void track(VideoTrackOrAudioTrackOrTextTrack&);
+  V8UnionAudioTrackOrTextTrackOrVideoTrack* track();
 
   void Trace(Visitor*) const override;
 

@@ -8,8 +8,7 @@
 #include "base/bind.h"
 #include "base/macros.h"
 #include "third_party/blink/renderer/bindings/modules/v8/canvas_image_source.h"
-#include "third_party/blink/renderer/bindings/modules/v8/string_or_canvas_filter.h"
-#include "third_party/blink/renderer/bindings/modules/v8/string_or_canvas_gradient_or_canvas_pattern_or_css_color_value.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/core/geometry/dom_matrix.h"
 #include "third_party/blink/renderer/core/html/canvas/image_data.h"
 #include "third_party/blink/renderer/modules/canvas/canvas2d/canvas_gradient.h"
@@ -22,23 +21,28 @@
 #include "third_party/blink/renderer/platform/graphics/image_orientation.h"
 
 namespace blink {
+
 class CanvasImageSource;
 class Color;
 class Image;
 class Path2D;
+class V8UnionCSSColorValueOrCanvasGradientOrCanvasPatternOrString;
+class V8UnionCanvasFilterOrString;
 
 class MODULES_EXPORT BaseRenderingContext2D : public GarbageCollectedMixin,
                                               public CanvasPath {
  public:
   ~BaseRenderingContext2D() override;
 
-  void strokeStyle(StringOrCanvasGradientOrCanvasPatternOrCSSColorValue&) const;
+  V8UnionCSSColorValueOrCanvasGradientOrCanvasPatternOrString* strokeStyle()
+      const;
   void setStrokeStyle(
-      const StringOrCanvasGradientOrCanvasPatternOrCSSColorValue&);
+      const V8UnionCSSColorValueOrCanvasGradientOrCanvasPatternOrString* style);
 
-  void fillStyle(StringOrCanvasGradientOrCanvasPatternOrCSSColorValue&) const;
+  V8UnionCSSColorValueOrCanvasGradientOrCanvasPatternOrString* fillStyle()
+      const;
   void setFillStyle(
-      const StringOrCanvasGradientOrCanvasPatternOrCSSColorValue&);
+      const V8UnionCSSColorValueOrCanvasGradientOrCanvasPatternOrString* style);
 
   double lineWidth() const;
   void setLineWidth(double);
@@ -76,8 +80,9 @@ class MODULES_EXPORT BaseRenderingContext2D : public GarbageCollectedMixin,
   String globalCompositeOperation() const;
   void setGlobalCompositeOperation(const String&);
 
-  void filter(StringOrCanvasFilter&) const;
-  void setFilter(const ExecutionContext*, StringOrCanvasFilter input);
+  const V8UnionCanvasFilterOrString* filter() const;
+  void setFilter(const ExecutionContext* execution_context,
+                 const V8UnionCanvasFilterOrString* input);
 
   void save();
   void restore();
@@ -165,20 +170,20 @@ class MODULES_EXPORT BaseRenderingContext2D : public GarbageCollectedMixin,
   void fillRect(double x, double y, double width, double height);
   void strokeRect(double x, double y, double width, double height);
 
-  void drawImage(ScriptState*,
-                 const CanvasImageSourceUnion&,
+  void drawImage(ScriptState* script_state,
+                 const V8CanvasImageSource* image_source,
                  double x,
                  double y,
-                 ExceptionState&);
-  void drawImage(ScriptState*,
-                 const CanvasImageSourceUnion&,
+                 ExceptionState& exception_state);
+  void drawImage(ScriptState* script_state,
+                 const V8CanvasImageSource* image_source,
                  double x,
                  double y,
                  double width,
                  double height,
-                 ExceptionState&);
-  void drawImage(ScriptState*,
-                 const CanvasImageSourceUnion&,
+                 ExceptionState& exception_state);
+  void drawImage(ScriptState* script_state,
+                 const V8CanvasImageSource* image_source,
                  double sx,
                  double sy,
                  double sw,
@@ -187,7 +192,7 @@ class MODULES_EXPORT BaseRenderingContext2D : public GarbageCollectedMixin,
                  double dy,
                  double dw,
                  double dh,
-                 ExceptionState&);
+                 ExceptionState& exception_state);
   void drawImage(ScriptState*,
                  CanvasImageSource*,
                  double sx,
@@ -214,25 +219,23 @@ class MODULES_EXPORT BaseRenderingContext2D : public GarbageCollectedMixin,
   CanvasGradient* createConicGradient(double startAngle,
                                       double centerX,
                                       double centerY);
-  CanvasPattern* createPattern(ScriptState*,
-                               const CanvasImageSourceUnion&,
+  CanvasPattern* createPattern(ScriptState* script_state,
+                               const V8CanvasImageSource* image_source,
                                const String& repetition_type,
-                               ExceptionState&);
+                               ExceptionState& exception_state);
   CanvasPattern* createPattern(ScriptState*,
                                CanvasImageSource*,
                                const String& repetition_type,
                                ExceptionState&);
 
   ImageData* createImageData(ImageData*, ExceptionState&) const;
-  ImageData* createImageData(int width, int height, ExceptionState&) const;
-  ImageData* createImageData(unsigned,
-                             unsigned,
+  ImageData* createImageData(int sw,
+                             int sh,
                              ImageDataSettings*,
                              ExceptionState&) const;
 
   // For deferred canvases this will have the side effect of drawing recorded
   // commands in order to finalize the frame
-  ImageData* getImageData(int sx, int sy, int sw, int sh, ExceptionState&);
   ImageData* getImageData(int sx,
                           int sy,
                           int sw,
@@ -545,7 +548,7 @@ class MODULES_EXPORT BaseRenderingContext2D : public GarbageCollectedMixin,
                            base::TimeTicks start_time);
 
   void IdentifiabilityMaybeUpdateForStyleUnion(
-      const StringOrCanvasGradientOrCanvasPatternOrCSSColorValue& style);
+      const V8UnionCSSColorValueOrCanvasGradientOrCanvasPatternOrString* style);
 
   RespectImageOrientationEnum RespectImageOrientationInternal(
       CanvasImageSource*);

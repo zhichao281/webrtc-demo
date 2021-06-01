@@ -47,6 +47,7 @@
 #include "third_party/blink/public/mojom/permissions/permission.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/permissions_policy/document_policy_feature.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/scroll/scrollbar_mode.mojom-blink-forward.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/core/accessibility/axid.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/media_value_change.h"
@@ -142,9 +143,9 @@ class FloatRect;
 class FontMatchingMetrics;
 class FormController;
 class FrameCallback;
+class FrameScheduler;
 class HTMLAllCollection;
 class HTMLBodyElement;
-class FrameScheduler;
 class HTMLCollection;
 class HTMLDialogElement;
 class HTMLElement;
@@ -152,7 +153,6 @@ class HTMLFrameOwnerElement;
 class HTMLHeadElement;
 class HTMLLinkElement;
 class HTMLPopupElement;
-class HTMLScriptElementOrSVGScriptElement;
 class HitTestRequest;
 class HttpRefreshScheduler;
 class IdleRequestOptions;
@@ -162,9 +162,9 @@ class LayoutView;
 class LazyLoadImageObserver;
 class LiveNodeListBase;
 class LocalDOMWindow;
-class Locale;
 class LocalFrame;
 class LocalFrameView;
+class Locale;
 class Location;
 class MediaQueryListListener;
 class MediaQueryMatcher;
@@ -179,36 +179,35 @@ class QualifiedName;
 class Range;
 class ResourceFetcher;
 class RootScrollerController;
-class ScriptValue;
-class ScriptedIdleTaskController;
 class SVGDocumentExtensions;
 class SVGUseElement;
-class Text;
-class TrustedHTML;
 class ScriptElementBase;
 class ScriptPromise;
 class ScriptRegexp;
 class ScriptRunner;
+class ScriptValue;
 class ScriptableDocumentParser;
 class ScriptedAnimationController;
+class ScriptedIdleTaskController;
 class SecurityOrigin;
 class SelectorQueryCache;
 class SerializedScriptValue;
 class Settings;
 class SlotAssignmentEngine;
 class SnapCoordinator;
-class StringOrElementCreationOptions;
 class StyleEngine;
-class StyleResolver;
 class StylePropertyMapReadOnly;
+class StyleResolver;
 class StyleSheetList;
+class Text;
 class TextAutosizer;
 class TransformSource;
 class TreeWalker;
+class TrustedHTML;
 class V8NodeFilter;
+class V8UnionElementCreationOptionsOrString;
 class ViewportData;
 class VisitedLinkState;
-class WebComputedAXTree;
 class WebMouseEvent;
 class WorkletAnimationController;
 enum class CSSPropertyID;
@@ -367,16 +366,18 @@ class CORE_EXPORT Document : public ContainerNode,
 
   Element* CreateElementForBinding(const AtomicString& local_name,
                                    ExceptionState& = ASSERT_NO_EXCEPTION);
-  Element* CreateElementForBinding(const AtomicString& local_name,
-                                   const StringOrElementCreationOptions&,
-                                   ExceptionState&);
+  Element* CreateElementForBinding(
+      const AtomicString& local_name,
+      const V8UnionElementCreationOptionsOrString* string_or_options,
+      ExceptionState& exception_state);
   Element* createElementNS(const AtomicString& namespace_uri,
                            const AtomicString& qualified_name,
                            ExceptionState&);
-  Element* createElementNS(const AtomicString& namespace_uri,
-                           const AtomicString& qualified_name,
-                           const StringOrElementCreationOptions&,
-                           ExceptionState&);
+  Element* createElementNS(
+      const AtomicString& namespace_uri,
+      const AtomicString& qualified_name,
+      const V8UnionElementCreationOptionsOrString* string_or_options,
+      ExceptionState& exception_state);
   DocumentFragment* createDocumentFragment();
   Text* createTextNode(const String& data);
   Comment* createComment(const String& data);
@@ -602,7 +603,7 @@ class CORE_EXPORT Document : public ContainerNode,
   void IncLayoutFlexboxCounterNG() { ++layout_flexbox_counter_ng_; }
   void IncLayoutGridCounterNG() { ++layout_grid_counter_ng_; }
 
-  const ComputedStyle* StyleForPage(int32_t page_index);
+  scoped_refptr<const ComputedStyle> StyleForPage(uint32_t page_index);
 
   // Ensures that location-based data will be valid for a given node.
   //
@@ -710,7 +711,7 @@ class CORE_EXPORT Document : public ContainerNode,
   // dispatched already. Fills unload timing if present and |committing_origin|
   // has access to the unload timing of the document.
   void DispatchUnloadEvents(SecurityOrigin* committing_origin,
-                            base::Optional<Document::UnloadEventTiming>*);
+                            absl::optional<Document::UnloadEventTiming>*);
 
   void DispatchFreezeEvent();
 
@@ -1159,7 +1160,7 @@ class CORE_EXPORT Document : public ContainerNode,
 
   ScriptRunner* GetScriptRunner() { return script_runner_.Get(); }
 
-  void currentScriptForBinding(HTMLScriptElementOrSVGScriptElement&) const;
+  V8HTMLOrSVGScriptElement* currentScriptForBinding() const;
   void PushCurrentScript(ScriptElementBase*);
   void PopCurrentScript(ScriptElementBase*);
 
@@ -1184,7 +1185,7 @@ class CORE_EXPORT Document : public ContainerNode,
 
   Vector<IconURL> IconURLs(int icon_types_mask);
 
-  base::Optional<Color> ThemeColor() const;
+  absl::optional<Color> ThemeColor() const;
 
   // Returns the HTMLLinkElement currently in use for the Web Manifest.
   // Returns null if there is no such element.
@@ -1309,8 +1310,17 @@ class CORE_EXPORT Document : public ContainerNode,
   void CheckLoadEventSoon();
   bool IsDelayingLoadEvent();
   void LoadPluginsSoon();
-  // This calls checkCompleted() sync and thus can cause JavaScript execution.
+  // This calls CheckCompleted() sync and thus can cause JavaScript execution.
   void DecrementLoadEventDelayCountAndCheckLoadEvent();
+  // Objects and embeds depend on "being rendered" for delaying the load event.
+  // This method makes sure we run a layout tree update before unblocking the
+  // load event after such elements have been inserted.
+  //
+  // Spec:
+  //
+  // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-object-element
+  // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-embed-element
+  void DelayLoadEventUntilLayoutTreeUpdate();
 
   const DocumentTiming& GetTiming() const { return document_timing_; }
 
@@ -1465,10 +1475,6 @@ class CORE_EXPORT Document : public ContainerNode,
   }
   PropertyRegistry& EnsurePropertyRegistry();
 
-  // Used to notify the embedder when the user edits the value of a
-  // text field in a non-secure context.
-  void MaybeQueueSendDidEditFieldInInsecureContext();
-
   // May return nullptr when PerformanceManager instrumentation is disabled.
   DocumentResourceCoordinator* GetResourceCoordinator();
 
@@ -1496,9 +1502,6 @@ class CORE_EXPORT Document : public ContainerNode,
   FontMatchingMetrics* GetFontMatchingMetrics();
 
   scoped_refptr<base::SingleThreadTaskRunner> GetTaskRunner(TaskType);
-
-  bool CurrentFrameHadRAF() const;
-  bool NextFrameHasPendingRAF() const;
 
   StylePropertyMapReadOnly* ComputedStyleMap(Element*);
   void AddComputedStyleMapItem(Element*, StylePropertyMapReadOnly*);
@@ -1562,9 +1565,7 @@ class CORE_EXPORT Document : public ContainerNode,
   // associated Web App Manifest, it will return false.
   bool IsInWebAppScope() const;
 
-  ComputedAccessibleNode* GetOrCreateComputedAccessibleNode(
-      AXID ax_id,
-      WebComputedAXTree* tree);
+  ComputedAccessibleNode* GetOrCreateComputedAccessibleNode(AXID ax_id);
 
   bool HaveRenderBlockingResourcesLoaded() const;
 
@@ -1671,6 +1672,10 @@ class CORE_EXPORT Document : public ContainerNode,
 
   void ActivateForPrerendering();
 
+  void AddWillDispatchPrerenderingchangeCallback(base::OnceClosure);
+
+  void AddPostPrerenderingActivationStep(base::OnceClosure callback);
+
   class CORE_EXPORT PaintPreviewScope {
     STACK_ALLOCATED();
 
@@ -1746,6 +1751,11 @@ class CORE_EXPORT Document : public ContainerNode,
   void NotifyLayoutTreeOfSubtreeChanges();
   bool ChildrenCanHaveStyle() const final;
 
+  // Objects and embeds depend on "being rendered" for delaying the load event.
+  // This method unblocks the load event after the first layout tree update
+  // after parsing finished.
+  void UnblockLoadEventAfterLayoutTreeUpdate();
+
   // ImplicitClose() actually does the work of closing the input stream.
   void ImplicitClose();
   bool ShouldComplete();
@@ -1804,8 +1814,6 @@ class CORE_EXPORT Document : public ContainerNode,
 
   const OriginAccessEntry& AccessEntryFromURL();
 
-  void SendDidEditFieldInInsecureContext();
-
   void UpdateActiveState(bool is_active, bool update_active_chain, Element*);
   void UpdateHoverState(Element*);
 
@@ -1830,6 +1838,8 @@ class CORE_EXPORT Document : public ContainerNode,
   // pending promises created by |hasTrustToken|.
   void HasTrustTokensAnswererConnectionError();
 
+  void RunPostPrerenderingActivationSteps();
+
   DocumentLifecycle lifecycle_;
 
   bool is_initial_empty_document_;
@@ -1840,6 +1850,14 @@ class CORE_EXPORT Document : public ContainerNode,
   // TODO(bokan): This should eventually be based on the document loading-mode:
   // https://github.com/jeremyroman/alternate-loading-modes/blob/main/prerendering-state.md#documentprerendering
   bool is_prerendering_;
+
+  // Callbacks to execute upon activation of a prerendered page, just before the
+  // prerenderingchange event is dispatched.
+  Vector<base::OnceClosure> will_dispatch_prerenderingchange_callbacks_;
+
+  // The callback list for post-prerendering activation step.
+  // https://jeremyroman.github.io/alternate-loading-modes/#document-post-prerendering-activation-steps-list
+  Vector<base::OnceClosure> post_prerendering_activation_callbacks_;
 
   bool evaluate_media_queries_on_style_recalc_;
 
@@ -2040,7 +2058,7 @@ class CORE_EXPORT Document : public ContainerNode,
   bool is_srcdoc_document_;
   bool is_mobile_document_;
 
-  Member<LayoutView> layout_view_;
+  LayoutView* layout_view_;
 
   // The last element in |top_layer_elements_| is topmost in the top layer
   // stack and is thus the one that will be visually on top.
@@ -2051,6 +2069,16 @@ class CORE_EXPORT Document : public ContainerNode,
   HeapVector<Member<HTMLPopupElement>> popup_element_stack_;
 
   int load_event_delay_count_;
+
+  // Objects and embeds depend on "being rendered" for delaying the load event.
+  // This is a document-wide flag saying that we have incremented the
+  // load_event_delay_count_ to wait for the next layout tree update. On the
+  // next layout tree update, the counter will be decremented and this flag will
+  // be set to false. If any of the objects/embeds started to fetch a blocking
+  // resource, they would have incremented the delay count during the layout
+  // tree update and further blocked the load event.
+  bool delay_load_event_until_layout_tree_update_ = false;
+
   HeapTaskRunnerTimer<Document> load_event_delay_timer_;
   HeapTaskRunnerTimer<Document> plugin_loading_timer_;
 
@@ -2097,10 +2125,6 @@ class CORE_EXPORT Document : public ContainerNode,
   Member<SnapCoordinator> snap_coordinator_;
 
   Member<PropertyRegistry> property_registry_;
-
-  bool logged_field_edit_;
-
-  TaskHandle sensitive_input_edited_task_;
 
   Member<NetworkStateObserver> network_state_observer_;
 

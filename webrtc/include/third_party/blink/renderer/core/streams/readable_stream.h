@@ -8,8 +8,9 @@
 #include <stdint.h>
 #include <memory>
 
-#include "base/optional.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_value.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/core/streams/readable_stream_byob_reader.h"
 #include "third_party/blink/renderer/core/streams/readable_stream_default_reader.h"
 #include "third_party/blink/renderer/core/streams/transferable_streams.h"
@@ -27,7 +28,6 @@ class MessagePort;
 class ReadableByteStreamController;
 class ReadableStreamController;
 class ReadableStreamDefaultController;
-class ReadableStreamDefaultReaderOrReadableStreamBYOBReader;
 class ReadableStreamGetReaderOptions;
 class ReadableStreamTransferringOptimizer;
 class ReadableWritablePair;
@@ -124,17 +124,14 @@ class CORE_EXPORT ReadableStream : public ScriptWrappable {
   // https://streams.spec.whatwg.org/#rs-cancel
   ScriptPromise cancel(ScriptState*, ScriptValue reason, ExceptionState&);
 
-  void getReader(
-      ScriptState*,
-      ReadableStreamDefaultReaderOrReadableStreamBYOBReader& return_value,
-      ExceptionState&);
+  V8ReadableStreamReader* getReader(ScriptState* script_state,
+                                    ExceptionState& exception_state);
 
   // https://streams.spec.whatwg.org/#rs-get-reader
-  void getReader(
-      ScriptState*,
-      ReadableStreamGetReaderOptions* options,
-      ReadableStreamDefaultReaderOrReadableStreamBYOBReader& return_value,
-      ExceptionState&);
+  V8ReadableStreamReader* getReader(
+      ScriptState* script_state,
+      const ReadableStreamGetReaderOptions* options,
+      ExceptionState& exception_state);
 
   ReadableStreamDefaultReader* GetDefaultReaderForTesting(ScriptState*,
                                                           ExceptionState&);

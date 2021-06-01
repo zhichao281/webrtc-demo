@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_PAINT_PAINT_INVALIDATOR_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_PAINT_PAINT_INVALIDATOR_H_
 
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/layout/layout_shift_tracker.h"
 #include "third_party/blink/renderer/core/paint/paint_property_tree_builder.h"
@@ -82,7 +83,7 @@ struct CORE_EXPORT PaintInvalidatorContext {
  private:
   friend class PaintInvalidator;
 
-  base::Optional<LayoutShiftTracker::ContainingBlockScope>
+  absl::optional<LayoutShiftTracker::ContainingBlockScope>
       containing_block_scope_;
   const TransformPaintPropertyNodeOrAlias* transform_ = nullptr;
 };
@@ -118,7 +119,7 @@ class PaintInvalidator final {
       const PaintPropertyTreeBuilderFragmentContext&,
       PaintInvalidatorContext&);
 
-  HeapVector<Member<const LayoutObject>> pending_delayed_paint_invalidations_;
+  Vector<const LayoutObject*> pending_delayed_paint_invalidations_;
 };
 
 }  // namespace blink

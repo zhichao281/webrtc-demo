@@ -81,7 +81,11 @@ struct DcSctpOptions {
 
   // Maximum send buffer size. It will not be possible to queue more data than
   // this before sending it.
-  size_t max_send_buffer_size = 2 * 1024 * 1024;
+  size_t max_send_buffer_size = 2'000'000;
+
+  // A threshold that, when the amount of data in the send buffer goes below
+  // this value, will trigger `DcSctpCallbacks::OnTotalBufferedAmountLow`.
+  size_t total_buffered_amount_low_threshold = 1'800'000;
 
   // Max allowed RTT value. When the RTT is measured and it's found to be larger
   // than this value, it will be discarded and not used for e.g. any RTO
@@ -95,8 +99,9 @@ struct DcSctpOptions {
   // Maximum RTO value.
   DurationMs rto_max = DurationMs(800);
 
-  // Minimum RTO value.
-  DurationMs rto_min = DurationMs(120);
+  // Minimum RTO value. This must be larger than an expected peer delayed ack
+  // timeout.
+  DurationMs rto_min = DurationMs(220);
 
   // T1-init timeout.
   DurationMs t1_init_timeout = DurationMs(1000);
@@ -115,7 +120,7 @@ struct DcSctpOptions {
   DurationMs delayed_ack_max_timeout = DurationMs(200);
 
   // Do slow start as TCP - double cwnd instead of increasing it by MTU.
-  bool slow_start_tcp_style = true;
+  bool slow_start_tcp_style = false;
 
   // The initial congestion window size, in number of MTUs.
   // See https://tools.ietf.org/html/rfc4960#section-7.2.1 which defaults at ~3

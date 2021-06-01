@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_PUBLIC_COMMON_FRAME_FRAME_VISUAL_PROPERTIES_MOJOM_TRAITS_H_
 #define THIRD_PARTY_BLINK_PUBLIC_COMMON_FRAME_FRAME_VISUAL_PROPERTIES_MOJOM_TRAITS_H_
 
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/common_export.h"
 #include "third_party/blink/public/common/frame/frame_visual_properties.h"
 #include "third_party/blink/public/mojom/frame/frame_visual_properties.mojom-shared.h"
@@ -83,7 +84,7 @@ struct BLINK_COMMON_EXPORT
     return r.local_frame_size;
   }
 
-  static base::Optional<viz::LocalSurfaceId> local_surface_id(
+  static absl::optional<viz::LocalSurfaceId> local_surface_id(
       const blink::FrameVisualProperties& r) {
     return r.local_surface_id;
   }

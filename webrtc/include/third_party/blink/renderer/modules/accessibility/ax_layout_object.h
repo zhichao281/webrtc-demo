@@ -37,7 +37,6 @@
 namespace blink {
 
 class AXObjectCacheImpl;
-class Element;
 class HTMLAreaElement;
 class IntPoint;
 class Node;
@@ -46,7 +45,6 @@ class MODULES_EXPORT AXLayoutObject : public AXNodeObject {
  public:
   AXLayoutObject(LayoutObject*, AXObjectCacheImpl&);
   ~AXLayoutObject() override;
-  void Trace(Visitor*) const override;
 
   // AXObject overrides:
   LayoutObject* GetLayoutObject() const final;
@@ -58,10 +56,9 @@ class MODULES_EXPORT AXLayoutObject : public AXNodeObject {
 
   // DOM and layout tree access.
   Document* GetDocument() const override;
-  Element* AnchorElement() const override;
 
  protected:
-  Member<LayoutObject> layout_object_;
+  LayoutObject* layout_object_;
 
   //
   // Overridden from AXObject.

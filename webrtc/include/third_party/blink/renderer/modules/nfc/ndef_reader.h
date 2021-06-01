@@ -9,6 +9,7 @@
 #include "third_party/blink/public/mojom/permissions/permission.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
@@ -22,9 +23,6 @@ class NDEFScanOptions;
 class NDEFWriteOptions;
 class NFCProxy;
 class ScriptPromiseResolver;
-class StringOrArrayBufferOrArrayBufferViewOrNDEFMessageInit;
-
-using NDEFMessageSource = StringOrArrayBufferOrArrayBufferViewOrNDEFMessageInit;
 
 class MODULES_EXPORT NDEFReader : public EventTargetWithInlineData,
                                   public ActiveScriptWrappable<NDEFReader>,
@@ -54,7 +52,7 @@ class MODULES_EXPORT NDEFReader : public EventTargetWithInlineData,
 
   // Write NDEFMessageSource asynchronously to NFC tag.
   ScriptPromise write(ScriptState* script_state,
-                      const NDEFMessageSource& write_message,
+                      const V8NDEFMessageSource* write_message,
                       const NDEFWriteOptions* options,
                       ExceptionState& exception_state);
 

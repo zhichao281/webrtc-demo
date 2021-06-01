@@ -9,8 +9,8 @@
 #include "services/device/public/mojom/hid.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/hid/hid.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
-#include "third_party/blink/renderer/bindings/core/v8/array_buffer_or_array_buffer_view.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_hid_report_item.h"
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
@@ -64,10 +64,10 @@ class MODULES_EXPORT HIDDevice
   ScriptPromise close(ScriptState*);
   ScriptPromise sendReport(ScriptState*,
                            uint8_t report_id,
-                           const ArrayBufferOrArrayBufferView& data);
+                           const V8BufferSource* data);
   ScriptPromise sendFeatureReport(ScriptState*,
                                   uint8_t report_id,
-                                  const ArrayBufferOrArrayBufferView& data);
+                                  const V8BufferSource* data);
   ScriptPromise receiveFeatureReport(ScriptState*, uint8_t report_id);
 
   // ExecutionContextLifecycleObserver:
@@ -95,11 +95,11 @@ class MODULES_EXPORT HIDDevice
   void FinishReceiveReport(ScriptPromiseResolver*,
                            bool success,
                            uint8_t report_id,
-                           const base::Optional<Vector<uint8_t>>&);
+                           const absl::optional<Vector<uint8_t>>&);
   void FinishSendFeatureReport(ScriptPromiseResolver*, bool success);
   void FinishReceiveFeatureReport(ScriptPromiseResolver*,
                                   bool success,
-                                  const base::Optional<Vector<uint8_t>>&);
+                                  const absl::optional<Vector<uint8_t>>&);
 
   void MarkRequestComplete(ScriptPromiseResolver*);
 

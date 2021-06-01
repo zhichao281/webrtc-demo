@@ -8,6 +8,7 @@
 #include "skia/public/mojom/bitmap.mojom-blink-forward.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/modules/canvas/canvas2d/canvas_rendering_context_2d.h"
 #include "third_party/blink/renderer/modules/canvas/imagebitmap/image_bitmap_source_union.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
@@ -20,7 +21,8 @@ class MODULES_EXPORT ShapeDetector : public ScriptWrappable {
  public:
   ~ShapeDetector() override = default;
 
-  ScriptPromise detect(ScriptState*, const ImageBitmapSourceUnion&);
+  ScriptPromise detect(ScriptState* script_state,
+                       const V8ImageBitmapSource* image_source);
 
  private:
   ScriptPromise DetectShapesOnImageData(ScriptPromiseResolver*, ImageData*);

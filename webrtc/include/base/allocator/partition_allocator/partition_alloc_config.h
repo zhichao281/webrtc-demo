@@ -7,7 +7,6 @@
 
 #include "base/allocator/buildflags.h"
 #include "base/dcheck_is_on.h"
-#include "base/partition_alloc_buildflags.h"
 #include "build/build_config.h"
 
 // ARCH_CPU_64_BITS implies 64-bit instruction set, but not necessarily 64-bit
@@ -27,6 +26,17 @@ static_assert(sizeof(void*) != 8, "");
 #define PA_ALLOW_PCSCAN 1
 #else
 #define PA_ALLOW_PCSCAN 0
+#endif
+
+#if defined(PA_HAS_64_BITS_POINTERS) && \
+    (defined(__ARM_NEON) || defined(__ARM_NEON__)) && defined(__ARM_FP)
+#define PA_STARSCAN_NEON_SUPPORTED
+#endif
+
+#if defined(PA_HAS_64_BITS_POINTERS) && \
+    (defined(OS_LINUX) || defined(OS_ANDROID))
+// TODO(bikineev): Enable for ChromeOS.
+#define PA_STARSCAN_UFFD_WRITE_PROTECTOR_SUPPORTED
 #endif
 
 // POSIX is not only UNIX, e.g. macOS and other OSes. We do use Linux-specific

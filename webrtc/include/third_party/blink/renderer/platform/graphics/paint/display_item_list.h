@@ -32,34 +32,8 @@ class PLATFORM_EXPORT DisplayItemList {
   DisplayItemList(DisplayItemList&&) = delete;
   DisplayItemList& operator=(DisplayItemList&&) = delete;
 
-  template <class DerivedItemType, typename... Args>
-  DerivedItemType& AllocateAndConstruct(Args&&... args) {
-    static_assert(WTF::IsSubclass<DerivedItemType, DisplayItem>::value,
-                  "Must use subclass of DisplayItem.");
-    static_assert(sizeof(DerivedItemType) <= kMaxItemSize,
-                  "DisplayItem subclass is larger than kMaxItemSize.");
-    static_assert(kAlignment % alignof(DerivedItemType) == 0,
-                  "Derived type requires stronger alignment.");
-    DisplayItem& result = AllocateUninitializedItem();
-    new (&result) DerivedItemType(std::forward<Args>(args)...);
-    return static_cast<DerivedItemType&>(result);
-  }
-
-  DisplayItem& AppendByMoving(DisplayItem& item) {
-    SECURITY_CHECK(!item.IsTombstone());
-    DisplayItem& new_item = AllocateUninitializedItem();
-    MoveItem(item, new_item);
-    return new_item;
-  }
-
-  DisplayItem& ReplaceLastByMoving(DisplayItem& item) {
-    SECURITY_CHECK(!item.IsTombstone());
-    DisplayItem& last = back();
-    last.~DisplayItem();
-    MoveItem(item, last);
-    return last;
-  }
-
+  // This private section is before the public APIs because some inline public
+  // methods depend on the private definitions.
  private:
   // Declares itself as a forward iterator, but also supports a few more
   // things. The whole random access iterator interface is a bit much.
@@ -179,15 +153,62 @@ class PLATFORM_EXPORT DisplayItemList {
     return Range<const_iterator>(begin() + begin_index, begin() + end_index);
   }
 
+  template <class DerivedItemType, typename... Args>
+  DerivedItemType& AllocateAndConstruct(Args&&... args) {
+    static_assert(WTF::IsSubclass<DerivedItemType, DisplayItem>::value,
+                  "Must use subclass of DisplayItem.");
+    static_assert(sizeof(DerivedItemType) <= kMaxItemSize,
+                  "DisplayItem subclass is larger than kMaxItemSize.");
+    static_assert(kAlignment % alignof(DerivedItemType) == 0,
+                  "Derived type requires stronger alignment.");
+    ItemSlot* result = AllocateItemSlot();
+    new (result) DerivedItemType(std::forward<Args>(args)...);
+    return *reinterpret_cast<DerivedItemType*>(result);
+  }
+
+  DisplayItem& AppendByMoving(DisplayItem& item) {
+    DCHECK(!item.IsTombstone());
+    return MoveItem(item, AllocateItemSlot());
+  }
+
+  DisplayItem& ReplaceLastByMoving(DisplayItem& item) {
+    DCHECK(!item.IsTombstone());
+    DisplayItem& last = back();
+    last.Destruct();
+    return MoveItem(item, reinterpret_cast<ItemSlot*>(&last));
+  }
+
+  void AppendSubsequenceByMoving(DisplayItemList& from,
+                                 wtf_size_t begin_index,
+                                 wtf_size_t end_index) {
+    DCHECK_GE(end_index, begin_index);
+    if (end_index == begin_index)
+      return;
+    DCHECK_LT(begin_index, from.size());
+    DCHECK_LE(end_index, from.size());
+
+    wtf_size_t count = end_index - begin_index;
+    ItemSlot* new_start_slot = AllocateItemSlots(count);
+    size_t bytes_to_move = reinterpret_cast<uint8_t*>(new_start_slot + count) -
+                           reinterpret_cast<uint8_t*>(new_start_slot);
+    memcpy(static_cast<void*>(new_start_slot),
+           static_cast<void*>(&from[begin_index]), bytes_to_move);
+    // This creates tombstones in the original items. Unlike AppendByMoving()
+    // for individual items, we won't use the moved items in a subsequence
+    // for raster invalidation, so we don't need to keep the other fields of
+    // the display items. DisplayItemTest.AllZeroIsTombstone ensures that the
+    // cleared items are tombstones.
+    memset(static_cast<void*>(&from[begin_index]), 0, bytes_to_move);
+  }
+
 #if DCHECK_IS_ON()
   enum JsonOptions {
     kDefault = 0,
     kClientKnownToBeAlive = 1,
     // Only show a compact representation of the display item list. This flag
-    // cannot be used with additional flags such as kShowPaintRecords.
+    // cannot be used with kShowPaintRecords.
     kCompact = 1 << 1,
     kShowPaintRecords = 1 << 2,
-    kShowOnlyDisplayItemTypes = 1 << 3
   };
   typedef unsigned JsonFlags;
 
@@ -198,33 +219,34 @@ class PLATFORM_EXPORT DisplayItemList {
 #endif  // DCHECK_IS_ON()
 
  private:
-  DisplayItem& AllocateUninitializedItem() {
+  ItemSlot* AllocateItemSlot() {
     if (items_.IsEmpty())
       items_.ReserveCapacity(initial_capacity_);
     items_.emplace_back();
-    return reinterpret_cast<DisplayItem&>(items_.back());
+    return &items_.back();
   }
 
-  void MoveItem(DisplayItem& item, DisplayItem& new_item) {
-    memcpy(static_cast<void*>(&new_item), static_cast<void*>(&item),
+  ItemSlot* AllocateItemSlots(wtf_size_t count) {
+    if (items_.IsEmpty())
+      items_.ReserveCapacity(initial_capacity_);
+    items_.Grow(size() + count);
+    return &items_.back() - (count - 1);
+  }
+
+  DisplayItem& MoveItem(DisplayItem& item, ItemSlot* new_item_slot) {
+    memcpy(static_cast<void*>(new_item_slot), static_cast<void*>(&item),
            kMaxItemSize);
 
     // Created a tombstone/"dead display item" that can be safely destructed but
     // should never be used except for debugging and raster invalidation.
-    new (&item) DisplayItem;
+    item.CreateTombstone();
     DCHECK(item.IsTombstone());
-    // We need |visual_rect_| and |outset_for_raster_effects_| of the old
-    // display item for raster invalidation. Also, the fields that make up the
-    // ID (|client_|, |type_| and |fragment_|) need to match. As their values
-    // were either initialized to default values or were left uninitialized by
-    // DisplayItem's default constructor, now copy their original values back
-    // from |result|.
-    item.client_ = new_item.client_;
-    item.type_ = new_item.type_;
-    item.fragment_ = new_item.fragment_;
-    DCHECK_EQ(item.GetId(), new_item.GetId());
-    item.visual_rect_ = new_item.visual_rect_;
-    item.raster_effect_outset_ = new_item.raster_effect_outset_;
+    // Original values for other fields are kept for debugging and raster
+    // invalidation.
+    DisplayItem& new_item = *reinterpret_cast<DisplayItem*>(new_item_slot);
+    DCHECK_EQ(item.VisualRect(), new_item.VisualRect());
+    DCHECK_EQ(item.GetRasterEffectOutset(), new_item.GetRasterEffectOutset());
+    return new_item;
   }
 
   ItemVector items_;

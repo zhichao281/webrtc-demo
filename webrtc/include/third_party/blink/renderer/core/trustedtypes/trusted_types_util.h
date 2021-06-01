@@ -5,16 +5,17 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_TRUSTEDTYPES_TRUSTED_TYPES_UTIL_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_TRUSTEDTYPES_TRUSTED_TYPES_UTIL_H_
 
+#include "third_party/blink/renderer/bindings/core/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/script/script_element_base.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
 
-class ExecutionContext;
 class ExceptionState;
-class StringOrTrustedHTMLOrTrustedScriptOrTrustedScriptURL;
-class StringOrTrustedScript;
+class ExecutionContext;
+class V8UnionStringOrTrustedScript;
+class V8UnionStringTreatNullAsEmptyStringOrTrustedScript;
 
 enum class SpecificTrustedType {
   kNone,
@@ -25,15 +26,19 @@ enum class SpecificTrustedType {
 
 // Perform Trusted Type checks, with the IDL union types as input. All of these
 // will call String& versions below to do the heavy lifting.
-CORE_EXPORT String TrustedTypesCheckFor(
-    SpecificTrustedType,
-    const StringOrTrustedHTMLOrTrustedScriptOrTrustedScriptURL&,
-    const ExecutionContext*,
-    ExceptionState&) WARN_UNUSED_RESULT;
-CORE_EXPORT String TrustedTypesCheckForScript(StringOrTrustedScript,
-                                              const ExecutionContext*,
-                                              ExceptionState&)
-    WARN_UNUSED_RESULT;
+CORE_EXPORT String
+TrustedTypesCheckFor(SpecificTrustedType type,
+                     const V8TrustedString* trusted,
+                     const ExecutionContext* execution_context,
+                     ExceptionState& exception_state) WARN_UNUSED_RESULT;
+CORE_EXPORT String
+TrustedTypesCheckForScript(const V8UnionStringOrTrustedScript* value,
+                           const ExecutionContext* execution_context,
+                           ExceptionState& exception_state) WARN_UNUSED_RESULT;
+CORE_EXPORT String TrustedTypesCheckForScript(
+    const V8UnionStringTreatNullAsEmptyStringOrTrustedScript* value,
+    const ExecutionContext* execution_context,
+    ExceptionState& exception_state) WARN_UNUSED_RESULT;
 
 // Perform Trusted Type checks, for a dynamically or statically determined
 // type.

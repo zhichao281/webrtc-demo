@@ -5,7 +5,9 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGPU_GPU_QUEUE_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGPU_GPU_QUEUE_H_
 
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/core/typed_arrays/array_buffer_view_helpers.h"
 #include "third_party/blink/renderer/modules/webgpu/dawn_object.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
@@ -15,15 +17,12 @@ namespace blink {
 class ExceptionState;
 class GPUBuffer;
 class GPUCommandBuffer;
-class GPUFence;
-class GPUFenceDescriptor;
 class GPUImageCopyImageBitmap;
 class GPUImageCopyTexture;
 class GPUImageDataLayout;
 class ScriptPromiseResolver;
 class ScriptState;
 class StaticBitmapImage;
-class UnsignedLongEnforceRangeSequenceOrGPUExtent3DDict;
 
 class GPUQueue : public DawnObject<WGPUQueue> {
   DEFINE_WRAPPERTYPEINFO();
@@ -33,8 +32,6 @@ class GPUQueue : public DawnObject<WGPUQueue> {
 
   // gpu_queue.idl
   void submit(const HeapVector<Member<GPUCommandBuffer>>& buffers);
-  void signal(GPUFence* fence, uint64_t signal_value);
-  GPUFence* createFence(const GPUFenceDescriptor* descriptor);
   ScriptPromise onSubmittedWorkDone(ScriptState* script_state);
   void writeBuffer(GPUBuffer* buffer,
                    uint64_t buffer_offset,
@@ -58,23 +55,20 @@ class GPUQueue : public DawnObject<WGPUQueue> {
                    uint64_t data_byte_offset,
                    uint64_t byte_size,
                    ExceptionState& exception_state);
-  void writeTexture(
-      GPUImageCopyTexture* destination,
-      const MaybeShared<DOMArrayBufferView>& data,
-      GPUImageDataLayout* data_layout,
-      UnsignedLongEnforceRangeSequenceOrGPUExtent3DDict& write_size,
-      ExceptionState& exception_state);
-  void writeTexture(
-      GPUImageCopyTexture* destination,
-      const DOMArrayBufferBase* data,
-      GPUImageDataLayout* data_layout,
-      UnsignedLongEnforceRangeSequenceOrGPUExtent3DDict& write_size,
-      ExceptionState& exception_state);
-  void copyImageBitmapToTexture(
-      GPUImageCopyImageBitmap* source,
-      GPUImageCopyTexture* destination,
-      UnsignedLongEnforceRangeSequenceOrGPUExtent3DDict& copySize,
-      ExceptionState& exception_state);
+  void writeTexture(GPUImageCopyTexture* destination,
+                    const MaybeShared<DOMArrayBufferView>& data,
+                    GPUImageDataLayout* data_layout,
+                    const V8GPUExtent3D* write_size,
+                    ExceptionState& exception_state);
+  void writeTexture(GPUImageCopyTexture* destination,
+                    const DOMArrayBufferBase* data,
+                    GPUImageDataLayout* data_layout,
+                    const V8GPUExtent3D* write_size,
+                    ExceptionState& exception_state);
+  void copyImageBitmapToTexture(GPUImageCopyImageBitmap* source,
+                                GPUImageCopyTexture* destination,
+                                const V8GPUExtent3D* copy_size,
+                                ExceptionState& exception_state);
 
  private:
   void OnWorkDoneCallback(ScriptPromiseResolver* resolver,
@@ -95,15 +89,14 @@ class GPUQueue : public DawnObject<WGPUQueue> {
                        const void* data_base_ptr,
                        unsigned data_bytes_per_element,
                        uint64_t data_byte_offset,
-                       base::Optional<uint64_t> byte_size,
+                       absl::optional<uint64_t> byte_size,
                        ExceptionState& exception_state);
-  void WriteTextureImpl(
-      GPUImageCopyTexture* destination,
-      const void* data,
-      size_t dataSize,
-      GPUImageDataLayout* data_layout,
-      UnsignedLongEnforceRangeSequenceOrGPUExtent3DDict& write_size,
-      ExceptionState& exception_state);
+  void WriteTextureImpl(GPUImageCopyTexture* destination,
+                        const void* data,
+                        size_t dataSize,
+                        GPUImageDataLayout* data_layout,
+                        const V8GPUExtent3D* write_size,
+                        ExceptionState& exception_state);
 
   DISALLOW_COPY_AND_ASSIGN(GPUQueue);
 };

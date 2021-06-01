@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_BINDINGS_CORE_V8_TO_V8_TRAITS_H_
 #define THIRD_PARTY_BLINK_RENDERER_BINDINGS_CORE_V8_TO_V8_TRAITS_H_
 
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/native_value_traits_impl.h"
 #include "third_party/blink/renderer/platform/bindings/dom_data_store.h"
@@ -212,10 +213,7 @@ inline v8::MaybeLocal<v8::Value> ToV8HelperScriptWrappable(
     return wrapper;
   }
 
-  if (!script_wrappable->WrapV2(script_state).ToLocal(&wrapper)) {
-    return v8::MaybeLocal<v8::Value>();
-  }
-  return wrapper;
+  return script_wrappable->Wrap(script_state);
 }
 
 // For optimization
@@ -233,10 +231,7 @@ inline v8::MaybeLocal<v8::Value> ToV8HelperScriptWrappable(
   CHECK(!creation_context_object.IsEmpty());
   ScriptState* script_state =
       ScriptState::From(creation_context_object->CreationContext());
-  if (!script_wrappable->WrapV2(script_state).ToLocal(&wrapper)) {
-    return v8::MaybeLocal<v8::Value>();
-  }
-  return wrapper;
+  return script_wrappable->Wrap(script_state);
 }
 
 }  // namespace bindings
@@ -732,7 +727,7 @@ struct ToV8Traits<IDLNullable<IDLNullable<T>>>;
 template <>
 struct ToV8Traits<IDLNullable<IDLBoolean>> {
   static v8::MaybeLocal<v8::Value> WARN_UNUSED_RESULT
-  ToV8(ScriptState* script_state, const base::Optional<bool>& value) {
+  ToV8(ScriptState* script_state, const absl::optional<bool>& value) {
     if (!value)
       return v8::Null(script_state->GetIsolate());
     return ToV8Traits<IDLBoolean>::ToV8(script_state, *value);
@@ -743,7 +738,7 @@ struct ToV8Traits<IDLNullable<IDLBoolean>> {
 template <typename T, bindings::IDLIntegerConvMode mode>
 struct ToV8Traits<IDLNullable<IDLIntegerTypeBase<T, mode>>> {
   static v8::MaybeLocal<v8::Value> WARN_UNUSED_RESULT
-  ToV8(ScriptState* script_state, const base::Optional<T>& value) {
+  ToV8(ScriptState* script_state, const absl::optional<T>& value) {
     if (!value)
       return v8::Null(script_state->GetIsolate());
     return ToV8Traits<IDLIntegerTypeBase<T, mode>>::ToV8(script_state, *value);
@@ -754,7 +749,7 @@ struct ToV8Traits<IDLNullable<IDLIntegerTypeBase<T, mode>>> {
 template <typename T, bindings::IDLFloatingPointNumberConvMode mode>
 struct ToV8Traits<IDLNullable<IDLFloatingPointNumberTypeBase<T, mode>>> {
   static v8::MaybeLocal<v8::Value> WARN_UNUSED_RESULT
-  ToV8(ScriptState* script_state, const base::Optional<T>& value) {
+  ToV8(ScriptState* script_state, const absl::optional<T>& value) {
     if (!value)
       return v8::Null(script_state->GetIsolate());
     return ToV8Traits<IDLFloatingPointNumberTypeBase<T, mode>>::ToV8(
@@ -870,7 +865,7 @@ struct ToV8Traits<
     IDLNullable<T>,
     std::enable_if_t<std::is_base_of<bindings::EnumerationBase, T>::value>> {
   static v8::MaybeLocal<v8::Value> WARN_UNUSED_RESULT
-  ToV8(ScriptState* script_state, const base::Optional<T>& enumeration) {
+  ToV8(ScriptState* script_state, const absl::optional<T>& enumeration) {
     if (!enumeration)
       return v8::Null(script_state->GetIsolate());
     return ToV8Traits<T>::ToV8(script_state, *enumeration);
@@ -920,7 +915,7 @@ template <typename T>
 struct ToV8Traits<IDLNullable<IDLSequence<T>>> {
   static v8::MaybeLocal<v8::Value> WARN_UNUSED_RESULT
   ToV8(ScriptState* script_state,
-       const base::Optional<typename IDLSequence<T>::ImplType>& value) {
+       const absl::optional<typename IDLSequence<T>::ImplType>& value) {
     if (!value)
       return v8::Null(script_state->GetIsolate());
     return ToV8Traits<IDLSequence<T>>::ToV8(script_state, *value);
@@ -940,7 +935,7 @@ template <typename T>
 struct ToV8Traits<IDLNullable<IDLArray<T>>> {
   static v8::MaybeLocal<v8::Value> WARN_UNUSED_RESULT
   ToV8(ScriptState* script_state,
-       const base::Optional<typename IDLArray<T>::ImplType>& value) {
+       const absl::optional<typename IDLArray<T>::ImplType>& value) {
     if (!value)
       return v8::Null(script_state->GetIsolate());
     return ToV8Traits<IDLArray<T>>::ToV8(script_state, *value);
@@ -959,7 +954,7 @@ template <typename K, typename V>
 struct ToV8Traits<IDLNullable<IDLRecord<K, V>>> {
   static v8::MaybeLocal<v8::Value> WARN_UNUSED_RESULT
   ToV8(ScriptState* script_state,
-       const base::Optional<typename IDLRecord<K, V>::ImplType>& value) {
+       const absl::optional<typename IDLRecord<K, V>::ImplType>& value) {
     if (!value)
       return v8::Null(script_state->GetIsolate());
     return ToV8Traits<IDLRecord<K, V>>::ToV8(script_state, *value);
@@ -979,7 +974,7 @@ struct ToV8Traits<IDLNullable<IDLRecord<K, V>>> {
 template <>
 struct ToV8Traits<IDLNullable<IDLDate>> {
   static v8::MaybeLocal<v8::Value> WARN_UNUSED_RESULT
-  ToV8(ScriptState* script_state, const base::Optional<base::Time> date) {
+  ToV8(ScriptState* script_state, const absl::optional<base::Time> date) {
     if (!date)
       return v8::Null(script_state->GetIsolate());
     return v8::Date::New(script_state->GetContext(),
@@ -1008,7 +1003,10 @@ struct ToV8Traits<
     std::enable_if_t<std::is_base_of<bindings::UnionBase, T>::value>> {
   static v8::MaybeLocal<v8::Value> WARN_UNUSED_RESULT
   ToV8(ScriptState* script_state, const T* value) {
-    DCHECK(value);
+    // TODO(crbug.com/1185018): nullptr shouldn't be passed.  This should be
+    // DCHECK(value);
+    if (!value)
+      return v8::Null(script_state->GetIsolate());
     return value->ToV8Value(script_state);
   }
 };

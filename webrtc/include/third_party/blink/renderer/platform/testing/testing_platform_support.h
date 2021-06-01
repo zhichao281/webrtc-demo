@@ -61,15 +61,13 @@ class TestingPlatformSupport : public Platform {
 
   // Platform:
   WebString DefaultLocale() override;
-  std::unique_ptr<WebCodeCacheLoader> CreateCodeCacheLoader() override {
-    return std::make_unique<CodeCacheLoaderMock>();
-  }
   WebData GetDataResource(int resource_id,
                           ui::ScaleFactor scale_factor) override;
   WebData UncompressDataResource(int resource_id) override;
   ThreadSafeBrowserInterfaceBrokerProxy* GetBrowserInterfaceBroker() override;
   bool IsThreadedAnimationEnabled() override;
   bool IsUseZoomForDSFEnabled() override;
+  cc::TaskGraphRunner* GetTaskGraphRunner() override;
 
   virtual void RunUntilIdle();
   void SetThreadedAnimationEnabled(bool enabled);

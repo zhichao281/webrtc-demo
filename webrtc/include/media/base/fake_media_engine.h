@@ -11,6 +11,7 @@
 #ifndef MEDIA_BASE_FAKE_MEDIA_ENGINE_H_
 #define MEDIA_BASE_FAKE_MEDIA_ENGINE_H_
 
+#include <atomic>
 #include <list>
 #include <map>
 #include <memory>
@@ -42,8 +43,9 @@ class FakeVoiceEngine;
 template <class Base>
 class RtpHelper : public Base {
  public:
-  RtpHelper()
-      : sending_(false),
+  explicit RtpHelper(webrtc::TaskQueueBase* network_thread)
+      : Base(network_thread),
+        sending_(false),
         playout_(false),
         fail_set_send_codecs_(false),
         fail_set_recv_codecs_(false),
@@ -283,7 +285,10 @@ class RtpHelper : public Base {
   bool fail_set_recv_codecs() const { return fail_set_recv_codecs_; }
 
  private:
-  bool sending_;
+  // TODO(bugs.webrtc.org/12783): This flag is used from more than one thread.
+  // As a workaround for tsan, it's currently std::atomic but that might not
+  // be the appropriate fix.
+  std::atomic<bool> sending_;
   bool playout_;
   std::vector<RtpExtension> recv_extensions_;
   std::vector<RtpExtension> send_extensions_;
@@ -314,8 +319,9 @@ class FakeVoiceMediaChannel : public RtpHelper<VoiceMediaChannel> {
     int event_code;
     int duration;
   };
-  explicit FakeVoiceMediaChannel(FakeVoiceEngine* engine,
-                                 const AudioOptions& options);
+  FakeVoiceMediaChannel(FakeVoiceEngine* engine,
+                        const AudioOptions& options,
+                        webrtc::TaskQueueBase* network_thread);
   ~FakeVoiceMediaChannel();
   const std::vector<AudioCodec>& recv_codecs() const;
   const std::vector<AudioCodec>& send_codecs() const;
@@ -406,7 +412,9 @@ bool CompareDtmfInfo(const FakeVoiceMediaChannel::DtmfInfo& info,
 
 class FakeVideoMediaChannel : public RtpHelper<VideoMediaChannel> {
  public:
-  FakeVideoMediaChannel(FakeVideoEngine* engine, const VideoOptions& options);
+  FakeVideoMediaChannel(FakeVideoEngine* engine,
+                        const VideoOptions& options,
+                        webrtc::TaskQueueBase* network_thread);
 
   ~FakeVideoMediaChannel();
 

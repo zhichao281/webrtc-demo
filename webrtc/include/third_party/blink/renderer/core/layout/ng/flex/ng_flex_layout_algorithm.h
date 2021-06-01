@@ -27,11 +27,11 @@ class CORE_EXPORT NGFlexLayoutAlgorithm
 
   MinMaxSizesResult ComputeMinMaxSizes(
       const MinMaxSizesFloatInput&) const override;
-  const NGLayoutResult* Layout() override;
+  scoped_refptr<const NGLayoutResult> Layout() override;
 
  private:
-  const NGLayoutResult* RelayoutIgnoringChildScrollbarChanges();
-  const NGLayoutResult* LayoutInternal();
+  scoped_refptr<const NGLayoutResult> RelayoutIgnoringChildScrollbarChanges();
+  scoped_refptr<const NGLayoutResult> LayoutInternal();
 
   bool DoesItemCrossSizeComputeToAuto(const NGBlockNode& child) const;
   bool IsItemFlexBasisDefinite(const NGBlockNode& child) const;
@@ -79,13 +79,14 @@ class CORE_EXPORT NGFlexLayoutAlgorithm
       const FlexItem&,
       const NGBoxFragment&,
       LayoutUnit block_offset,
-      base::Optional<LayoutUnit>* fallback_baseline);
+      absl::optional<LayoutUnit>* fallback_baseline);
 
   const bool is_column_;
   const bool is_horizontal_flow_;
   const bool is_cross_size_definite_;
   const LogicalSize child_percentage_size_;
 
+  bool has_column_percent_flex_basis_ = false;
   bool ignore_child_scrollbar_changes_ = false;
   FlexLayoutAlgorithm algorithm_;
   DevtoolsFlexInfo* layout_info_for_devtools_;

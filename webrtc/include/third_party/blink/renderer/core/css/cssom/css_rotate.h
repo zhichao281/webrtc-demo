@@ -23,11 +23,11 @@ class CORE_EXPORT CSSRotate final : public CSSTransformComponent {
  public:
   // Constructors defined in the IDL.
   static CSSRotate* Create(CSSNumericValue* angle, ExceptionState&);
-  static CSSRotate* Create(const CSSNumberish& x,
-                           const CSSNumberish& y,
-                           const CSSNumberish& z,
+  static CSSRotate* Create(const V8CSSNumberish* x,
+                           const V8CSSNumberish* y,
+                           const V8CSSNumberish* z,
                            CSSNumericValue* angle,
-                           ExceptionState&);
+                           ExceptionState& exception_state);
 
   // Blink-internal ways of creating CSSRotates.
   static CSSRotate* Create(CSSNumericValue* angle);
@@ -48,12 +48,12 @@ class CORE_EXPORT CSSRotate final : public CSSTransformComponent {
   // Getters and setters for attributes defined in the IDL.
   CSSNumericValue* angle() { return angle_.Get(); }
   void setAngle(CSSNumericValue* angle, ExceptionState&);
-  void x(CSSNumberish& x) { x.SetCSSNumericValue(x_); }
-  void y(CSSNumberish& y) { y.SetCSSNumericValue(y_); }
-  void z(CSSNumberish& z) { z.SetCSSNumericValue(z_); }
-  void setX(const CSSNumberish&, ExceptionState&);
-  void setY(const CSSNumberish&, ExceptionState&);
-  void setZ(const CSSNumberish&, ExceptionState&);
+  V8CSSNumberish* x();
+  V8CSSNumberish* y();
+  V8CSSNumberish* z();
+  void setX(const V8CSSNumberish* x, ExceptionState& exception_state);
+  void setY(const V8CSSNumberish* y, ExceptionState& exception_state);
+  void setZ(const V8CSSNumberish* z, ExceptionState& exception_state);
 
   DOMMatrix* toMatrix(ExceptionState&) const final;
 

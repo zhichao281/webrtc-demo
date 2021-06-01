@@ -5,7 +5,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_CANVAS_CANVAS2D_CANVAS_FILTER_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_CANVAS_CANVAS2D_CANVAS_FILTER_H_
 
-#include "third_party/blink/renderer/bindings/modules/v8/canvas_filter_dictionary_or_canvas_filter_dictionary_array.h"
 #include "third_party/blink/renderer/core/style/filter_operations.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
@@ -13,6 +12,7 @@
 namespace blink {
 
 class ExceptionState;
+class V8UnionCanvasFilterDictionaryOrCanvasFilterDictionaryArray;
 
 // This class stores an unresolved filter on CanvasRenderingContext2DState that
 // has been created from the CanvasFilter javascript object. It will be parsed
@@ -22,9 +22,8 @@ class MODULES_EXPORT CanvasFilter final : public ScriptWrappable {
 
  public:
   static CanvasFilter* Create(
-      ScriptState*,
-      CanvasFilterDictionaryOrCanvasFilterDictionaryArray&,
-      ExceptionState&);
+      const V8UnionCanvasFilterDictionaryOrCanvasFilterDictionaryArray* init,
+      ExceptionState& exception_state);
 
   explicit CanvasFilter(FilterOperations filter_operations);
 

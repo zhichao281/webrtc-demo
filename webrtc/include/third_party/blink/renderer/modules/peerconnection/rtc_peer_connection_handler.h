@@ -213,7 +213,7 @@ class MODULES_EXPORT RTCPeerConnectionHandler {
   GetConfiguration() const;
   virtual webrtc::RTCErrorType SetConfiguration(
       const webrtc::PeerConnectionInterface::RTCConfiguration& configuration);
-  virtual void AddICECandidate(blink::RTCVoidRequest* request,
+  virtual void AddIceCandidate(blink::RTCVoidRequest* request,
                                RTCIceCandidatePlatform* candidate);
   virtual void RestartIce();
 
@@ -339,7 +339,7 @@ class MODULES_EXPORT RTCPeerConnectionHandler {
                       int component,
                       int address_family);
   void OnIceCandidateError(const String& address,
-                           base::Optional<uint16_t> port,
+                           absl::optional<uint16_t> port,
                            const String& host_candidate,
                            const String& url,
                            int error_code,

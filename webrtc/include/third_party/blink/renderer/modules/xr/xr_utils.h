@@ -7,6 +7,8 @@
 
 #include "device/vr/public/mojom/pose.h"
 #include "device/vr/public/mojom/vr_service.mojom-blink.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/core/typed_arrays/dom_typed_array.h"
 #include "third_party/blink/renderer/modules/xr/xr_webgl_rendering_context.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
@@ -31,15 +33,15 @@ DOMPointReadOnly* makeNormalizedQuaternion(double x,
                                            double w);
 
 WebGLRenderingContextBase* webglRenderingContextBaseFromUnion(
-    const XRWebGLRenderingContext&);
+    const V8XRWebGLRenderingContext* context);
 
 constexpr char kUnableToNormalizeZeroLength[] =
     "Unable to normalize vector of length 0.";
 
 // Conversion method from transformation matrix to device::Pose. The conversion
 // may fail if the matrix cannot be decomposed. In case of failure, the method
-// will return base::nullopt.
-base::Optional<device::Pose> CreatePose(
+// will return absl::nullopt.
+absl::optional<device::Pose> CreatePose(
     const blink::TransformationMatrix& matrix);
 
 // Hand joint conversion methods

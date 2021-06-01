@@ -27,7 +27,6 @@
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_FONTS_SHAPING_CACHING_WORD_SHAPE_ITERATOR_H_
 
 #include "third_party/blink/renderer/platform/fonts/font.h"
-#include "third_party/blink/renderer/platform/fonts/shaping/caching_word_shape_iterator.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_cache.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_result_spacing.h"
 #include "third_party/blink/renderer/platform/fonts/simple_font_data.h"
@@ -58,7 +57,7 @@ class PLATFORM_EXPORT CachingWordShapeIterator final {
 
     // SVG sets SpacingDisabled because it handles spacing by themselves.
     if (!run.SpacingDisabled())
-      spacing_.SetSpacingAndExpansion(*font);
+      spacing_.SetSpacingAndExpansion(font->GetFontDescription());
   }
 
   bool Next(scoped_refptr<const ShapeResult>* word_result) {

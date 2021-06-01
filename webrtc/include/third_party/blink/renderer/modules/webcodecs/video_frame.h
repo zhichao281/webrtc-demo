@@ -7,14 +7,16 @@
 
 #include <stdint.h>
 
-#include "base/optional.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_typedefs.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_typedefs.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_video_frame_region.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_image_source.h"
 #include "third_party/blink/renderer/core/imagebitmap/image_bitmap_source.h"
 #include "third_party/blink/renderer/modules/canvas/canvas2d/canvas_image_source_util.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/modules/webcodecs/plane.h"
 #include "third_party/blink/renderer/modules/webcodecs/video_frame_handle.h"
-#include "third_party/blink/renderer/modules/webcodecs/video_frame_region.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/heap/heap_allocator.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
@@ -29,7 +31,6 @@ class VideoFrame;
 
 namespace blink {
 
-class ArrayBufferOrArrayBufferView;
 class CanvasImageSource;
 class ExceptionState;
 class ExecutionContext;
@@ -55,18 +56,17 @@ class MODULES_EXPORT VideoFrame final : public ScriptWrappable,
   explicit VideoFrame(scoped_refptr<VideoFrameHandle> handle);
 
   // video_frame.idl implementation.
+  static VideoFrame* Create(ScriptState* script_state,
+                            const V8CanvasImageSource* source,
+                            const VideoFrameInit* init,
+                            ExceptionState& exception_state);
   static VideoFrame* Create(ScriptState*,
-                            const CanvasImageSourceUnion&,
-                            const VideoFrameInit*,
-                            ExceptionState&);
-  static VideoFrame* Create(ScriptState*,
-                            const String& format,
                             const HeapVector<Member<PlaneInit>>&,
                             const VideoFramePlaneInit*,
                             ExceptionState&);
 
   String format() const;
-  base::Optional<HeapVector<Member<Plane>>> planes();
+  absl::optional<HeapVector<Member<Plane>>> planes();
 
   uint32_t codedWidth() const;
   uint32_t codedHeight() const;
@@ -82,15 +82,15 @@ class MODULES_EXPORT VideoFrame final : public ScriptWrappable,
   uint32_t displayWidth() const;
   uint32_t displayHeight() const;
 
-  base::Optional<int64_t> timestamp() const;
-  base::Optional<uint64_t> duration() const;
+  absl::optional<int64_t> timestamp() const;
+  absl::optional<uint64_t> duration() const;
 
   uint32_t allocationSize(VideoFrameReadIntoOptions* options, ExceptionState&);
 
-  ScriptPromise readInto(ScriptState*,
-                         const ArrayBufferOrArrayBufferView& destination,
+  ScriptPromise readInto(ScriptState* script_state,
+                         const V8BufferSource* destination,
                          VideoFrameReadIntoOptions* options,
-                         ExceptionState&);
+                         ExceptionState& exception_state);
 
   // Invalidates |handle_|, releasing underlying media::VideoFrame references.
   // This effectively "destroys" all frames sharing the same Handle.
@@ -110,8 +110,10 @@ class MODULES_EXPORT VideoFrame final : public ScriptWrappable,
 
  private:
   // CanvasImageSource implementation
-  scoped_refptr<Image> GetSourceImageForCanvas(SourceImageStatus*,
-                                               const FloatSize&) override;
+  scoped_refptr<Image> GetSourceImageForCanvas(
+      SourceImageStatus*,
+      const FloatSize&,
+      const AlphaDisposition alpha_disposition = kPremultiplyAlpha) override;
   bool WouldTaintOrigin() const override;
   FloatSize ElementSize(const FloatSize&,
                         const RespectImageOrientationEnum) const override;
@@ -123,7 +125,7 @@ class MODULES_EXPORT VideoFrame final : public ScriptWrappable,
   static constexpr uint64_t kCpuEfficientFrameSize = 320u * 240u;
   IntSize BitmapSourceSize() const override;
   ScriptPromise CreateImageBitmap(ScriptState*,
-                                  base::Optional<IntRect> crop_rect,
+                                  absl::optional<IntRect> crop_rect,
                                   const ImageBitmapOptions*,
                                   ExceptionState&) override;
 
