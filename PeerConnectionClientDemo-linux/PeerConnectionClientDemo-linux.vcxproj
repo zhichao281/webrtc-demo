@@ -93,7 +93,7 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
-    <IncludePath>/home/firefly/webrtc2020/webrtc-checkout/src;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/libyuv/include;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/jsoncpp/source/include;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/protobuf/conformance;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/abseil-cpp</IncludePath>
+    <IncludePath>/home/firefly/webrtc2020/webrtc-checkout/src;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/libyuv/include;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/jsoncpp/source/include;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/protobuf/conformance;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/abseil-cpp;/usr/include;/usr/include/aarch64-linux-gnu</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <IncludePath>/home/server/webrtc2020/webrtc-checkout/src;/home/server/webrtc2020/webrtc-checkout/src/third_party/abseil-cpp;/home/server/webrtc2020/webrtc-checkout/src/third_party/libyuv/include;/home/server/webrtc2020/webrtc-checkout/src/third_party/jsoncpp/source/include</IncludePath>
