@@ -506,6 +506,13 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
     }
   }
 
+  // This function checks if the fragment tree is consistent with the
+  // |LayoutObject| tree. This consistency is critical, as sometimes we traverse
+  // the fragment tree, sometimes the |LayoutObject| tree, or mix the
+  // traversals. Also we rely on the consistency to avoid using fragments whose
+  // |LayoutObject| were destroyed.
+  void AssertFragmentTree(bool display_locked = false) const;
+
   void AssertClearedPaintInvalidationFlags() const;
 
   void AssertSubtreeClearedPaintInvalidationFlags() const {
@@ -618,13 +625,11 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
   }
   inline bool ShouldApplyInlineSizeContainment() const {
     NOT_DESTROYED();
-    return (StyleRef().ContainsInlineSize() || StyleRef().ContainsSize()) &&
-           IsEligibleForSizeContainment();
+    return StyleRef().ContainsInlineSize() && IsEligibleForSizeContainment();
   }
   inline bool ShouldApplyBlockSizeContainment() const {
     NOT_DESTROYED();
-    return (StyleRef().ContainsBlockSize() || StyleRef().ContainsSize()) &&
-           IsEligibleForSizeContainment();
+    return StyleRef().ContainsBlockSize() && IsEligibleForSizeContainment();
   }
   inline bool ShouldApplyStyleContainment() const {
     NOT_DESTROYED();
@@ -639,6 +644,13 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
     return ShouldApplyPaintContainment() && ShouldApplyLayoutContainment() &&
            ShouldApplySizeContainment();
   }
+  inline bool ShouldApplyAnyContainment() const {
+    NOT_DESTROYED();
+    return ShouldApplyPaintContainment() || ShouldApplyLayoutContainment() ||
+           ShouldApplyStyleContainment() || ShouldApplyBlockSizeContainment() ||
+           ShouldApplyInlineSizeContainment();
+  }
+
   inline bool IsContainerForContainerQueries() const {
     NOT_DESTROYED();
     return ShouldApplyLayoutContainment() && ShouldApplyStyleContainment() &&
@@ -852,6 +864,10 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
   bool IsLayoutNGText() const {
     NOT_DESTROYED();
     return IsOfType(kLayoutObjectNGText);
+  }
+  bool IsLayoutNGTextCombine() const {
+    NOT_DESTROYED();
+    return IsOfType(kLayoutObjectNGTextCombine);
   }
   bool IsLayoutTableCol() const {
     NOT_DESTROYED();
@@ -3453,6 +3469,7 @@ class CORE_EXPORT LayoutObject : public ImageResourceObserver,
     kLayoutObjectNGOutsideListMarker,
     kLayoutObjectNGProgress,
     kLayoutObjectNGText,
+    kLayoutObjectNGTextCombine,
     kLayoutObjectNGTextControlMultiLine,
     kLayoutObjectNGTextControlSingleLine,
     kLayoutObjectOutsideListMarker,

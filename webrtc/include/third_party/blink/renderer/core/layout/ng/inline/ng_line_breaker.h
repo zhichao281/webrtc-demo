@@ -107,6 +107,12 @@ class CORE_EXPORT NGLineBreaker {
 
   void ComputeLineLocation(NGLineInfo*) const;
 
+  // Returns true if CSS property "white-space" specified in |style| allows
+  // wrap. Note: For "text-combine-upright:all", this function returns false
+  // event if "white-space" means wrap, because combined text should be laid
+  // out in one line.
+  bool ShouldAutoWrap(const ComputedStyle& style) const;
+
   enum class LineBreakState {
     // The line breaking is complete.
     kDone,
@@ -164,7 +170,16 @@ class CORE_EXPORT NGLineBreaker {
   void HandleAtomicInline(
       const NGInlineItem&,
       NGLineInfo*);
-  bool ShouldForceCanBreakAfter(const NGInlineItemResult& item_result) const;
+
+  bool CanBreakAfterAtomicInline(const NGInlineItem& item) const;
+  bool CanBreakAfter(const NGInlineItem& item) const;
+  // Returns true when text content at |offset| is
+  //    kObjectReplacementCharacter (U+FFFC), or
+  //    kNoBreakSpaceCharacter (U+00A0) if |sticky_images_quirk_|.
+  bool MayBeAtomicInline(wtf_size_t offset) const;
+  const NGInlineItem* TryGetAtomicInlineItemAfter(
+      const NGInlineItem& item) const;
+
   void HandleFloat(const NGInlineItem&,
                    NGLineInfo*);
   void HandleOutOfFlowPositioned(const NGInlineItem&, NGLineInfo*);

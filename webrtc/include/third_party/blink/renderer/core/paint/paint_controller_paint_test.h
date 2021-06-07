@@ -8,6 +8,7 @@
 #include "third_party/blink/renderer/core/editing/frame_selection.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
+#include "third_party/blink/renderer/core/paint/cull_rect_updater.h"
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
 #include "third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h"
 #include "third_party/blink/renderer/core/testing/core_unit_test_helper.h"
@@ -49,6 +50,10 @@ class PaintControllerPaintTestBase : public RenderingTest {
   void UpdateAllLifecyclePhasesExceptPaint() {
     GetDocument().View()->UpdateAllLifecyclePhasesExceptPaint(
         DocumentUpdateReason::kTest);
+    // Run CullRectUpdater to ease testing of cull rects and repaint flags of
+    // PaintLayers on cull rect change.
+    if (RuntimeEnabledFeatures::CullRectUpdateEnabled())
+      CullRectUpdater(*GetLayoutView().Layer()).Update();
   }
 
   void PaintContents(const IntRect& interest_rect) {
@@ -113,11 +118,10 @@ class PaintControllerPaintTestBase : public RenderingTest {
   }
 
   class CachedItemAndSubsequenceCounter {
+    STACK_ALLOCATED();
+
    public:
-    CachedItemAndSubsequenceCounter()
-        : reset_uma_reporting_(&PaintController::disable_uma_reporting_, true) {
-      Reset();
-    }
+    CachedItemAndSubsequenceCounter() { Reset(); }
     void Reset() {
       old_num_cached_items_ = PaintController::sum_num_cached_items_;
       old_num_cached_subsequences_ =
@@ -132,7 +136,7 @@ class PaintControllerPaintTestBase : public RenderingTest {
     }
 
    private:
-    base::AutoReset<bool> reset_uma_reporting_;
+    PaintController::DisableUMAReportScope disable_uma_report_;
     size_t old_num_cached_items_;
     size_t old_num_cached_subsequences_;
   };

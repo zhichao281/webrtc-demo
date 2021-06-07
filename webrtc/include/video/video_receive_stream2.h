@@ -18,6 +18,7 @@
 #include "api/task_queue/task_queue_factory.h"
 #include "api/units/timestamp.h"
 #include "api/video/recordable_encoded_frame.h"
+#include "call/call.h"
 #include "call/rtp_packet_sink_interface.h"
 #include "call/syncable.h"
 #include "call/video_receive_stream.h"
@@ -91,8 +92,7 @@ class VideoReceiveStream2
   static constexpr size_t kBufferedEncodedFramesMaxSize = 60;
 
   VideoReceiveStream2(TaskQueueFactory* task_queue_factory,
-                      TaskQueueBase* current_queue,
-                      RtpStreamReceiverControllerInterface* receiver_controller,
+                      Call* call,
                       int num_cpu_cores,
                       PacketRouter* packet_router,
                       VideoReceiveStream::Config config,
@@ -100,7 +100,21 @@ class VideoReceiveStream2
                       CallStats* call_stats,
                       Clock* clock,
                       VCMTiming* timing);
+  // Destruction happens on the worker thread. Prior to destruction the caller
+  // must ensure that a registration with the transport has been cleared. See
+  // `RegisterWithTransport` for details.
+  // TODO(tommi): As a further improvement to this, performing the full
+  // destruction on the network thread could be made the default.
   ~VideoReceiveStream2() override;
+
+  // Called on `packet_sequence_checker_` to register/unregister with the
+  // network transport.
+  void RegisterWithTransport(
+      RtpStreamReceiverControllerInterface* receiver_controller);
+  // If registration has previously been done (via `RegisterWithTransport`) then
+  // `UnregisterFromTransport` must be called prior to destruction, on the
+  // network thread.
+  void UnregisterFromTransport();
 
   const Config& config() const { return config_; }
 
@@ -165,18 +179,18 @@ class VideoReceiveStream2
   void HandleEncodedFrame(std::unique_ptr<EncodedFrame> frame)
       RTC_RUN_ON(decode_queue_);
   void HandleFrameBufferTimeout(int64_t now_ms, int64_t wait_ms)
-      RTC_RUN_ON(worker_sequence_checker_);
+      RTC_RUN_ON(packet_sequence_checker_);
   void UpdatePlayoutDelays() const
       RTC_EXCLUSIVE_LOCKS_REQUIRED(worker_sequence_checker_);
   void RequestKeyFrame(int64_t timestamp_ms)
-      RTC_RUN_ON(worker_sequence_checker_);
+      RTC_RUN_ON(packet_sequence_checker_);
   void HandleKeyFrameGeneration(bool received_frame_is_keyframe,
                                 int64_t now_ms,
                                 bool always_request_key_frame,
                                 bool keyframe_request_is_due)
-      RTC_RUN_ON(worker_sequence_checker_);
+      RTC_RUN_ON(packet_sequence_checker_);
   bool IsReceivingKeyFrame(int64_t timestamp_ms) const
-      RTC_RUN_ON(worker_sequence_checker_);
+      RTC_RUN_ON(packet_sequence_checker_);
   int DecodeAndMaybeDispatchEncodedFrame(std::unique_ptr<EncodedFrame> frame)
       RTC_RUN_ON(decode_queue_);
 
@@ -184,13 +198,21 @@ class VideoReceiveStream2
 
   RTC_NO_UNIQUE_ADDRESS SequenceChecker worker_sequence_checker_;
   RTC_NO_UNIQUE_ADDRESS SequenceChecker module_process_sequence_checker_;
+  // TODO(bugs.webrtc.org/11993): This checker conceptually represents
+  // operations that belong to the network thread. The Call class is currently
+  // moving towards handling network packets on the network thread and while
+  // that work is ongoing, this checker may in practice represent the worker
+  // thread, but still serves as a mechanism of grouping together concepts
+  // that belong to the network thread. Once the packets are fully delivered
+  // on the network thread, this comment will be deleted.
+  RTC_NO_UNIQUE_ADDRESS SequenceChecker packet_sequence_checker_;
 
   TaskQueueFactory* const task_queue_factory_;
 
   TransportAdapter transport_adapter_;
   const VideoReceiveStream::Config config_;
   const int num_cpu_cores_;
-  TaskQueueBase* const worker_thread_;
+  Call* const call_;
   Clock* const clock_;
 
   CallStats* const call_stats_;
@@ -218,9 +240,12 @@ class VideoReceiveStream2
   // Members for the new jitter buffer experiment.
   std::unique_ptr<video_coding::FrameBuffer> frame_buffer_;
 
-  std::unique_ptr<RtpStreamReceiverInterface> media_receiver_;
-  std::unique_ptr<RtxReceiveStream> rtx_receive_stream_;
-  std::unique_ptr<RtpStreamReceiverInterface> rtx_receiver_;
+  std::unique_ptr<RtpStreamReceiverInterface> media_receiver_
+      RTC_GUARDED_BY(packet_sequence_checker_);
+  std::unique_ptr<RtxReceiveStream> rtx_receive_stream_
+      RTC_GUARDED_BY(packet_sequence_checker_);
+  std::unique_ptr<RtpStreamReceiverInterface> rtx_receiver_
+      RTC_GUARDED_BY(packet_sequence_checker_);
 
   // Whenever we are in an undecodable state (stream has just started or due to
   // a decoding error) we require a keyframe to restart the stream.
@@ -259,7 +284,7 @@ class VideoReceiveStream2
   std::function<void(const RecordableEncodedFrame&)>
       encoded_frame_buffer_function_ RTC_GUARDED_BY(decode_queue_);
   // Set to true while we're requesting keyframes but not yet received one.
-  bool keyframe_generation_requested_ RTC_GUARDED_BY(worker_sequence_checker_) =
+  bool keyframe_generation_requested_ RTC_GUARDED_BY(packet_sequence_checker_) =
       false;
   // Lock to avoid unnecessary per-frame idle wakeups in the code.
   webrtc::Mutex pending_resolution_mutex_;

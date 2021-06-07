@@ -131,7 +131,6 @@ class SystemClipboard;
 class SmoothScrollSequencer;
 class SpellChecker;
 class TextFragmentHandler;
-class TextFragmentSelectorGenerator;
 class TextSuggestionController;
 class VirtualKeyboardOverlayChangedObserver;
 class WebContentSettingsClient;
@@ -195,7 +194,6 @@ class CORE_EXPORT LocalFrame final
   void DidChangeVisibilityState() override;
   void HookBackForwardCacheEviction() override;
   void RemoveBackForwardCacheEviction() override;
-
   void SetTextDirection(base::i18n::TextDirection direction) override;
   // This sets the is_inert_ flag and also recurses through this frame's
   // subtree, updating the inert bit on all descendant frames.
@@ -206,6 +204,7 @@ class CORE_EXPORT LocalFrame final
       ScrollGranularity granularity,
       Frame* child) override;
   void DidFocus() override;
+  bool IsAdSubframe() const override;
 
   // Triggers eviction of this frame by notifying the browser side.
   void EvictFromBackForwardCache(mojom::blink::RendererEvictionReason reason);
@@ -502,11 +501,8 @@ class CORE_EXPORT LocalFrame final
   // be removed.
   bool IsProvisional() const;
 
-  // Called by the embedder according to whether the evidence indicates the
-  // frame is an ad subframe. Called on creation of the initial empty document
-  // or, for LocalFrames created on behalf of OOPIF, just before commit
-  // (ReadyToCommitNavigation time).
-  void SetIsAdSubframe(blink::mojom::AdFrameType ad_frame_type);
+  // Whether the frame is considered to be a root ad subframe by Ad Tagging.
+  bool IsAdRoot() const;
 
   // Called by the embedder on creation of the initial empty document and, for
   // all other documents, just before commit (ReadyToCommitNavigation time).
@@ -717,7 +713,7 @@ class CORE_EXPORT LocalFrame final
       const KURL& url_before_redirects,
       bool had_redirect,
       network::mojom::blink::SourceLocationPtr source_location) final;
-  void ActivateForPrerendering() final;
+  void ActivateForPrerendering(base::TimeTicks activation_start) final;
   void BindDevToolsAgent(
       mojo::PendingAssociatedRemote<mojom::blink::DevToolsAgentHost> host,
       mojo::PendingAssociatedReceiver<mojom::blink::DevToolsAgent> receiver)
@@ -809,8 +805,6 @@ class CORE_EXPORT LocalFrame final
     return text_fragment_handler_;
   }
 
-  TextFragmentSelectorGenerator* GetTextFragmentSelectorGenerator() const;
-
   LoaderFreezeMode GetLoaderFreezeMode();
 
   bool SwapIn();
@@ -830,6 +824,8 @@ class CORE_EXPORT LocalFrame final
   void DidActivateForPrerendering();
 
   void LoadJavaScriptURL(const KURL& url);
+
+  void SetEvictCachedSessionStorageOnFreezeOrUnload();
 
  private:
   friend class FrameNavigationDisabler;
@@ -1114,11 +1110,11 @@ class CORE_EXPORT LocalFrame final
   absl::optional<blink::FrameAdEvidence> ad_evidence_;
 
   // True if this frame is a subframe that had a script tagged as an ad on the
-  // v8 stack at the time of creation. This is not currently propagated when a
-  // frame navigates cross-origin.
-  // TODO(crbug.com/1145634): propagate this bit for a frame that navigates
-  // cross-origin.
+  // v8 stack at the time of creation. This is updated in `SetAdEvidence()`,
+  // allowing the bit to be propagated when a frame navigates cross-origin.
   bool is_subframe_created_by_ad_script_ = false;
+
+  bool evict_cached_session_storage_on_freeze_or_unload_ = false;
 };
 
 inline FrameLoader& LocalFrame::Loader() const {

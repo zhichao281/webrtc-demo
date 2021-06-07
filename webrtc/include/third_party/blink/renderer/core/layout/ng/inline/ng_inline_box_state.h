@@ -81,6 +81,7 @@ struct NGInlineBoxState {
   bool include_used_fonts = false;
   bool has_box_placeholder = false;
   bool needs_box_fragment = false;
+  bool is_svg_text = false;
 
   // If you add new data members, update the move constructor.
 
@@ -90,9 +91,10 @@ struct NGInlineBoxState {
   NGInlineBoxState(const NGInlineBoxState&) = delete;
   NGInlineBoxState& operator=(const NGInlineBoxState&) = delete;
 
-  // Initialize |font| and |scaled_font|. This should be called after setting
-  // |style|.
-  void InitializeFont(bool is_svg_text, const LayoutObject& layout_object);
+  // Reset |style|, |is_svg_text|, |font|, |scaled_font|, and |scaling_factor|.
+  void ResetStyle(const ComputedStyle& style_ref,
+                  bool is_svg,
+                  const LayoutObject& layout_object);
 
   // True if this box has a metrics, including pending ones. Pending metrics
   // will be activated in |EndBoxState()|.
@@ -103,15 +105,11 @@ struct NGInlineBoxState {
   // Compute text metrics for a box. All text in a box share the same
   // metrics.
   // The computed metrics is included into the line height of the current box.
-  void ComputeTextMetrics(const ComputedStyle&,
-                          const Font& fontref,
-                          FontBaseline baseline_type);
-  void EnsureTextMetrics(const ComputedStyle&,
-                         const Font& fontref,
-                         FontBaseline);
+  void ComputeTextMetrics(const ComputedStyle&, const Font& fontref);
+  void EnsureTextMetrics(const ComputedStyle&, const Font& fontref);
   void ResetTextMetrics();
 
-  void AccumulateUsedFonts(const ShapeResultView*, FontBaseline);
+  void AccumulateUsedFonts(const ShapeResultView*);
 
   // 'text-top' offset for 'vertical-align'.
   LayoutUnit TextTop(FontBaseline baseline_type) const;

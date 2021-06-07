@@ -287,7 +287,7 @@ class CORE_EXPORT NGPhysicalBoxFragment final : public NGPhysicalFragment {
       const PhysicalOffset& location,
       const NGBlockBreakToken* incoming_break_token,
       OverlayScrollbarClipBehavior = kIgnoreOverlayScrollbarSize) const;
-  LayoutSize PixelSnappedScrolledContentOffset() const;
+  IntPoint PixelSnappedScrolledContentOffset() const;
   PhysicalSize ScrollSize() const;
 
   NGInkOverflow::Type InkOverflowType() const {
@@ -431,6 +431,8 @@ class CORE_EXPORT NGPhysicalBoxFragment final : public NGPhysicalFragment {
 
 #if DCHECK_IS_ON()
   void InvalidateInkOverflow();
+  void AssertFragmentTreeSelf() const;
+  void AssertFragmentTreeChildren(bool allow_destroyed = false) const;
 #endif
 
  private:
