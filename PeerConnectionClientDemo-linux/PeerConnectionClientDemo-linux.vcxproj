@@ -83,6 +83,9 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="Configuration">
     <UseDebugLibraries>false</UseDebugLibraries>
     <UseOfStl>libstdc++_static</UseOfStl>
+    <RemoteCopyIncludeDirectories>
+    </RemoteCopyIncludeDirectories>
+    <PlatformToolset>Remote_GCC_1_0</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="Configuration">
     <UseDebugLibraries>true</UseDebugLibraries>
@@ -93,7 +96,8 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
-    <IncludePath>/home/firefly/webrtc2020/webrtc-checkout/src;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/libyuv/include;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/jsoncpp/source/include;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/protobuf/conformance;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/abseil-cpp;/usr/include;/usr/include/aarch64-linux-gnu</IncludePath>
+    <IncludePath>/usr/include/aarch64-linux-gnu;/home/firefly/webrtc2020/webrtc-checkout/src;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/libyuv/include;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/jsoncpp/source/include;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/protobuf/conformance;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/abseil-cpp</IncludePath>
+    <AdditionalSourcesToCopyMapping>$(AdditionalSourcesToCopyMapping)</AdditionalSourcesToCopyMapping>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <IncludePath>/home/server/webrtc2020/webrtc-checkout/src;/home/server/webrtc2020/webrtc-checkout/src/third_party/abseil-cpp;/home/server/webrtc2020/webrtc-checkout/src/third_party/libyuv/include;/home/server/webrtc2020/webrtc-checkout/src/third_party/jsoncpp/source/include</IncludePath>
@@ -105,11 +109,14 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
     <ClCompile>
       <PreprocessorDefinitions>NDEBUG;WEBRTC_LINUX;WEBRTC_POSIX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <CppLanguageStandard>gnu++1y</CppLanguageStandard>
+      <CppLanguageStandard>c++17</CppLanguageStandard>
+      <CLanguageStandard>c11</CLanguageStandard>
+      <AdditionalIncludeDirectories>%(ClCompile.AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <LibraryDependencies>pthread;m;dl;X11;glib-2.0;atomic;stdc++;%(LibraryDependencies)</LibraryDependencies>
-      <AdditionalLibraryDirectories>/usr/lib/aarch64-linux-gnu;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <LibraryDependencies>pthread;m;dl;X11;glib-2.0;atomic;%(LibraryDependencies)</LibraryDependencies>
+      <AdditionalLibraryDirectories>/lib/aarch64-linux-gnu;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
