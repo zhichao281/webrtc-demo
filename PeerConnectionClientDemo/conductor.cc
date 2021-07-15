@@ -434,7 +434,7 @@ void Conductor::ConnectToPeer(int peer_id) {
         main_wnd_->MessageBox("Error", "Failed to initialize PeerConnection", true);
     }
 }
-
+#include "MyCapturer.h"
 void Conductor::AddTracks() {
     if (!peer_connection_->GetSenders().empty()) {
         return;  // Already added tracks.
@@ -450,22 +450,43 @@ void Conductor::AddTracks() {
             << result_or_error.error().message();
     }
 
-    rtc::scoped_refptr<CapturerTrackSource> video_device =
-        CapturerTrackSource::Create();
-    if (video_device) {
-        rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track_(
-            peer_connection_factory_->CreateVideoTrack(kVideoLabel, video_device));
-        main_wnd_->StartLocalRenderer(video_track_);
+  //改为桌面共享的时候 走这边的代码
 
-        result_or_error = peer_connection_->AddTrack(video_track_, { kStreamId });
-        if (!result_or_error.ok()) {
-            RTC_LOG(LS_ERROR) << "Failed to add video track to PeerConnection: "
-                << result_or_error.error().message();
-        }
-    }
-    else {
-        RTC_LOG(LS_ERROR) << "OpenVideoCaptureDevice failed";
-    }
+
+	//rtc::scoped_refptr<MyDesktopCapture> video_device =
+ //       MyDesktopCapture::Create();
+	//printf("vd_adress:%p\n", video_device);
+ //   if (video_device) {
+ //       rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track_(
+ //           peer_connection_factory_->CreateVideoTrack(kVideoLabel, video_device));
+ //       main_wnd_->StartLocalRenderer(video_track_);
+	//	result_or_error = peer_connection_->AddTrack(video_track_, { kStreamId });
+	//	if (!result_or_error.ok()) {
+	//		RTC_LOG(LS_ERROR) << "Failed to add video track to PeerConnection: "
+	//			<< result_or_error.error().message();
+	//	}
+
+ //   }
+	//else {
+	//	RTC_LOG(LS_ERROR) << "OpenVideoCaptureDevice failed";
+	//}
+
+    //改为摄像头的时候 走这边的代码
+	rtc::scoped_refptr<CapturerTrackSource> video_device =
+		CapturerTrackSource::Create();
+	if (video_device) {
+		rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track_(
+			peer_connection_factory_->CreateVideoTrack(kVideoLabel, video_device));
+		main_wnd_->StartLocalRenderer(video_track_);
+		result_or_error = peer_connection_->AddTrack(video_track_, { kStreamId });
+		if (!result_or_error.ok()) {
+			RTC_LOG(LS_ERROR) << "Failed to add video track to PeerConnection: "
+				<< result_or_error.error().message();
+		}
+	}
+	else {
+		RTC_LOG(LS_ERROR) << "OpenVideoCaptureDevice failed";
+	}
 
     main_wnd_->SwitchToStreamingUI();
 }
