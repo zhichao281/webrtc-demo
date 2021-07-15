@@ -166,6 +166,7 @@ class CORE_EXPORT DocumentLoader : public GarbageCollected<DocumentLoader>,
   // https://html.spec.whatwg.org/multipage/history.html#url-and-history-update-steps
   void RunURLAndHistoryUpdateSteps(
       const KURL&,
+      SameDocumentNavigationSource same_document_navigation_source,
       scoped_refptr<SerializedScriptValue>,
       WebFrameLoadType = WebFrameLoadType::kReplaceCurrentItem,
       mojom::blink::ScrollRestorationType =
@@ -321,7 +322,8 @@ class CORE_EXPORT DocumentLoader : public GarbageCollected<DocumentLoader>,
     return last_navigation_had_trusted_initiator_;
   }
 
-  void UpdateUrlForDocumentOpen(const KURL& url) { url_ = url; }
+  // Called when the URL needs to be updated due to a document.open() call.
+  void DidOpenDocumentInputStream(const KURL& url);
 
   enum class HistoryNavigationType {
     kDifferentDocument,
@@ -360,9 +362,9 @@ class CORE_EXPORT DocumentLoader : public GarbageCollected<DocumentLoader>,
   void OnCodeCacheHostClosed();
   static void DisableCodeCacheForTesting();
 
- protected:
-  Vector<KURL> redirect_chain_;
+  HashSet<KURL> GetEarlyHintsPreloadedResources();
 
+ protected:
   // Based on its MIME type, if the main document's response corresponds to an
   // MHTML archive, then every resources will be loaded from this archive.
   //
@@ -639,6 +641,8 @@ class CORE_EXPORT DocumentLoader : public GarbageCollected<DocumentLoader>,
   // This is the interface that handles generated code cache
   // requests to fetch code cache when loading resources.
   mojo::Remote<blink::mojom::CodeCacheHost> code_cache_host_;
+
+  HashSet<KURL> early_hints_preloaded_resources_;
 };
 
 DECLARE_WEAK_IDENTIFIER_MAP(DocumentLoader);

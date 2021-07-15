@@ -61,6 +61,15 @@ HB_EXTERN hb_set_t *
 hb_subset_input_namelangid_set (hb_subset_input_t *subset_input);
 
 HB_EXTERN hb_set_t *
+hb_subset_input_layout_features_set (hb_subset_input_t *subset_input);
+
+HB_EXTERN void
+hb_subset_input_set_retain_all_features (hb_subset_input_t *subset_input,
+                                         hb_bool_t value);
+HB_EXTERN hb_bool_t
+hb_subset_input_get_retain_all_features (hb_subset_input_t *subset_input);
+
+HB_EXTERN hb_set_t *
 hb_subset_input_drop_tables_set (hb_subset_input_t *subset_input);
 
 HB_EXTERN void
@@ -93,6 +102,13 @@ hb_subset_input_set_overlaps_flag (hb_subset_input_t *subset_input,
 
 HB_EXTERN hb_bool_t
 hb_subset_input_get_overlaps_flag (hb_subset_input_t *subset_input);
+
+HB_EXTERN void
+hb_subset_input_set_notdef_outline (hb_subset_input_t *subset_input,
+                                    hb_bool_t notdef_outline);
+
+HB_EXTERN hb_bool_t
+hb_subset_input_get_notdef_outline (hb_subset_input_t *subset_input);
 
 /* hb_subset () */
 HB_EXTERN hb_face_t *

@@ -24,10 +24,10 @@ class ModuleRecordResolver;
 // implementation. Unit tests can implement a subset of Modulator interface
 // which is exercised from unit-under-test.
 class DummyModulator : public Modulator {
-  DISALLOW_COPY_AND_ASSIGN(DummyModulator);
-
  public:
   DummyModulator();
+  DummyModulator(const DummyModulator&) = delete;
+  DummyModulator& operator=(const DummyModulator&) = delete;
   ~DummyModulator() override;
   void Trace(Visitor*) const override;
 
@@ -72,9 +72,6 @@ class DummyModulator : public Modulator {
   ModuleImportMeta HostGetImportMetaProperties(
       v8::Local<v8::Module>) const override;
   const ImportMap* GetImportMapForTest() const override;
-  ScriptValue InstantiateModule(v8::Local<v8::Module>, const KURL&) override;
-  Vector<ModuleRequest> ModuleRequestsFromModuleRecord(
-      v8::Local<v8::Module>) override;
   ModuleType ModuleTypeFromRequest(
       const ModuleRequest& module_request) const override;
   ModuleScriptFetcher* CreateModuleScriptFetcher(

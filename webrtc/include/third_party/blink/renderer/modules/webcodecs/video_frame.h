@@ -10,7 +10,8 @@
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_typedefs.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_video_frame_region.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_video_frame_rect.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_video_pixel_format.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_image_source.h"
 #include "third_party/blink/renderer/core/imagebitmap/image_bitmap_source.h"
 #include "third_party/blink/renderer/modules/canvas/canvas2d/canvas_image_source_util.h"
@@ -32,14 +33,16 @@ class VideoFrame;
 namespace blink {
 
 class CanvasImageSource;
+class DOMRectReadOnly;
 class ExceptionState;
 class ExecutionContext;
 class PlaneInit;
 class ScriptPromise;
 class ScriptState;
+class VideoFrameBufferInit;
+class VideoFrameCopyToOptions;
 class VideoFrameInit;
 class VideoFramePlaneInit;
-class VideoFrameReadIntoOptions;
 
 class MODULES_EXPORT VideoFrame final : public ScriptWrappable,
                                         public CanvasImageSource,
@@ -64,16 +67,27 @@ class MODULES_EXPORT VideoFrame final : public ScriptWrappable,
                             const HeapVector<Member<PlaneInit>>&,
                             const VideoFramePlaneInit*,
                             ExceptionState&);
+  static VideoFrame* Create(ScriptState*,
+                            const V8BufferSource*,
+                            const VideoFrameBufferInit*,
+                            ExceptionState&);
 
-  String format() const;
-  absl::optional<HeapVector<Member<Plane>>> planes();
+  absl::optional<V8VideoPixelFormat> format() const;
+
+  // DEPRECATED.
+  absl::optional<HeapVector<Member<Plane>>> planes(ExecutionContext*);
 
   uint32_t codedWidth() const;
   uint32_t codedHeight() const;
 
-  VideoFrameRegion* codedRegion() const;
-  VideoFrameRegion* visibleRegion() const;
+  DOMRectReadOnly* codedRect();
+  DOMRectReadOnly* visibleRect();
 
+  // DEPRECATED.
+  VideoFrameRect* codedRegion(ExecutionContext*) const;
+  VideoFrameRect* visibleRegion(ExecutionContext*) const;
+
+  // DEPRECATED.
   uint32_t cropLeft(ExecutionContext*) const;
   uint32_t cropTop(ExecutionContext*) const;
   uint32_t cropWidth(ExecutionContext*) const;
@@ -85,12 +99,12 @@ class MODULES_EXPORT VideoFrame final : public ScriptWrappable,
   absl::optional<int64_t> timestamp() const;
   absl::optional<uint64_t> duration() const;
 
-  uint32_t allocationSize(VideoFrameReadIntoOptions* options, ExceptionState&);
+  uint32_t allocationSize(VideoFrameCopyToOptions* options, ExceptionState&);
 
-  ScriptPromise readInto(ScriptState* script_state,
-                         const V8BufferSource* destination,
-                         VideoFrameReadIntoOptions* options,
-                         ExceptionState& exception_state);
+  ScriptPromise copyTo(ScriptState* script_state,
+                       const V8BufferSource* destination,
+                       VideoFrameCopyToOptions* options,
+                       ExceptionState& exception_state);
 
   // Invalidates |handle_|, releasing underlying media::VideoFrame references.
   // This effectively "destroys" all frames sharing the same Handle.
@@ -129,8 +143,14 @@ class MODULES_EXPORT VideoFrame final : public ScriptWrappable,
                                   const ImageBitmapOptions*,
                                   ExceptionState&) override;
 
+  // Underlying frame
   scoped_refptr<VideoFrameHandle> handle_;
+
+  // Caches
   HeapVector<Member<Plane>> planes_;
+  Member<DOMRectReadOnly> coded_rect_;
+  Member<DOMRectReadOnly> visible_rect_;
+  Member<DOMRectReadOnly> empty_rect_;
 };
 
 }  // namespace blink

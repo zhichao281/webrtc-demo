@@ -64,13 +64,21 @@ class MODULES_EXPORT WebCodecsLogger : public GarbageCollected<WebCodecsLogger>,
 
   void LogCropDeprecation();
   void LogPlaneInitSrcDeprecation();
+  void LogPlanesDeprecation();
+  void LogCodedRegionDeprecation();
+  void LogVisibleRegionDeprecation();
+  void LogPlanarConstructionDeprecation();
 
   void Trace(Visitor*) const override;
 
  private:
-  enum class Deprecation {
-    kCrop = 1 << 0,
-    kPlaneInitSrc = 1 << 1,
+  enum class Deprecation : uint32_t {
+    kCrop = 1,
+    kPlaneInitSrc = 2,
+    kPlanes = 4,
+    kCodedRegion = 8,
+    kVisibleRegion = 16,
+    kPlanarConstruction = 32,
   };
 
   void LogCloseErrors(TimerBase*);

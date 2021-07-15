@@ -8,7 +8,6 @@
 #include "base/memory/scoped_refptr.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_property.h"
-#include "third_party/blink/renderer/bindings/modules/v8/gpu_buffer_or_array_buffer.h"
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/modules/webgpu/dawn_callback.h"
@@ -134,6 +133,7 @@ class GPUDevice final : public EventTargetWithInlineData,
       ScriptPromiseProperty<Member<GPUDeviceLostInfo>, ToV8UndefinedGenerator>;
 
   void OnUncapturedError(WGPUErrorType errorType, const char* message);
+  void OnLogging(WGPULoggingType loggingType, const char* message);
   void OnDeviceLostError(const char* message);
 
   void OnPopErrorScopeCallback(ScriptPromiseResolver* resolver,
@@ -158,6 +158,9 @@ class GPUDevice final : public EventTargetWithInlineData,
   std::unique_ptr<
       DawnCallback<base::RepeatingCallback<void(WGPUErrorType, const char*)>>>
       error_callback_;
+  std::unique_ptr<
+      DawnCallback<base::RepeatingCallback<void(WGPULoggingType, const char*)>>>
+      logging_callback_;
   // lost_callback_ is stored as a unique_ptr since it may never be called.
   // We need to be sure to free it on deletion of the device.
   // Inside OnDeviceLostError we'll release the unique_ptr to avoid a double

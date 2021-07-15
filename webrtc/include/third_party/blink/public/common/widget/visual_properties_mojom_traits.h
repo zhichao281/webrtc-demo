@@ -15,7 +15,7 @@ namespace mojo {
 template <>
 struct BLINK_COMMON_EXPORT StructTraits<blink::mojom::VisualPropertiesDataView,
                                         blink::VisualProperties> {
-  static const blink::ScreenInfos& screen_infos(
+  static const display::ScreenInfos& screen_infos(
       const blink::VisualProperties& r) {
     return r.screen_infos;
   }
@@ -96,6 +96,11 @@ struct BLINK_COMMON_EXPORT StructTraits<blink::mojom::VisualPropertiesDataView,
 
   static bool is_pinch_gesture_active(const blink::VisualProperties& r) {
     return r.is_pinch_gesture_active;
+  }
+
+  static const gfx::Rect& window_controls_overlay_rect(
+      const blink::VisualProperties& r) {
+    return r.window_controls_overlay_rect;
   }
 
   static bool Read(blink::mojom::VisualPropertiesDataView r,

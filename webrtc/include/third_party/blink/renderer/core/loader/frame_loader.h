@@ -36,7 +36,6 @@
 #include <memory>
 
 #include "base/callback_helpers.h"
-#include "base/macros.h"
 #include "services/network/public/mojom/web_sandbox_flags.mojom-blink-forward.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
@@ -80,6 +79,8 @@ class CORE_EXPORT FrameLoader final {
 
  public:
   explicit FrameLoader(LocalFrame*);
+  FrameLoader(const FrameLoader&) = delete;
+  FrameLoader& operator=(const FrameLoader&) = delete;
   ~FrameLoader();
 
   void Init(std::unique_ptr<PolicyContainer> policy_container);
@@ -230,12 +231,7 @@ class CORE_EXPORT FrameLoader final {
 
  private:
   bool AllowRequestForThisFrame(const FrameLoadRequest&);
-  WebFrameLoadType DetermineFrameLoadType(const KURL& url,
-                                          const AtomicString& http_method,
-                                          bool has_origin_window,
-                                          bool is_client_reload,
-                                          const KURL& failing_url,
-                                          WebFrameLoadType);
+  WebFrameLoadType DetermineFrameLoadType(const KURL& url, WebFrameLoadType);
 
   bool ShouldPerformFragmentNavigation(bool is_form_submission,
                                        const String& http_method,
@@ -302,8 +298,6 @@ class CORE_EXPORT FrameLoader final {
   // The origins for which a legacy TLS version warning has been printed. The
   // size of this set is capped, after which no more warnings are printed.
   HashSet<String> tls_version_warning_origins_;
-
-  DISALLOW_COPY_AND_ASSIGN(FrameLoader);
 };
 
 }  // namespace blink

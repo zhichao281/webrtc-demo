@@ -206,6 +206,9 @@ class CORE_EXPORT LocalFrameUkmAggregator
 
    public:
     ScopedUkmHierarchicalTimer(ScopedUkmHierarchicalTimer&&);
+    ScopedUkmHierarchicalTimer(const ScopedUkmHierarchicalTimer&) = delete;
+    ScopedUkmHierarchicalTimer& operator=(const ScopedUkmHierarchicalTimer&) =
+        delete;
     ~ScopedUkmHierarchicalTimer();
 
    private:
@@ -219,12 +222,37 @@ class CORE_EXPORT LocalFrameUkmAggregator
     const size_t metric_index_;
     const base::TickClock* clock_;
     const base::TimeTicks start_time_;
+  };
 
-    DISALLOW_COPY_AND_ASSIGN(ScopedUkmHierarchicalTimer);
+  // This is an optimization for the case where we would otherwise instantiate a
+  // ScopedUkmHierarchicalTimer in the body of a loop. On some platforms,
+  // TickClock::NowTicks() is weirdly expensive. Compared to
+  // ScopedUkmHierarchicalTimer, this class makes fewer calls to NowTicks() by
+  // reusing a single timestamp as the end of one measurement and the beginning
+  // of the next.
+  class CORE_EXPORT IterativeTimer {
+    STACK_ALLOCATED();
+
+   public:
+    IterativeTimer(LocalFrameUkmAggregator&);
+    ~IterativeTimer();
+    // Start a time interval measurement for the given metric, completing the
+    // prior interval measurement if necessary.
+    void StartInterval(int64_t metric_index);
+
+   private:
+    void Record();
+    scoped_refptr<LocalFrameUkmAggregator> aggregator_;
+    base::TimeTicks start_time_;
+    int64_t metric_index_ = -1;
   };
 
   LocalFrameUkmAggregator(int64_t source_id, ukm::UkmRecorder*);
+  LocalFrameUkmAggregator(const LocalFrameUkmAggregator&) = delete;
+  LocalFrameUkmAggregator& operator=(const LocalFrameUkmAggregator&) = delete;
   ~LocalFrameUkmAggregator();
+
+  const base::TickClock* GetClock() const { return clock_; }
 
   // Create a scoped timer with the index of the metric. Note the index must
   // correspond to the matching index in metric_names.
@@ -375,8 +403,6 @@ class CORE_EXPORT LocalFrameUkmAggregator
     kMustNotChooseNextFrame
   };
   SampleControlForTest next_frame_sample_control_for_test_ = kNoPreference;
-
-  DISALLOW_COPY_AND_ASSIGN(LocalFrameUkmAggregator);
 };
 
 }  // namespace blink

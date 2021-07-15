@@ -635,7 +635,6 @@ class MODULES_EXPORT WebGLRenderingContextBase : public CanvasRenderingContext,
   }
   scoped_refptr<StaticBitmapImage> GetImage() override;
   void SetFilterQuality(SkFilterQuality) override;
-  bool IsWebGL2() { return context_type_ == Platform::kWebGL2ContextType; }
 
   V8UnionHTMLCanvasElementOrOffscreenCanvas* getHTMLOrOffscreenCanvas() const;
 
@@ -693,7 +692,6 @@ class MODULES_EXPORT WebGLRenderingContextBase : public CanvasRenderingContext,
   void SetupFlags();
 
   // CanvasRenderingContext implementation.
-  bool Is3d() const override { return true; }
   bool IsComposited() const override { return true; }
   bool IsAccelerated() const override { return true; }
   bool UsingSwapChain() const override;
@@ -705,8 +703,6 @@ class MODULES_EXPORT WebGLRenderingContextBase : public CanvasRenderingContext,
                                              SourceDrawingBuffer) override;
   cc::Layer* CcLayer() const override;
   void Stop() override;
-  void DidDraw(const SkIRect&) override;
-  void DidDraw() override;
   void FinalizeFrame() override;
   bool PushFrame() override;
 
@@ -725,7 +721,8 @@ class MODULES_EXPORT WebGLRenderingContextBase : public CanvasRenderingContext,
   void DrawingBufferClientForceLostContextWithAutoRecovery() override;
 
   virtual void DestroyContext();
-  void MarkContextChanged(ContentChangeType);
+  void MarkContextChanged(ContentChangeType,
+                          CanvasPerformanceMonitor::DrawType);
 
   void OnErrorMessage(const char*, int32_t id);
 
@@ -915,15 +912,22 @@ class MODULES_EXPORT WebGLRenderingContextBase : public CanvasRenderingContext,
     kApprovedExtension = 0x00,
     // Extension that is behind the draft extensions runtime flag:
     kDraftExtension = 0x01,
+    // Extension that is intended for development rather than
+    // deployment time.
+    kDeveloperExtension = 0x02,
   };
 
   class ExtensionTracker : public GarbageCollected<ExtensionTracker>,
                            public NameClient {
    public:
     ExtensionTracker(ExtensionFlags flags, const char* const* prefixes)
-        : draft_(flags & kDraftExtension), prefixes_(prefixes) {}
+        : draft_(flags & kDraftExtension),
+          developer_(flags & kDeveloperExtension),
+          prefixes_(prefixes) {}
+    ~ExtensionTracker() override = default;
 
     bool Draft() const { return draft_; }
+    bool Developer() const { return developer_; }
 
     const char* const* Prefixes() const;
     bool MatchesNameWithPrefixes(const String&) const;
@@ -943,6 +947,7 @@ class MODULES_EXPORT WebGLRenderingContextBase : public CanvasRenderingContext,
 
    private:
     bool draft_;
+    bool developer_;
     const char* const* prefixes_;
   };
 
@@ -988,7 +993,6 @@ class MODULES_EXPORT WebGLRenderingContextBase : public CanvasRenderingContext,
     }
 
    private:
-    GC_PLUGIN_IGNORE("http://crbug.com/519953")
     Member<T>& extension_field_;
     // ExtensionTracker holds it's own reference to the extension to ensure
     // that it is not deleted before this object's destructor is called
@@ -1012,6 +1016,8 @@ class MODULES_EXPORT WebGLRenderingContextBase : public CanvasRenderingContext,
   inline bool ExtensionEnabled(WebGLExtensionName name) {
     return extension_enabled_[name];
   }
+
+  bool TimerQueryExtensionsEnabled();
 
   // ScopedDrawingBufferBinder is used for
   // ReadPixels/CopyTexImage2D/CopySubImage2D to read from a multisampled
@@ -1601,7 +1607,7 @@ class MODULES_EXPORT WebGLRenderingContextBase : public CanvasRenderingContext,
   }
 
   // State updates and operations necessary before or at draw call time.
-  virtual void OnBeforeDrawCall();
+  virtual void OnBeforeDrawCall(CanvasPerformanceMonitor::DrawType);
 
   // Helper functions to bufferData() and bufferSubData().
   void BufferDataImpl(GLenum target,
@@ -1908,7 +1914,7 @@ class MODULES_EXPORT WebGLRenderingContextBase : public CanvasRenderingContext,
 template <>
 struct DowncastTraits<WebGLRenderingContextBase> {
   static bool AllowFrom(const CanvasRenderingContext& context) {
-    return context.Is3d();
+    return context.IsWebGL();
   }
 };
 

@@ -60,6 +60,11 @@ struct BLINK_COMMON_EXPORT
     return internal::TruncateOptionalString16(manifest.description);
   }
 
+  static absl::optional<base::StringPiece16> id(
+      const ::blink::Manifest& manifest) {
+    return internal::TruncateOptionalString16(manifest.id);
+  }
+
   static absl::optional<base::StringPiece16> gcm_sender_id(
       const ::blink::Manifest& manifest) {
     return internal::TruncateOptionalString16(manifest.gcm_sender_id);
@@ -346,6 +351,11 @@ struct BLINK_COMMON_EXPORT
   static const std::u16string& name(
       const ::blink::Manifest::FileHandler& entry) {
     return entry.name;
+  }
+
+  static const std::vector<::blink::Manifest::ImageResource>& icons(
+      const ::blink::Manifest::FileHandler& entry) {
+    return entry.icons;
   }
 
   static const std::map<std::u16string, std::vector<std::u16string>>& accept(

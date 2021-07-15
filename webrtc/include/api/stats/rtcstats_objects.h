@@ -502,8 +502,6 @@ class RTC_EXPORT RTCInboundRTPStreamStats final
   // FIR and PLI counts are only defined for |media_type == "video"|.
   RTCStatsMember<uint32_t> fir_count;
   RTCStatsMember<uint32_t> pli_count;
-  // TODO(hbos): NACK count should be collected by |RTCStatsCollector| for both
-  // audio and video but is only defined in the "video" case. crbug.com/657856
   RTCStatsMember<uint32_t> nack_count;
   RTCStatsMember<uint64_t> qp_sum;
 };
@@ -555,8 +553,6 @@ class RTC_EXPORT RTCOutboundRTPStreamStats final : public RTCRTPStreamStats {
   // FIR and PLI counts are only defined for |media_type == "video"|.
   RTCStatsMember<uint32_t> fir_count;
   RTCStatsMember<uint32_t> pli_count;
-  // TODO(hbos): NACK count should be collected by |RTCStatsCollector| for both
-  // audio and video but is only defined in the "video" case. crbug.com/657856
   RTCStatsMember<uint32_t> nack_count;
   RTCStatsMember<uint64_t> qp_sum;
 };
@@ -629,6 +625,8 @@ class RTC_EXPORT RTCAudioSourceStats final : public RTCMediaSourceStats {
   RTCStatsMember<double> audio_level;
   RTCStatsMember<double> total_audio_energy;
   RTCStatsMember<double> total_samples_duration;
+  RTCStatsMember<double> echo_return_loss;
+  RTCStatsMember<double> echo_return_loss_enhancement;
 };
 
 // https://w3c.github.io/webrtc-stats/#dom-rtcvideosourcestats

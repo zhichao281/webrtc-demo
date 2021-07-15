@@ -236,6 +236,14 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   bool UsesWindowInactiveSelector() const {
     return GetRuleFeatureSet().UsesWindowInactiveSelector();
   }
+  bool UsesContainerQueries() const {
+    return GetRuleFeatureSet().UsesContainerQueries() ||
+           uses_container_relative_units_;
+  }
+
+  void SetUsesContainerRelativeUnits() {
+    uses_container_relative_units_ = true;
+  }
 
   bool UsesRemUnits() const { return uses_rem_units_; }
   void SetUsesRemUnit(bool uses_rem_units) { uses_rem_units_ = uses_rem_units; }
@@ -625,6 +633,7 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   String preferred_stylesheet_set_name_;
 
   bool uses_rem_units_{false};
+  bool uses_container_relative_units_{false};
   bool in_layout_tree_rebuild_{false};
   bool in_container_query_style_recalc_{false};
   bool in_dom_removal_{false};

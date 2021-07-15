@@ -18,6 +18,7 @@ namespace features {
 
 BLINK_COMMON_EXPORT extern const base::Feature
     kBlockingDownloadsInAdFrameWithoutUserActivation;
+BLINK_COMMON_EXPORT extern const base::Feature kCOEPForSharedWorker;
 BLINK_COMMON_EXPORT extern const base::Feature kCOLRV1Fonts;
 BLINK_COMMON_EXPORT extern const base::Feature kCSSContainerQueries;
 BLINK_COMMON_EXPORT extern const base::Feature kConversionMeasurement;
@@ -65,6 +66,9 @@ BLINK_COMMON_EXPORT extern const base::Feature kPrerender2;
 // Returns true when Prerender2 feature is enabled.
 BLINK_COMMON_EXPORT bool IsPrerender2Enabled();
 
+// Fenced Frames:
+BLINK_COMMON_EXPORT bool IsFencedFramesEnabled();
+
 BLINK_COMMON_EXPORT extern const base::Feature
     kPreviewsResourceLoadingHintsSpecificResourceTypes;
 BLINK_COMMON_EXPORT extern const base::Feature
@@ -73,6 +77,8 @@ BLINK_COMMON_EXPORT extern const base::Feature kRawClipboard;
 BLINK_COMMON_EXPORT extern const base::Feature
     kRTCGetCurrentBrowsingContextMedia;
 BLINK_COMMON_EXPORT extern const base::Feature kRTCUnifiedPlanByDefault;
+BLINK_COMMON_EXPORT extern const base::Feature
+    kRTCDisallowPlanBOutsideDeprecationTrial;
 BLINK_COMMON_EXPORT extern const base::Feature kRTCOfferExtmapAllowMixed;
 BLINK_COMMON_EXPORT extern const base::Feature kRTCGpuCodecSupportWaiter;
 BLINK_COMMON_EXPORT extern const base::FeatureParam<int>
@@ -105,6 +111,7 @@ BLINK_COMMON_EXPORT extern const base::Feature kFontAccess;
 BLINK_COMMON_EXPORT extern const base::Feature kFontAccessPersistent;
 BLINK_COMMON_EXPORT extern const base::Feature kComputePressure;
 BLINK_COMMON_EXPORT extern const base::Feature kFileHandlingAPI;
+BLINK_COMMON_EXPORT extern const base::Feature kFileHandlingIcons;
 BLINK_COMMON_EXPORT extern const base::Feature kAllowSyncXHRInPageDismissal;
 BLINK_COMMON_EXPORT extern const base::Feature kPrefetchPrivacyChanges;
 
@@ -159,6 +166,7 @@ BLINK_COMMON_EXPORT extern const base::Feature
     kIgnoreCrossOriginWindowWhenNamedAccessOnWindow;
 
 BLINK_COMMON_EXPORT extern const base::Feature kTransformInterop;
+BLINK_COMMON_EXPORT extern const base::Feature kBackfaceVisibilityInterop;
 
 BLINK_COMMON_EXPORT extern const base::Feature kSubresourceRedirect;
 
@@ -304,7 +312,7 @@ BLINK_COMMON_EXPORT bool IsParkableStringsToDiskEnabled();
 
 BLINK_COMMON_EXPORT extern const base::Feature kCrOSAutoSelect;
 
-BLINK_COMMON_EXPORT extern const base::Feature kCompositingOptimizations;
+BLINK_COMMON_EXPORT extern const base::Feature kCLSScrollAnchoring;
 
 BLINK_COMMON_EXPORT extern const base::Feature kReducedReferrerGranularity;
 
@@ -331,6 +339,8 @@ BLINK_COMMON_EXPORT extern const base::Feature
 BLINK_COMMON_EXPORT extern const base::Feature kWebAppEnableIsolatedStorage;
 
 BLINK_COMMON_EXPORT extern const base::Feature kWebAppEnableLinkCapturing;
+
+BLINK_COMMON_EXPORT extern const base::Feature kWebAppEnableManifestId;
 
 BLINK_COMMON_EXPORT extern const base::Feature kWebAppEnableUrlHandlers;
 
@@ -377,8 +387,6 @@ BLINK_COMMON_EXPORT extern const base::Feature
 BLINK_COMMON_EXPORT extern const base::FeatureParam<std::string>
     kBackgroundTracingPerformanceMark_AllowList;
 
-BLINK_COMMON_EXPORT extern const base::Feature kCLSM90Improvements;
-
 BLINK_COMMON_EXPORT extern const base::Feature kCompositeAfterPaint;
 
 BLINK_COMMON_EXPORT extern const base::Feature kSanitizerAPI;
@@ -411,6 +419,27 @@ BLINK_COMMON_EXPORT extern const base::Feature
 // TODO(crbug.com/649162): Remove DialogFocusNewSpecBehavior after
 // the feature is in stable with no issues.
 BLINK_COMMON_EXPORT extern const base::Feature kDialogFocusNewSpecBehavior;
+
+// Makes autofill look across shadow boundaries when collecting form controls to
+// fill.
+BLINK_COMMON_EXPORT extern const base::Feature kAutofillShadowDOM;
+
+// Allows read/write of custom formats with unsanitized clipboard content. See
+// crbug.com/106449.
+BLINK_COMMON_EXPORT extern const base::Feature kClipboardCustomFormats;
+
+// Uses page viewport instead of frame viewport in the Largest Contentful Paint
+// heuristic where images occupying the full viewport are ignored.
+BLINK_COMMON_EXPORT extern const base::Feature kUsePageViewportInLCP;
+
+// Enable "Sec-CH-UA-Platform" client hint and request header for all requests
+BLINK_COMMON_EXPORT extern const base::Feature kUACHPlatformEnabledByDefault;
+
+// When enabled, allow dropping alpha on media streams for rendering sinks if
+// other sinks connected do not use alpha.
+BLINK_COMMON_EXPORT extern const base::Feature kAllowDropAlphaForMediaStream;
+
+BLINK_COMMON_EXPORT extern const base::Feature kThirdPartyStoragePartitioning;
 
 }  // namespace features
 }  // namespace blink

@@ -315,9 +315,13 @@ class XMLHttpRequest final : public XMLHttpRequestEventTarget,
 
   std::unique_ptr<TextResourceDecoder> decoder_;
 
+  // TODO(crbug.com/1226775): Remove these on M96.
+  static constexpr size_t kResponseBodyHeadSize = 2;
+  Vector<uint8_t, kResponseBodyHeadSize> response_body_head_;
+
   // Avoid using a flat WTF::String here and rather use a traced v8::String
   // which internally builds a string rope.
-  GC_PLUGIN_IGNORE("crbug.com/841830") TraceWrapperV8String response_text_;
+  TraceWrapperV8String response_text_;
   Member<Document> response_document_;
   Member<DocumentParser> response_document_parser_;
 

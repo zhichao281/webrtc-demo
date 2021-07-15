@@ -240,6 +240,7 @@ class CORE_EXPORT NGInlineCursor {
                  const NGFragmentItems& items);
   explicit NGInlineCursor(const NGInlineBackwardCursor& backward_cursor);
   NGInlineCursor(const NGInlineCursor& other) = default;
+  NGInlineCursor& operator=(const NGInlineCursor& other) = default;
 
   // Creates an |NGInlineCursor| without the root. Even when callers don't know
   // the root of the inline formatting context, this cursor can |MoveTo()|
@@ -358,9 +359,9 @@ class CORE_EXPORT NGInlineCursor {
     return CurrentRectInBlockFlow().offset;
   }
 
-  // Relative to fragment of the current position. It is error to call other
-  // than text.
-  LayoutUnit InlinePositionForOffset(unsigned offset) const;
+  // Returns inline position relative to current text fragment for
+  // |LocalCaretRect|. It is error to call other than text.
+  LayoutUnit CaretInlinePositionForOffset(unsigned offset) const;
 
   // Converts the given point, relative to the fragment itself, into a position
   // in DOM tree within the range of |this|. This variation ignores the inline

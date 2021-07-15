@@ -18,7 +18,6 @@
 #include "base/callback_helpers.h"
 #include "base/compiler_specific.h"
 #include "base/debug/crash_logging.h"
-#include "base/feature_list.h"
 #include "base/memory/memory_pressure_listener.h"
 #include "base/synchronization/lock.h"
 #include "base/thread_annotations.h"
@@ -145,10 +144,6 @@ class BASE_EXPORT IgnoreHangsInScope {
 // within a single process. This instance must outlive all monitored threads.
 class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
  public:
-  // Determines if the HangWatcher is activated. When false the HangWatcher
-  // thread never started.
-  static const base::Feature kEnableHangWatcher;
-
   // Describes the type of a thread for logging purposes.
   enum class ThreadType {
     kIOThread = 0,
@@ -622,7 +617,7 @@ class BASE_EXPORT HangWatchState {
   WatchHangsInScope* GetCurrentWatchHangsInScope();
 #endif
 
-  PlatformThreadId GetThreadID() const;
+  uint64_t GetThreadID() const;
 
   // Retrieve the current hang watch deadline directly. For testing only.
   HangWatchDeadline* GetHangWatchDeadlineForTesting();
@@ -648,7 +643,10 @@ class BASE_EXPORT HangWatchState {
   // reaches the value contained in it this constistutes a hang.
   HangWatchDeadline deadline_;
 
-  const PlatformThreadId thread_id_;
+  // A unique ID of the thread under watch. Used for logging in crash reports
+  // only. Unsigned type is used as it provides a correct behavior for all
+  // platforms for positive thread ids. Any valid thread id should be positive.
+  uint64_t thread_id_;
 
   // Number of active HangWatchScopeEnables on this thread.
   int nesting_level_ = 0;

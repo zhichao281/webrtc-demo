@@ -31,7 +31,6 @@
 
 #include <memory>
 
-#include "base/macros.h"
 #include "base/time/default_tick_clock.h"
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
@@ -51,7 +50,6 @@
 #include "third_party/blink/public/mojom/input/focus_type.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/link_to_text/link_to_text.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/loader/pause_subresource_loading_handle.mojom-blink-forward.h"
-#include "third_party/blink/public/mojom/media/fullscreen_video_element.mojom-blink.h"
 #include "third_party/blink/public/mojom/optimization_guide/optimization_guide.mojom-blink.h"
 #include "third_party/blink/public/mojom/reporting/reporting.mojom-blink.h"
 #include "third_party/blink/public/mojom/web_feature/web_feature.mojom-blink-forward.h"
@@ -120,7 +118,9 @@ class LayoutView;
 class LocalDOMWindow;
 class LocalWindowProxy;
 class LocalFrameClient;
+class LocalFrameMojoReceiver;
 class BackgroundColorPaintImageGenerator;
+class ClipPathPaintImageGenerator;
 class Node;
 class NodeTraversal;
 class PerformanceMonitor;
@@ -142,14 +142,10 @@ class WebURLLoaderFactory;
 extern template class CORE_EXTERN_TEMPLATE_EXPORT Supplement<LocalFrame>;
 
 // A LocalFrame is a frame hosted inside this process.
-class CORE_EXPORT LocalFrame final
-    : public Frame,
-      public FrameScheduler::Delegate,
-      public Supplementable<LocalFrame>,
-      public mojom::blink::LocalFrame,
-      public mojom::blink::LocalMainFrame,
-      public mojom::blink::FullscreenVideoElementHandler,
-      public mojom::blink::HighPriorityLocalFrame {
+class CORE_EXPORT LocalFrame final : public Frame,
+                                     public FrameScheduler::Delegate,
+                                     public Supplementable<LocalFrame>,
+                                     public mojom::blink::LocalFrame {
  public:
   // Returns the LocalFrame instance for the given |frame_token|.
   static LocalFrame* FromFrameToken(const LocalFrameToken& frame_token);
@@ -219,7 +215,7 @@ class CORE_EXPORT LocalFrame final
   // false otherwise.
   bool CanContinueBufferingWhileInBackForwardCache();
 
-  void DidChangeThemeColor();
+  void DidChangeThemeColor(bool update_theme_color_cache);
   void DidChangeBackgroundColor(SkColor background_color, bool color_adjust);
 
   // Returns false if detaching child frames reentrantly detached `this`.
@@ -255,6 +251,7 @@ class CORE_EXPORT LocalFrame final
   SpellChecker& GetSpellChecker() const;
   FrameConsole& Console() const;
   BackgroundColorPaintImageGenerator* GetBackgroundColorPaintImageGenerator();
+  ClipPathPaintImageGenerator* GetClipPathPaintImageGenerator();
 
   // A local root is the root of a connected subtree that contains only
   // LocalFrames. The local root is responsible for coordinating input, layout,
@@ -656,8 +653,6 @@ class CORE_EXPORT LocalFrame final
       mojom::blink::ResourceTimingInfoPtr timing,
       const String& server_timing_values) final;
   void BeforeUnload(bool is_reload, BeforeUnloadCallback callback) final;
-  void DispatchBeforeUnload(bool is_reload,
-                            BeforeUnloadCallback callback) final;
   void MediaPlayerActionAt(
       const gfx::Point& window_point,
       blink::mojom::blink::MediaPlayerActionPtr action) final;
@@ -726,48 +721,17 @@ class CORE_EXPORT LocalFrame final
   void GetCanonicalUrlForSharing(
       GetCanonicalUrlForSharingCallback callback) final;
 
-  // blink::mojom::LocalMainFrame overrides:
-  void AnimateDoubleTapZoom(const gfx::Point& point,
-                            const gfx::Rect& rect) override;
-  void SetScaleFactor(float scale) override;
-  void ClosePage(
-      mojom::blink::LocalMainFrame::ClosePageCallback callback) override;
-  void PluginActionAt(const gfx::Point& location,
-                      mojom::blink::PluginActionType action) override;
-  void SetInitialFocus(bool reverse) override;
-  void EnablePreferredSizeChangedMode() override;
-  void ZoomToFindInPageRect(const gfx::Rect& rect_in_root_frame) override;
+  void SetScaleFactor(float scale);
+  void ClosePageForTesting();
+  void SetInitialFocus(bool reverse);
+
 #if defined(OS_MAC)
   void GetCharacterIndexAtPoint(const gfx::Point& point) final;
   void GetFirstRectForRange(const gfx::Range& range) final;
   void GetStringForRange(const gfx::Range& range,
                          GetStringForRangeCallback callback) final;
 #endif
-  void InstallCoopAccessMonitor(
-      network::mojom::blink::CoopAccessReportType report_type,
-      const FrameToken& accessed_window,
-      mojo::PendingRemote<
-          network::mojom::blink::CrossOriginOpenerPolicyReporter> reporter,
-      bool endpoint_defined,
-      const WTF::String& reported_window_url) final;
-  void OnPortalActivated(
-      const PortalToken& portal_token,
-      mojo::PendingAssociatedRemote<mojom::blink::Portal> portal,
-      mojo::PendingAssociatedReceiver<mojom::blink::PortalClient> portal_client,
-      BlinkTransferableMessage data,
-      uint64_t trace_id,
-      OnPortalActivatedCallback callback) final;
-  void ForwardMessageFromHost(
-      BlinkTransferableMessage message,
-      const scoped_refptr<const SecurityOrigin>& source_origin) final;
-  void UpdateBrowserControlsState(cc::BrowserControlsState constraints,
-                                  cc::BrowserControlsState current,
-                                  bool animate) override;
-  void UpdateWindowControlsOverlay(
-      const gfx::Rect& window_controls_overlay_rect) override;
-
-  // mojom::FullscreenVideoElementHandler implementation:
-  void RequestFullscreenVideoElement() final;
+  void UpdateWindowControlsOverlay(const gfx::Rect& bounding_rect_in_dips);
 
   SystemClipboard* GetSystemClipboard();
   RawSystemClipboard* GetRawSystemClipboard();
@@ -826,6 +790,13 @@ class CORE_EXPORT LocalFrame final
   void LoadJavaScriptURL(const KURL& url);
 
   void SetEvictCachedSessionStorageOnFreezeOrUnload();
+
+  // Whether to maintain a trivial session history.
+  //
+  // One example is prerender.
+  // Explainer:
+  // https://github.com/jeremyroman/alternate-loading-modes/blob/main/browsing-context.md#session-history
+  bool ShouldMaintainTrivialSessionHistory() const;
 
  private:
   friend class FrameNavigationDisabler;
@@ -934,16 +905,15 @@ class CORE_EXPORT LocalFrame final
   static void BindToReceiver(
       blink::LocalFrame* frame,
       mojo::PendingAssociatedReceiver<mojom::blink::LocalFrame> receiver);
-  static void BindToMainFrameReceiver(
-      blink::LocalFrame* frame,
-      mojo::PendingAssociatedReceiver<mojom::blink::LocalMainFrame> receiver);
-  void BindToHighPriorityReceiver(
-      mojo::PendingReceiver<mojom::blink::HighPriorityLocalFrame> receiver);
-  void BindFullscreenVideoElementReceiver(
-      mojo::PendingAssociatedReceiver<
-          mojom::blink::FullscreenVideoElementHandler> receiver);
   void BindTextFragmentReceiver(
       mojo::PendingReceiver<mojom::blink::TextFragmentReceiver> receiver);
+
+  // Whether a navigation should replace the current history entry or not.
+  // Note this isn't exhaustive; there are other cases where a navigation does a
+  // replacement which this function doesn't cover.
+  bool NavigationShouldReplaceCurrentHistoryEntry(
+      const FrameLoadRequest& request,
+      WebFrameLoadType frame_load_type);
 
   std::unique_ptr<FrameScheduler> frame_scheduler_;
 
@@ -1059,16 +1029,9 @@ class CORE_EXPORT LocalFrame final
   // LocalFrame can be reused by multiple ExecutionContext.
   HeapMojoAssociatedReceiver<mojom::blink::LocalFrame, LocalFrame> receiver_{
       this, nullptr};
-  // LocalFrame can be reused by multiple ExecutionContext.
-  HeapMojoAssociatedReceiver<mojom::blink::LocalMainFrame, LocalFrame>
-      main_frame_receiver_{this, nullptr};
-  // LocalFrame can be reused by multiple ExecutionContext.
-  HeapMojoReceiver<mojom::blink::HighPriorityLocalFrame, LocalFrame>
-      high_priority_frame_receiver_{this, nullptr};
-  // LocalFrame can be reused by multiple ExecutionContext.
-  HeapMojoAssociatedReceiver<mojom::blink::FullscreenVideoElementHandler,
-                             LocalFrame>
-      fullscreen_video_receiver_{this, nullptr};
+  // TODO(crbug.com/1227229): Move the above HeapMojoReceivers to
+  // LocalFrameMojoReceiver.
+  Member<LocalFrameMojoReceiver> mojo_receiver_;
 
   // Variable to control burst of download requests.
   int num_burst_download_requests_ = 0;
@@ -1079,8 +1042,14 @@ class CORE_EXPORT LocalFrame final
   // Access to the global raw/unsanitized system clipboard
   Member<RawSystemClipboard> raw_system_clipboard_;
 
+  // Access to background-color paint image generator. Initialized per local
+  // root and reused among sub frames.
   Member<BackgroundColorPaintImageGenerator>
       background_color_paint_image_generator_;
+
+  // Access to clip-path paint image generator. Initialized per local root and
+  // reused among sub frames.
+  Member<ClipPathPaintImageGenerator> clip_path_paint_image_generator_;
 
   using SavedScrollOffsets = HeapHashMap<Member<Node>, ScrollOffset>;
   Member<SavedScrollOffsets> saved_scroll_offsets_;
@@ -1162,12 +1131,12 @@ class FrameNavigationDisabler {
 
  public:
   explicit FrameNavigationDisabler(LocalFrame&);
+  FrameNavigationDisabler(const FrameNavigationDisabler&) = delete;
+  FrameNavigationDisabler& operator=(const FrameNavigationDisabler&) = delete;
   ~FrameNavigationDisabler();
 
  private:
   LocalFrame* frame_;
-
-  DISALLOW_COPY_AND_ASSIGN(FrameNavigationDisabler);
 };
 
 // A helper class for attributing cost inside a scope to a LocalFrame, with
@@ -1193,6 +1162,8 @@ class ScopedFrameBlamer {
 
  public:
   explicit ScopedFrameBlamer(LocalFrame*);
+  ScopedFrameBlamer(const ScopedFrameBlamer&) = delete;
+  ScopedFrameBlamer& operator=(const ScopedFrameBlamer&) = delete;
   ~ScopedFrameBlamer() {
     if (UNLIKELY(frame_))
       LeaveContext();
@@ -1202,8 +1173,6 @@ class ScopedFrameBlamer {
   void LeaveContext();
 
   LocalFrame* frame_;
-
-  DISALLOW_COPY_AND_ASSIGN(ScopedFrameBlamer);
 };
 
 }  // namespace blink

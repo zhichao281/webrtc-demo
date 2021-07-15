@@ -25,13 +25,21 @@ namespace url_pattern {
 
 class Component;
 
+// A helper class to parse the first string passed to the URLPattern
+// constructor.  In general the parser works by using the liburlpattern
+// tokenizer to first split up the input into pattern tokens.  It can
+// then look through the tokens to find non-special characters that match
+// the different URL component separators.  Each component is then split
+// off and stored in a `URLPatternInit` object that can be accessed via
+// `GetResult()`.  The intent is that this init object should then be
+// processed as if it was passed into the constructor itself.
 class Parser final {
   STACK_ALLOCATED();
 
  public:
   explicit Parser(const String& input);
 
-  // Attempt to parse the the input string used to construct the Parser object.
+  // Attempt to parse the input string used to construct the Parser object.
   // This method may only be called once.  Any errors will be thrown on the
   // give `exception_state`.  Retrieve the parse result by calling
   // `GetResult()`.  A protocol component will also be eagerly compiled for
@@ -50,7 +58,11 @@ class Parser final {
 
  private:
   enum class StringParseState {
+    kInit,
     kProtocol,
+    kAuthority,
+    kUsername,
+    kPassword,
     kHostname,
     kPort,
     kPathname,
@@ -68,6 +80,18 @@ class Parser final {
   // many tokens the `skip` argument indicates should be ignored.
   void ChangeState(StringParseState new_state, Skip skip);
 
+  // A utility function to move to `new_state`.  This is like `ChangeState()`,
+  // but does not automatically set the component string for the current state.
+  void ChangeStateWithoutSettingComponent(StringParseState new_state,
+                                          Skip skip);
+
+  // Rewind the `token_index_` back to the current `component_start_`.
+  void Rewind();
+
+  // Like `Rewind()`, but also sets the state.  This is used for cases where
+  // the parser needs to "look ahead" to determine what parse state to enter.
+  void RewindAndSetState(StringParseState new_state);
+
   // Attempt to access the Token at the given `index`.  If the `index` is out
   // of bounds for the `token_list_`, then the last Token in the list is
   // returned.  This will always be a `TokenType::kEnd` token.
@@ -80,10 +104,17 @@ class Parser final {
 
   // Returns true if the token at the given `index` is the protocol component
   // suffix; e.g. ':'.
-  bool IsProtocolSuffix(size_t index) const;
+  bool IsProtocolSuffix() const;
 
   // Returns true if the next two tokens are slashes; e.g. `//`.
   bool NextIsAuthoritySlashes() const;
+
+  // Returns true if the tokan at the given `index` is the `@` character used
+  // to separate username and password from the hostname.
+  bool IsIdentityTerminator() const;
+
+  // Returns true if the current token is the password prefix; e.g. `:`.
+  bool IsPasswordPrefix() const;
 
   // Returns true if the current token is the port prefix; e.g. `:`.
   bool IsPortPrefix() const;
@@ -112,15 +143,46 @@ class Parser final {
   // automatically append a `/` for the pathname if one is not specified.
   void ComputeShouldTreatAsStandardURL(ExceptionState& exception_state);
 
+  // The input string to the parser.
   const String input_;
+
+  // UTF8 representation of `input_`.
   const StringUTF8Adaptor utf8_;
+
+  // As we parse the input string we populate a `URLPatternInit` dictionary
+  // with each component pattern.  This is then the final result of the parse.
   URLPatternInit* result_ = nullptr;
+
+  // The compiled Component for the protocol.  This is generated for absolute
+  // strings where we need to determine if the value should be treated as
+  // a "standard" URL.
   Component* protocol_component_ = nullptr;
+
+  // The list of Tokens produced by calling `liburlpattern::Tokenize()` on
+  // `input_`.
   std::vector<liburlpattern::Token> token_list_;
+
+  // The index of the first Token to include in the component string.
   size_t component_start_ = 0;
+
+  // The index of the current Token being considered.
   size_t token_index_ = 0;
-  StringParseState state_ = StringParseState::kPathname;
-  bool in_group_ = false;
+
+  // The value to add to `token_index_` on each turn the through the parse
+  // loop.  While typically this is `1`, it is also set to `0` at times for
+  // things like state transitions, etc.  It is automatically reset back to
+  // `1` at the top of the parse loop.
+  size_t token_increment_ = 1;
+
+  // The current nesting depth of `{ }` pattern groupings.
+  int group_depth_ = 0;
+
+  // The current parse state.  This should only be changed via `ChangeState()`
+  // or `RewindAndSetState()`.
+  StringParseState state_ = StringParseState::kInit;
+
+  // True if we should apply parse rules as if this is a "standard" URL.  If
+  // false then this is treated as a "not a base URL" or "path" URL.
   bool should_treat_as_standard_url_ = false;
 };
 

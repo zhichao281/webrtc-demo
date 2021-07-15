@@ -110,6 +110,8 @@ struct PaintPropertyTreeBuilderFragmentContext {
     // reference a scroll offset transform, scroll nodes should be updated if
     // the transform tree changes.
     const ScrollPaintPropertyNode* scroll = nullptr;
+
+    FloatSize pending_scroll_anchor_adjustment;
   };
 
   ContainingBlockContext current;
@@ -294,6 +296,9 @@ class PaintPropertyTreeBuilder {
   // scroll offset transform) and ensure the context is up to date.
   // Returns whether any paint property of the object has changed.
   PaintPropertyChangeType UpdateForChildren();
+
+  static bool NeedsTransform(const LayoutObject& object,
+                             CompositingReasons direct_compositing_reasons);
 
  private:
   ALWAYS_INLINE void InitFragmentPaintProperties(

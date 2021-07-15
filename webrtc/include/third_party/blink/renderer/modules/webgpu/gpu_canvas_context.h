@@ -17,6 +17,7 @@ namespace blink {
 class GPUAdapter;
 class GPUSwapChain;
 class GPUSwapChainDescriptor;
+class GPUTexture;
 
 // A GPUCanvasContext does little by itself and basically just binds a canvas
 // and a GPUSwapChain together and forwards calls from one to the other.
@@ -48,14 +49,16 @@ class GPUCanvasContext : public CanvasRenderingContext {
   ContextType GetContextType() const override;
   V8RenderingContext* AsV8RenderingContext() final;
   V8OffscreenRenderingContext* AsV8OffscreenRenderingContext() final;
-  scoped_refptr<StaticBitmapImage> GetImage() final { return nullptr; }
+  scoped_refptr<StaticBitmapImage> GetImage() final;
+  bool PaintRenderingResultsToCanvas(SourceDrawingBuffer) final;
+  bool CopyRenderingResultsFromDrawingBuffer(CanvasResourceProvider*,
+                                             SourceDrawingBuffer) final;
   void SetIsInHiddenPage(bool) override {}
   void SetIsBeingDisplayed(bool) override {}
   bool isContextLost() const override { return false; }
   bool IsComposited() const final { return true; }
   bool IsAccelerated() const final { return true; }
   bool IsOriginTopLeft() const final { return true; }
-  bool Is3d() const final { return true; }
   void SetFilterQuality(SkFilterQuality) override;
   bool IsPaintable() const final { return true; }
   int ExternallyAllocatedBufferCountPerPixel() final { return 1; }
@@ -72,15 +75,28 @@ class GPUCanvasContext : public CanvasRenderingContext {
     return false;
   }
 
-  // gpu_canvas_context.idl
+  // gpu_presentation_context.idl
+  void configure(const GPUSwapChainDescriptor* descriptor, ExceptionState&);
+  void unconfigure();
+  String getPreferredFormat(const GPUAdapter* adapter);
+  GPUTexture* getCurrentTexture(ExceptionState&);
+
+  // gpu_canvas_context.idl (Deprecated)
   GPUSwapChain* configureSwapChain(const GPUSwapChainDescriptor* descriptor,
                                    ExceptionState&);
-  String getSwapChainPreferredFormat(const GPUAdapter* adapter);
+  String getSwapChainPreferredFormat(ExecutionContext* execution_context,
+                                     GPUAdapter* adapter);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(GPUCanvasContext);
+
+  void ConfigureInternal(const GPUSwapChainDescriptor* descriptor,
+                         ExceptionState&,
+                         bool deprecated_resize_behavior = false);
+
   SkFilterQuality filter_quality_ = kLow_SkFilterQuality;
   Member<GPUSwapChain> swapchain_;
+  Member<GPUDevice> configured_device_;
   bool stopped_ = false;
 };
 

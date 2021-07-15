@@ -44,7 +44,6 @@
 #include "media/base/audio_latency.h"
 #include "media/base/audio_renderer_sink.h"
 #include "media/base/media_log.h"
-#include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/security/protocol_handler_security_level.h"
 #include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
@@ -61,7 +60,6 @@
 #include "third_party/blink/public/platform/web_data.h"
 #include "third_party/blink/public/platform/web_dedicated_worker_host_factory_client.h"
 #include "third_party/blink/public/platform/web_string.h"
-#include "third_party/blink/public/platform/web_url_loader_factory.h"
 #include "third_party/blink/public/platform/web_v8_value_converter.h"
 #include "third_party/blink/public/platform/websocket_handshake_throttle_provider.h"
 #include "third_party/webrtc/api/video/video_codec_type.h"
@@ -102,8 +100,10 @@ class BigBuffer;
 
 namespace network {
 namespace mojom {
+class URLLoaderFactory;
 class URLLoaderFactoryInterfaceBase;
 }
+class PendingSharedURLLoaderFactory;
 class SharedURLLoaderFactory;
 }
 
@@ -142,6 +142,7 @@ class WebResourceRequestSenderDelegate;
 class WebSandboxSupport;
 class WebSecurityOrigin;
 class WebThemeEngine;
+class WebURLLoaderFactory;
 class WebVideoCaptureImplManager;
 struct WebContentSecurityPolicyHeader;
 
@@ -292,9 +293,7 @@ class BLINK_PLATFORM_EXPORT Platform {
   // network::mojom::URLLoaderFactory.
   virtual std::unique_ptr<WebURLLoaderFactory> WrapURLLoaderFactory(
       CrossVariantMojoRemote<network::mojom::URLLoaderFactoryInterfaceBase>
-          url_loader_factory) {
-    return nullptr;
-  }
+          url_loader_factory);
 
   // Returns a new WebURLLoaderFactory that wraps the given
   // network::SharedURLLoaderFactory.
@@ -441,7 +440,7 @@ class BLINK_PLATFORM_EXPORT Platform {
   // used for resources which have compress="gzip" in *.grd.
   virtual WebData GetDataResource(
       int resource_id,
-      ui::ScaleFactor scale_factor = ui::SCALE_FACTOR_NONE) {
+      ui::ResourceScaleFactor scale_factor = ui::SCALE_FACTOR_NONE) {
     return WebData();
   }
 
@@ -601,7 +600,7 @@ class BLINK_PLATFORM_EXPORT Platform {
   // Whether zoom for dsf is enabled. When true, inputs to blink would all be
   // scaled by the device scale factor so that layout is done in device pixel
   // space.
-  virtual bool IsUseZoomForDSFEnabled() { return false; }
+  virtual bool IsUseZoomForDSFEnabled() { return true; }
 
   // Whether LCD text is enabled.
   virtual bool IsLcdTextEnabled() { return false; }
@@ -777,7 +776,7 @@ class BLINK_PLATFORM_EXPORT Platform {
           worker_timing_callback_task_runner,
       base::RepeatingCallback<
           void(int, mojo::PendingReceiver<blink::mojom::WorkerTimingContainer>)>
-          worker_timing_callback) {}
+          worker_timing_callback);
 
   // WebCrypto ----------------------------------------------------------
 

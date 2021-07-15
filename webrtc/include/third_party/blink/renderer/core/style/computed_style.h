@@ -26,6 +26,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_STYLE_COMPUTED_STYLE_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_STYLE_COMPUTED_STYLE_H_
 
+#include <algorithm>
 #include <memory>
 #include "base/types/pass_key.h"
 #include "third_party/blink/renderer/core/core_export.h"
@@ -848,14 +849,8 @@ class ComputedStyle : public ComputedStyleBase,
   inline bool IsScrollbarGutterStable() const {
     return ScrollbarGutter() & kScrollbarGutterStable;
   }
-  inline bool IsScrollbarGutterAlways() const {
-    return ScrollbarGutter() & kScrollbarGutterAlways;
-  }
-  inline bool IsScrollbarGutterBoth() const {
-    return ScrollbarGutter() & kScrollbarGutterBoth;
-  }
-  inline bool IsScrollbarGutterForce() const {
-    return ScrollbarGutter() & kScrollbarGutterForce;
+  inline bool IsScrollbarGutterMirror() const {
+    return ScrollbarGutter() & kScrollbarGutterMirror;
   }
 
   // ignore non-standard ::-webkit-scrollbar when standard properties are in use
@@ -1931,7 +1926,12 @@ class ComputedStyle : public ComputedStyleBase,
   }
 
   // Perspective utility functions.
-  bool HasPerspective() const { return Perspective() > 0; }
+  bool HasPerspective() const { return Perspective() >= 0; }
+
+  float UsedPerspective() const {
+    DCHECK(HasPerspective());
+    return std::max(1.0f, Perspective());
+  }
 
   // Outline utility functions.
   // HasOutline is insufficient to determine whether Node has an outline.
@@ -2075,6 +2075,12 @@ class ComputedStyle : public ComputedStyleBase,
     return (Contain() & kContainsBlockSize) || IsBlockSizeContainer();
   }
   CORE_EXPORT bool ShouldApplyAnyContainment(const Element& element) const;
+
+  bool IsContainerForContainerQueries() const {
+    return (StyleType() == kPseudoIdNone) &&
+           (ContainsStyle() && ContainsLayout() &&
+            (ContainsInlineSize() || ContainsBlockSize()));
+  }
 
   // Display utility functions.
   bool IsDisplayReplacedType() const {
@@ -2667,6 +2673,10 @@ class ComputedStyle : public ComputedStyleBase,
     if (AspectRatio().GetType() == EAspectRatioType::kRatio)
       return BoxSizing();
     return EBoxSizing::kContentBox;
+  }
+
+  bool DisableForceDark() const {
+    return ColorSchemeOnly() || HasFilterInducingProperty();
   }
 
  private:

@@ -40,6 +40,7 @@
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "services/network/public/mojom/referrer_policy.mojom-blink-forward.h"
 #include "services/network/public/mojom/web_sandbox_flags.mojom-blink-forward.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/metrics/document_update_reason.h"
 #include "third_party/blink/public/mojom/federated_learning/floc.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/frame/color_scheme.mojom-blink-forward.h"
@@ -152,6 +153,7 @@ class HTMLElement;
 class HTMLFrameOwnerElement;
 class HTMLHeadElement;
 class HTMLLinkElement;
+class HTMLMetaElement;
 class HTMLPopupElement;
 class HasMatchedCacheScope;
 class HitTestRequest;
@@ -1194,7 +1196,8 @@ class CORE_EXPORT Document : public ContainerNode,
 
   Vector<IconURL> IconURLs(int icon_types_mask);
 
-  absl::optional<Color> ThemeColor() const;
+  void UpdateThemeColorCache();
+  absl::optional<Color> ThemeColor();
 
   // Returns the HTMLLinkElement currently in use for the Web Manifest.
   // Returns null if there is no such element.
@@ -1531,8 +1534,6 @@ class CORE_EXPORT Document : public ContainerNode,
   bool IsSlotAssignmentRecalcForbidden() {
     return slot_assignment_recalc_forbidden_recursion_depth_ > 0;
   }
-#else
-  bool IsSlotAssignmentRecalcForbidden() { return false; }
 #endif
 
   unsigned& FlatTreeTraversalForbiddenRecursionDepth() {
@@ -1579,6 +1580,9 @@ class CORE_EXPORT Document : public ContainerNode,
   bool IsInWebAppScope() const;
 
   ComputedAccessibleNode* GetOrCreateComputedAccessibleNode(AXID ax_id);
+
+  // Return true if any accessibility contexts have been enabled.
+  bool IsAccessibilityEnabled() const { return !ax_contexts_.IsEmpty(); }
 
   bool HaveRenderBlockingResourcesLoaded() const;
 
@@ -1756,12 +1760,23 @@ class CORE_EXPORT Document : public ContainerNode,
   void ScheduleLayoutTreeUpdate();
 
   bool NeedsFullLayoutTreeUpdate() const;
+  bool ParentFrameNeedsLayoutTreeUpdate() const;
+
+  // See UpdateStyleAndLayoutTreeForThisDocument for an explanation of
+  // the "ForThisDocument" suffix.
+  //
+  // These functions do not take into account dirtiness of parent frames:
+  // they are assumed to be clean. If it isn't possible to guarantee
+  // clean parent frames, use Needs[Full]LayoutTreeUpdate() instead.
+  bool NeedsLayoutTreeUpdateForThisDocument() const;
+  bool NeedsFullLayoutTreeUpdateForThisDocument() const;
 
   void UpdateUseShadowTreesIfNeeded();
   void EvaluateMediaQueryListIfNeeded();
 
   void UpdateStyleInvalidationIfNeeded();
   void UpdateStyle();
+  void UpdateStyleInternal();
   void NotifyLayoutTreeOfSubtreeChanges();
   bool ChildrenCanHaveStyle() const final;
 
@@ -2280,6 +2295,10 @@ class CORE_EXPORT Document : public ContainerNode,
   WeakMember<Node> find_in_page_active_match_node_;
 
   Member<DocumentData> data_;
+
+  // List of meta[name=theme-color] elements cached used when getting theme
+  // color.
+  HeapVector<Member<HTMLMetaElement>> meta_theme_color_elements_;
 
   // If you want to add new data members to blink::Document, please reconsider
   // if the members really should be in blink::Document.  document.h is a very

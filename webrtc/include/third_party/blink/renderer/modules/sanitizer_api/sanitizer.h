@@ -14,6 +14,7 @@
 
 namespace blink {
 
+class ContainerNode;
 class Document;
 class DocumentFragment;
 class ExceptionState;
@@ -34,25 +35,36 @@ class MODULES_EXPORT Sanitizer final : public ScriptWrappable {
   static Sanitizer* Create(ExecutionContext*,
                            const SanitizerConfig*,
                            ExceptionState&);
-  explicit Sanitizer(ExecutionContext*, const SanitizerConfig*);
+  Sanitizer(ExecutionContext*, const SanitizerConfig*);
   ~Sanitizer() override;
 
   String sanitizeToString(ScriptState* script_state,
                           const V8SanitizerInput* input,
                           ExceptionState& exception_state);
   DocumentFragment* sanitize(ScriptState* script_state,
-                             const V8SanitizerInputWithTrustedHTML* input,
+                             const V8SanitizerInput* input,
                              ExceptionState& exception_state);
+  Element* sanitizeFor(ScriptState* script_state,
+                       const String& element,
+                       const String& markup,
+                       ExceptionState& exception_state);
 
-  SanitizerConfig* config() const;
-  static SanitizerConfig* defaultConfig();
+  SanitizerConfig* getConfiguration() const;
+  static SanitizerConfig* getDefaultConfiguration();
+
+  // Implementation of ElementSanitizer::SetHTML, so that we have
+  // all the sanitizer logic in one place.
+  void ElementSetHTML(ScriptState* script_state,
+                      Element& element,
+                      const String& markup,
+                      ExceptionState& exception_state);
 
   void Trace(Visitor*) const override;
 
  private:
-  Node* DropElement(Node*, DocumentFragment*);
-  Node* BlockElement(Node*, DocumentFragment*, ExceptionState&);
-  Node* KeepElement(Node*, DocumentFragment*, String&, LocalDOMWindow*);
+  Node* DropElement(Node*, ContainerNode*);
+  Node* BlockElement(Node*, ContainerNode*, ExceptionState&);
+  Node* KeepElement(Node*, ContainerNode*, String&, LocalDOMWindow*);
 
   void ElementFormatter(HashSet<String>&, const Vector<String>&);
   void AttrFormatter(HashMap<String, Vector<String>>&,
@@ -62,9 +74,7 @@ class MODULES_EXPORT Sanitizer final : public ScriptWrappable {
                                     ScriptState* script_state,
                                     const V8SanitizerInput* input,
                                     ExceptionState& exception_state);
-  DocumentFragment* DoSanitizing(DocumentFragment*,
-                                 LocalDOMWindow*,
-                                 ExceptionState&);
+  void DoSanitizing(ContainerNode*, LocalDOMWindow*, ExceptionState&);
   DocumentFragment* SanitizeImpl(ScriptState* script_state,
                                  const V8SanitizerInput* input,
                                  ExceptionState& exception_state);

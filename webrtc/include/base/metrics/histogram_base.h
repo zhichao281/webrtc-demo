@@ -23,10 +23,9 @@
 
 namespace base {
 
-class DictionaryValue;
+class Value;
 class HistogramBase;
 class HistogramSamples;
-class ListValue;
 class Pickle;
 class PickleIterator;
 
@@ -255,7 +254,7 @@ class BASE_EXPORT HistogramBase {
   // with the following format:
   // {"header": "Name of the histogram with samples, mean, and/or flags",
   // "body": "ASCII histogram representation"}
-  virtual base::DictionaryValue ToGraphDict() const = 0;
+  virtual base::Value ToGraphDict() const = 0;
 
   // TODO(bcwhite): Remove this after https://crbug/836875.
   virtual void ValidateHistogramContents() const;
@@ -269,18 +268,28 @@ class BASE_EXPORT HistogramBase {
  protected:
   enum ReportActivity { HISTOGRAM_CREATED, HISTOGRAM_LOOKUP };
 
+  struct BASE_EXPORT CountAndBucketData {
+    Count count;
+    int64_t sum;
+    Value buckets;
+
+    CountAndBucketData(Count count, int64_t sum, Value buckets);
+    ~CountAndBucketData();
+
+    CountAndBucketData(CountAndBucketData&& other);
+    CountAndBucketData& operator=(CountAndBucketData&& other);
+  };
+
   // Subclasses should implement this function to make SerializeInfo work.
   virtual void SerializeInfoImpl(base::Pickle* pickle) const = 0;
 
   // Writes information about the construction parameters in |params|.
-  virtual void GetParameters(DictionaryValue* params) const = 0;
+  virtual Value GetParameters() const = 0;
 
-  // Writes information about the current (non-empty) buckets and their sample
+  // Returns information about the current (non-empty) buckets and their sample
   // counts to |buckets|, the total sample count to |count| and the total sum
   // to |sum|.
-  void GetCountAndBucketData(Count* count,
-                             int64_t* sum,
-                             ListValue* buckets) const;
+  CountAndBucketData GetCountAndBucketData() const;
 
   // Produces an actual graph (set of blank vs non blank char's) for a bucket.
   void WriteAsciiBucketGraph(double x_count,
@@ -296,9 +305,9 @@ class BASE_EXPORT HistogramBase {
                              double scaled_sum,
                              std::string* output) const;
 
-  // Retrieves the callback for this histogram, if one exists, and runs it
-  // passing |sample| as the parameter.
-  void FindAndRunCallback(Sample sample) const;
+  // Retrieves the registered callbacks for this histogram, if any, and runs
+  // them passing |sample| as the parameter.
+  void FindAndRunCallbacks(Sample sample) const;
 
   // Gets a permanent string that can be used for histogram objects when the
   // original is not a code constant or held in persistent memory.

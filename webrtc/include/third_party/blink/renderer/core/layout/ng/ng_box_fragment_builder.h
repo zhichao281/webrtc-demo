@@ -23,7 +23,6 @@
 #include "third_party/blink/renderer/core/layout/ng/table/ng_table_fragment_data.h"
 #include "third_party/blink/renderer/core/style/computed_style_constants.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
-#include "third_party/blink/renderer/platform/wtf/hash_map.h"
 
 namespace blink {
 
@@ -252,6 +251,18 @@ class CORE_EXPORT NGBoxFragmentBuilder final
 
   void SetSequenceNumber(unsigned sequence_number) {
     sequence_number_ = sequence_number;
+  }
+
+  // During regular layout a break token is created at the end of layout, if
+  // required. When re-using a previous fragment and its children, though, we
+  // may want to just re-use the break token as well.
+  void PresetNextBreakToken(scoped_refptr<const NGBreakToken> break_token) {
+    // We should either do block fragmentation as part of normal layout, or
+    // pre-set a break token.
+    DCHECK(!did_break_self_);
+    DCHECK(child_break_tokens_.IsEmpty());
+
+    break_token_ = std::move(break_token);
   }
 
   // Return true if we broke inside this node on our own initiative (typically
@@ -553,26 +564,6 @@ class CORE_EXPORT NGBoxFragmentBuilder final
   // Returns offset for given child. DCHECK if child not found.
   // Warning: Do not call unless necessary.
   LogicalOffset GetChildOffset(const LayoutObject* child) const;
-
-  // Inline containing block geometry is defined by two rectangles, generated
-  // by fragments of the LayoutInline.
-  struct InlineContainingBlockGeometry {
-    DISALLOW_NEW();
-    // Union of fragments generated on the first line.
-    PhysicalRect start_fragment_union_rect;
-    // Union of fragments generated on the last line.
-    PhysicalRect end_fragment_union_rect;
-  };
-
-  using InlineContainingBlockMap =
-      HashMap<const LayoutObject*,
-              absl::optional<InlineContainingBlockGeometry>>;
-
-  // Computes the geometry required for any inline containing blocks.
-  // |inline_containing_block_map| is a map whose keys specify which inline
-  // containing block geometry is required.
-  void ComputeInlineContainerGeometry(
-      InlineContainingBlockMap* inline_containing_block_map);
 
 #if DCHECK_IS_ON()
   // If we don't participate in a fragmentation context, this method can check

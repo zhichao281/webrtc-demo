@@ -98,6 +98,7 @@ class MODULES_EXPORT AXNodeObject : public AXObject {
   bool IsHovered() const final;
   bool IsImageButton() const;
   bool IsInputImage() const final;
+  bool IsLineBreakingObject() const override;
   bool IsLoaded() const override;
   bool IsMultiSelectable() const override;
   bool IsNativeImage() const final;
@@ -115,6 +116,7 @@ class MODULES_EXPORT AXNodeObject : public AXObject {
   AccessibilityGrabbedState IsGrabbed() const override;
   AccessibilityExpanded IsExpanded() const override;
   AccessibilitySelectedState IsSelected() const override;
+  bool IsSelectedFromFocusSupported() const override;
   bool IsSelectedFromFocus() const override;
   bool IsRequired() const final;
   bool IsControl() const override;
@@ -211,7 +213,7 @@ class MODULES_EXPORT AXNodeObject : public AXObject {
   // Location
   void GetRelativeBounds(AXObject** out_container,
                          FloatRect& out_bounds_in_container,
-                         SkMatrix44& out_container_transform,
+                         skia::Matrix44& out_container_transform,
                          bool* clips_children = nullptr) const override;
 
   void AddChildren() override;
@@ -249,7 +251,7 @@ class MODULES_EXPORT AXNodeObject : public AXObject {
   bool OnNativeSetSequentialFocusNavigationStartingPointAction() final;
 
   // Notifications that this object may have changed.
-  void ChildrenChanged() override;
+  void ChildrenChangedWithCleanLayout() override;
   void SelectionChanged() final;
   void HandleAriaExpandedChanged() override;
   void HandleActiveDescendantChanged() override;
@@ -292,7 +294,6 @@ class MODULES_EXPORT AXNodeObject : public AXObject {
   String PlaceholderFromNativeAttribute() const;
   String GetValueContributionToName() const;
   bool UseNameFromSelectedOption() const;
-  bool SelectionShouldFollowFocus() const;
   virtual bool IsTabItemSelected() const;
 
   void AddChildrenImpl();

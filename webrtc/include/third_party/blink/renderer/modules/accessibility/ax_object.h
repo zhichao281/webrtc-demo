@@ -56,7 +56,9 @@
 #include "ui/accessibility/ax_enums.mojom-blink.h"
 #include "ui/accessibility/ax_mode.h"
 
-class SkMatrix44;
+namespace skia {
+class Matrix44;
+}
 
 namespace ui {
 struct AXActionData;
@@ -173,98 +175,6 @@ namespace blink {
 class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
  public:
   typedef HeapVector<Member<AXObject>> AXObjectVector;
-
-  // Iterator for doing an in-order traversal of the accessibility tree.
-  //
-  // Includes objects that are ignored but included in the accessibility tree in
-  // the traversal.
-  class MODULES_EXPORT InOrderTraversalIterator final
-      : public GarbageCollected<InOrderTraversalIterator> {
-   public:
-    ~InOrderTraversalIterator() = default;
-
-    InOrderTraversalIterator(const InOrderTraversalIterator& other)
-        : current_(other.current_), previous_(other.previous_) {}
-
-    InOrderTraversalIterator& operator=(const InOrderTraversalIterator& other) {
-      current_ = other.current_;
-      previous_ = other.previous_;
-      return *this;
-    }
-
-    InOrderTraversalIterator& operator++() {
-      previous_ = current_;
-      current_ = (current_ && !current_->IsDetached())
-                     ? current_->NextInPreOrderIncludingIgnored()
-                     : nullptr;
-      return *this;
-    }
-
-    InOrderTraversalIterator operator++(int) {
-      InOrderTraversalIterator ret = *this;
-      ++*this;
-      return ret;
-    }
-
-    InOrderTraversalIterator& operator--() {
-      current_ = previous_;
-      previous_ = (current_ && !current_->IsDetached())
-                      ? current_->PreviousInPreOrderIncludingIgnored()
-                      : nullptr;
-      return *this;
-    }
-
-    InOrderTraversalIterator operator--(int) {
-      InOrderTraversalIterator ret = *this;
-      --*this;
-      return ret;
-    }
-
-    AXObject& operator*() const {
-      DCHECK(current_);
-      return *current_;
-    }
-
-    AXObject* operator->() const {
-      DCHECK(current_);
-      return static_cast<AXObject*>(current_);
-    }
-
-    void Trace(Visitor* visitor) const {
-      visitor->Trace(current_);
-      visitor->Trace(previous_);
-    }
-
-    MODULES_EXPORT friend void swap(InOrderTraversalIterator& left,
-                                    InOrderTraversalIterator& right) {
-      std::swap(left.current_, right.current_);
-      std::swap(left.previous_, right.previous_);
-    }
-
-    MODULES_EXPORT friend bool operator==(
-        const InOrderTraversalIterator& left,
-        const InOrderTraversalIterator& right) {
-      return left.current_ == right.current_;
-    }
-
-    MODULES_EXPORT friend bool operator!=(
-        const InOrderTraversalIterator& left,
-        const InOrderTraversalIterator& right) {
-      return !(left == right);
-    }
-
-   private:
-    InOrderTraversalIterator() = default;
-
-    explicit InOrderTraversalIterator(AXObject& current)
-        : current_(&current), previous_(nullptr) {}
-
-    friend class AXObject;
-    friend class AXObjectCacheImpl;
-
-    Member<AXObject> current_;
-    Member<AXObject> previous_;
-  };
 
   // Iterator for the ancestors of an |AXObject|.
   // Walks through all the unignored parents of the object up to the root.
@@ -510,7 +420,11 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   // aria-grabbed is deprecated in WAI-ARIA 1.1.
   virtual AccessibilityGrabbedState IsGrabbed() const;
   virtual bool IsHovered() const;
+
+  // Returns true if this object starts a new paragraph in the accessibility
+  // tree's text representation.
   virtual bool IsLineBreakingObject() const;
+
   virtual bool IsLinked() const;
   virtual bool IsLoaded() const;
   virtual bool IsModal() const;
@@ -518,6 +432,7 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   virtual bool IsOffScreen() const;
   virtual bool IsRequired() const;
   virtual AccessibilitySelectedState IsSelected() const;
+  virtual bool IsSelectedFromFocusSupported() const;
   // Is the object selected because selection is following focus?
   virtual bool IsSelectedFromFocus() const;
   virtual bool IsSelectedOptionActive() const;
@@ -904,7 +819,7 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   // set |clips_children| to true.
   virtual void GetRelativeBounds(AXObject** out_container,
                                  FloatRect& out_bounds_in_container,
-                                 SkMatrix44& out_container_transform,
+                                 skia::Matrix44& out_container_transform,
                                  bool* clips_children = nullptr) const;
 
   FloatRect LocalBoundingBoxRectForAccessibility();
@@ -945,12 +860,6 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   // that are unignored and included in the accessibility tree.
   AncestorsIterator UnignoredAncestorsBegin() const;
   AncestorsIterator UnignoredAncestorsEnd() const;
-
-  // Iterator for doing an in-order traversal of the accessibility tree.
-  //
-  // Includes nodes that are accessibility ignored but "included in tree" in the
-  // traversal.
-  InOrderTraversalIterator GetInOrderTraversalIterator();
 
   // Returns the number of children, including children that are included in the
   // accessibility tree but are accessibility ignored.
@@ -1107,6 +1016,12 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   // including nodes that might not be in the tree.
   AXObject* CachedParentObject() const { return parent_; }
 
+  // Get the current unignored children without refreshing them, even if
+  // children_dirty_ aka NeedsToUpdateChildren() is true.
+  const AXObjectVector& CachedChildrenIncludingIgnored() const {
+    return children_;
+  }
+
   // Sets the parent AXObject directly. If the parent of this object is known,
   // this can be faster than using ComputeParent().
   void SetParent(AXObject* new_parent) const;
@@ -1127,6 +1042,9 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   // such as an <optgroup> or <div> in the shadow DOM, because an AXMenuList, if
   // used, only allows <option>/AXMenuListOption children.
   static bool CanComputeAsNaturalParent(Node*);
+
+  // For a given image, return a <map> that's actually used for it.
+  static HTMLMapElement* GetMapForImage(Node* image);
 
   // Compute the AXObject parent for the given node or layout_object.
   // The layout object is only necessary if the node is null, which is the case
@@ -1312,7 +1230,7 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   bool OnNativeShowContextMenuAction();
 
   // Notifications that this object may have changed.
-  virtual void ChildrenChanged() {}
+  virtual void ChildrenChangedWithCleanLayout() {}
   virtual void HandleActiveDescendantChanged() {}
   virtual void HandleAutofillStateChanged(WebAXAutofillState) {}
   virtual void HandleAriaExpandedChanged() {}

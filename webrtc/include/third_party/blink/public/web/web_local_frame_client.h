@@ -262,6 +262,13 @@ class BLINK_EXPORT WebLocalFrameClient {
     return nullptr;
   }
 
+  // Request the creation of a new fenced frame, and return the WebRemoteFrame*
+  // associated with it.
+  virtual WebRemoteFrame* CreateFencedFrame(
+      const WebElement& fenced_frame_element) {
+    return nullptr;
+  }
+
   // Called when Blink cannot find a frame with the given name in the frame's
   // browsing instance.  This gives the embedder a chance to return a frame
   // from outside of the browsing instance.
@@ -427,6 +434,9 @@ class BLINK_EXPORT WebLocalFrameClient {
   // Called before a frame's page is frozen.
   virtual void WillFreezePage() {}
 
+  // The frame's document changed its URL due to document.open().
+  virtual void DidOpenDocumentInputStream(const WebURL&) {}
+
   // Called when a frame's page lifecycle state gets updated.
   virtual void DidSetPageLifecycleState() {}
 
@@ -541,11 +551,6 @@ class BLINK_EXPORT WebLocalFrameClient {
   // Reports that visible elements in the frame shifted (bit.ly/lsm-explainer).
   virtual void DidObserveLayoutShift(double score, bool after_input_or_scroll) {
   }
-
-  // Reports input timestamps for segmenting layout shifts by users inputs to
-  // create Session window.
-  virtual void DidObserveInputForLayoutShiftTracking(
-      base::TimeTicks timestamp) {}
 
   // Reports the number of LayoutBlock creation, and LayoutObject::UpdateLayout
   // calls. All values are deltas since the last calls of this function.

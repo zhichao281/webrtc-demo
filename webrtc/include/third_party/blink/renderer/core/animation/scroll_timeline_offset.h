@@ -14,18 +14,12 @@
 
 namespace blink {
 
-class
-    CSSNumericValueOrStringOrCSSKeywordValueOrScrollTimelineElementBasedOffset;
-
-using ScrollTimelineOffsetValue =
-    CSSNumericValueOrStringOrCSSKeywordValueOrScrollTimelineElementBasedOffset;
-
 // Represent a scroll timeline start/end offset which can be an
 // scroll offset or an element based offset
 class CORE_EXPORT ScrollTimelineOffset final
     : public GarbageCollected<ScrollTimelineOffset> {
  public:
-  static ScrollTimelineOffset* Create(const ScrollTimelineOffsetValue& offset);
+  static ScrollTimelineOffset* Create(const V8ScrollTimelineOffset* offset);
 
   // Create a default offset representing 'auto'.
   ScrollTimelineOffset() = default;

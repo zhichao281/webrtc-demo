@@ -1,6 +1,6 @@
 This is a testharness.js-based test.
 PASS [dedicated_worker] unsafe-none => unsafe-none
-FAIL [dedicated_worker] unsafe-none => credentialless assert_equals: expected "error" but got "retrieved"
+PASS [dedicated_worker] unsafe-none => credentialless
 PASS [dedicated_worker] unsafe-none => credentialless (omit)
 PASS [dedicated_worker] unsafe-none => credentialless + CORP
 PASS [dedicated_worker] unsafe-none => require-corp

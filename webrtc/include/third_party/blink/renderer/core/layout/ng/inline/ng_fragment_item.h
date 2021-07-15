@@ -115,6 +115,7 @@ class CORE_EXPORT NGFragmentItem {
   void ConvertToSvgText(std::unique_ptr<NGSvgFragmentData> data,
                         const PhysicalRect& unscaled_rect,
                         bool is_hidden);
+  void SetSvgLineLocalRect(const PhysicalRect& unscaled_rect);
 
   // A sequence number of fragments generated from a |LayoutObject|.
   // For line boxes, please see |kInitialLineFragmentId|.
@@ -186,6 +187,16 @@ class CORE_EXPORT NGFragmentItem {
   // RectInContainerFragment() for other types.
   FloatRect ObjectBoundingBox() const;
 
+  // Returns a point transformed by the inverse of
+  // BuildSvgTransformForBoundingBox(). The return value can be compared with
+  // untransformed RectInContainerFragment().
+  PhysicalOffset MapPointInContainer(const PhysicalOffset& point) const;
+
+  // Returns true if |position|, which is a point in the IFC's coordinate
+  // system, is in the transformed rectangle of this item.
+  // This works only for kSvgText type.
+  bool Contains(const FloatPoint& position) const;
+
   const PhysicalOffset& OffsetInContainerFragment() const {
     return rect_.offset;
   }
@@ -195,7 +206,6 @@ class CORE_EXPORT NGFragmentItem {
 
   PhysicalRect InkOverflow() const;
   PhysicalRect SelfInkOverflow() const;
-  PhysicalRect ContentsInkOverflow() const;
 
   // Count of following items that are descendants of this item in the box tree,
   // including this item. 1 means this is a box (box or line box) without
@@ -364,16 +374,13 @@ class CORE_EXPORT NGFragmentItem {
   NGTextFragmentPaintInfo TextPaintInfo(const NGFragmentItems& items) const;
 
   // Compute the inline position from text offset, in logical coordinate
-  // relative to this fragment.
-  LayoutUnit InlinePositionForOffset(StringView text,
-                                     unsigned offset,
-                                     LayoutUnit (*round_function)(float),
-                                     AdjustMidCluster) const;
-
-  LayoutUnit InlinePositionForOffset(StringView text, unsigned offset) const;
+  // relative to this fragment suitable for |LocalCaretRect|.
+  LayoutUnit CaretInlinePositionForOffset(StringView text,
+                                          unsigned offset) const;
 
   // Compute line-relative coordinates for given offsets, this is not
   // flow-relative:
+  // This returns scaled values for kSVGText type.
   // https://drafts.csswg.org/css-writing-modes-3/#line-directions
   std::pair<LayoutUnit, LayoutUnit> LineLeftAndRightForOffsets(
       StringView text,
@@ -382,6 +389,7 @@ class CORE_EXPORT NGFragmentItem {
 
   // The layout box of text in (start, end) range in local coordinate.
   // Start and end offsets must be between StartOffset() and EndOffset().
+  // This returns a scaled PhysicalRect for kSVGText type.
   PhysicalRect LocalRect(StringView text,
                          unsigned start_offset,
                          unsigned end_offset) const;
@@ -395,6 +403,12 @@ class CORE_EXPORT NGFragmentItem {
   // Direction of this item valid for |TextItem| and |IsAtomicInline()|.
   // Note: <span> doesn't have text direction.
   TextDirection ResolvedDirection() const;
+
+  // Returns |PhysicalRect| to intersect with hit test location for |this|
+  // text item. See |NGBoxFragmentPainter::HitTestTextItem()|.
+  PhysicalRect ComputeTextBoundsRectForHitTest(
+      const PhysicalOffset& inline_root_offset,
+      bool is_occlusion_test) const;
 
   // Converts the given point, relative to the fragment itself, into a position
   // in DOM tree.
@@ -433,6 +447,14 @@ class CORE_EXPORT NGFragmentItem {
   // lengthAdjust=spacingAndGlyphs.
   AffineTransform BuildSvgTransformForBoundingBox() const;
 
+  // Returns a transformed text cell in the unscaled coordination system.
+  // This works only with kSvgText type.
+  FloatQuad SvgUnscaledQuad() const;
+
+  // Returns a font scaling factor for SVG <text>.
+  // This returns 1 for an NGFragmentItem not for LayoutSVGInlineText.
+  float SvgScalingFactor() const;
+
   // Get a description of |this| for the debug purposes.
   String ToString() const;
 
@@ -440,6 +462,7 @@ class CORE_EXPORT NGFragmentItem {
   FRIEND_TEST_ALL_PREFIXES(NGFragmentItemTest, CopyMove);
   FRIEND_TEST_ALL_PREFIXES(NGFragmentItemTest, SelfPaintingInlineBox);
   FRIEND_TEST_ALL_PREFIXES(StyleChangeTest, NeedsCollectInlinesOnStyle);
+  friend class LayoutNGTextCombineTest;
 
   // Create a text item.
   NGFragmentItem(const NGInlineItem& inline_item,
@@ -480,6 +503,13 @@ class CORE_EXPORT NGFragmentItem {
   // Re-compute the ink overflow for this item. |cursor| should be at |this|.
   void RecalcInkOverflow(const NGInlineCursor& cursor,
                          PhysicalRect* self_and_contents_rect_out);
+
+  // Compute the inline position from text offset, in logical coordinate
+  // relative to this fragment.
+  LayoutUnit InlinePositionForOffset(StringView text,
+                                     unsigned offset,
+                                     LayoutUnit (*round_function)(float),
+                                     AdjustMidCluster) const;
 
   AffineTransform BuildSvgTransformForTextPath(
       const AffineTransform& length_adjust) const;

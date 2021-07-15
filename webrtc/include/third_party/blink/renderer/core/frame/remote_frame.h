@@ -127,7 +127,7 @@ class CORE_EXPORT RemoteFrame final : public Frame,
   void SetViewportIntersection(const mojom::blink::ViewportIntersectionState&);
 
   // Called when the local root's screen info changes.
-  void DidChangeScreenInfo(const ScreenInfo& screen_info);
+  void DidChangeScreenInfo(const display::ScreenInfo& screen_info);
   // Called when the main frame's zoom level is changed and should be propagated
   // to the remote's associated view.
   void ZoomLevelChanged(double zoom_level);
@@ -231,6 +231,10 @@ class CORE_EXPORT RemoteFrame final : public Frame,
   viz::FrameSinkId GetFrameSinkId();
 
   void SetCcLayerForTesting(scoped_refptr<cc::Layer>, bool is_surface_layer);
+
+  // Whether a navigation should replace the current history entry or not.
+  bool NavigationShouldReplaceCurrentHistoryEntry(
+      WebFrameLoadType frame_load_type) const;
 
  private:
   // Frame protected overrides:

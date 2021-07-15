@@ -107,6 +107,7 @@ struct BLINK_COMMON_EXPORT Manifest {
     // The URL which will be opened when the file handler is invoked.
     GURL action;
     std::u16string name;
+    std::vector<ImageResource> icons;
     std::map<std::u16string, std::vector<std::u16string>> accept;
   };
 
@@ -163,6 +164,10 @@ struct BLINK_COMMON_EXPORT Manifest {
 
   // Null if the parsing failed or the field was not present.
   absl::optional<std::u16string> description;
+
+  // Null if the start_url parsing failed or missing, otherwise defaults to
+  // start_url with origin stripped when id field is not present.
+  absl::optional<std::u16string> id;
 
   // Empty if the parsing failed or the field was not present.
   GURL start_url;
@@ -251,7 +256,8 @@ struct BLINK_COMMON_EXPORT Manifest {
 
   // False if parsing failed or the field was not present.
   // TODO(crbug.com/1212263): This field is non-standard and part of a Chrome
-  // experiment.
+  // experiment. See:
+  // https://github.com/robbiemc/pwa-isolated-storage/blob/main/explainer.md
   bool isolated_storage = false;
 };
 

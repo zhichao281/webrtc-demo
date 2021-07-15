@@ -61,7 +61,7 @@ class CORE_EXPORT NGGridLayoutAlgorithm
     explicit GridItemData(const NGBlockNode node) : node(node) {}
 
     AutoPlacementType AutoPlacement(
-        GridTrackSizingDirection flow_direction) const;
+        const GridTrackSizingDirection major_direction) const;
     const GridSpan& Span(GridTrackSizingDirection track_direction) const;
     void SetSpan(const GridSpan& span,
                  GridTrackSizingDirection track_direction);
@@ -105,7 +105,7 @@ class CORE_EXPORT NGGridLayoutAlgorithm
         const NGGridLayoutAlgorithmTrackCollection& track_collection,
         const NGGridPlacement& grid_placement);
 
-    const NGBlockNode node;
+    NGBlockNode node;
     GridArea resolved_position;
 
     AxisEdge InlineAxisAlignment() const {
@@ -192,10 +192,9 @@ class CORE_EXPORT NGGridLayoutAlgorithm
 
     bool IsEmpty() const;
 
-    // Grid items are appended to |item_data_| in the same order provided by
-    // |NGGridChildIterator|, which iterates over its children in order-modified
-    // document order; we want to keep such order since auto-placement and
-    // painting order rely on it later in the algorithm.
+    // Grid items are appended in document order, but we want to rearrange them
+    // in order-modified document order since auto-placement and painting rely
+    // on it later in the algorithm.
     Vector<GridItemData> item_data;
     Vector<wtf_size_t> reordered_item_indices;
   };
@@ -299,7 +298,7 @@ class CORE_EXPORT NGGridLayoutAlgorithm
       const NGBlockNode& node,
       const NGGridData& grid_data,
       const ComputedStyle& grid_style,
-      const WritingMode& container_writing_mode,
+      const WritingMode container_writing_mode,
       const NGBoxStrut& borders,
       const LogicalSize& border_box_size,
       const LayoutUnit block_size);
@@ -320,11 +319,13 @@ class CORE_EXPORT NGGridLayoutAlgorithm
   // Returns the size that a grid item will distribute across the tracks with an
   // intrinsic sizing function it spans in the relevant track direction.
   LayoutUnit ContributionSizeForGridItem(
+      SizingConstraint sizing_constraint,
       const GridGeometry& grid_geometry,
       const GridItemData& grid_item,
       GridTrackSizingDirection track_direction,
       GridItemContributionType contribution_type,
-      bool* needs_additional_pass) const;
+      bool* needs_additional_pass,
+      bool* has_block_size_dependent_item) const;
 
   wtf_size_t ComputeAutomaticRepetitions(
       GridTrackSizingDirection track_direction) const;
@@ -356,17 +357,16 @@ class CORE_EXPORT NGGridLayoutAlgorithm
 
   // Returns 'true' if it's possible to layout a grid item.
   bool CanLayoutGridItem(const GridItemData& grid_item,
-                         const GridTrackSizingDirection track_direction,
-                         const NGConstraintSpace space,
-                         const SizingConstraint sizing_constraint) const;
+                         const NGConstraintSpace& space,
+                         const GridTrackSizingDirection track_direction) const;
 
   // Determines the major/minor alignment baselines for each row/column based on
   // each item in |grid_items|, and stores the results in |grid_geometry|.
-  void CalculateAlignmentBaselines(GridTrackSizingDirection track_direction,
-                                   SizingConstraint sizing_constraint,
-                                   GridGeometry* grid_geometry,
-                                   GridItems* grid_items,
-                                   bool* needs_additional_pass = nullptr) const;
+  void CalculateAlignmentBaselines(
+      const GridTrackSizingDirection track_direction,
+      GridGeometry* grid_geometry,
+      GridItems* grid_items,
+      bool* needs_additional_pass) const;
 
   // Initializes the given track collection, and returns the base set geometry.
   SetGeometry InitializeTrackSizes(
@@ -378,39 +378,45 @@ class CORE_EXPORT NGGridLayoutAlgorithm
       const GridGeometry& grid_geometry,
       NGGridLayoutAlgorithmTrackCollection* track_collection,
       GridItems* grid_items,
-      bool* needs_additional_pass) const;
+      bool* needs_additional_pass,
+      bool* has_block_size_dependent_item = nullptr) const;
 
   // These methods implement the steps of the algorithm for intrinsic track size
   // resolution defined in https://drafts.csswg.org/css-grid-2/#algo-content.
   void ResolveIntrinsicTrackSizes(
+      SizingConstraint sizing_constraint,
       const GridGeometry& grid_geometry,
       NGGridLayoutAlgorithmTrackCollection* track_collection,
       GridItems* grid_items,
-      bool* needs_additional_pass) const;
+      bool* needs_additional_pass,
+      bool* has_block_size_dependent_item) const;
 
   void IncreaseTrackSizesToAccommodateGridItems(
+      SizingConstraint sizing_constraint,
       const GridGeometry& grid_geometry,
       GridItems::Iterator group_begin,
       GridItems::Iterator group_end,
       const bool is_group_spanning_flex_track,
       GridItemContributionType contribution_type,
       NGGridLayoutAlgorithmTrackCollection* track_collection,
-      bool* needs_additional_pass) const;
+      bool* needs_additional_pass,
+      bool* has_block_size_dependent_item) const;
 
   void MaximizeTracks(
       SizingConstraint sizing_constraint,
       NGGridLayoutAlgorithmTrackCollection* track_collection) const;
 
-  void StretchAutoTracks(SizingConstraint sizing_constraint,
-                         NGGridLayoutAlgorithmTrackCollection* track_collection,
-                         bool* needs_additional_pass) const;
+  void StretchAutoTracks(
+      SizingConstraint sizing_constraint,
+      NGGridLayoutAlgorithmTrackCollection* track_collection) const;
 
   void ExpandFlexibleTracks(
       SizingConstraint sizing_constraint,
       const GridGeometry& grid_geometry,
       NGGridLayoutAlgorithmTrackCollection* track_collection,
       GridItems* grid_items,
-      bool* needs_additional_pass) const;
+      bool* needs_additional_pass,
+      bool* has_block_size_dependent_item) const;
 
   SetGeometry ComputeSetGeometry(
       const NGGridLayoutAlgorithmTrackCollection& track_collection) const;

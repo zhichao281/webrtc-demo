@@ -30,7 +30,6 @@
 
 #include <memory>
 
-#include "base/macros.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "services/network/public/mojom/ip_address_space.mojom-blink-forward.h"
 #include "services/network/public/mojom/referrer_policy.mojom-blink-forward.h"
@@ -203,7 +202,7 @@ class CORE_EXPORT ExecutionContext : public Supplementable<ExecutionContext>,
     return &timers_;
   }
 
-  virtual ResourceFetcher* Fetcher() const = 0;
+  virtual ResourceFetcher* Fetcher() = 0;
 
   SecurityContext& GetSecurityContext() { return security_context_; }
   const SecurityContext& GetSecurityContext() const {

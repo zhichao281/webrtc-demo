@@ -33,7 +33,6 @@
 
 #include <memory>
 
-#include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/time/time.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -147,6 +146,8 @@ class CORE_EXPORT Animation : public EventTargetWithInlineData,
 
   void cancel();
 
+  V8CSSNumberish* ConvertTimeToCSSNumberish(AnimationTimeDelta) const;
+
   V8CSSNumberish* currentTime() const;
   absl::optional<AnimationTimeDelta> CurrentTimeInternal() const;
   void setCurrentTime(const V8CSSNumberish* current_time,
@@ -206,6 +207,7 @@ class CORE_EXPORT Animation : public EventTargetWithInlineData,
   double playbackRate() const;
   void setPlaybackRate(double, ExceptionState& = ASSERT_NO_EXCEPTION);
   AnimationTimeline* timeline() { return timeline_; }
+  AnimationTimeline* timeline() const { return timeline_; }
   virtual void setTimeline(AnimationTimeline* timeline);
   Document* GetDocument() const;
 
@@ -481,12 +483,14 @@ class CORE_EXPORT Animation : public EventTargetWithInlineData,
           playback_rate(animation.EffectivePlaybackRate()),
           effect_changed(false),
           pending_action(animation.start_time_ ? kNone : kStart) {}
+    CompositorState(const CompositorState&) = delete;
+    CompositorState& operator=(const CompositorState&) = delete;
+
     absl::optional<double> start_time;
     absl::optional<double> hold_time;
     double playback_rate;
     bool effect_changed;
     CompositorAction pending_action;
-    DISALLOW_COPY_AND_ASSIGN(CompositorState);
   };
 
   enum CompositorPendingChange {

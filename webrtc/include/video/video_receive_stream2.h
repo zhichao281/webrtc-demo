@@ -39,7 +39,6 @@
 
 namespace webrtc {
 
-class ProcessThread;
 class RtpStreamReceiverInterface;
 class RtpStreamReceiverControllerInterface;
 class RtxReceiveStream;
@@ -96,7 +95,6 @@ class VideoReceiveStream2
                       int num_cpu_cores,
                       PacketRouter* packet_router,
                       VideoReceiveStream::Config config,
-                      ProcessThread* process_thread,
                       CallStats* call_stats,
                       Clock* clock,
                       VCMTiming* timing);
@@ -126,6 +124,8 @@ class VideoReceiveStream2
   // Implements webrtc::VideoReceiveStream.
   void Start() override;
   void Stop() override;
+
+  const RtpConfig& rtp_config() const override { return config_.rtp; }
 
   webrtc::VideoReceiveStream::Stats GetStats() const override;
 
@@ -197,7 +197,6 @@ class VideoReceiveStream2
   void UpdateHistograms();
 
   RTC_NO_UNIQUE_ADDRESS SequenceChecker worker_sequence_checker_;
-  RTC_NO_UNIQUE_ADDRESS SequenceChecker module_process_sequence_checker_;
   // TODO(bugs.webrtc.org/11993): This checker conceptually represents
   // operations that belong to the network thread. The Call class is currently
   // moving towards handling network packets on the network thread and while

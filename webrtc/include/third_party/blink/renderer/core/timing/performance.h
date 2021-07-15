@@ -72,7 +72,6 @@ class PerformanceMeasure;
 class PerformanceNavigation;
 class PerformanceObserver;
 class PerformanceTiming;
-class ProfilerInitOptions;
 class ResourceResponse;
 class ResourceTimingInfo;
 class ScriptPromise;
@@ -143,9 +142,7 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
   DOMHighResTimeStamp timeOrigin() const;
 
   // Internal getter method for the time origin value.
-  double GetTimeOrigin() const {
-    return time_origin_.since_origin().InSecondsF();
-  }
+  base::TimeTicks GetTimeOriginInternal() const { return time_origin_; }
 
   PerformanceEntryVector getEntries();
   // Get BufferedEntriesByType will return all entries in the buffer regardless
@@ -282,10 +279,6 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
   void clearMeasures(const AtomicString& measure_name);
   void clearMeasures() { return clearMeasures(AtomicString()); }
 
-  ScriptPromise profile(ScriptState*,
-                        const ProfilerInitOptions*,
-                        ExceptionState&);
-
   void UnregisterPerformanceObserver(PerformanceObserver&);
   void RegisterPerformanceObserver(PerformanceObserver&);
   void UpdatePerformanceObserverFilterOptions();
@@ -412,6 +405,9 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
 
   // See crbug.com/1181774.
   Member<BackgroundTracingHelper> background_tracing_helper_;
+
+  // Running counter for LongTask observations.
+  size_t long_task_counter_ = 0;
 };
 
 }  // namespace blink

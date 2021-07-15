@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_PUBLIC_COMMON_STORAGE_KEY_STORAGE_KEY_H_
 #define THIRD_PARTY_BLINK_PUBLIC_COMMON_STORAGE_KEY_STORAGE_KEY_H_
 
+#include <iosfwd>
 #include <string>
 
 #include "base/strings/string_piece.h"
@@ -15,6 +16,11 @@
 namespace blink {
 
 // A class representing the key that Storage APIs use to key their storage on.
+//
+// At the moment, while we are migrating the code, StorageKey is just a wrapper
+// around an origin. More fields will be added later in order to implement a
+// finer storage partitioning. For more details, see
+// https://docs.google.com/document/d/1xd6MXcUhfnZqIe5dt2CTyCn6gEZ7nOezAEWS0W9hwbQ/edit.
 class BLINK_COMMON_EXPORT StorageKey {
  public:
   StorageKey() = default;
@@ -33,6 +39,9 @@ class BLINK_COMMON_EXPORT StorageKey {
   // non-nullopt value, it will be a valid, non-opaque StorageKey. A
   // deserialized StorageKey will be equivalent to the StorageKey that was
   // initially serialized.
+  //
+  // Can be called on the output of either Serialize() or
+  // SerializeForLocalStorage(), as it can handle both formats.
   static absl::optional<StorageKey> Deserialize(base::StringPiece in);
 
   // Transforms a string into a StorageKey if possible (and an opaque StorageKey
@@ -40,14 +49,26 @@ class BLINK_COMMON_EXPORT StorageKey {
   // For use in tests only.
   static StorageKey CreateFromStringForTesting(const std::string& origin);
 
+  // Returns true if ThirdPartyStoragePartitioning feature flag is enabled.
+  static bool IsThirdPartyStoragePartitioningEnabled();
+
   // Serializes the `StorageKey` into a string.
   // This function will return the spec url of the underlying Origin. Do not
   // call if `this` is opaque.
   std::string Serialize() const;
 
-  bool opaque() const { return origin_.opaque(); }
+  // Serializes into a string in the format used for localStorage (without
+  // trailing slashes). Prefer Serialize() for uses other than localStorage. Do
+  // not call if `this` is opaque.
+  std::string SerializeForLocalStorage() const;
 
   const url::Origin& origin() const { return origin_; }
+
+  std::string GetDebugString() const;
+
+  // Provides a concise string representation suitable for memory dumps.
+  // Limits the length to `max_length` chars and strips special characters.
+  std::string GetMemoryDumpString(size_t max_length) const;
 
  private:
   BLINK_COMMON_EXPORT
@@ -63,6 +84,9 @@ class BLINK_COMMON_EXPORT StorageKey {
 
   url::Origin origin_;
 };
+
+BLINK_COMMON_EXPORT
+std::ostream& operator<<(std::ostream& ostream, const StorageKey& sk);
 
 }  // namespace blink
 

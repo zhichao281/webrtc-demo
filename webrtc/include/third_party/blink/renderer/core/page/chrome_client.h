@@ -67,6 +67,11 @@ class Layer;
 struct OverscrollBehavior;
 }
 
+namespace display {
+struct ScreenInfo;
+struct ScreenInfos;
+}  // namespace display
+
 namespace ui {
 class Cursor;
 }
@@ -105,8 +110,6 @@ enum class FullscreenRequestType;
 struct DateTimeChooserParameters;
 struct FrameLoadRequest;
 struct ViewportDescription;
-struct ScreenInfo;
-struct ScreenInfos;
 struct WebWindowFeatures;
 
 namespace mojom {
@@ -118,9 +121,9 @@ class TextAutosizerPageInfo;
 using CompositorElementId = cc::ElementId;
 
 class CORE_EXPORT ChromeClient : public GarbageCollected<ChromeClient> {
-  DISALLOW_COPY_AND_ASSIGN(ChromeClient);
-
  public:
+  ChromeClient(const ChromeClient&) = delete;
+  ChromeClient& operator=(const ChromeClient&) = delete;
   virtual ~ChromeClient() = default;
 
   virtual WebViewImpl* GetWebView() const = 0;
@@ -293,8 +296,9 @@ class CORE_EXPORT ChromeClient : public GarbageCollected<ChromeClient> {
                             String& result);
   virtual bool TabsToLinks() = 0;
 
-  virtual const ScreenInfo& GetScreenInfo(LocalFrame& frame) const = 0;
-  virtual const ScreenInfos& GetScreenInfos(LocalFrame& frame) const = 0;
+  virtual const display::ScreenInfo& GetScreenInfo(LocalFrame& frame) const = 0;
+  virtual const display::ScreenInfos& GetScreenInfos(
+      LocalFrame& frame) const = 0;
 
   virtual void SetCursor(const ui::Cursor&, LocalFrame* local_root) = 0;
   virtual void SetCursorOverridden(bool) = 0;

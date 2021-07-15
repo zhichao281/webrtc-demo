@@ -10,7 +10,6 @@
 
 namespace blink {
 
-class ArrayBufferOrArrayBufferView;
 class DOMArrayBufferView;
 class V8UnionArrayBufferOrArrayBufferView;
 
@@ -28,12 +27,13 @@ class CORE_EXPORT DOMArrayPiece {
 
  public:
   DOMArrayPiece();
+  // NOLINTNEXTLINE(google-explicit-constructor)
   DOMArrayPiece(DOMArrayBuffer* buffer);
+  // NOLINTNEXTLINE(google-explicit-constructor)
   DOMArrayPiece(DOMArrayBufferView* view);
+  // NOLINTNEXTLINE(google-explicit-constructor)
   DOMArrayPiece(
       const V8UnionArrayBufferOrArrayBufferView* array_buffer_or_view);
-  // TODO(crbug.com/1181288): Remove the old IDL union version.
-  DOMArrayPiece(const ArrayBufferOrArrayBufferView&);
 
   bool operator==(const DOMArrayBuffer& other) const {
     return ByteLength() == other.ByteLength() &&

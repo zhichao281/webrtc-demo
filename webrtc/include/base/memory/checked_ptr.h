@@ -9,23 +9,25 @@
 #include <stdint.h>
 
 #include <cstddef>
+#include <type_traits>
 #include <utility>
 
 #include "base/allocator/buildflags.h"
-#include "base/check_op.h"
+#include "base/check.h"
 #include "base/compiler_specific.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
 
+#if BUILDFLAG(USE_BACKUP_REF_PTR)
 // USE_BACKUP_REF_PTR implies USE_PARTITION_ALLOC, needed for code under
 // allocator/partition_allocator/ to be built.
-#if BUILDFLAG(USE_BACKUP_REF_PTR)
 #include "base/allocator/partition_allocator/address_pool_manager_bitmap.h"
 #include "base/allocator/partition_allocator/partition_address_space.h"
+#include "base/allocator/partition_allocator/partition_alloc_config.h"
 #include "base/allocator/partition_allocator/partition_alloc_constants.h"
-#include "base/allocator/partition_allocator/partition_alloc_forward.h"
-#include "base/allocator/partition_allocator/partition_ref_count.h"
-#endif
+#include "base/base_export.h"
+#include "base/dcheck_is_on.h"
+#endif  // BUILDFLAG(USE_BACKUP_REF_PTR)
 
 namespace base {
 
@@ -138,6 +140,9 @@ struct BackupRefPtrImpl {
     // partition page.
 #if !BUILDFLAG(ENABLE_BRP_DIRECTMAP_SUPPORT)
     if (ret) {
+      // TODO(bartekn): Keep the assert for non-DirectMap as well as for the
+      // first page of DirectMap allocations when ENABLE_BRP_DIRECTMAP_SUPPORT
+      // is on.
       DCHECK(reinterpret_cast<uintptr_t>(ptr) % kSuperPageSize >=
              PartitionPageSize());
     }
