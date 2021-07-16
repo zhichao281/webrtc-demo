@@ -18,3 +18,10 @@ Update WebRTC code version (2021-05-06T04:04:14).
 
 update log 
 Update WebRTC code version (2021-07-13T04:01:55).
+
+
+如果有任何问题可以加我 QQ:125388771
+
+### 捐献
+- 支付宝帐号![img](./doc/alipay.jpg) 微信帐号![img](./doc/wechat.png) 
+
