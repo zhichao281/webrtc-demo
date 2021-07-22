@@ -41,13 +41,13 @@
     <ClInclude Include="head.h" />
   </ItemGroup>
   <ItemGroup>
-    <Object Include="..\webrtc\amd64\json.o" />
-    <Object Include="..\webrtc\amd64\json_reader.o" />
-    <Object Include="..\webrtc\amd64\json_value.o" />
-    <Object Include="..\webrtc\amd64\json_writer.o" />
+    <Object Include="..\webrtc\arm64\json.o" />
+    <Object Include="..\webrtc\arm64\json_reader.o" />
+    <Object Include="..\webrtc\arm64\json_value.o" />
+    <Object Include="..\webrtc\arm64\json_writer.o" />
   </ItemGroup>
   <ItemGroup>
-    <Library Include="..\webrtc\amd64\libwebrtc.a" />
+    <Library Include="..\webrtc\arm64\libwebrtc.a" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{d4de1c45-b51c-4f16-9536-ab97c765bc55}</ProjectGuid>
@@ -114,7 +114,7 @@
       <AdditionalIncludeDirectories>%(ClCompile.AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <LibraryDependencies>pthread;m;dl;X11;glib-2.0;atomic;%(LibraryDependencies)</LibraryDependencies>
+      <LibraryDependencies>pthread;m;dl;X11;glib-2.0;atomic;gcc;stdc++;%(LibraryDependencies)</LibraryDependencies>
       <AdditionalLibraryDirectories>/lib/aarch64-linux-gnu;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
@@ -128,6 +128,11 @@
     </ClCompile>
     <Link>
       <LibraryDependencies>atomic;pthread;m;dl;X11;glib-2.0;%(LibraryDependencies)</LibraryDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Link>
+      <AdditionalOptions>-Wl,-Bstatic -latomic -Wl,-Bdynamic %(AdditionalOptions)</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

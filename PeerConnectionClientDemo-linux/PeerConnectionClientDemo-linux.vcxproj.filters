@@ -28,22 +28,22 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Object Include="..\webrtc\amd64\json.o">
-      <Filter>Lib\amd</Filter>
+    <Object Include="..\webrtc\arm64\json.o">
+      <Filter>Lib\arm64</Filter>
     </Object>
-    <Object Include="..\webrtc\amd64\json_reader.o">
-      <Filter>Lib\amd</Filter>
+    <Object Include="..\webrtc\arm64\json_reader.o">
+      <Filter>Lib\arm64</Filter>
     </Object>
-    <Object Include="..\webrtc\amd64\json_value.o">
-      <Filter>Lib\amd</Filter>
+    <Object Include="..\webrtc\arm64\json_value.o">
+      <Filter>Lib\arm64</Filter>
     </Object>
-    <Object Include="..\webrtc\amd64\json_writer.o">
-      <Filter>Lib\amd</Filter>
+    <Object Include="..\webrtc\arm64\json_writer.o">
+      <Filter>Lib\arm64</Filter>
     </Object>
   </ItemGroup>
   <ItemGroup>
-    <Library Include="..\webrtc\amd64\libwebrtc.a">
-      <Filter>Lib\amd</Filter>
+    <Library Include="..\webrtc\arm64\libwebrtc.a">
+      <Filter>Lib\arm64</Filter>
     </Library>
   </ItemGroup>
 </Project>
