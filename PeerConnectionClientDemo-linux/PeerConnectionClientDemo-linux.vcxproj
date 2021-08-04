@@ -41,13 +41,13 @@
     <ClInclude Include="head.h" />
   </ItemGroup>
   <ItemGroup>
-    <Object Include="..\webrtc\arm64\json.o" />
-    <Object Include="..\webrtc\arm64\json_reader.o" />
-    <Object Include="..\webrtc\arm64\json_value.o" />
-    <Object Include="..\webrtc\arm64\json_writer.o" />
+    <Object Include="..\webrtc\amd64\json.o" />
+    <Object Include="..\webrtc\amd64\json_reader.o" />
+    <Object Include="..\webrtc\amd64\json_value.o" />
+    <Object Include="..\webrtc\amd64\json_writer.o" />
   </ItemGroup>
   <ItemGroup>
-    <Library Include="..\webrtc\arm64\libwebrtc.a" />
+    <Library Include="..\webrtc\amd64\libwebrtc.a" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{d4de1c45-b51c-4f16-9536-ab97c765bc55}</ProjectGuid>
