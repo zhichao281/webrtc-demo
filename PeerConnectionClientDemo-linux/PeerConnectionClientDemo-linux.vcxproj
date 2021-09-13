@@ -97,14 +97,17 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
     <IncludePath>/usr/include/aarch64-linux-gnu;/home/firefly/webrtc2020/webrtc-checkout/src;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/libyuv/include;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/jsoncpp/source/include;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/protobuf/conformance;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/abseil-cpp</IncludePath>
-    <AdditionalSourcesToCopyMapping>$(AdditionalSourcesToCopyMapping)</AdditionalSourcesToCopyMapping>
+    <AdditionalSourcesToCopyMapping>$(SolutionDir)webrtc/amd64/libwebrtc.a:=$(RemoteRootDir)/$(ProjectName)/Lib/libwebrtc.a;$(AdditionalSourcesToCopyMapping)</AdditionalSourcesToCopyMapping>
+    <LibraryPath>./Lib;</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <IncludePath>/home/server/webrtc2020/webrtc-checkout/src;/home/server/webrtc2020/webrtc-checkout/src/third_party/abseil-cpp;/home/server/webrtc2020/webrtc-checkout/src/third_party/libyuv/include;/home/server/webrtc2020/webrtc-checkout/src/third_party/jsoncpp/source/include</IncludePath>
     <RemoteCCompileToolExe>g++</RemoteCCompileToolExe>
     <ProjectPublicIncludePath>
     </ProjectPublicIncludePath>
-    <AdditionalSourcesToCopyMapping>..\webrtc\include;$(AdditionalSourcesToCopyMapping)</AdditionalSourcesToCopyMapping>
+    <AdditionalSourcesToCopyMapping>$(SolutionDir)webrtc/amd64/libwebrtc.a:=$(RemoteRootDir)/$(ProjectName)/Lib/libwebrtc.a;$(AdditionalSourcesToCopyMapping)</AdditionalSourcesToCopyMapping>
+    <LibraryPath>
+    </LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
     <ClCompile>
@@ -128,6 +131,7 @@
     </ClCompile>
     <Link>
       <LibraryDependencies>atomic;pthread;m;dl;X11;glib-2.0;%(LibraryDependencies)</LibraryDependencies>
+      <AdditionalLibraryDirectories>%(Link.AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
