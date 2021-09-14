@@ -146,8 +146,6 @@ class CORE_EXPORT Animation : public EventTargetWithInlineData,
 
   void cancel();
 
-  V8CSSNumberish* ConvertTimeToCSSNumberish(AnimationTimeDelta) const;
-
   V8CSSNumberish* currentTime() const;
   absl::optional<AnimationTimeDelta> CurrentTimeInternal() const;
   void setCurrentTime(const V8CSSNumberish* current_time,
@@ -313,9 +311,7 @@ class CORE_EXPORT Animation : public EventTargetWithInlineData,
   bool CompositorPropertyAnimationsHaveNoEffectForTesting() const {
     return compositor_property_animations_have_no_effect_;
   }
-  bool AnimationHasNoEffectForTesting() const {
-    return animation_has_no_effect_;
-  }
+  bool AnimationHasNoEffect() const { return animation_has_no_effect_; }
 
  protected:
   DispatchEventResult DispatchEventInternal(Event&) override;
@@ -350,6 +346,13 @@ class CORE_EXPORT Animation : public EventTargetWithInlineData,
       AnimationTimeDelta current_time) const;
   absl::optional<AnimationTimeDelta> CalculateCurrentTime() const;
   TimelinePhase CalculateCurrentPhase() const;
+
+  V8CSSNumberish* ConvertTimeToCSSNumberish(AnimationTimeDelta) const;
+  // Failure to convert results in a thrown exception and returning false.
+  bool ConvertCSSNumberishToTime(const V8CSSNumberish* numberish,
+                                 absl::optional<AnimationTimeDelta>& time,
+                                 String variable_name,
+                                 ExceptionState& exception_state);
 
   void BeginUpdatingState();
   void EndUpdatingState();

@@ -143,9 +143,9 @@ class CORE_EXPORT NGConstraintSpaceBuilder final {
       space_.bitfields_.is_fixed_inline_size = b;
   }
 
-  void SetIsFixedBlockSizeIndefinite(bool b) {
+  void SetIsInitialBlockSizeIndefinite(bool b) {
     if (LIKELY(is_in_parallel_flow_ || !force_orthogonal_writing_mode_root_))
-      space_.bitfields_.is_fixed_block_size_indefinite = b;
+      space_.bitfields_.is_initial_block_size_indefinite = b;
   }
 
   void SetInlineAutoBehavior(NGAutoBehavior auto_behavior) {
@@ -370,9 +370,8 @@ class CORE_EXPORT NGConstraintSpaceBuilder final {
     space_.bitfields_.is_table_cell_child = b;
   }
 
-  void SetIsMeasuringRestrictedBlockSizeTableCellChild() {
-    space_.bitfields_.is_measuring_restricted_block_size_table_cell_child =
-        true;
+  void SetIsRestrictedBlockSizeTableCellChild() {
+    space_.bitfields_.is_restricted_block_size_table_cell_child = true;
   }
 
   void SetExclusionSpace(const NGExclusionSpace& exclusion_space) {
@@ -438,16 +437,12 @@ class CORE_EXPORT NGConstraintSpaceBuilder final {
         target_stretch_inline_size);
   }
 
-  void SetTargetStretchAscentSize(LayoutUnit target_stretch_ascent_size) {
-    DCHECK_GE(target_stretch_ascent_size, LayoutUnit());
-    space_.EnsureRareData()->SetTargetStretchAscentSize(
-        target_stretch_ascent_size);
-  }
-
-  void SetTargetStretchDescentSize(LayoutUnit target_stretch_descent_size) {
-    DCHECK_GE(target_stretch_descent_size, LayoutUnit());
-    space_.EnsureRareData()->SetTargetStretchDescentSize(
-        target_stretch_descent_size);
+  void SetTargetStretchBlockSizes(NGConstraintSpace::MathTargetStretchBlockSizes
+                                      target_stretch_block_sizes) {
+    DCHECK_GE(target_stretch_block_sizes.ascent, LayoutUnit());
+    DCHECK_GE(target_stretch_block_sizes.descent, LayoutUnit());
+    space_.EnsureRareData()->SetTargetStretchBlockSizes(
+        target_stretch_block_sizes);
   }
 
   // Creates a new constraint space.
@@ -545,10 +540,6 @@ class CORE_EXPORT NGMinMaxConstraintSpaceBuilder final {
 
   void SetBlockAutoBehavior(NGAutoBehavior auto_behavior) {
     delegate_.SetBlockAutoBehavior(auto_behavior);
-  }
-
-  void SetIsFixedBlockSizeIndefinite(bool b) {
-    delegate_.SetIsFixedBlockSizeIndefinite(b);
   }
 
   const NGConstraintSpace ToConstraintSpace() {

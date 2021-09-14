@@ -8,6 +8,8 @@
 #include <iosfwd>
 
 #include "base/memory/scoped_refptr.h"
+#include "base/unguessable_token.h"
+#include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
@@ -30,6 +32,12 @@ class PLATFORM_EXPORT BlinkStorageKey {
   // `origin` can be opaque.
   explicit BlinkStorageKey(scoped_refptr<const SecurityOrigin> origin);
 
+  // Creates a BlinkStorageKey converting the given StorageKey `storage_key`.
+  BlinkStorageKey(const StorageKey& storage_key);
+
+  // Converts this BlinkStorageKey into a StorageKey.
+  operator StorageKey() const;
+
   ~BlinkStorageKey() = default;
 
   BlinkStorageKey(const BlinkStorageKey& other) = default;
@@ -37,14 +45,26 @@ class PLATFORM_EXPORT BlinkStorageKey {
   BlinkStorageKey(BlinkStorageKey&& other) = default;
   BlinkStorageKey& operator=(BlinkStorageKey&& other) = default;
 
+  static BlinkStorageKey CreateWithNonce(
+      scoped_refptr<const SecurityOrigin> origin,
+      const base::UnguessableToken& nonce);
+
   const scoped_refptr<const SecurityOrigin>& GetSecurityOrigin() const {
     return origin_;
+  }
+
+  const absl::optional<base::UnguessableToken>& GetNonce() const {
+    return nonce_;
   }
 
   String ToDebugString() const;
 
  private:
+  BlinkStorageKey(scoped_refptr<const SecurityOrigin> origin,
+                  const base::UnguessableToken* nonce);
+
   scoped_refptr<const SecurityOrigin> origin_;
+  absl::optional<base::UnguessableToken> nonce_;
 };
 
 PLATFORM_EXPORT

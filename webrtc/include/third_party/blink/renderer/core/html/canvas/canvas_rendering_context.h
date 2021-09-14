@@ -75,7 +75,7 @@ class CORE_EXPORT CanvasRenderingContext
     kContextImageBitmap = 5,
     kContextXRPresent = 6,
     // WebGL2Compute used to be 7.
-    kContextGPUPresent = 8,  // WebGPU
+    kContextWebGPU = 8,  // WebGPU
     kContextTypeUnknown = 9,
     kMaxValue = kContextTypeUnknown,
   };
@@ -204,6 +204,7 @@ class CORE_EXPORT CanvasRenderingContext
     kSyntheticLostContext,
   };
   virtual void LoseContext(LostContextMode) {}
+  virtual void SendContextLostEventIfNeeded() {}
 
   // This method gets called at the end of script tasks that modified
   // the contents of the canvas (called didDraw). It marks the completion
@@ -234,7 +235,7 @@ class CORE_EXPORT CanvasRenderingContext
 
   // WebGL-specific interface
   virtual bool UsingSwapChain() const { return false; }
-  virtual void SetFilterQuality(SkFilterQuality) { NOTREACHED(); }
+  virtual void SetFilterQuality(cc::PaintFlags::FilterQuality) { NOTREACHED(); }
   virtual void Reshape(int width, int height) {}
   virtual void MarkLayerComposited() { NOTREACHED(); }
   virtual sk_sp<SkData> PaintRenderingResultsToDataArray(SourceDrawingBuffer) {
@@ -277,6 +278,10 @@ class CORE_EXPORT CanvasRenderingContext
   virtual bool IdentifiabilityEncounteredSensitiveOps() const { return false; }
 
   static CanvasPerformanceMonitor& GetCanvasPerformanceMonitor();
+
+  virtual bool IdentifiabilityEncounteredPartiallyDigestedImage() const {
+    return false;
+  }
 
  protected:
   CanvasRenderingContext(CanvasRenderingContextHost*,

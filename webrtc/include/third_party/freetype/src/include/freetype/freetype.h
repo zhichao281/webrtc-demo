@@ -730,11 +730,16 @@ FT_BEGIN_HEADER
    *     Same as FT_ENCODING_JOHAB.  Deprecated.
    *
    * @note:
-   *   By default, FreeType enables a Unicode charmap and tags it with
-   *   `FT_ENCODING_UNICODE` when it is either provided or can be generated
-   *   from PostScript glyph name dictionaries in the font file.  All other
-   *   encodings are considered legacy and tagged only if explicitly defined
-   *   in the font file.  Otherwise, `FT_ENCODING_NONE` is used.
+   *   When loading a font, FreeType makes a Unicode charmap active if
+   *   possible (either if the font provides such a charmap, or if FreeType
+   *   can synthesize one from PostScript glyph name dictionaries; in either
+   *   case, the charmap is tagged with `FT_ENCODING_UNICODE`).  If such a
+   *   charmap is synthesized, it is placed at the first position of the
+   *   charmap array.
+   *
+   *   All other encodings are considered legacy and tagged only if
+   *   explicitly defined in the font file.  Otherwise, `FT_ENCODING_NONE` is
+   *   used.
    *
    *   `FT_ENCODING_NONE` is set by the BDF and PCF drivers if the charmap is
    *   neither Unicode nor ISO-8859-1 (otherwise it is set to
@@ -2113,8 +2118,7 @@ FT_BEGIN_HEADER
    *     Extra parameters passed to the font driver when opening a new face.
    *
    * @note:
-   *   The stream type is determined by the contents of `flags` that are
-   *   tested in the following order by @FT_Open_Face:
+   *   The stream type is determined by the contents of `flags`:
    *
    *   If the @FT_OPEN_MEMORY bit is set, assume that this is a memory file
    *   of `memory_size` bytes, located at `memory_address`.  The data are not
@@ -2126,6 +2130,9 @@ FT_BEGIN_HEADER
    *
    *   Otherwise, if the @FT_OPEN_PATHNAME bit is set, assume that this is a
    *   normal file and use `pathname` to open it.
+   *
+   *   If none of the above bits are set or if multiple are set at the same
+   *   time, the flags are invalid and @FT_Open_Face fails.
    *
    *   If the @FT_OPEN_DRIVER bit is set, @FT_Open_Face only tries to open
    *   the file with the driver whose handler is in `driver`.
@@ -2298,6 +2305,10 @@ FT_BEGIN_HEADER
    *
    *   See the discussion of reference counters in the description of
    *   @FT_Reference_Face.
+   *
+   *   If `FT_OPEN_STREAM` is set in `args->flags`, the stream in
+   *   `args->stream` is automatically closed before this function returns
+   *   any error (including `FT_Err_Invalid_Argument`).
    *
    * @example:
    *   To loop over all faces, use code similar to the following snippet
@@ -3307,13 +3318,13 @@ FT_BEGIN_HEADER
    *     pixels and use the @FT_PIXEL_MODE_LCD_V mode.
    *
    *   FT_RENDER_MODE_SDF ::
-   *     This mode corresponds to 8-bit signed distance fields (SDF)
-   *     bitmaps.  Each pixel in a SDF bitmap contains information about the
-   *     nearest edge of the glyph outline.  The distances are calculated
-   *     from the center of the pixel and are positive if they are filled by
-   *     the outline (i.e., inside the outline) and negative otherwise.
-   *     Check the note below on how to convert the output values to usable
-   *     data.
+   *     This mode corresponds to 8-bit, single-channel signed distance field
+   *     (SDF) bitmaps.  Each pixel in the SDF grid is the value from the
+   *     pixel's position to the nearest glyph's outline.  The distances are
+   *     calculated from the center of the pixel and are positive if they are
+   *     filled by the outline (i.e., inside the outline) and negative
+   *     otherwise.  Check the note below on how to convert the output values
+   *     to usable data.
    *
    * @note:
    *   The selected render mode only affects vector glyphs of a font.
@@ -4718,8 +4729,8 @@ FT_BEGIN_HEADER
    *
    */
 #define FREETYPE_MAJOR  2
-#define FREETYPE_MINOR  10
-#define FREETYPE_PATCH  4
+#define FREETYPE_MINOR  11
+#define FREETYPE_PATCH  0
 
 
   /**************************************************************************

@@ -183,16 +183,7 @@ struct BASE_EXPORT PartitionRoot {
   bool allow_cookies;
   bool allow_ref_count;
 
-  // Lazy commit should only be enabled on Windows, because commit charge is
-  // only meaningful and limited on Windows. It affects performance on other
-  // platforms and is simply not needed there due to OS supporting overcommit.
-#if defined(OS_WIN)
   bool use_lazy_commit = true;
-  static constexpr bool never_used_lazy_commit = false;
-#else
-  static constexpr bool use_lazy_commit = false;
-  static constexpr bool never_used_lazy_commit = true;
-#endif
 
 #if !defined(PA_EXTRAS_REQUIRED)
   // Teach the compiler that code can be optimized in builds that use no extras.
@@ -221,14 +212,21 @@ struct BASE_EXPORT PartitionRoot {
   // - total_size_of_committed_pages - total committed pages for slots (doesn't
   //     include metadata, bitmaps (if any), or any data outside or regions
   //     described in #1 and #2)
-  // Invariant: total_size_of_committed_pages <
+  // Invariant: total_size_of_allocated_bytes <=
+  //            total_size_of_committed_pages <
   //                total_size_of_super_pages +
   //                total_size_of_direct_mapped_pages.
-  // Since all operations on these atomic variables have relaxed semantics, we
-  // don't check this invariant with DCHECKs.
+  // Invariant: total_size_of_committed_pages <= max_size_of_committed_pages.
+  // Invariant: total_size_of_allocated_bytes <= max_size_of_allocated_bytes.
+  // Invariant: max_size_of_allocated_bytes <= max_size_of_committed_pages.
+  // Since all operations on the atomic variables have relaxed semantics, we
+  // don't check these invariants with DCHECKs.
   std::atomic<size_t> total_size_of_committed_pages{0};
+  std::atomic<size_t> max_size_of_committed_pages{0};
   std::atomic<size_t> total_size_of_super_pages{0};
   std::atomic<size_t> total_size_of_direct_mapped_pages{0};
+  size_t total_size_of_allocated_bytes GUARDED_BY(lock_) = 0;
+  size_t max_size_of_allocated_bytes GUARDED_BY(lock_) = 0;
 
   char* next_super_page = nullptr;
   char* next_partition_page = nullptr;
@@ -273,12 +271,28 @@ struct BASE_EXPORT PartitionRoot {
       size_t length,
       PageAccessibilityDisposition accessibility_disposition)
       EXCLUSIVE_LOCKS_REQUIRED(lock_);
+  // Commits or recommits pages for user data (i.e. inside of slot spans) and
+  // updates relevant stats.
+  // If committing for the first time |accessibility_disposition| must be
+  // PageUpdatePermissions, otherwise must be PageKeepPermissionsIfPossible.
   ALWAYS_INLINE void RecommitSystemPagesForData(
+      internal::SlotSpanMetadata<thread_safe>* slot_span,
       void* address,
       size_t length,
       PageAccessibilityDisposition accessibility_disposition)
       EXCLUSIVE_LOCKS_REQUIRED(lock_);
   ALWAYS_INLINE bool TryRecommitSystemPagesForData(
+      internal::SlotSpanMetadata<thread_safe>* slot_span,
+      void* address,
+      size_t length,
+      PageAccessibilityDisposition accessibility_disposition);
+
+  void UpdateNumPreviouslyCommittedSystemPagesIfNeeded(
+      internal::SlotSpanMetadata<thread_safe>* slot_span,
+      size_t length,
+      PageAccessibilityDisposition accessibility_disposition);
+  void AssertNumPreviouslyCommittedSystemPages(
+      internal::SlotSpanMetadata<thread_safe>* slot_span,
       void* address,
       size_t length,
       PageAccessibilityDisposition accessibility_disposition);
@@ -354,11 +368,18 @@ struct BASE_EXPORT PartitionRoot {
                  bool is_light_dump,
                  PartitionStatsDumper* partition_stats_dumper);
 
+  void ResetBookkeepingForTesting();
+
   static uint16_t SizeToBucketIndex(size_t size);
+
+  ALWAYS_INLINE internal::DeferredUnmap FreeSlotSpan(void* slot_start,
+                                                     SlotSpan* slot_span)
+      EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
   // Frees memory, with |slot_start| as returned by |RawAlloc()|.
   ALWAYS_INLINE void RawFree(void* slot_start);
-  ALWAYS_INLINE void RawFree(void* slot_start, SlotSpan* slot_span);
+  ALWAYS_INLINE void RawFree(void* slot_start, SlotSpan* slot_span)
+      LOCKS_EXCLUDED(lock_);
 
   ALWAYS_INLINE void RawFreeWithThreadCache(void* slot_start,
                                             SlotSpan* slot_span);
@@ -369,23 +390,29 @@ struct BASE_EXPORT PartitionRoot {
   size_t get_total_size_of_committed_pages() const {
     return total_size_of_committed_pages.load(std::memory_order_relaxed);
   }
+  size_t get_max_size_of_committed_pages() const {
+    return max_size_of_committed_pages.load(std::memory_order_relaxed);
+  }
+
+  size_t get_total_size_of_allocated_bytes() const {
+    // Since this is only used for bookkeeping, we don't care if the value is
+    // stale, so no need to get a lock here.
+    return TS_UNCHECKED_READ(total_size_of_allocated_bytes);
+  }
+
+  size_t get_max_size_of_allocated_bytes() const {
+    // Since this is only used for bookkeeping, we don't care if the value is
+    // stale, so no need to get a lock here.
+    return TS_UNCHECKED_READ(max_size_of_allocated_bytes);
+  }
 
   internal::pool_handle ChooseGigaCagePool(bool is_direct_map) const {
-#if !BUILDFLAG(ENABLE_BRP_DIRECTMAP_SUPPORT)
-    // If this is a direct map request and BRP support for direct map isn't on,
-    // use non-BRP pool. This is true regardless of BRP support.
-    if (is_direct_map) {
-      return internal::GetNonBRPPool();
-    }
-#endif
-
 #if BUILDFLAG(USE_BACKUP_REF_PTR)
     return allow_ref_count ? internal::GetBRPPool() : internal::GetNonBRPPool();
 #else
-    // This is counterintuitive, but when BRP isn't used, make all allocations
-    // fall into the same pool, and BRP pool is a good place for that. PCScan
-    // requires this.
-    return internal::GetBRPPool();
+    // When BRP isn't used, all normal bucket allocations belong to the BRP pool
+    // and direct map allocations belong to non-BRP pool. PCScan requires this.
+    return is_direct_map ? internal::GetNonBRPPool() : internal::GetBRPPool();
 #endif  // BUILDFLAG(USE_BACKUP_REF_PTR)
   }
 
@@ -410,7 +437,7 @@ struct BASE_EXPORT PartitionRoot {
     // - The first few system pages are the partition page in which the super
     // page metadata is stored.
     // - We add a trailing guard page (one system page will suffice).
-#if !defined(PA_HAS_64_BITS_POINTERS) && BUILDFLAG(ENABLE_BRP_DIRECTMAP_SUPPORT)
+#if !defined(PA_HAS_64_BITS_POINTERS) && BUILDFLAG(USE_BACKUP_REF_PTR)
     // On 32-bit systems, we need PartitionPageSize() guard pages at both the
     // beginning and the end of each direct-map allocated memory. This is needed
     // for the BRP pool bitmap which excludes guard pages and operates at
@@ -684,12 +711,7 @@ ALWAYS_INLINE void* PartitionAllocGetSlotStart(void* ptr) {
   ptr = reinterpret_cast<char*>(ptr) - kPartitionPastAllocationAdjustment;
 
   PA_DCHECK(IsManagedByNormalBucketsOrDirectMap(ptr));
-#if BUILDFLAG(ENABLE_BRP_DIRECTMAP_SUPPORT)
   DCheckIfManagedByPartitionAllocBRPPool(ptr);
-#else
-  if (IsManagedByNormalBuckets(ptr))
-    DCheckIfManagedByPartitionAllocBRPPool(ptr);
-#endif
 
   void* directmap_slot_start = PartitionAllocGetDirectMapSlotStart(ptr);
   if (UNLIKELY(directmap_slot_start))
@@ -851,6 +873,9 @@ ALWAYS_INLINE void* PartitionRoot<thread_safe>::AllocFromBucket(
     *usable_size = slot_span->GetUsableSize(this);
   }
   PA_DCHECK(slot_span->GetUtilizedSlotSize() <= slot_span->bucket->slot_size);
+  total_size_of_allocated_bytes += slot_span->GetSizeForBookkeeping();
+  max_size_of_allocated_bytes =
+      std::max(max_size_of_allocated_bytes, total_size_of_allocated_bytes);
   return slot_start;
 }
 
@@ -977,21 +1002,15 @@ ALWAYS_INLINE void PartitionRoot<thread_safe>::FreeNoHooksImmediate(
 
 #if BUILDFLAG(USE_BACKUP_REF_PTR)
   if (allow_ref_count) {
-#if !BUILDFLAG(ENABLE_BRP_DIRECTMAP_SUPPORT)
-    if (LIKELY(!IsDirectMappedBucket(slot_span->bucket))) {
-#endif  // !BUILDFLAG(ENABLE_BRP_DIRECTMAP_SUPPORT)
-      auto* ref_count = internal::PartitionRefCountPointer(slot_start);
-      // If there are no more references to the allocation, it can be freed
-      // immediately. Otherwise, defer the operation and zap the memory to turn
-      // potential use-after-free issues into unexploitable crashes.
-      if (UNLIKELY(!ref_count->IsAliveWithNoKnownRefs()))
-        internal::SecureMemset(ptr, kQuarantinedByte, usable_size);
+    auto* ref_count = internal::PartitionRefCountPointer(slot_start);
+    // If there are no more references to the allocation, it can be freed
+    // immediately. Otherwise, defer the operation and zap the memory to turn
+    // potential use-after-free issues into unexploitable crashes.
+    if (UNLIKELY(!ref_count->IsAliveWithNoKnownRefs()))
+      internal::SecureMemset(ptr, kQuarantinedByte, usable_size);
 
-      if (UNLIKELY(!(ref_count->ReleaseFromAllocator())))
-        return;
-#if !BUILDFLAG(ENABLE_BRP_DIRECTMAP_SUPPORT)
-    }
-#endif  // !BUILDFLAG(ENABLE_BRP_DIRECTMAP_SUPPORT)
+    if (UNLIKELY(!(ref_count->ReleaseFromAllocator())))
+      return;
   }
 #endif  // BUILDFLAG(USE_BACKUP_REF_PTR)
 
@@ -1021,6 +1040,14 @@ ALWAYS_INLINE void PartitionRoot<thread_safe>::FreeNoHooksImmediate(
 }
 
 template <bool thread_safe>
+ALWAYS_INLINE internal::DeferredUnmap PartitionRoot<thread_safe>::FreeSlotSpan(
+    void* slot_start,
+    SlotSpan* slot_span) {
+  total_size_of_allocated_bytes -= slot_span->GetSizeForBookkeeping();
+  return slot_span->Free(slot_start);
+}
+
+template <bool thread_safe>
 ALWAYS_INLINE void PartitionRoot<thread_safe>::RawFree(void* slot_start) {
   SlotSpan* slot_span = SlotSpan::FromSlotStartPtr(slot_start);
   RawFree(slot_start, slot_span);
@@ -1029,10 +1056,42 @@ ALWAYS_INLINE void PartitionRoot<thread_safe>::RawFree(void* slot_start) {
 template <bool thread_safe>
 ALWAYS_INLINE void PartitionRoot<thread_safe>::RawFree(void* slot_start,
                                                        SlotSpan* slot_span) {
+  // At this point we are about to acquire the lock, so we try to minimize the
+  // risk of blocking inside the locked section.
+  //
+  // For allocations that are not direct-mapped, there will always be a store at
+  // the beginning of |*slot_start|, to link the freelist. This is why there is
+  // a prefetch of it at the beginning of the free() path.
+  //
+  // However, the memory which is being freed can be very cold (for instance
+  // during browser shutdown, when various caches are finally completely freed),
+  // and so moved to either compressed memory or swap. This means that touching
+  // it here can cause a major page fault. This is in turn will cause
+  // descheduling of the thread *while locked*. Since we don't have priority
+  // inheritance locks on most platforms, avoiding long locked periods relies on
+  // the OS having proper priority boosting. There is evidence
+  // (crbug.com/1228523) that this is not always the case on Windows, and a very
+  // low priority background thread can block the main one for a long time,
+  // leading to hangs.
+  //
+  // To mitigate that, make sure that we fault *before* locking. Note that this
+  // is useless for direct-mapped allocations (which are very rare anyway), and
+  // that this path is *not* taken for thread cache bucket purge (since it calls
+  // RawFreeLocked()). This is intentional, as the thread cache is purged often,
+  // and the memory has a consequence the memory has already been touched
+  // recently (to link the thread cache freelist).
+  *reinterpret_cast<volatile uintptr_t*>(slot_start) = 0;
+  // Note: even though we write to slot_start + sizeof(void*) as well, due to
+  // alignment constraints, the two locations are always going to be in the same
+  // OS page. No need to write to the second one as well.
+  //
+  // Do not move the store above inside the locked section.
+  __asm__ __volatile__("" : : "r"(slot_start) : "memory");
+
   internal::DeferredUnmap deferred_unmap;
   {
     ScopedGuard guard{lock_};
-    deferred_unmap = slot_span->Free(slot_start);
+    deferred_unmap = FreeSlotSpan(slot_start, slot_span);
   }
   deferred_unmap.Run();
 }
@@ -1064,7 +1123,7 @@ ALWAYS_INLINE void PartitionRoot<thread_safe>::RawFreeWithThreadCache(
 template <bool thread_safe>
 ALWAYS_INLINE void PartitionRoot<thread_safe>::RawFreeLocked(void* slot_start) {
   SlotSpan* slot_span = SlotSpan::FromSlotStartPtr(slot_start);
-  auto deferred_unmap = slot_span->Free(slot_start);
+  auto deferred_unmap = FreeSlotSpan(slot_start, slot_span);
   // Only used with bucketed allocations.
   PA_DCHECK(!deferred_unmap.reservation_start);
   deferred_unmap.Run();
@@ -1108,7 +1167,19 @@ PartitionRoot<thread_safe>::FromPointerInNormalBuckets(char* ptr) {
 template <bool thread_safe>
 ALWAYS_INLINE void PartitionRoot<thread_safe>::IncreaseCommittedPages(
     size_t len) {
-  total_size_of_committed_pages.fetch_add(len, std::memory_order_relaxed);
+  const auto old_total =
+      total_size_of_committed_pages.fetch_add(len, std::memory_order_relaxed);
+
+  const auto new_total = old_total + len;
+
+  // This function is called quite frequently; to avoid performance problems, we
+  // don't want to hold a lock here, so we use compare and exchange instead.
+  size_t expected = max_size_of_committed_pages.load(std::memory_order_relaxed);
+  size_t desired;
+  do {
+    desired = std::max(expected, new_total);
+  } while (!max_size_of_committed_pages.compare_exchange_weak(
+      expected, desired, std::memory_order_relaxed, std::memory_order_relaxed));
 }
 
 template <bool thread_safe>
@@ -1127,24 +1198,81 @@ ALWAYS_INLINE void PartitionRoot<thread_safe>::DecommitSystemPagesForData(
 }
 
 template <bool thread_safe>
-ALWAYS_INLINE void PartitionRoot<thread_safe>::RecommitSystemPagesForData(
+void PartitionRoot<thread_safe>::
+    UpdateNumPreviouslyCommittedSystemPagesIfNeeded(
+        internal::SlotSpanMetadata<thread_safe>* slot_span,
+        size_t length,
+        PageAccessibilityDisposition accessibility_disposition) {
+  if (accessibility_disposition == PageUpdatePermissions &&
+      !slot_span->bucket->is_direct_mapped()) {
+    // It is the caller's responsibility to use PageUpdatePermissions only on
+    // pages that have never been committed in the past. This requirement
+    // doesn't apply to direct map and single-slot spans.
+    slot_span->IncreasePreviouslyCommittedSize(length);
+#if DCHECK_IS_ON()
+    size_t num_uncommitted_slots =
+        use_lazy_commit ? slot_span->num_unprovisioned_slots : 0;
+    size_t num_committed_slots =
+        slot_span->bucket->get_slots_per_span() - num_uncommitted_slots;
+    PA_DCHECK(slot_span->GetPreviouslyCommittedSize() ==
+              bits::AlignUp(num_committed_slots * slot_span->bucket->slot_size,
+                            SystemPageSize()));
+#endif
+  }
+}
+
+template <bool thread_safe>
+void PartitionRoot<thread_safe>::AssertNumPreviouslyCommittedSystemPages(
+    internal::SlotSpanMetadata<thread_safe>* slot_span,
     void* address,
     size_t length,
     PageAccessibilityDisposition accessibility_disposition) {
+#if DCHECK_IS_ON()
+  if (slot_span->bucket->is_direct_mapped())
+    return;
+
+  char* base = reinterpret_cast<char*>(
+      internal::SlotSpanMetadata<thread_safe>::ToSlotSpanStartPtr(slot_span));
+  size_t previously_committed_size = slot_span->GetPreviouslyCommittedSize();
+  char* previously_committed_watermark = base + previously_committed_size;
+  if (accessibility_disposition == PageUpdatePermissions) {
+    PA_DCHECK(address == previously_committed_watermark);
+  } else {
+    PA_DCHECK(address <= previously_committed_watermark - length);
+  }
+#endif  // DCHECK_IS_ON()
+}
+
+template <bool thread_safe>
+ALWAYS_INLINE void PartitionRoot<thread_safe>::RecommitSystemPagesForData(
+    internal::SlotSpanMetadata<thread_safe>* slot_span,
+    void* address,
+    size_t length,
+    PageAccessibilityDisposition accessibility_disposition) {
+  AssertNumPreviouslyCommittedSystemPages(slot_span, address, length,
+                                          accessibility_disposition);
   RecommitSystemPages(address, length, PageReadWrite,
                       accessibility_disposition);
   IncreaseCommittedPages(length);
+  UpdateNumPreviouslyCommittedSystemPagesIfNeeded(slot_span, length,
+                                                  accessibility_disposition);
 }
 
 template <bool thread_safe>
 ALWAYS_INLINE bool PartitionRoot<thread_safe>::TryRecommitSystemPagesForData(
+    internal::SlotSpanMetadata<thread_safe>* slot_span,
     void* address,
     size_t length,
     PageAccessibilityDisposition accessibility_disposition) {
+  AssertNumPreviouslyCommittedSystemPages(slot_span, address, length,
+                                          accessibility_disposition);
   bool ok = TryRecommitSystemPages(address, length, PageReadWrite,
                                    accessibility_disposition);
-  if (ok)
+  if (ok) {
     IncreaseCommittedPages(length);
+    UpdateNumPreviouslyCommittedSystemPagesIfNeeded(slot_span, length,
+                                                    accessibility_disposition);
+  }
 
   return ok;
 }
@@ -1156,6 +1284,9 @@ ALWAYS_INLINE bool PartitionRoot<thread_safe>::TryRecommitSystemPagesForData(
 // PartitionAlloc's internal data. Used as malloc_usable_size.
 template <bool thread_safe>
 ALWAYS_INLINE size_t PartitionRoot<thread_safe>::GetUsableSize(void* ptr) {
+  // malloc_usable_size() is expected to handle NULL gracefully and return 0.
+  if (!ptr)
+    return 0;
   auto* slot_span = SlotSpan::FromSlotInnerPtr(ptr);
   auto* root = FromSlotSpan(slot_span);
   return slot_span->GetUsableSize(root);
@@ -1337,7 +1468,7 @@ ALWAYS_INLINE void* PartitionRoot<thread_safe>::AllocFlagsNoHooks(
   //   (e) utilized_slot_size
   //   (f) slot_size
   //
-  // - Ref-count may or may not exist in the slot, depending on CheckedPtr
+  // - Ref-count may or may not exist in the slot, depending on raw_ptr<T>
   //   implementation.
   // - Cookies exist only when DCHECK is on.
   // - Think of raw_size as the minimum size required internally to satisfy
@@ -1404,13 +1535,8 @@ ALWAYS_INLINE void* PartitionRoot<thread_safe>::AllocFlagsNoHooks(
   }
 
 #if BUILDFLAG(USE_BACKUP_REF_PTR)
-  bool should_init_ref_count = allow_ref_count
-#if !BUILDFLAG(ENABLE_BRP_DIRECTMAP_SUPPORT)
-                               && !(raw_size > kMaxBucketed)
-#endif
-      ;
-  // LIKELY: Direct mapped allocations are large and rare.
-  if (LIKELY(should_init_ref_count)) {
+  // LIKELY: |allow_ref_count| is false only for the aligned partition.
+  if (LIKELY(allow_ref_count)) {
     new (internal::PartitionRefCountPointer(slot_start))
         internal::PartitionRefCount();
   }

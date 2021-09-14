@@ -10,13 +10,12 @@
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_typedefs.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_video_frame_rect.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_video_pixel_format.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_image_source.h"
 #include "third_party/blink/renderer/core/imagebitmap/image_bitmap_source.h"
 #include "third_party/blink/renderer/modules/canvas/canvas2d/canvas_image_source_util.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
-#include "third_party/blink/renderer/modules/webcodecs/plane.h"
+#include "third_party/blink/renderer/modules/webcodecs/allow_shared_buffer_source_util.h"
 #include "third_party/blink/renderer/modules/webcodecs/video_frame_handle.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/heap/heap_allocator.h"
@@ -36,13 +35,12 @@ class CanvasImageSource;
 class DOMRectReadOnly;
 class ExceptionState;
 class ExecutionContext;
-class PlaneInit;
 class ScriptPromise;
 class ScriptState;
+class VideoColorSpace;
 class VideoFrameBufferInit;
 class VideoFrameCopyToOptions;
 class VideoFrameInit;
-class VideoFramePlaneInit;
 
 class MODULES_EXPORT VideoFrame final : public ScriptWrappable,
                                         public CanvasImageSource,
@@ -50,13 +48,18 @@ class MODULES_EXPORT VideoFrame final : public ScriptWrappable,
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  // Creates a VideoFrame with a new VideoFrameHandle wrapping |frame|.
-  VideoFrame(scoped_refptr<media::VideoFrame> frame, ExecutionContext*);
+  // Creates a VideoFrame with a new VideoFrameHandle wrapping |frame|, and
+  // monitored using |monitoring_source_id|.
+  VideoFrame(scoped_refptr<media::VideoFrame> frame,
+             ExecutionContext*,
+             std::string monitoring_source_id = std::string());
 
   // Creates a VideoFrame from an existing handle.
   // All frames sharing |handle| will have their |handle_| invalidated if any of
   // the frames receives a call to close().
   explicit VideoFrame(scoped_refptr<VideoFrameHandle> handle);
+
+  ~VideoFrame() override;
 
   // video_frame.idl implementation.
   static VideoFrame* Create(ScriptState* script_state,
@@ -64,45 +67,30 @@ class MODULES_EXPORT VideoFrame final : public ScriptWrappable,
                             const VideoFrameInit* init,
                             ExceptionState& exception_state);
   static VideoFrame* Create(ScriptState*,
-                            const HeapVector<Member<PlaneInit>>&,
-                            const VideoFramePlaneInit*,
-                            ExceptionState&);
-  static VideoFrame* Create(ScriptState*,
-                            const V8BufferSource*,
+                            const AllowSharedBufferSource*,
                             const VideoFrameBufferInit*,
                             ExceptionState&);
 
   absl::optional<V8VideoPixelFormat> format() const;
 
-  // DEPRECATED.
-  absl::optional<HeapVector<Member<Plane>>> planes(ExecutionContext*);
+  absl::optional<int64_t> timestamp() const;
+  absl::optional<uint64_t> duration() const;
 
   uint32_t codedWidth() const;
   uint32_t codedHeight() const;
 
-  DOMRectReadOnly* codedRect();
-  DOMRectReadOnly* visibleRect();
-
-  // DEPRECATED.
-  VideoFrameRect* codedRegion(ExecutionContext*) const;
-  VideoFrameRect* visibleRegion(ExecutionContext*) const;
-
-  // DEPRECATED.
-  uint32_t cropLeft(ExecutionContext*) const;
-  uint32_t cropTop(ExecutionContext*) const;
-  uint32_t cropWidth(ExecutionContext*) const;
-  uint32_t cropHeight(ExecutionContext*) const;
+  absl::optional<DOMRectReadOnly*> codedRect();
+  absl::optional<DOMRectReadOnly*> visibleRect();
 
   uint32_t displayWidth() const;
   uint32_t displayHeight() const;
 
-  absl::optional<int64_t> timestamp() const;
-  absl::optional<uint64_t> duration() const;
+  absl::optional<VideoColorSpace*> colorSpace();
 
   uint32_t allocationSize(VideoFrameCopyToOptions* options, ExceptionState&);
 
   ScriptPromise copyTo(ScriptState* script_state,
-                       const V8BufferSource* destination,
+                       const AllowSharedBufferSource* destination,
                        VideoFrameCopyToOptions* options,
                        ExceptionState& exception_state);
 
@@ -147,10 +135,10 @@ class MODULES_EXPORT VideoFrame final : public ScriptWrappable,
   scoped_refptr<VideoFrameHandle> handle_;
 
   // Caches
-  HeapVector<Member<Plane>> planes_;
+  int64_t external_allocated_memory_;
   Member<DOMRectReadOnly> coded_rect_;
   Member<DOMRectReadOnly> visible_rect_;
-  Member<DOMRectReadOnly> empty_rect_;
+  Member<VideoColorSpace> color_space_;
 };
 
 }  // namespace blink

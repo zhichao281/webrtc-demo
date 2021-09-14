@@ -38,9 +38,6 @@ class MODULES_EXPORT Sanitizer final : public ScriptWrappable {
   Sanitizer(ExecutionContext*, const SanitizerConfig*);
   ~Sanitizer() override;
 
-  String sanitizeToString(ScriptState* script_state,
-                          const V8SanitizerInput* input,
-                          ExceptionState& exception_state);
   DocumentFragment* sanitize(ScriptState* script_state,
                              const V8SanitizerInput* input,
                              ExceptionState& exception_state);
@@ -75,19 +72,15 @@ class MODULES_EXPORT Sanitizer final : public ScriptWrappable {
                                     const V8SanitizerInput* input,
                                     ExceptionState& exception_state);
   void DoSanitizing(ContainerNode*, LocalDOMWindow*, ExceptionState&);
-  DocumentFragment* SanitizeImpl(ScriptState* script_state,
-                                 const V8SanitizerInput* input,
-                                 ExceptionState& exception_state);
 
   SanitizerConfigImpl config_;
-  Member<const SanitizerConfig> config_dictionary_;
 
   // TODO(lyf): make it all-oilpan.
   const Vector<String> kVectorStar = Vector<String>({"*"});
   const HashSet<String> baseline_drop_elements_ = {
-      "APPLET",   "BASE",    "EMBED",    "IFRAME", "NOEMBED",
-      "NOFRAMES", "NOLAYER", "NOSCRIPT", "OBJECT", "FRAME",
-      "FRAMESET", "PARAM",   "SCRIPT"};
+      "applet",   "base",    "embed",    "iframe", "noembed",
+      "noframes", "nolayer", "noscript", "object", "frame",
+      "frameset", "param",   "script"};
   const HashMap<String, Vector<String>> baseline_drop_attributes_ = {
       {"onabort", kVectorStar},
       {"onafterprint", kVectorStar},

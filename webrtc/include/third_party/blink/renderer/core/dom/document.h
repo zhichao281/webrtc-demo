@@ -39,6 +39,7 @@
 #include "base/timer/elapsed_timer.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "services/network/public/mojom/referrer_policy.mojom-blink-forward.h"
+#include "services/network/public/mojom/restricted_cookie_manager.mojom-blink-forward.h"
 #include "services/network/public/mojom/web_sandbox_flags.mojom-blink-forward.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/metrics/document_update_reason.h"
@@ -1043,6 +1044,10 @@ class CORE_EXPORT Document : public ContainerNode,
   void setCookie(const String&, ExceptionState&);
   bool CookiesEnabled() const;
 
+  void SetCookieManager(
+      mojo::PendingRemote<network::mojom::blink::RestrictedCookieManager>
+          cookie_manager);
+
   const AtomicString& referrer() const;
 
   String domain() const;
@@ -1338,8 +1343,8 @@ class CORE_EXPORT Document : public ContainerNode,
 
   int RequestAnimationFrame(FrameCallback*);
   void CancelAnimationFrame(int id);
-  void ServiceScriptedAnimations(
-      base::TimeTicks monotonic_animation_start_time);
+  void ServiceScriptedAnimations(base::TimeTicks monotonic_animation_start_time,
+                                 bool can_throttle = false);
 
   int RequestIdleCallback(IdleTask*, const IdleRequestOptions*);
   void CancelIdleCallback(int id);
@@ -1567,7 +1572,7 @@ class CORE_EXPORT Document : public ContainerNode,
 
   // Deferred compositor commits are disallowed by default, and are only allowed
   // for same-origin navigations to an html document fetched with http.
-  bool DeferredCompositorCommitIsAllowed() {
+  bool DeferredCompositorCommitIsAllowed() const {
     return deferred_compositor_commit_is_allowed_;
   }
   void SetDeferredCompositorCommitIsAllowed(bool new_value) {
@@ -1606,6 +1611,7 @@ class CORE_EXPORT Document : public ContainerNode,
 
   // Use counter related functions.
   void CountUse(mojom::WebFeature feature) final;
+  void CountDeprecation(mojom::WebFeature feature) final;
   void CountUse(mojom::WebFeature feature) const;
   void CountProperty(CSSPropertyID property_id) const;
   void CountAnimatedProperty(CSSPropertyID property_id) const;
@@ -1672,9 +1678,6 @@ class CORE_EXPORT Document : public ContainerNode,
 
   void IncrementAsyncScriptCount() { async_script_count_++; }
   void RecordAsyncScriptCount();
-
-  void MarkFirstPaint();
-  void MaybeExecuteDelayedAsyncScripts();
 
   enum class DeclarativeShadowRootAllowState : uint8_t {
     kNotSet,
@@ -2287,7 +2290,6 @@ class CORE_EXPORT Document : public ContainerNode,
   Member<FontPreloadManager> font_preload_manager_;
 
   int async_script_count_ = 0;
-  bool first_paint_recorded_ = false;
 
   DeclarativeShadowRootAllowState declarative_shadow_root_allow_state_ =
       DeclarativeShadowRootAllowState::kNotSet;

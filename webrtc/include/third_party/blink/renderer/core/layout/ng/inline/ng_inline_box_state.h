@@ -174,6 +174,8 @@ class CORE_EXPORT NGInlineLayoutStateStack {
 
   bool HasBoxFragments() const { return !box_data_list_.IsEmpty(); }
 
+  wtf_size_t NumBoxFragments() const { return box_data_list_.size(); }
+
   // Notify when child is inserted at |index| to adjust child indexes.
   void ChildInserted(unsigned index);
 
@@ -187,25 +189,23 @@ class CORE_EXPORT NGInlineLayoutStateStack {
   // reordering.
   void UpdateAfterReorder(NGLogicalLineItems*);
 
-  // Update start/end of the first BoxData found at |index|.
-  //
-  // If inline fragmentation is found, a new BoxData is added.
-  //
-  // Returns the index to process next. It should be given to the next call to
-  // this function.
-  unsigned UpdateBoxDataFragmentRange(NGLogicalLineItems*, unsigned index);
-
-  // Update edges of inline fragmented boxes.
-  void UpdateFragmentedBoxDataEdges();
-
   // Compute inline positions of fragments and boxes.
-  LayoutUnit ComputeInlinePositions(NGLogicalLineItems*, LayoutUnit position);
+  LayoutUnit ComputeInlinePositions(NGLogicalLineItems*,
+                                    LayoutUnit position,
+                                    bool ignore_box_margin_border_padding);
 
-  void ApplyRelativePositioning(const NGConstraintSpace&, NGLogicalLineItems*);
-
+  // |oof_relative_offsets| is an output variable for the accumulated
+  // relative positioning offsets to be applied to OOF positioned descendants.
+  void ApplyRelativePositioning(
+      const NGConstraintSpace&,
+      NGLogicalLineItems*,
+      Vector<LogicalOffset, 32>* oof_relative_offsets);
   // Create box fragments. This function turns a flat list of children into
   // a box tree.
-  void CreateBoxFragments(NGLogicalLineItems*);
+  void CreateBoxFragments(const NGConstraintSpace&,
+                          NGLogicalLineItems*,
+                          bool is_opaque,
+                          Vector<LogicalOffset, 32>* oof_relative_offsets);
 
 #if DCHECK_IS_ON()
   void CheckSame(const NGInlineLayoutStateStack&) const;
@@ -292,8 +292,25 @@ class CORE_EXPORT NGInlineLayoutStateStack {
 
     void UpdateFragmentEdges(Vector<BoxData, 4>& list);
 
-    scoped_refptr<const NGLayoutResult> CreateBoxFragment(NGLogicalLineItems*);
+    scoped_refptr<const NGLayoutResult> CreateBoxFragment(
+        const NGConstraintSpace&,
+        NGLogicalLineItems*,
+        bool is_opaque = false,
+        LogicalOffset oof_relative_offset = LogicalOffset());
   };
+
+  // Update start/end of the first BoxData found at |index|.
+  //
+  // If inline fragmentation is found, a new BoxData is added.
+  //
+  // Returns the index to process next. It should be given to the next call to
+  // this function.
+  unsigned UpdateBoxDataFragmentRange(NGLogicalLineItems*,
+                                      unsigned index,
+                                      Vector<BoxData>* fragmented_boxes);
+
+  // Update edges of inline fragmented boxes.
+  void UpdateFragmentedBoxDataEdges(Vector<BoxData>* fragmented_boxes);
 
   Vector<NGInlineBoxState, 4> stack_;
   Vector<BoxData, 4> box_data_list_;

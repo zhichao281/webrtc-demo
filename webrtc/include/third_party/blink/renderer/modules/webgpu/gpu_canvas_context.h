@@ -15,9 +15,10 @@
 namespace blink {
 
 class GPUAdapter;
+class GPUCanvasConfiguration;
 class GPUSwapChain;
-class GPUSwapChainDescriptor;
 class GPUTexture;
+class V8UnionHTMLCanvasElementOrOffscreenCanvas;
 
 // A GPUCanvasContext does little by itself and basically just binds a canvas
 // and a GPUSwapChain together and forwards calls from one to the other.
@@ -59,7 +60,7 @@ class GPUCanvasContext : public CanvasRenderingContext {
   bool IsComposited() const final { return true; }
   bool IsAccelerated() const final { return true; }
   bool IsOriginTopLeft() const final { return true; }
-  void SetFilterQuality(SkFilterQuality) override;
+  void SetFilterQuality(cc::PaintFlags::FilterQuality) override;
   bool IsPaintable() const final { return true; }
   int ExternallyAllocatedBufferCountPerPixel() final { return 1; }
   void Stop() final;
@@ -76,13 +77,15 @@ class GPUCanvasContext : public CanvasRenderingContext {
   }
 
   // gpu_presentation_context.idl
-  void configure(const GPUSwapChainDescriptor* descriptor, ExceptionState&);
+  V8UnionHTMLCanvasElementOrOffscreenCanvas* getHTMLOrOffscreenCanvas() const;
+
+  void configure(const GPUCanvasConfiguration* descriptor, ExceptionState&);
   void unconfigure();
   String getPreferredFormat(const GPUAdapter* adapter);
   GPUTexture* getCurrentTexture(ExceptionState&);
 
   // gpu_canvas_context.idl (Deprecated)
-  GPUSwapChain* configureSwapChain(const GPUSwapChainDescriptor* descriptor,
+  GPUSwapChain* configureSwapChain(const GPUCanvasConfiguration* descriptor,
                                    ExceptionState&);
   String getSwapChainPreferredFormat(ExecutionContext* execution_context,
                                      GPUAdapter* adapter);
@@ -90,11 +93,12 @@ class GPUCanvasContext : public CanvasRenderingContext {
  private:
   DISALLOW_COPY_AND_ASSIGN(GPUCanvasContext);
 
-  void ConfigureInternal(const GPUSwapChainDescriptor* descriptor,
+  void ConfigureInternal(const GPUCanvasConfiguration* descriptor,
                          ExceptionState&,
                          bool deprecated_resize_behavior = false);
 
-  SkFilterQuality filter_quality_ = kLow_SkFilterQuality;
+  cc::PaintFlags::FilterQuality filter_quality_ =
+      cc::PaintFlags::FilterQuality::kLow;
   Member<GPUSwapChain> swapchain_;
   Member<GPUDevice> configured_device_;
   bool stopped_ = false;

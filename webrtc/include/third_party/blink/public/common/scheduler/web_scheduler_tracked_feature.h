@@ -7,7 +7,7 @@
 
 #include <stdint.h>
 #include <string>
-#include "base/util/enum_set/enum_set.h"
+#include "base/containers/enum_set.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/common_export.h"
 
@@ -57,7 +57,7 @@ enum class WebSchedulerTrackedFeature : uint32_t {
   // Whether the page tried to request a permission regardless of the outcome.
   // TODO(altimin): Track this more accurately depending on the data.
   // See permission.mojom for more details.
-  kRequestedGeolocationPermission = 19,
+  // kRequestedGeolocationPermission = 19,   // No longer blocking.
   kRequestedNotificationsPermission = 20,
   kRequestedMIDIPermission = 21,
   kRequestedAudioCapturePermission = 22,
@@ -106,15 +106,16 @@ enum class WebSchedulerTrackedFeature : uint32_t {
   kIsolatedWorldScript = 54,
   kInjectedStyleSheet = 55,
   kMediaSessionImplOnServiceCreated = 56,
+  kWebTransport = 57,
 
   // NB: This enum is used in a bitmask, so kMaxValue must be less than 64.
-  kMaxValue = kMediaSessionImplOnServiceCreated,
+  kMaxValue = kWebTransport,
 };
 
 using WebSchedulerTrackedFeatures =
-    base::util::EnumSet<WebSchedulerTrackedFeature,
-                        WebSchedulerTrackedFeature::kMinValue,
-                        WebSchedulerTrackedFeature::kMaxValue>;
+    base::EnumSet<WebSchedulerTrackedFeature,
+                  WebSchedulerTrackedFeature::kMinValue,
+                  WebSchedulerTrackedFeature::kMaxValue>;
 
 static_assert(static_cast<uint32_t>(WebSchedulerTrackedFeature::kMaxValue) < 64,
               "This enum is used in a bitmask, so the values should fit into a"

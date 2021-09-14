@@ -33,15 +33,20 @@ class BASE_EXPORT AddressPoolManagerBitmap {
   static constexpr uint64_t kAddressSpaceSize = 4ull * kGiB;
 
   // For BRP pool, we use partition page granularity to eliminate the guard
-  // pages at the ends. This is needed so that pointers to the end of an
-  // allocation that immediately precede a super page in BRP pool don't
-  // accidentally fall into that pool.
+  // pages from the bitmap at the ends:
+  // - Eliminating the guard page at the beginning is needed so that pointers
+  //   to the end of an allocation that immediately precede a super page in BRP
+  //   pool don't accidentally fall into that pool.
+  // - Eliminating the guard page at the end is to ensure that the last page
+  //   of the address space isn't in the BRP pool. This allows using sentinels
+  //   like reinterpret_cast<void*>(-1) without a risk of triggering BRP logic
+  //   on an invalid address. (Note, 64-bit systems don't have this problem as
+  //   the upper half of the address space always belongs to the OS.)
   //
-  // Note, direct map allocations may also belong to this pool (depending on the
-  // ENABLE_BRP_DIRECTMAP_SUPPORT setting). The same logic as above applies. It
-  // is important to note, however, that the granularity used here has to be a
-  // minimum of partition page size and direct map allocation granularity. Since
-  // DirectMapAllocationGranularity() is no smaller than
+  // Note, direct map allocations also belong to this pool. The same logic as
+  // above applies. It is important to note, however, that the granularity used
+  // here has to be a minimum of partition page size and direct map allocation
+  // granularity. Since DirectMapAllocationGranularity() is no smaller than
   // PageAllocationGranularity(), we don't need to decrease the bitmap
   // granularity any further.
   static constexpr size_t kBitShiftOfBRPPoolBitmap = PartitionPageShift();
@@ -97,7 +102,7 @@ class BASE_EXPORT AddressPoolManagerBitmap {
         brp_pool_bits_)[address_as_uintptr >> kBitShiftOfBRPPoolBitmap];
   }
 
-#if BUILDFLAG(USE_BRP_POOL_BLOCKLIST)
+#if BUILDFLAG(USE_BACKUP_REF_PTR)
   static void IncrementOutsideOfBRPPoolPtrRefCount(const void* address) {
     uintptr_t address_as_uintptr = reinterpret_cast<uintptr_t>(address);
 
@@ -113,7 +118,7 @@ class BASE_EXPORT AddressPoolManagerBitmap {
   static void DecrementOutsideOfBRPPoolPtrRefCount(const void* address) {
 #if BUILDFLAG(NEVER_REMOVE_FROM_BRP_POOL_BLOCKLIST)
     // No-op. In this mode, we only use one bit per super-page and, therefore,
-    // can't tell if there's more than one associated CheckedPtr at a given
+    // can't tell if there's more than one associated raw_ptr<T> at a given
     // time. There's a small risk is that we may exhaust the entire address
     // space. On the other hand, a single relaxed store (in the above function)
     // is much less expensive than two CAS operations.
@@ -129,13 +134,13 @@ class BASE_EXPORT AddressPoolManagerBitmap {
     uintptr_t address_as_uintptr = reinterpret_cast<uintptr_t>(address);
 
     // The only potentially dangerous scenario, in which this check is used, is
-    // when the assignment of the first |CheckedPtr| object for a non-GigaCage
+    // when the assignment of the first raw_ptr<T> object for a non-GigaCage
     // address is racing with the allocation of a new GigCage super-page at the
-    // same address. We assume that if |CheckedPtr| is being initialized with a
+    // same address. We assume that if raw_ptr<T> is being initialized with a
     // raw pointer, the associated allocation is "alive"; otherwise, the issue
-    // should be fixed by rewriting the raw pointer variable as |CheckedPtr|.
+    // should be fixed by rewriting the raw pointer variable as raw_ptr<T>.
     // In the worst case, when such a fix is impossible, we should just undo the
-    // |raw pointer -> CheckedPtr| rewrite of the problematic field. If the
+    // raw pointer -> raw_ptr<T> rewrite of the problematic field. If the
     // above assumption holds, the existing allocation will prevent us from
     // reserving the super-page region and, thus, having the race condition.
     // Since we rely on that external synchronization, the relaxed memory
@@ -148,7 +153,7 @@ class BASE_EXPORT AddressPoolManagerBitmap {
                std::memory_order_relaxed) == 0;
 #endif
   }
-#endif  // BUILDFLAG(USE_BRP_POOL_BLOCKLIST)
+#endif  // BUILDFLAG(USE_BACKUP_REF_PTR)
 
  private:
   friend class AddressPoolManager;
@@ -157,14 +162,14 @@ class BASE_EXPORT AddressPoolManagerBitmap {
 
   static std::bitset<kNonBRPPoolBits> non_brp_pool_bits_ GUARDED_BY(GetLock());
   static std::bitset<kBRPPoolBits> brp_pool_bits_ GUARDED_BY(GetLock());
-#if BUILDFLAG(USE_BRP_POOL_BLOCKLIST)
+#if BUILDFLAG(USE_BACKUP_REF_PTR)
 #if BUILDFLAG(NEVER_REMOVE_FROM_BRP_POOL_BLOCKLIST)
   static std::array<std::atomic_bool, kAddressSpaceSize / kSuperPageSize>
       brp_forbidden_super_page_map_;
 #endif
   static std::array<std::atomic_uint32_t, kAddressSpaceSize / kSuperPageSize>
       super_page_refcount_map_;
-#endif  // BUILDFLAG(USE_BRP_POOL_BLOCKLIST)
+#endif  // BUILDFLAG(USE_BACKUP_REF_PTR)
 };
 
 }  // namespace internal

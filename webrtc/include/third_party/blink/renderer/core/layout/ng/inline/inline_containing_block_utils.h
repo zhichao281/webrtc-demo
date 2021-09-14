@@ -13,7 +13,6 @@ namespace blink {
 
 class LayoutBox;
 class LayoutObject;
-class LayoutUnit;
 class NGBoxFragmentBuilder;
 
 class InlineContainingBlockUtils {
@@ -28,6 +27,9 @@ class InlineContainingBlockUtils {
     PhysicalRect start_fragment_union_rect;
     // Union of fragments generated on the last line.
     PhysicalRect end_fragment_union_rect;
+    // The accumulated relative offset of the inline container to be applied to
+    // any descendants after fragmentation.
+    LogicalOffset relative_offset;
   };
 
   using InlineContainingBlockMap =
@@ -44,18 +46,13 @@ class InlineContainingBlockUtils {
 
   // Computes the geometry required for any inline containing blocks inside a
   // fragmentation context. |box| is the containing block the inline containers
-  // are descendants of. |block_offset| is the offset of the containing block to
-  // the top of the first fragmentainer that it was found in.
-  // |container_builder| is the builder of the fragmentation context root.
-  // |fragment_index| is the index of the child in |container_builder|
-  // that the containing block was first found in. |inline_containing_block_map|
-  // is a map whose keys specify which objects we need to calculate inline
-  // containing block geometry for.
+  // are descendants of. |accumulated_containing_block_size| is the size of the
+  // containing block, including the total block size from all fragmentainers.
+  // |inline_containing_block_map| is a map whose keys specify which objects we
+  // need to calculate inline containing block geometry for.
   static void ComputeInlineContainerGeometryForFragmentainer(
       const LayoutBox* box,
-      LayoutUnit block_offset,
-      const NGBoxFragmentBuilder& container_builder,
-      wtf_size_t fragment_index,
+      PhysicalSize accumulated_containing_block_size,
       InlineContainingBlockMap* inline_containing_block_map);
 };
 

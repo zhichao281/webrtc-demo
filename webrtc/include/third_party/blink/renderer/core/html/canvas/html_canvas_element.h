@@ -181,6 +181,7 @@ class CORE_EXPORT HTMLCanvasElement final
   InsertionNotificationRequest InsertedInto(ContainerNode&) override;
 
   bool IsDirty() { return !dirty_rect_.IsEmpty(); }
+  bool IsVisible() const;
 
   void DoDeferredPaintInvalidation();
 
@@ -225,7 +226,7 @@ class CORE_EXPORT HTMLCanvasElement final
   CanvasResourceProvider* GetOrCreateCanvasResourceProvider(
       RasterModeHint hint) override;
   bool IsPrinting() const override;
-  void SetFilterQuality(SkFilterQuality filter_quality) override;
+  void SetFilterQuality(cc::PaintFlags::FilterQuality filter_quality) override;
 
   // CanvasRenderingContextHost implementation.
   UkmParameters GetUkmParameters() override;
@@ -321,6 +322,8 @@ class CORE_EXPORT HTMLCanvasElement final
   RespectImageOrientationEnum RespectImageOrientation() const;
 
   bool IsCanvasClear() { return canvas_is_clear_; }
+
+  bool IsPlaceholder() const override { return IsOffscreenCanvasRegistered(); }
 
  protected:
   void DidMoveToNewDocument(Document& old_document) override;

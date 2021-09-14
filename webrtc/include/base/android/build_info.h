@@ -35,6 +35,7 @@ enum SdkVersion {
   SDK_VERSION_P = 28,
   SDK_VERSION_Q = 29,
   SDK_VERSION_R = 30,
+  SDK_VERSION_S = 31,
 };
 
 // BuildInfo is a singleton class that stores android build and device
@@ -42,7 +43,6 @@ enum SdkVersion {
 // primarily in crash reporting.
 class BASE_EXPORT BuildInfo {
  public:
-
   ~BuildInfo() {}
 
   // Static factory method for getting the singleton BuildInfo instance.

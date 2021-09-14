@@ -7,7 +7,6 @@
 
 #include <unicode/ubidi.h>
 
-#include "base/containers/span.h"
 #include "base/dcheck_is_on.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/editing/forward.h"
@@ -143,6 +142,7 @@ class CORE_EXPORT NGInlineCursorPosition {
   const PhysicalRect RectInContainerFragment() const {
     return item_->RectInContainerFragment();
   }
+  FloatRect ObjectBoundingBox() const { return item_->ObjectBoundingBox(); }
   const PhysicalOffset OffsetInContainerFragment() const {
     return item_->OffsetInContainerFragment();
   }
