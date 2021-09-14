@@ -27,7 +27,7 @@
 #include "rtc_base/ssl_adapter.h"
 #include "head.h"
 
-#define VERSION	 "1.1.1.1211"
+#define VERSION	 "1.2.0.0914"
 
 #if WIN32
 #include "getopt.h"
