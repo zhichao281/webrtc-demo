@@ -36,6 +36,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main-linux.cc" />
+    <ClCompile Include="stun_server.cc" />
+    <ClCompile Include="turn_server.cc" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="head.h" />
@@ -96,7 +98,7 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
-    <IncludePath>/usr/include/aarch64-linux-gnu;/home/firefly/webrtc2020/webrtc-checkout/src;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/libyuv/include;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/jsoncpp/source/include;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/protobuf/conformance;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/abseil-cpp</IncludePath>
+    <IncludePath>/home/firefly/webrtc2020/webrtc-checkout/src;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/libyuv/include;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/jsoncpp/source/include;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/protobuf/conformance;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/abseil-cpp</IncludePath>
     <AdditionalSourcesToCopyMapping>$(SolutionDir)webrtc/amd64/libwebrtc.a:=$(RemoteRootDir)/$(ProjectName)/Lib/libwebrtc.a;$(AdditionalSourcesToCopyMapping)</AdditionalSourcesToCopyMapping>
     <LibraryPath>./Lib;</LibraryPath>
   </PropertyGroup>

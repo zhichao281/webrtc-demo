@@ -23,7 +23,8 @@
 #include "modules/audio_device/include/audio_device.h"
 #include "rtc_base/thread.h"
 #include "p2p/base/stun_server.h"
-
+#include "p2p/base/turn_server.h"
+#include "p2p/base/basic_packet_socket_factory.h"
 #include "rtc_base/ssl_adapter.h"
 #include "head.h"
 
@@ -41,23 +42,6 @@ void sighandler(int n)
 
 void  printfVersion()
 {
-	//std::cout << "******************************************" << std::endl;
-	//std::cout << "*                                        *" << std::endl;
-	//std::cout << "*                                        *" << std::endl;
-	//std::cout << "*                                        *" << std::endl;
-	//std::cout << "*                                        *" << std::endl;
-	//std::cout << "*           webrtc-streamer-linux        *" << std::endl;
-	//std::cout << "*                                        *" << std::endl;
-	//std::cout << "*                                        *" << std::endl;
-	//std::cout << "*                "<<VERSION<<"              *" << std::endl;
-	//std::cout << "*                                        *" << std::endl;
-	//std::cout << "*                                        *" << std::endl;
-	//std::cout << "*           "<< FileLog::getDatetime("yyyy-MM-dd hh:mm:ss.zzz") << "          *" << std::endl;
-	//std::cout << "*                                        *" << std::endl;
-	//std::cout << "*                                        *" << std::endl;
-	//std::cout << "*                                        *" << std::endl;
-	//std::cout << "*                                        *" << std::endl;
-	//std::cout << "******************************************" << std::endl;
 
 	RTC_LOG(LS_ERROR) << "******************************************";
 	RTC_LOG(LS_ERROR) << "*                                         *";
@@ -83,26 +67,7 @@ void  printfVersion()
 ** -------------------------------------------------------------------------*/
 int main(int argc, char* argv[]) {
 
-	/*std::map<std::string, std::shared_ptr<WsClient>> m_mapWsClient;
-	for (size_t i = 0; i < 5; i++)
-	{
-		if (m_mapWsClient.count("1")>0)
-		{
-			auto client = m_mapWsClient["1"];
-			m_mapWsClient.erase("1");
 
-		}
-	std::string strError = "";
-	auto client = std::shared_ptr<WsClient>(new WsClient());
-	client->SetEvent(nullptr);
-	int bRes = client->Start("ws://121.40.165.18:8800", "24", strError);
-	client->startAutoPing(1,  R"({"type":"heartbeat"})");
-	m_mapWsClient["1"] = client;
-
-		sleep(5);
-		client->Stop();
-
-	}*/
 
 	const char* turnurl = "admin:admin@110.80.40.206:3478";
 
@@ -256,56 +221,55 @@ int main(int argc, char* argv[]) {
 		iceServerList.push_back(std::string("turn:") + turnurl);
 	}
 
-	// start STUN server if needed
-			//std::unique_ptr<cricket::StunServer> stunserver;
-			//if (localstunurl != NULL)
-			//{
-			//	rtc::SocketAddress server_addr;
-			//	server_addr.FromString(localstunurl);
-			//	rtc::AsyncUDPSocket* server_socket = rtc::AsyncUDPSocket::Create(thread->socketserver(), server_addr);
-			//	if (server_socket)
-			//	{
-			//		stunserver.reset(new cricket::StunServer(server_socket));
-			//		std::cout << "STUN Listening at " << server_addr.ToString() << std::endl;
-			//	}
-			//}
+	//start STUN server if needed
+		std::unique_ptr<cricket::StunServer> stunserver;
+	if (localstunurl != NULL)
+	{
+		rtc::SocketAddress server_addr;
+		server_addr.FromString(localstunurl);
+		rtc::AsyncUDPSocket* server_socket = rtc::AsyncUDPSocket::Create(thread->socketserver(), server_addr);
+		if (server_socket)
+		{
+			stunserver.reset(new cricket::StunServer(server_socket));
+			std::cout << "STUN Listening at " << server_addr.ToString() << std::endl;
+		}
+	}
 
-			//// start TRUN server if needed
-			//std::unique_ptr<cricket::TurnServer> turnserver;
-			//if (localturnurl != NULL)
-			//{
-			//	std::istringstream is(localturnurl);
-			//	std::string addr;
-			//	std::getline(is, addr, '@');
-			//	std::getline(is, addr, '@');
-			//	rtc::SocketAddress server_addr;
-			//	server_addr.FromString(addr);
-			//	turnserver.reset(new cricket::TurnServer(rtc::Thread::Current()));
+	// start TRUN server if needed
+	std::unique_ptr<cricket::TurnServer> turnserver;
+	if (localturnurl != NULL)
+	{
+		std::istringstream is(localturnurl);
+		std::string addr;
+		std::getline(is, addr, '@');
+		std::getline(is, addr, '@');
+		rtc::SocketAddress server_addr;
+		server_addr.FromString(addr);
+		turnserver.reset(new cricket::TurnServer(rtc::Thread::Current()));
 
-			//	rtc::AsyncUDPSocket* server_socket = rtc::AsyncUDPSocket::Create(thread->socketserver(), server_addr);
-			//	if (server_socket)
-			//	{
-			//		std::cout << "TURN Listening UDP at " << server_addr.ToString() << std::endl;
-			//		turnserver->AddInternalSocket(server_socket, cricket::PROTO_UDP);
-			//	}
-			//	rtc::AsyncSocket* tcp_server_socket = thread->socketserver()->CreateAsyncSocket(AF_INET, SOCK_STREAM);
-			//	if (tcp_server_socket) {
-			//		std::cout << "TURN Listening TCP at " << server_addr.ToString() << std::endl;
-			//		tcp_server_socket->Bind(server_addr);
-			//		tcp_server_socket->Listen(5);
-			//		turnserver->AddInternalServerSocket(tcp_server_socket, cricket::PROTO_TCP);
-			//	}
+		rtc::AsyncUDPSocket* server_socket = rtc::AsyncUDPSocket::Create(thread->socketserver(), server_addr);
+		if (server_socket)
+		{
+			std::cout << "TURN Listening UDP at " << server_addr.ToString() << std::endl;
+			turnserver->AddInternalSocket(server_socket, cricket::PROTO_UDP);
+		}
+		rtc::AsyncSocket* tcp_server_socket = thread->socketserver()->CreateAsyncSocket(AF_INET, SOCK_STREAM);
+		if (tcp_server_socket) {
+			std::cout << "TURN Listening TCP at " << server_addr.ToString() << std::endl;
+			tcp_server_socket->Bind(server_addr);
+			tcp_server_socket->Listen(5);
+			turnserver->AddInternalServerSocket(tcp_server_socket, cricket::PROTO_TCP);
+		}
 
-			//	is.str(turnurl);
-			//	is.clear();
-			//	std::getline(is, addr, '@');
-			//	std::getline(is, addr, '@');
-			//	rtc::SocketAddress external_server_addr;
-			//	external_server_addr.FromString(addr);		
-			//	std::cout << "TURN external addr:" << external_server_addr.ToString() << std::endl;			
-			//	turnserver->SetExternalSocketFactory(new rtc::BasicPacketSocketFactory(), rtc::SocketAddress(external_server_addr.ipaddr(), 0));
-			//}
-
+		is.str(turnurl);
+		is.clear();
+		std::getline(is, addr, '@');
+		std::getline(is, addr, '@');
+		rtc::SocketAddress external_server_addr;
+		external_server_addr.FromString(addr);
+		std::cout << "TURN external addr:" << external_server_addr.ToString() << std::endl;
+		turnserver->SetExternalSocketFactory(new rtc::BasicPacketSocketFactory(), rtc::SocketAddress(external_server_addr.ipaddr(), 0));
+	}
 
 	// mainloop
 	printfVersion();
