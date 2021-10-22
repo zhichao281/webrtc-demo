@@ -2,11 +2,10 @@
 PeerConnectionClient Demo for vs2019
 
 
-采用的代码是 /4604   2021-08-28-4606，M94的代码
+采用的代码是 /4638   2021-09-24-4638，M95的代码
 vs是2019里面包含了windows  arm64  linux下平台的库。包含了在vs下如何使用webrtc的vs工程
 你就不用在去下载webrtc和进行编译源码了,
- 
-arm64 现在用的是2021-03-05的版本
+
 
 debug模式的使用 尤其上传文件大小限制要先解压.\webrtc-demo\webrtc\lib\debug.zip 到同级目录下
 
@@ -21,6 +20,12 @@ Update WebRTC code version (2021-07-13T04:01:55).
 
 update log 
 Update WebRTC code version (2021-08-28T00:29:50).
+
+update log 
+Update WebRTC code version (2021-08-28T00:29:50).
+update log 
+Update WebRTC code version (2021-09-24T20:05:50).
+
 
 如果有任何问题可以加我 QQ:125388771
 

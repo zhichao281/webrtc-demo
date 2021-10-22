@@ -61,14 +61,21 @@ void  printfVersion()
 	RTC_LOG(LS_ERROR) << "******************************************";
 }
 
-
+#include <iostream>
+#include <typeinfo>
+#include <cxxabi.h>
+#include <cxxabi.h>
 /* ---------------------------------------------------------------------------
 **  main
 ** -------------------------------------------------------------------------*/
 int main(int argc, char* argv[]) {
 
+	if (std::string(typeid(bool).name()).c_str() == "bool")
+	{
+		std::cout << abi::__cxa_demangle(typeid(bool).name(), 0, 0, 0)<<std::endl ;
+	}
 
-
+	std::cout << std::string(typeid(bool).name()).c_str()<<std::endl ;
 	const char* turnurl = "admin:admin@110.80.40.206:3478";
 
 	//const char* turnurl = "";
@@ -235,41 +242,41 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-	// start TRUN server if needed
-	std::unique_ptr<cricket::TurnServer> turnserver;
-	if (localturnurl != NULL)
-	{
-		std::istringstream is(localturnurl);
-		std::string addr;
-		std::getline(is, addr, '@');
-		std::getline(is, addr, '@');
-		rtc::SocketAddress server_addr;
-		server_addr.FromString(addr);
-		turnserver.reset(new cricket::TurnServer(rtc::Thread::Current()));
+	//// start TRUN server if needed
+	//std::unique_ptr<cricket::TurnServer> turnserver;
+	//if (localturnurl != NULL)
+	//{
+	//	std::istringstream is(localturnurl);
+	//	std::string addr;
+	//	std::getline(is, addr, '@');
+	//	std::getline(is, addr, '@');
+	//	rtc::SocketAddress server_addr;
+	//	server_addr.FromString(addr);
+	//	turnserver.reset(new cricket::TurnServer(rtc::Thread::Current()));
 
-		rtc::AsyncUDPSocket* server_socket = rtc::AsyncUDPSocket::Create(thread->socketserver(), server_addr);
-		if (server_socket)
-		{
-			std::cout << "TURN Listening UDP at " << server_addr.ToString() << std::endl;
-			turnserver->AddInternalSocket(server_socket, cricket::PROTO_UDP);
-		}
-		rtc::AsyncSocket* tcp_server_socket = thread->socketserver()->CreateAsyncSocket(AF_INET, SOCK_STREAM);
-		if (tcp_server_socket) {
-			std::cout << "TURN Listening TCP at " << server_addr.ToString() << std::endl;
-			tcp_server_socket->Bind(server_addr);
-			tcp_server_socket->Listen(5);
-			turnserver->AddInternalServerSocket(tcp_server_socket, cricket::PROTO_TCP);
-		}
+	//	rtc::AsyncUDPSocket* server_socket = rtc::AsyncUDPSocket::Create(thread->socketserver(), server_addr);
+	//	if (server_socket)
+	//	{
+	//		std::cout << "TURN Listening UDP at " << server_addr.ToString() << std::endl;
+	//		turnserver->AddInternalSocket(server_socket, cricket::PROTO_UDP);
+	//	}
+	//	rtc::AsyncSocket* tcp_server_socket = thread->socketserver()->CreateAsyncSocket(AF_INET, SOCK_STREAM);
+	//	if (tcp_server_socket) {
+	//		std::cout << "TURN Listening TCP at " << server_addr.ToString() << std::endl;
+	//		tcp_server_socket->Bind(server_addr);
+	//		tcp_server_socket->Listen(5);
+	//		turnserver->AddInternalServerSocket(tcp_server_socket, cricket::PROTO_TCP);
+	//	}
 
-		is.str(turnurl);
-		is.clear();
-		std::getline(is, addr, '@');
-		std::getline(is, addr, '@');
-		rtc::SocketAddress external_server_addr;
-		external_server_addr.FromString(addr);
-		std::cout << "TURN external addr:" << external_server_addr.ToString() << std::endl;
-		turnserver->SetExternalSocketFactory(new rtc::BasicPacketSocketFactory(), rtc::SocketAddress(external_server_addr.ipaddr(), 0));
-	}
+	//	is.str(turnurl);
+	//	is.clear();
+	//	std::getline(is, addr, '@');
+	//	std::getline(is, addr, '@');
+	//	rtc::SocketAddress external_server_addr;
+	//	external_server_addr.FromString(addr);
+	//	std::cout << "TURN external addr:" << external_server_addr.ToString() << std::endl;
+	//	turnserver->SetExternalSocketFactory(new rtc::BasicPacketSocketFactory(), rtc::SocketAddress(external_server_addr.ipaddr(), 0));
+	//}
 
 	// mainloop
 	printfVersion();
