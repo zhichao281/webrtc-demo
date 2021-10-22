@@ -86,7 +86,8 @@ enum class WebSchedulerTrackedFeature : uint32_t {
 
   kRequestedStorageAccessGrant = 37,
   kWebNfc = 38,
-  kWebFileSystem = 39,
+  // kWebFileSystem = 39. Removed after implementing WebFilesystem support in
+  // back/forward cache.
 
   kOutstandingNetworkRequestFetch = 40,
   kOutstandingNetworkRequestXHR = 41,
@@ -105,7 +106,8 @@ enum class WebSchedulerTrackedFeature : uint32_t {
   kOutstandingNetworkRequestDirectSocket = 53,
   kIsolatedWorldScript = 54,
   kInjectedStyleSheet = 55,
-  kMediaSessionImplOnServiceCreated = 56,
+  // kMediaSessionImplOnServiceCreated = 56, Removed after implementing
+  // MediaSessionImplOnServiceCreated support in back/forward cache.
   kWebTransport = 57,
 
   // NB: This enum is used in a bitmask, so kMaxValue must be less than 64.

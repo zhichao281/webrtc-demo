@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_GRID_NG_GRID_LAYOUT_ALGORITHM_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_GRID_NG_GRID_LAYOUT_ALGORITHM_H_
 
+#include "third_party/blink/renderer/core/layout/ng/grid/ng_grid_node.h"
 #include "third_party/blink/renderer/core/layout/ng/grid/ng_grid_track_collection.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_block_break_token.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_box_fragment_builder.h"
@@ -15,15 +16,15 @@
 namespace blink {
 
 class NGGridPlacement;
+struct NGGridProperties;
 
 class CORE_EXPORT NGGridLayoutAlgorithm
-    : public NGLayoutAlgorithm<NGBlockNode,
+    : public NGLayoutAlgorithm<NGGridNode,
                                NGBoxFragmentBuilder,
                                NGBlockBreakToken> {
  public:
   using SetOffsetData = NGGridData::SetData;
 
-  enum class AutoPlacementType { kNotNeeded, kMajor, kMinor, kBoth };
   enum class AxisEdge : uint8_t { kStart, kCenter, kEnd, kBaseline };
   enum class ItemType : uint8_t { kInGridFlow, kOutOfFlow };
 
@@ -60,15 +61,18 @@ class CORE_EXPORT NGGridLayoutAlgorithm
    public:
     explicit GridItemData(const NGBlockNode node) : node(node) {}
 
-    AutoPlacementType AutoPlacement(
-        const GridTrackSizingDirection major_direction) const;
-    const GridSpan& Span(GridTrackSizingDirection track_direction) const;
-    void SetSpan(const GridSpan& span,
-                 GridTrackSizingDirection track_direction);
-
-    wtf_size_t StartLine(GridTrackSizingDirection track_direction) const;
-    wtf_size_t EndLine(GridTrackSizingDirection track_direction) const;
-    wtf_size_t SpanSize(GridTrackSizingDirection track_direction) const;
+    const GridSpan& Span(GridTrackSizingDirection track_direction) const {
+      return resolved_position.Span(track_direction);
+    }
+    wtf_size_t StartLine(GridTrackSizingDirection track_direction) const {
+      return resolved_position.StartLine(track_direction);
+    }
+    wtf_size_t EndLine(GridTrackSizingDirection track_direction) const {
+      return resolved_position.EndLine(track_direction);
+    }
+    wtf_size_t SpanSize(GridTrackSizingDirection track_direction) const {
+      return resolved_position.SpanSize(track_direction);
+    }
 
     const TrackSpanProperties& GetTrackSpanProperties(
         GridTrackSizingDirection track_direction) const;
@@ -177,23 +181,23 @@ class CORE_EXPORT NGGridLayoutAlgorithm
         return *this;
       }
 
-      GridItemData* operator->() {
-        DCHECK(current_index_ && *current_index_ < item_data_->size());
-        return &(item_data_->at(*current_index_));
-      }
-
-      GridItemData& operator*() {
+      GridItemData& operator*() const {
         DCHECK(current_index_ && *current_index_ < item_data_->size());
         return item_data_->at(*current_index_);
       }
+      GridItemData* operator->() const { return &operator*(); }
 
      private:
       GridItemStorageVector* item_data_;
       Vector<wtf_size_t>::const_iterator current_index_;
     };
 
-    Iterator begin();
-    Iterator end();
+    Iterator begin() {
+      return Iterator(&item_data, reordered_item_indices.begin());
+    }
+    Iterator end() {
+      return Iterator(&item_data, reordered_item_indices.end());
+    }
 
     void Append(const GridItemData& new_item_data);
 
@@ -327,6 +331,7 @@ class CORE_EXPORT NGGridLayoutAlgorithm
 
   void ConstructAndAppendGridItems(
       GridItems* grid_items,
+      NGGridProperties* grid_properties,
       GridItemStorageVector* out_of_flow_items = nullptr) const;
 
   static GridItemData MeasureGridItem(const NGBlockNode node,
@@ -371,6 +376,7 @@ class CORE_EXPORT NGGridLayoutAlgorithm
   SetGeometry ComputeUsedTrackSizes(
       SizingConstraint sizing_constraint,
       const GridGeometry& grid_geometry,
+      const NGGridProperties& grid_properties,
       NGGridLayoutAlgorithmTrackCollection* track_collection,
       GridItems* grid_items,
       bool* needs_additional_pass,

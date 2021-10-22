@@ -8,6 +8,7 @@
 #include <string.h>
 #include <cstdint>
 #include <limits>
+#include <utility>
 
 #include "base/allocator/partition_allocator/address_pool_manager.h"
 #include "base/allocator/partition_allocator/address_pool_manager_types.h"
@@ -76,23 +77,6 @@ ALWAYS_INLINE char* SuperPagesEndFromExtent(
          (extent->number_of_consecutive_super_pages * kSuperPageSize);
 }
 
-// SlotSpanMetadata::Free() defers unmapping a large page until the lock is
-// released. Callers of SlotSpanMetadata::Free() must invoke Run().
-// TODO(1061437): Reconsider once the new locking mechanism is implemented.
-struct DeferredUnmap {
-  void* reservation_start = nullptr;
-  size_t reservation_size = 0;
-  pool_handle giga_cage_pool;
-
-  // In most cases there is no page to unmap and reservation_start == nullptr.
-  // This function is inlined to avoid the overhead of a function call in the
-  // common case.
-  ALWAYS_INLINE void Run();
-
- private:
-  BASE_EXPORT NOINLINE void Unmap();
-};
-
 using QuarantineBitmap =
     ObjectBitmap<kSuperPageSize, kSuperPageAlignment, kAlignment>;
 
@@ -139,37 +123,14 @@ struct __attribute__((packed)) SlotSpanMetadata {
   int8_t empty_cache_index = 0;  // -1 if not in the empty cache.
                                  // < kMaxFreeableSpans.
   static_assert(kMaxFreeableSpans < std::numeric_limits<int8_t>::max(), "");
+  const bool can_store_raw_size;
 
-  constexpr static size_t kSystemPagesInSmallRegularSpanBits = 5;
-  constexpr static size_t kMaxSystemPagesPerRegularSlotSpan =
-      kMaxPartitionPagesPerRegularSlotSpan * 4;
-  static_assert(kMaxSystemPagesPerRegularSlotSpan <
-                    (1 << kSystemPagesInSmallRegularSpanBits),
-                "");
-  uint8_t can_store_raw_size : 1;
-
- private:
-  // For small buckets buckets (i.e. when can_store_raw_size is false), stores
-  // value 0-16, as there may be at most 4 partition pages in a slot span,
-  // each having 4 system pages. (Note, we might be able to save a bit if
-  // needed, because 0 occurs only upon slot allocation and can likley be
-  // special-cased).
-  // Otherwise, store only 0 or 1, as there can be only one slot in a span and
-  // it's easy to calculate its size in pages.
-  // Don't access this field directly, use GetPreviouslyCommittedSize() and
-  // IncrasePreviouslyCommittedSize() instead.
-  uint8_t num_previously_committed_system_pages
-      : kSystemPagesInSmallRegularSpanBits;
-  uint8_t unused : 2;
-
- public:
   explicit SlotSpanMetadata(PartitionBucket<thread_safe>* bucket);
 
   // Public API
   // Note the matching Alloc() functions are in PartitionPage.
-  // Callers must invoke DeferredUnmap::Run() after releasing the lock.
-  BASE_EXPORT NOINLINE DeferredUnmap FreeSlowPath() WARN_UNUSED_RESULT;
-  ALWAYS_INLINE DeferredUnmap Free(void* ptr) WARN_UNUSED_RESULT;
+  BASE_EXPORT NOINLINE void FreeSlowPath();
+  ALWAYS_INLINE void Free(void* ptr);
 
   void Decommit(PartitionRoot<thread_safe>* root);
   void DecommitIfPossible(PartitionRoot<thread_safe>* root);
@@ -192,51 +153,6 @@ struct __attribute__((packed)) SlotSpanMetadata {
   // calling Set/GetRawSize.
   ALWAYS_INLINE void SetRawSize(size_t raw_size);
   ALWAYS_INLINE size_t GetRawSize() const;
-
-  // The following functions get/set number of system pages that have been
-  // previously committed by PartitionAlloc, even though not necessarily
-  // committed now. Since those pages can only be decommitted using
-  // PageKeepPermissionsIfPossible, the same option can be used to recommit them
-  // (faster than PageUpdatePermissions).
-  //
-  // Do not call for direct map!
-  ALWAYS_INLINE size_t GetPreviouslyCommittedSize() const {
-    PA_DCHECK(!bucket->is_direct_mapped());
-    // When |can_store_raw_size| is true (ie. single-slot spans, as direct map
-    // doesn't go through this path), |num_previously_committed_system_pages|
-    // stores 0 or 1, representing whether the entire slot of size |slot_size|
-    // was committed.
-    if (can_store_raw_size) {
-      PA_DCHECK((bucket->slot_size & SystemPageOffsetMask()) == 0);
-      return num_previously_committed_system_pages * bucket->slot_size;
-    } else {
-      return num_previously_committed_system_pages << SystemPageShift();
-    }
-  }
-  ALWAYS_INLINE void IncreasePreviouslyCommittedSize(size_t size) {
-    PA_DCHECK(!bucket->is_direct_mapped());
-    PA_DCHECK(size > 0);
-    PA_DCHECK((size & SystemPageOffsetMask()) == 0);
-    // When |can_store_raw_size| is true (ie. single-slot spans, as direct map
-    // doesn't go through this path), |num_previously_committed_system_pages|
-    // stores 0 or 1, representing whether the entire slot of size |slot_size|
-    // was committed.
-    size_t num_pages = num_previously_committed_system_pages;
-    if (can_store_raw_size) {
-      PA_DCHECK(size == bucket->slot_size);
-      // Single-slot spans can only be committed from 0 to its desired size,
-      // so assert that. (This isn't true for direct map, due realloc, but
-      // these don't go through this path.)
-      PA_DCHECK(num_previously_committed_system_pages == 0);
-      num_pages = 1;
-    } else {
-      num_pages += (size >> SystemPageShift());
-    }
-    PA_DCHECK(num_pages <= kMaxSystemPagesPerRegularSlotSpan);
-    num_previously_committed_system_pages = static_cast<uint8_t>(num_pages);
-    // Ensure no trimming happened.
-    PA_DCHECK(num_pages == num_previously_committed_system_pages);
-  }
 
   ALWAYS_INLINE void SetFreelistHead(PartitionFreelistEntry* new_head);
 
@@ -321,10 +237,7 @@ struct __attribute__((packed)) SlotSpanMetadata {
   static SlotSpanMetadata sentinel_slot_span_;
   // For the sentinel.
   constexpr SlotSpanMetadata() noexcept
-      : bucket(nullptr),
-        can_store_raw_size(0),
-        num_previously_committed_system_pages(0),
-        unused(0) {}
+      : bucket(nullptr), can_store_raw_size(false) {}
 };
 static_assert(sizeof(SlotSpanMetadata<ThreadSafe>) <= kPageMetadataSize,
               "SlotSpanMetadata must fit into a Page Metadata slot.");
@@ -715,9 +628,9 @@ ALWAYS_INLINE void SlotSpanMetadata<thread_safe>::SetFreelistHead(
 }
 
 template <bool thread_safe>
-ALWAYS_INLINE DeferredUnmap
-SlotSpanMetadata<thread_safe>::Free(void* slot_start) EXCLUSIVE_LOCKS_REQUIRED(
-    PartitionRoot<thread_safe>::FromSlotSpan(this)->lock_) {
+ALWAYS_INLINE void SlotSpanMetadata<thread_safe>::Free(void* slot_start)
+    EXCLUSIVE_LOCKS_REQUIRED(
+        PartitionRoot<thread_safe>::FromSlotSpan(this)->lock_) {
 #if DCHECK_IS_ON()
   auto* root = PartitionRoot<thread_safe>::FromSlotSpan(this);
   root->lock_.AssertAcquired();
@@ -734,13 +647,12 @@ SlotSpanMetadata<thread_safe>::Free(void* slot_start) EXCLUSIVE_LOCKS_REQUIRED(
   SetFreelistHead(entry);
   --num_allocated_slots;
   if (UNLIKELY(num_allocated_slots <= 0)) {
-    return FreeSlowPath();
+    FreeSlowPath();
   } else {
     // All single-slot allocations must go through the slow path to
     // correctly update the raw size.
     PA_DCHECK(!CanStoreRawSize());
   }
-  return {};
 }
 
 template <bool thread_safe>
@@ -788,12 +700,6 @@ ALWAYS_INLINE void SlotSpanMetadata<thread_safe>::Reset() {
   ToSuperPageExtent()->IncrementNumberOfNonemptySlotSpans();
 
   next_slot_span = nullptr;
-}
-
-ALWAYS_INLINE void DeferredUnmap::Run() {
-  if (UNLIKELY(reservation_start)) {
-    Unmap();
-  }
 }
 
 enum class QuarantineBitmapType { kMutator, kScanner };

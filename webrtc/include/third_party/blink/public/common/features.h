@@ -7,7 +7,6 @@
 
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
-#include "build/build_config.h"
 #include "media/media_buildflags.h"
 #include "third_party/blink/public/common/buildflags.h"
 #include "third_party/blink/public/common/common_export.h"
@@ -31,6 +30,7 @@ BLINK_COMMON_EXPORT extern const base::Feature
     kEagerCacheStorageSetupForServiceWorkers;
 BLINK_COMMON_EXPORT extern const base::Feature kScriptStreaming;
 BLINK_COMMON_EXPORT extern const base::Feature kSmallScriptStreaming;
+BLINK_COMMON_EXPORT extern const base::Feature kConsumeCodeCacheOffThread;
 BLINK_COMMON_EXPORT extern const base::Feature kUserLevelMemoryPressureSignal;
 BLINK_COMMON_EXPORT extern const base::Feature kFreezePurgeMemoryAllPagesFrozen;
 BLINK_COMMON_EXPORT extern const base::Feature kReduceUserAgent;
@@ -56,6 +56,7 @@ BLINK_COMMON_EXPORT extern const base::Feature kUserAgentClientHint;
 BLINK_COMMON_EXPORT extern const base::Feature kLangClientHintHeader;
 BLINK_COMMON_EXPORT extern const base::Feature
     kPrefersColorSchemeClientHintHeader;
+BLINK_COMMON_EXPORT extern const base::Feature kViewportHeightClientHintHeader;
 
 enum class FencedFramesImplementationType {
   kShadowDOM,
@@ -174,9 +175,6 @@ BLINK_COMMON_EXPORT extern const base::Feature
     kBlinkHeapIncrementalMarkingStress;
 
 BLINK_COMMON_EXPORT extern const base::Feature
-    kVerifyHTMLFetchedFromAppCacheBeforeDelay;
-
-BLINK_COMMON_EXPORT extern const base::Feature
     kBlinkCompositorUseDisplayThreadPriority;
 
 BLINK_COMMON_EXPORT extern const base::Feature kTransformInterop;
@@ -293,7 +291,6 @@ extern const char
     kSkipTouchEventFilterFilteringProcessParamValueBrowserAndRenderer[];
 
 BLINK_COMMON_EXPORT extern const base::Feature kCompressParkableStrings;
-BLINK_COMMON_EXPORT extern const base::Feature kParkableStringsToDisk;
 BLINK_COMMON_EXPORT bool IsParkableStringsToDiskEnabled();
 
 BLINK_COMMON_EXPORT extern const base::Feature kCrOSAutoSelect;
@@ -337,8 +334,6 @@ BLINK_COMMON_EXPORT extern const base::Feature kWebAppEnableProtocolHandlers;
 BLINK_COMMON_EXPORT extern const base::Feature kWebAppNoteTaking;
 
 BLINK_COMMON_EXPORT extern const base::Feature kLoadingTasksUnfreezable;
-
-BLINK_COMMON_EXPORT extern const base::Feature kFreezeWhileKeepActive;
 
 BLINK_COMMON_EXPORT extern const base::Feature kTargetBlankImpliesNoOpener;
 
@@ -433,11 +428,21 @@ BLINK_COMMON_EXPORT extern const base::Feature kDesktopPWAsSubApps;
 
 // When enabled, we report all JavaScript frameworks via a manual traversal to
 // detect the properties and attributes required.
-BLINK_COMMON_EXPORT extern const base::Feature kReportAllJavascriptFrameworks;
+BLINK_COMMON_EXPORT extern const base::Feature kReportAllJavaScriptFrameworks;
 
 // Suppresses console errors for CORS problems which report an associated
 // inspector issue anyway.
 BLINK_COMMON_EXPORT extern const base::Feature kCORSErrorsIssueOnly;
+
+BLINK_COMMON_EXPORT extern const base::Feature
+    kDeprecateThirdPartyContextWebSQL;
+
+// Synchronously load web fonts inlined as data urls. See crbug.com/1236283
+BLINK_COMMON_EXPORT extern const base::Feature kSyncLoadDataUrlFonts;
+
+// Makes Persistent quota the same as Temporary quota.
+BLINK_COMMON_EXPORT
+extern const base::Feature kPersistentQuotaIsTemporaryQuota;
 
 }  // namespace features
 }  // namespace blink

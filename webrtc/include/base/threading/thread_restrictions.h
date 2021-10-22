@@ -14,7 +14,8 @@
 #include "base/gtest_prod_util.h"
 #include "base/location.h"
 #include "base/macros.h"
-#include "base/threading/hang_watcher.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
 
 // -----------------------------------------------------------------------------
@@ -108,6 +109,7 @@ class KeyStorageLinux;
 class NativeBackendKWallet;
 class NativeDesktopMediaList;
 class Profile;
+class WebEngineBrowserMainParts;
 
 Profile* GetLastProfileMac();
 
@@ -148,6 +150,8 @@ namespace chromeos {
 class BlockingMethodCaller;
 namespace system {
 class StatisticsProviderImpl;
+bool IsCoreSchedulingAvailable();
+int NumberOfProcessorsForCoreScheduling();
 }
 }
 namespace chrome_browser_net {
@@ -233,6 +237,7 @@ class OSMetrics;
 }
 namespace metrics {
 class AndroidMetricsServiceClient;
+class CleanExitBeacon;
 }
 namespace midi {
 class TaskService;  // https://crbug.com/796830
@@ -431,6 +436,7 @@ class BASE_EXPORT ScopedAllowBlocking {
   friend class ios_web_view::WebViewBrowserState;
   friend class memory_instrumentation::OSMetrics;
   friend class metrics::AndroidMetricsServiceClient;
+  friend class metrics::CleanExitBeacon;
   friend class module_installer::ScopedAllowModulePakLoad;
   friend class mojo::CoreLibraryInitializer;
   friend class printing::LocalPrinterHandlerDefault;
@@ -443,13 +449,16 @@ class BASE_EXPORT ScopedAllowBlocking {
       DroppedScreenShotCopierMac;  // https://crbug.com/1148078
   friend class remoting::ScopedBypassIOThreadRestrictions;  // crbug.com/1144161
   friend class web::WebSubThread;
+  friend class ::WebEngineBrowserMainParts;
   friend class weblayer::BrowserContextImpl;
   friend class weblayer::ContentBrowserClientImpl;
   friend class weblayer::ProfileImpl;
   friend class weblayer::WebLayerPathProvider;
 
-  friend bool PathProviderWin(int, FilePath*);
   friend Profile* ::GetLastProfileMac();  // crbug.com/1176734
+  friend bool PathProviderWin(int, FilePath*);
+  friend bool chromeos::system::IsCoreSchedulingAvailable();
+  friend int chromeos::system::NumberOfProcessorsForCoreScheduling();
 
   ScopedAllowBlocking(const Location& from_here = Location::Current());
   ~ScopedAllowBlocking();

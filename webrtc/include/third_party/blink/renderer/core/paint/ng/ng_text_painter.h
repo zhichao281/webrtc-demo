@@ -12,6 +12,7 @@
 
 namespace blink {
 
+class LayoutObject;
 class LayoutSVGInlineText;
 class NGFragmentItem;
 struct NGTextFragmentPaintInfo;
@@ -26,15 +27,24 @@ class CORE_EXPORT NGTextPainter : public TextPainterBase {
 
  public:
   class SvgTextPaintState final {
+    STACK_ALLOCATED();
+
    public:
     SvgTextPaintState(const LayoutSVGInlineText&,
                       const ComputedStyle&,
                       bool is_rendering_clip_path_as_mask_image);
+    SvgTextPaintState(const LayoutSVGInlineText&,
+                      const ComputedStyle&,
+                      Color text_match_color);
 
     const LayoutSVGInlineText& InlineText() const;
+    const LayoutObject& TextDecorationObject() const;
     const ComputedStyle& Style() const;
     bool IsPaintingSelection() const;
     bool IsRenderingClipPathAsMaskImage() const;
+    bool IsPaintingTextMatch() const;
+    // This is callable only if IsPaintingTextMatch().
+    Color TextMatchColor() const;
 
     AffineTransform& EnsureShaderTransform();
     const AffineTransform* GetShaderTransform() const;
@@ -43,6 +53,7 @@ class CORE_EXPORT NGTextPainter : public TextPainterBase {
     const LayoutSVGInlineText& layout_svg_inline_text_;
     const ComputedStyle& style_;
     absl::optional<AffineTransform> shader_transform_;
+    absl::optional<Color> text_match_color_;
     bool is_painting_selection_ = false;
     bool is_rendering_clip_path_as_mask_image_ = false;
     friend class NGTextPainter;
@@ -82,26 +93,27 @@ class CORE_EXPORT NGTextPainter : public TextPainterBase {
                          const PhysicalRect& selection_rect,
                          DOMNodeId node_id);
 
-  void PaintDecorationsExceptLineThrough(
-      const NGFragmentItem& text_item,
-      const PaintInfo& paint_info,
-      const ComputedStyle& style,
-      const TextPaintStyle& text_style,
-      const PhysicalRect& decoration_rect,
-      const absl::optional<AppliedTextDecoration>& selection_decoration,
-      bool* has_line_through_decoration);
+  void PaintDecorationsExceptLineThrough(const NGFragmentItem& text_item,
+                                         const PaintInfo& paint_info,
+                                         const ComputedStyle& style,
+                                         const TextPaintStyle& text_style,
+                                         TextDecorationInfo& decoration_info,
+                                         const PhysicalRect& decoration_rect,
+                                         bool* has_line_through_decoration);
 
-  void PaintDecorationsOnlyLineThrough(
-      const NGFragmentItem& text_item,
-      const PaintInfo& paint_info,
-      const ComputedStyle& style,
-      const TextPaintStyle& text_style,
-      const PhysicalRect& decoration_rect,
-      const absl::optional<AppliedTextDecoration>& selection_decoration);
+  void PaintDecorationsOnlyLineThrough(const NGFragmentItem& text_item,
+                                       const PaintInfo& paint_info,
+                                       const ComputedStyle& style,
+                                       const TextPaintStyle& text_style,
+                                       TextDecorationInfo& decoration_info,
+                                       const PhysicalRect& decoration_rect);
 
   SvgTextPaintState& SetSvgState(const LayoutSVGInlineText&,
                                  const ComputedStyle&,
                                  bool is_rendering_clip_path_as_mask_image);
+  SvgTextPaintState& SetSvgState(const LayoutSVGInlineText& svg_inline_text,
+                                 const ComputedStyle& style,
+                                 Color text_match_color);
   SvgTextPaintState* GetSvgState();
 
  private:
@@ -115,6 +127,18 @@ class CORE_EXPORT NGTextPainter : public TextPainterBase {
                      DOMNodeId node_id);
 
   void PaintSvgTextFragment(DOMNodeId node_id);
+  void PaintSvgDecorationsExceptLineThrough(
+      const TextDecorationOffsetBase& decoration_offset,
+      TextDecorationInfo& decoration_info,
+      const PaintInfo& paint_info,
+      const Vector<AppliedTextDecoration>& decorations,
+      const TextPaintStyle& text_style,
+      bool* has_line_through_decoration);
+  void PaintSvgDecorationsOnlyLineThrough(
+      TextDecorationInfo& decoration_info,
+      const PaintInfo& paint_info,
+      const Vector<AppliedTextDecoration>& decorations,
+      const TextPaintStyle& text_style);
 
   NGTextFragmentPaintInfo fragment_paint_info_;
   const IntRect& visual_rect_;

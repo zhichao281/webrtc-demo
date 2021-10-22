@@ -15,7 +15,6 @@
 #include "third_party/blink/renderer/core/layout/ng/geometry/ng_margin_strut.h"
 #include "third_party/blink/renderer/core/layout/ng/grid/layout_ng_grid.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_block_node.h"
-#include "third_party/blink/renderer/core/layout/ng/ng_break_appeal.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_early_break.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_floats_utils.h"
 #include "third_party/blink/renderer/core/layout/ng/ng_fragment.h"
@@ -113,17 +112,22 @@ class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
     return HasRareData() ? rare_data_->column_spanner : NGBlockNode(nullptr);
   }
 
-  scoped_refptr<const NGEarlyBreak> GetEarlyBreak() const {
+  // True if this result is the parent of a column spanner and is empty (i.e.
+  // has no children). This is used to determine whether the column spanner
+  // margins should collapse. Note that |is_empty_spanner_parent| may be false
+  // even if this column spanner parent is actually empty. This can happen in
+  // the case where the spanner parent has no children but has not broken
+  // previously - in which case, we shouldn't collapse the spanner margins since
+  // we do not want to collapse margins with a column spanner outside of this
+  // parent.
+  bool IsEmptySpannerParent() const {
+    return bitfields_.is_empty_spanner_parent;
+  }
+
+  const NGEarlyBreak* GetEarlyBreak() const {
     if (!HasRareData())
       return nullptr;
     return rare_data_->early_break;
-  }
-
-  // Return the appeal of the best breakpoint (if any) we found inside the node.
-  NGBreakAppeal EarlyBreakAppeal() const {
-    if (HasRareData())
-      return static_cast<NGBreakAppeal>(rare_data_->early_break_appeal);
-    return kBreakAppealLastResort;
   }
 
   const NGExclusionSpace& ExclusionSpace() const {
@@ -220,11 +224,10 @@ class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
   }
 
   // Return true if we weren't able to honor all break avoidance hints requested
-  // by break-{after,before,inside}:avoid or orphans / widows. This is used for
-  // column balancing.
-  bool HasViolatingBreak() const {
-    return HasRareData() && rare_data_->has_violating_break;
-  }
+  // by break-{after,before,inside}:avoid or orphans / widows, or if we had to
+  // break at an invalid breakpoint (e.g. before/after the first/last
+  // child). This is used for column balancing.
+  bool HasViolatingBreak() const { return bitfields_.has_violating_break; }
 
   SerializedScriptValue* CustomLayoutData() const {
     return HasRareData() ? rare_data_->custom_layout_data.get() : nullptr;
@@ -442,7 +445,6 @@ class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
         : bfc_line_offset(rare_data.bfc_line_offset),
           bfc_block_offset(rare_data.bfc_block_offset),
           early_break(rare_data.early_break),
-          early_break_appeal(rare_data.early_break_appeal),
           oof_positioned_offset(rare_data.oof_positioned_offset),
           end_margin_strut(rare_data.end_margin_strut),
           // This will initialize "both" members of the union.
@@ -453,7 +455,6 @@ class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
           line_box_bfc_block_offset(rare_data.line_box_bfc_block_offset),
           annotation_overflow(rare_data.annotation_overflow),
           block_end_annotation_space(rare_data.block_end_annotation_space),
-          has_violating_break(rare_data.has_violating_break),
           lines_until_clamp(rare_data.lines_until_clamp),
           table_column_count_(rare_data.table_column_count_),
           math_layout_data_(rare_data.math_layout_data_) {
@@ -466,8 +467,7 @@ class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
     LayoutUnit bfc_line_offset;
     absl::optional<LayoutUnit> bfc_block_offset;
 
-    scoped_refptr<const NGEarlyBreak> early_break;
-    NGBreakAppeal early_break_appeal = kBreakAppealLastResort;
+    Persistent<const NGEarlyBreak> early_break;
     LogicalOffset oof_positioned_offset;
     NGMarginStrut end_margin_strut;
     NGBlockNode column_spanner = nullptr;
@@ -490,7 +490,6 @@ class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
     absl::optional<LayoutUnit> line_box_bfc_block_offset;
     LayoutUnit annotation_overflow;
     LayoutUnit block_end_annotation_space;
-    bool has_violating_break = false;
     int lines_until_clamp = 0;
     wtf_size_t table_column_count_ = 0;
     std::unique_ptr<const NGGridData> grid_layout_data_;
@@ -516,24 +515,28 @@ class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
               /* is_pushed_by_floats */ false,
               /* adjoining_object_types */ kAdjoiningNone,
               /* has_descendant_that_depends_on_percentage_block_size */
-              false) {}
+              false,
+              /* subtree_modified_margin_strut */ false) {}
     Bitfields(bool is_self_collapsing,
               bool is_pushed_by_floats,
               NGAdjoiningObjectTypes adjoining_object_types,
-              bool has_descendant_that_depends_on_percentage_block_size)
+              bool has_descendant_that_depends_on_percentage_block_size,
+              bool subtree_modified_margin_strut)
         : has_rare_data(false),
           has_rare_data_exclusion_space(false),
           has_oof_positioned_offset(false),
           can_use_out_of_flow_positioned_first_tier_cache(false),
           is_bfc_block_offset_nullopt(false),
           has_forced_break(false),
+          has_violating_break(false),
+          is_empty_spanner_parent(false),
           is_self_collapsing(is_self_collapsing),
           is_pushed_by_floats(is_pushed_by_floats),
           adjoining_object_types(static_cast<unsigned>(adjoining_object_types)),
           is_initial_block_size_indefinite(false),
           has_descendant_that_depends_on_percentage_block_size(
               has_descendant_that_depends_on_percentage_block_size),
-          subtree_modified_margin_strut(false),
+          subtree_modified_margin_strut(subtree_modified_margin_strut),
           initial_break_before(static_cast<unsigned>(EBreakBetween::kAuto)),
           final_break_after(static_cast<unsigned>(EBreakBetween::kAuto)),
           status(static_cast<unsigned>(kSuccess)) {}
@@ -545,6 +548,8 @@ class CORE_EXPORT NGLayoutResult : public RefCounted<NGLayoutResult> {
     unsigned is_bfc_block_offset_nullopt : 1;
 
     unsigned has_forced_break : 1;
+    unsigned has_violating_break : 1;
+    unsigned is_empty_spanner_parent : 1;
 
     unsigned is_self_collapsing : 1;
     unsigned is_pushed_by_floats : 1;

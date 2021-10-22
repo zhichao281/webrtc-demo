@@ -191,7 +191,8 @@ class MODULES_EXPORT AXObjectCacheImpl
   void OnTouchAccessibilityHover(const IntPoint&) override;
 
   AXObject* ObjectFromAXID(AXID id) const {
-    return objects_.DeprecatedAtOrEmptyValue(id);
+    auto it = objects_.find(id);
+    return it != objects_.end() ? it->value : nullptr;
   }
   AXObject* Root();
 
@@ -462,7 +463,7 @@ class MODULES_EXPORT AXObjectCacheImpl
   // LayoutObject and AbstractInlineTextBox are not on the Oilpan heap so we
   // do not use HeapHashMap for those mappings.
   HeapHashMap<Member<AccessibleNode>, AXID> accessible_node_mapping_;
-  HashMap<const LayoutObject*, AXID> layout_object_mapping_;
+  HeapHashMap<Member<const LayoutObject>, AXID> layout_object_mapping_;
   HeapHashMap<Member<const Node>, AXID> node_object_mapping_;
   HashMap<AbstractInlineTextBox*, AXID> inline_text_box_object_mapping_;
   int modification_count_;
@@ -565,6 +566,9 @@ class MODULES_EXPORT AXObjectCacheImpl
   void SelectionChangedWithCleanLayout(Node* node);
   void TextChangedWithCleanLayout(Node* node);
   void ChildrenChangedWithCleanLayout(Node* node);
+  // If the presence of document markers changed for the given text node, then
+  // call children changed.
+  void HandleTextMarkerDataAddedWithCleanLayout(Node*);
   void HandleAttributeChangedWithCleanLayout(const QualifiedName& attr_name,
                                              Element* element);
   void HandleUseMapAttributeChangedWithCleanLayout(Element*);
@@ -641,6 +645,9 @@ class MODULES_EXPORT AXObjectCacheImpl
   TreeUpdateCallbackQueue tree_update_callback_queue_popup_;
 
   HeapHashSet<WeakMember<Node>> nodes_with_pending_children_changed_;
+
+  // Nodes with document markers that have received accessibility updates.
+  HeapHashSet<WeakMember<Node>> nodes_with_spelling_or_grammar_markers_;
 
   // If tree_update_callback_queue_ gets improbably large, stop
   // enqueueing updates and fire a single ChildrenChanged event on the
