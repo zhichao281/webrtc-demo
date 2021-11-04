@@ -36,8 +36,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main-linux.cc" />
-    <ClCompile Include="stun_server.cc" />
-    <ClCompile Include="turn_server.cc" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="head.h" />

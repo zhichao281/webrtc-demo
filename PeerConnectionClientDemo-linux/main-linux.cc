@@ -229,18 +229,18 @@ int main(int argc, char* argv[]) {
 	}
 
 	//start STUN server if needed
-		std::unique_ptr<cricket::StunServer> stunserver;
-	if (localstunurl != NULL)
-	{
-		rtc::SocketAddress server_addr;
-		server_addr.FromString(localstunurl);
-		rtc::AsyncUDPSocket* server_socket = rtc::AsyncUDPSocket::Create(thread->socketserver(), server_addr);
-		if (server_socket)
-		{
-			stunserver.reset(new cricket::StunServer(server_socket));
-			std::cout << "STUN Listening at " << server_addr.ToString() << std::endl;
-		}
-	}
+	//	std::unique_ptr<cricket::StunServer> stunserver;
+	//if (localstunurl != NULL)
+	//{
+	//	rtc::SocketAddress server_addr;
+	//	server_addr.FromString(localstunurl);
+	//	rtc::AsyncUDPSocket* server_socket = rtc::AsyncUDPSocket::Create(thread->socketserver(), server_addr);
+	//	if (server_socket)
+	//	{
+	//		stunserver.reset(new cricket::StunServer(server_socket));
+	//		std::cout << "STUN Listening at " << server_addr.ToString() << std::endl;
+	//	}
+	//}
 
 	//// start TRUN server if needed
 	//std::unique_ptr<cricket::TurnServer> turnserver;
