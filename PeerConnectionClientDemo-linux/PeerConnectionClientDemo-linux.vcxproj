@@ -36,18 +36,19 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main-linux.cc" />
+    <ClCompile Include="stun_server.cc" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="head.h" />
   </ItemGroup>
   <ItemGroup>
-    <Object Include="..\webrtc\arm64\json.o" />
-    <Object Include="..\webrtc\arm64\json_reader.o" />
-    <Object Include="..\webrtc\arm64\json_value.o" />
-    <Object Include="..\webrtc\arm64\json_writer.o" />
+    <Object Include="..\webrtc\amd64\json.o" />
+    <Object Include="..\webrtc\amd64\json_reader.o" />
+    <Object Include="..\webrtc\amd64\json_value.o" />
+    <Object Include="..\webrtc\amd64\json_writer.o" />
   </ItemGroup>
   <ItemGroup>
-    <Library Include="..\webrtc\arm64\libwebrtc.a" />
+    <Library Include="..\webrtc\amd64\libwebrtc.a" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{d4de1c45-b51c-4f16-9536-ab97c765bc55}</ProjectGuid>
@@ -101,7 +102,7 @@
     <LibraryPath>./Lib;</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>/home/server/webrtc2020/webrtc-checkout/src;/home/server/webrtc2020/webrtc-checkout/src/third_party/abseil-cpp;/home/server/webrtc2020/webrtc-checkout/src/third_party/libyuv/include;/home/server/webrtc2020/webrtc-checkout/src/third_party/jsoncpp/source/include</IncludePath>
+    <IncludePath>/home/firefly/webrtc2020/webrtc-checkout/src;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/abseil-cpp;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/libyuv/include;/home/firefly/webrtc2020/webrtc-checkout/src/third_party/jsoncpp/source/include</IncludePath>
     <RemoteCCompileToolExe>g++</RemoteCCompileToolExe>
     <ProjectPublicIncludePath>
     </ProjectPublicIncludePath>

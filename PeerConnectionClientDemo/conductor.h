@@ -16,7 +16,7 @@
 #include <memory>
 #include <string>
 #include <vector>
-
+#include <regex>
 #include "api/media_stream_interface.h"
 #include "api/peer_connection_interface.h"
 #include "main_wnd.h"
@@ -101,6 +101,7 @@ protected:
     void DeletePeerConnection();
     void EnsureStreamingUI();
     void AddTracks();
+	rtc::scoped_refptr<webrtc::AudioSourceInterface> CreateAudioSource(const std::string& audiourl, const std::map<std::string, std::string>& opts);
 
     //
     // PeerConnectionObserver implementation.
@@ -174,6 +175,9 @@ protected:
     MainWindow* main_wnd_;
     std::deque<std::string*> pending_messages_;
     std::string server_;
+
+	std::unique_ptr<webrtc::TaskQueueFactory>                                 m_task_queue_factory;
+	rtc::scoped_refptr<webrtc::AudioDeviceModule>                             m_audioDeviceModule;
 };
 
 #endif  // EXAMPLES_PEERCONNECTION_CLIENT_CONDUCTOR_H_

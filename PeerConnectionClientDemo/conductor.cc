@@ -45,6 +45,25 @@
 #include "rtc_base/strings/json.h"
 #include "test/vcm_capturer.h"
 
+#include "common_audio/resampler/include/resampler.h"
+#include "common_audio/vad/include/webrtc_vad.h"
+
+
+
+
+#include "api/task_queue/default_task_queue_factory.h"
+#include "api/video/builtin_video_bitrate_allocator_factory.h"
+#include "api/rtc_event_log/rtc_event_log_factory.h"
+
+#include "media/engine/webrtc_media_engine.h"
+#include "modules/audio_device/include/fake_audio_device.h"
+
+#ifdef WEBRTC_WIN
+#include "modules/audio_device/include/audio_device_factory.h"
+#include "modules/audio_device/win/core_audio_utility_win.h"
+#endif
+#include <thread>
+
 namespace {
 	// Names used for a IceCandidate JSON object.
 	const char kCandidateSdpMidName[] = "sdpMid";
@@ -134,9 +153,13 @@ bool Conductor::InitializePeerConnection() {
 		signaling_thread_ = rtc::Thread::CreateWithSocketServer();
 		signaling_thread_->Start();
 	}
+
+	m_task_queue_factory = webrtc::CreateDefaultTaskQueueFactory();
+	m_audioDeviceModule = webrtc::AudioDeviceModule::CreateForTest(webrtc::AudioDeviceModule::kWindowsCoreAudio, m_task_queue_factory.get()),
+
 	peer_connection_factory_ = webrtc::CreatePeerConnectionFactory(
 		nullptr /* network_thread */, nullptr /* worker_thread */,
-		signaling_thread_.get(), nullptr /* default_adm */,
+		signaling_thread_.get(), m_audioDeviceModule /* default_adm */,
 		webrtc::CreateBuiltinAudioEncoderFactory(),
 		webrtc::CreateBuiltinAudioDecoderFactory(),
 		webrtc::CreateBuiltinVideoEncoderFactory(),
@@ -439,46 +462,112 @@ void Conductor::ConnectToPeer(int peer_id) {
 	}
 }
 #include "MyCapturer.h"
+
+
+rtc::scoped_refptr<webrtc::AudioSourceInterface> Conductor::CreateAudioSource(const std::string& audiourl, const std::map<std::string, std::string>& opts)
+{
+	RTC_LOG(INFO) << "audiourl:" << audiourl;
+	std::string publishFilter(".*");
+
+	const std::regex  m_publishFilter(publishFilter);
+
+	bool bres = std::regex_match("rtsp://", m_publishFilter);
+
+	rtc::scoped_refptr<webrtc::AudioSourceInterface> audioSource;
+	m_audioDeviceModule->Init();
+	int16_t num_audioDevices = m_audioDeviceModule->RecordingDevices();
+	int16_t idx_audioDevice = -1;
+	char name[webrtc::kAdmMaxDeviceNameSize] = { 0 };
+	char id[webrtc::kAdmMaxGuidSize] = { 0 };
+	if (audiourl.find("audiocap://") == 0) {
+		int deviceNumber = atoi(audiourl.substr(strlen("audiocap://")).c_str());
+		RTC_LOG(INFO) << "audiourl:" << audiourl << " device number:" << deviceNumber;
+		if (m_audioDeviceModule->RecordingDeviceName(deviceNumber, name, id) != -1)
+		{
+			idx_audioDevice = deviceNumber;
+		}
+
+	}
+	else {
+		for (int i = 0; i < num_audioDevices; ++i)
+		{
+			if (m_audioDeviceModule->RecordingDeviceName(i, name, id) != -1)
+			{
+				if (audiourl == name)
+				{
+					idx_audioDevice = i;
+					break;
+				}
+			}
+		}
+	}
+	RTC_LOG(LS_ERROR) << "audiourl:" << audiourl << " idx_audioDevice:" << idx_audioDevice << "/" << num_audioDevices;
+	if ((idx_audioDevice >= 0) && (idx_audioDevice < num_audioDevices))
+	{
+		m_audioDeviceModule->SetRecordingDevice(idx_audioDevice);
+		m_audioDeviceModule->EnableBuiltInAEC(false);
+		m_audioDeviceModule->EnableBuiltInAGC(false);
+		m_audioDeviceModule->EnableBuiltInNS(false);
+		//audioDeviceModule->SetMicrophoneVolume(255);
+		cricket::AudioOptions opt;
+		audioSource = peer_connection_factory_->CreateAudioSource(opt);
+	}
+
+	return audioSource;
+}
+
+
+
+
 void Conductor::AddTracks() {
 	if (!peer_connection_->GetSenders().empty()) {
 		return;  // Already added tracks.
 	}
+	std::map<std::string, std::string> opts;
+	std::string AudioUrl=R"(audiocap://0)";
+	rtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track;
+	rtc::scoped_refptr<webrtc::AudioSourceInterface> audioSource = this->CreateAudioSource(AudioUrl, opts);
 
-	rtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track(
-		peer_connection_factory_->CreateAudioTrack(
-			kAudioLabel, peer_connection_factory_->CreateAudioSource(
-				cricket::AudioOptions())));
+	if (audioSource)
+	{
+		audio_track = peer_connection_factory_->CreateAudioTrack(kAudioLabel, audioSource);
+
+	}
+	//rtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track(
+	//	peer_connection_factory_->CreateAudioTrack(
+	//		kAudioLabel, peer_connection_factory_->CreateAudioSource(
+	//			cricket::AudioOptions())));
 	auto result_or_error = peer_connection_->AddTrack(audio_track, { kStreamId });
 	if (!result_or_error.ok()) {
 		RTC_LOG(LS_ERROR) << "Failed to add audio track to PeerConnection: "
 			<< result_or_error.error().message();
 	}
 
-	/*rtc::scoped_refptr<MyDesktopCapture> video_device =
+	rtc::scoped_refptr<MyDesktopCapture> video_device =
         MyDesktopCapture::Create();
 	printf("vd_adress:%p\n", video_device);
     if (video_device) {
         rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track_(
             peer_connection_factory_->CreateVideoTrack(kVideoLabel, video_device));
         main_wnd_->StartLocalRenderer(video_track_);
-		result_or_error = peer_connection_->AddTrack(video_track_, { kStreamId });
-		if (!result_or_error.ok()) {
-			RTC_LOG(LS_ERROR) << "Failed to add video track to PeerConnection: "
-				<< result_or_error.error().message();
-		}*/
-
-	rtc::scoped_refptr<CapturerTrackSource> video_device =
-		CapturerTrackSource::Create();
-	if (video_device) {
-		rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track_(
-			peer_connection_factory_->CreateVideoTrack(kVideoLabel, video_device));
-		main_wnd_->StartLocalRenderer(video_track_);
-
-		result_or_error = peer_connection_->AddTrack(video_track_, { kStreamId });
+		auto result_or_error = peer_connection_->AddTrack(video_track_, { kStreamId });
 		if (!result_or_error.ok()) {
 			RTC_LOG(LS_ERROR) << "Failed to add video track to PeerConnection: "
 				<< result_or_error.error().message();
 		}
+
+	//rtc::scoped_refptr<CapturerTrackSource> video_device =
+	//	CapturerTrackSource::Create();
+	//if (video_device) {
+	//	rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track_(
+	//		peer_connection_factory_->CreateVideoTrack(kVideoLabel, video_device));
+	//	main_wnd_->StartLocalRenderer(video_track_);
+
+	//	result_or_error = peer_connection_->AddTrack(video_track_, { kStreamId });
+	//	if (!result_or_error.ok()) {
+	//		RTC_LOG(LS_ERROR) << "Failed to add video track to PeerConnection: "
+	//			<< result_or_error.error().message();
+	//	}
 	}
 	else {
 		RTC_LOG(LS_ERROR) << "OpenVideoCaptureDevice failed";

@@ -21,6 +21,9 @@
     <ClCompile Include="main-linux.cc">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="stun_server.cc">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="head.h">
@@ -28,22 +31,22 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Object Include="..\webrtc\arm64\json.o">
-      <Filter>Lib\arm64</Filter>
+    <Object Include="..\webrtc\amd64\json.o">
+      <Filter>Lib\amd</Filter>
     </Object>
-    <Object Include="..\webrtc\arm64\json_reader.o">
-      <Filter>Lib\arm64</Filter>
+    <Object Include="..\webrtc\amd64\json_reader.o">
+      <Filter>Lib\amd</Filter>
     </Object>
-    <Object Include="..\webrtc\arm64\json_value.o">
-      <Filter>Lib\arm64</Filter>
+    <Object Include="..\webrtc\amd64\json_value.o">
+      <Filter>Lib\amd</Filter>
     </Object>
-    <Object Include="..\webrtc\arm64\json_writer.o">
-      <Filter>Lib\arm64</Filter>
+    <Object Include="..\webrtc\amd64\json_writer.o">
+      <Filter>Lib\amd</Filter>
     </Object>
   </ItemGroup>
   <ItemGroup>
-    <Library Include="..\webrtc\arm64\libwebrtc.a">
-      <Filter>Lib\arm64</Filter>
+    <Library Include="..\webrtc\amd64\libwebrtc.a">
+      <Filter>Lib\amd</Filter>
     </Library>
   </ItemGroup>
 </Project>

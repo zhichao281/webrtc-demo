@@ -53,7 +53,7 @@ MyDesktopCapture::MyDesktopCapture(std::string  desktopname)
 MyDesktopCapture::~MyDesktopCapture()
 {
 	m_bStop.store(true);
-	rtc::Thread::SleepMs(10);
+	rtc::Thread::SleepMs(40);
 
 }
 rtc::scoped_refptr<MyDesktopCapture> MyDesktopCapture::Create(std::string  desktopname)
@@ -98,10 +98,15 @@ void MyDesktopCapture::OnMessage(rtc::Message* msg) {
 }
 void MyDesktopCapture::CaptureFrame()
 {
+	if (m_bStop.load())
+	{
+		return;
+	}
 	if (m_desktop_capturer)
 	{
 		m_desktop_capturer->CaptureFrame();
 	}
+
 
 	rtc::Location loc(__FUNCTION__, __FILE__, __LINE__);
 	rtc::Thread::Current()->PostDelayed(loc, 33, this, 0);
