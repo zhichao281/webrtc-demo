@@ -11,7 +11,6 @@
 
 #include "base/base_export.h"
 #include "base/gtest_prod_util.h"
-#include "base/macros.h"
 #include "base/version.h"
 
 using HANDLE = void*;
@@ -103,26 +102,14 @@ class BASE_EXPORT OSInfo {
     OTHER_ARCHITECTURE,
   };
 
-  // Whether a process is running under WOW64 (the wrapper that allows 32-bit
-  // processes to run on 64-bit versions of Windows).  This will return
-  // WOW64_DISABLED for both "32-bit Chrome on 32-bit Windows" and "64-bit
-  // Chrome on 64-bit Windows".  WOW64_UNKNOWN means "an error occurred", e.g.
-  // the process does not have sufficient access rights to determine this.
-  enum WOW64Status {
-    WOW64_DISABLED,
-    WOW64_ENABLED,
-    WOW64_UNKNOWN,
-  };
-
   static OSInfo* GetInstance();
+
+  OSInfo(const OSInfo&) = delete;
+  OSInfo& operator=(const OSInfo&) = delete;
 
   // Separate from the rest of OSInfo so it can be used during early process
   // initialization.
   static WindowsArchitecture GetArchitecture();
-
-  // Like wow64_status(), but for the supplied handle instead of the current
-  // process.  This doesn't touch member state, so you can bypass the singleton.
-  static WOW64Status GetWOW64StatusForProcess(HANDLE process_handle);
 
   // Returns the OS Version as returned from a call to GetVersionEx().
   const Version& version() const { return version_; }
@@ -136,6 +123,15 @@ class BASE_EXPORT OSInfo {
   Version Kernel32Version() const;
   VersionNumber Kernel32VersionNumber() const;
   base::Version Kernel32BaseVersion() const;
+
+  // These helper functions return information about common scenarios of
+  // interest in regards to WOW emulation.
+  bool IsWowDisabled() const;    // Chrome bitness matches OS bitness.
+  bool IsWowX86OnAMD64() const;  // Chrome x86 on an AMD64 host machine.
+  bool IsWowX86OnARM64() const;  // Chrome x86 on an ARM64 host machine.
+  bool IsWowAMD64OnARM64()
+      const;                     // Chrome AMD64 build on an ARM64 host machine.
+  bool IsWowX86OnOther() const;  // Chrome x86 on some other x64 host machine.
 
   // Functions to determine Version Type (e.g. Enterprise/Home) and Service Pack
   // value. See above for definitions of these values.
@@ -152,10 +148,6 @@ class BASE_EXPORT OSInfo {
     return allocation_granularity_;
   }
 
-  // Returns the WOW64 status of the running process. See above for definitions
-  // of the values.
-  const WOW64Status& wow64_status() const { return wow64_status_; }
-
   // Processor name as read from registry.
   std::string processor_model_name();
 
@@ -165,6 +157,28 @@ class BASE_EXPORT OSInfo {
  private:
   friend class base::test::ScopedOSInfoOverride;
   FRIEND_TEST_ALL_PREFIXES(OSInfo, MajorMinorBuildToVersion);
+
+  // This enum contains a variety of 32-bit process types that could be
+  // running with consideration towards WOW64.
+  enum class WowProcessMachine {
+    kDisabled,  // Chrome bitness matches OS bitness.
+    kX86,       // 32-bit (x86) Chrome.
+    kARM32,     // 32-bit (arm32) Chrome.
+    kOther,     // all other 32-bit Chrome.
+    kUnknown,
+  };
+
+  // This enum contains a variety of 64-bit host machine architectures that
+  // could be running with consideration towards WOW64.
+  enum class WowNativeMachine {
+    kARM64,  // 32-bit Chrome running on ARM64 Windows.
+    kAMD64,  // 32-bit Chrome running on AMD64 Windows.
+    kOther,  // 32-bit Chrome running on all other 64-bit Windows.
+    kUnknown,
+  };
+
+  // This is separate from GetInstance() so that ScopedOSInfoOverride
+  // can override it in tests.
   static OSInfo** GetInstanceStorage();
 
   OSInfo(const _OSVERSIONINFOEXW& version_info,
@@ -176,6 +190,17 @@ class BASE_EXPORT OSInfo {
   static Version MajorMinorBuildToVersion(uint32_t major,
                                           uint32_t minor,
                                           uint32_t build);
+
+  // Returns the architecture of the process machine within the WOW emulator.
+  WowProcessMachine GetWowProcessMachineArchitecture(const int process_machine);
+
+  // Returns the architecture of the native (host) machine using the WOW
+  // emulator.
+  WowNativeMachine GetWowNativeMachineArchitecture(const int native_machine);
+
+  void InitializeWowStatusValuesFromLegacyApi(HANDLE process_handle);
+
+  void InitializeWowStatusValuesForProcess(HANDLE process_handle);
 
   Version version_;
   VersionNumber version_number_;
@@ -198,10 +223,9 @@ class BASE_EXPORT OSInfo {
   std::string service_pack_str_;
   int processors_;
   size_t allocation_granularity_;
-  WOW64Status wow64_status_;
+  WowProcessMachine wow_process_machine_;
+  WowNativeMachine wow_native_machine_;
   std::string processor_model_name_;
-
-  DISALLOW_COPY_AND_ASSIGN(OSInfo);
 };
 
 // Because this is by far the most commonly-requested value from the above

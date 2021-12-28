@@ -15,7 +15,6 @@
 #include "base/files/scoped_file.h"
 #include "base/location.h"
 #include "base/mac/scoped_mach_port.h"
-#include "base/macros.h"
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop/message_pump.h"
 #include "base/message_loop/watchable_io_message_pump_posix.h"
@@ -30,6 +29,10 @@ class BASE_EXPORT MessagePumpKqueue : public MessagePump,
   class FdWatchController : public FdWatchControllerInterface {
    public:
     explicit FdWatchController(const Location& from_here);
+
+    FdWatchController(const FdWatchController&) = delete;
+    FdWatchController& operator=(const FdWatchController&) = delete;
+
     ~FdWatchController() override;
 
     // FdWatchControllerInterface:
@@ -53,8 +56,6 @@ class BASE_EXPORT MessagePumpKqueue : public MessagePump,
     int mode_ = 0;
     FdWatcher* watcher_ = nullptr;
     WeakPtr<MessagePumpKqueue> pump_;
-
-    DISALLOW_COPY_AND_ASSIGN(FdWatchController);
   };
 
   // Delegate interface that provides notifications of Mach message receive
@@ -70,6 +71,10 @@ class BASE_EXPORT MessagePumpKqueue : public MessagePump,
   class MachPortWatchController {
    public:
     explicit MachPortWatchController(const Location& from_here);
+
+    MachPortWatchController(const MachPortWatchController&) = delete;
+    MachPortWatchController& operator=(const MachPortWatchController&) = delete;
+
     ~MachPortWatchController();
 
     bool StopWatchingMachPort();
@@ -90,11 +95,13 @@ class BASE_EXPORT MessagePumpKqueue : public MessagePump,
     MachPortWatcher* watcher_ = nullptr;
     WeakPtr<MessagePumpKqueue> pump_;
     const Location from_here_;
-
-    DISALLOW_COPY_AND_ASSIGN(MachPortWatchController);
   };
 
   MessagePumpKqueue();
+
+  MessagePumpKqueue(const MessagePumpKqueue&) = delete;
+  MessagePumpKqueue& operator=(const MessagePumpKqueue&) = delete;
+
   ~MessagePumpKqueue() override;
 
   // MessagePump:
@@ -197,8 +204,6 @@ class BASE_EXPORT MessagePumpKqueue : public MessagePump,
   std::vector<kevent64_s> events_{event_count_};
 
   WeakPtrFactory<MessagePumpKqueue> weak_factory_;
-
-  DISALLOW_COPY_AND_ASSIGN(MessagePumpKqueue);
 };
 
 }  // namespace base

@@ -7,11 +7,13 @@
 
 #include <stddef.h>
 
+#include <iosfwd>
 #include <memory>
 #include <type_traits>
 
 #include "base/base_export.h"
 #include "base/cxx17_backports.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_piece.h"
 
@@ -92,6 +94,9 @@ BASE_EXPORT void SetCrashKeyString(CrashKeyString* crash_key,
 // null.
 BASE_EXPORT void ClearCrashKeyString(CrashKeyString* crash_key);
 
+// Outputs current (i.e. allocated and non-empty) crash keys to `out`.
+BASE_EXPORT void OutputCrashKeysToStream(std::ostream& out);
+
 // A scoper that sets the specified key to value for the lifetime of the
 // object, and clears it on destruction.
 class BASE_EXPORT ScopedCrashKeyString {
@@ -110,7 +115,7 @@ class BASE_EXPORT ScopedCrashKeyString {
   ScopedCrashKeyString& operator=(ScopedCrashKeyString&&) = delete;
 
  private:
-  CrashKeyString* crash_key_;
+  raw_ptr<CrashKeyString> crash_key_;
 };
 
 // Internal helpers for the SCOPED_CRASH_KEY_... helper macros defined below.
@@ -177,6 +182,7 @@ class CrashKeyImplementation {
   virtual CrashKeyString* Allocate(const char name[], CrashKeySize size) = 0;
   virtual void Set(CrashKeyString* crash_key, base::StringPiece value) = 0;
   virtual void Clear(CrashKeyString* crash_key) = 0;
+  virtual void OutputCrashKeysToStream(std::ostream& out) = 0;
 };
 
 // Initializes the crash key system in base by replacing the existing

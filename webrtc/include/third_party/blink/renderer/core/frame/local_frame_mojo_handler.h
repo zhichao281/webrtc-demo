@@ -6,12 +6,14 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_FRAME_LOCAL_FRAME_MOJO_HANDLER_H_
 
 #include "build/build_config.h"
+#include "components/power_scheduler/power_mode_voter.h"
 #include "services/device/public/mojom/device_posture_provider.mojom-blink.h"
 #include "third_party/blink/public/mojom/frame/back_forward_cache_controller.mojom-blink.h"
 #include "third_party/blink/public/mojom/frame/frame.mojom-blink.h"
 #include "third_party/blink/public/mojom/media/fullscreen_video_element.mojom-blink.h"
 #include "third_party/blink/public/mojom/reporting/reporting.mojom-blink.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
+#include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_associated_receiver.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_associated_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
@@ -133,7 +135,6 @@ class LocalFrameMojoHandler
   // frame's sandbox flags or container policy. The new policy won't take effect
   // until the next navigation.
   void DidUpdateFramePolicy(const FramePolicy& frame_policy) final;
-  void OnScreensChange() final;
   void PostMessageEvent(
       const absl::optional<RemoteFrameToken>& source_frame_token,
       const String& source_origin,
@@ -271,6 +272,9 @@ class LocalFrameMojoHandler
 
   device::mojom::blink::DevicePostureType current_device_posture_ =
       device::mojom::blink::DevicePostureType::kContinuous;
+
+  std::unique_ptr<power_scheduler::PowerModeVoter>
+      script_execution_power_mode_voter_;
 };
 
 class ActiveURLMessageFilter : public mojo::MessageFilter {

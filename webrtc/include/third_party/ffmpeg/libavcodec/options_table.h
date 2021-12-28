@@ -59,7 +59,9 @@ static const AVOption avcodec_options[] = {
 {"pass2", "use internal 2-pass ratecontrol in second pass mode", 0, AV_OPT_TYPE_CONST, {.i64 = AV_CODEC_FLAG_PASS2 }, INT_MIN, INT_MAX, 0, "flags"},
 {"gray", "only decode/encode grayscale", 0, AV_OPT_TYPE_CONST, {.i64 = AV_CODEC_FLAG_GRAY }, INT_MIN, INT_MAX, V|E|D, "flags"},
 {"psnr", "error[?] variables will be set during encoding", 0, AV_OPT_TYPE_CONST, {.i64 = AV_CODEC_FLAG_PSNR }, INT_MIN, INT_MAX, V|E, "flags"},
-{"truncated", "Input bitstream might be randomly truncated", 0, AV_OPT_TYPE_CONST, {.i64 = AV_CODEC_FLAG_TRUNCATED }, INT_MIN, INT_MAX, V|D, "flags"},
+#if FF_API_FLAG_TRUNCATED
+{"truncated", "(Deprecated, use parsers instead.) Input bitstream might be randomly truncated", 0, AV_OPT_TYPE_CONST, {.i64 = AV_CODEC_FLAG_TRUNCATED }, INT_MIN, INT_MAX, V|D | AV_OPT_FLAG_DEPRECATED, "flags"},
+#endif
 {"ildct", "use interlaced DCT", 0, AV_OPT_TYPE_CONST, {.i64 = AV_CODEC_FLAG_INTERLACED_DCT }, INT_MIN, INT_MAX, V|E, "flags"},
 {"low_delay", "force low delay", 0, AV_OPT_TYPE_CONST, {.i64 = AV_CODEC_FLAG_LOW_DELAY }, INT_MIN, INT_MAX, V|D|E, "flags"},
 {"global_header", "place global headers in extradata instead of every keyframe", 0, AV_OPT_TYPE_CONST, {.i64 = AV_CODEC_FLAG_GLOBAL_HEADER }, INT_MIN, INT_MAX, V|A|E, "flags"},
@@ -260,8 +262,8 @@ static const AVOption avcodec_options[] = {
 {"mv0_threshold", NULL, OFFSET(mv0_threshold), AV_OPT_TYPE_INT, {.i64 = 256 }, 0, INT_MAX, V|E},
 {"compression_level", NULL, OFFSET(compression_level), AV_OPT_TYPE_INT, {.i64 = FF_COMPRESSION_DEFAULT }, INT_MIN, INT_MAX, V|A|E},
 {"bits_per_raw_sample", NULL, OFFSET(bits_per_raw_sample), AV_OPT_TYPE_INT, {.i64 = DEFAULT }, 0, INT_MAX},
-{"channel_layout", NULL, OFFSET(channel_layout), AV_OPT_TYPE_UINT64, {.i64 = DEFAULT }, 0, UINT64_MAX, A|E|D, "channel_layout"},
-{"request_channel_layout", NULL, OFFSET(request_channel_layout), AV_OPT_TYPE_UINT64, {.i64 = DEFAULT }, 0, UINT64_MAX, A|D, "request_channel_layout"},
+{"channel_layout", NULL, OFFSET(channel_layout), AV_OPT_TYPE_CHANNEL_LAYOUT, {.i64 = DEFAULT }, 0, UINT64_MAX, A|E|D, "channel_layout"},
+{"request_channel_layout", NULL, OFFSET(request_channel_layout), AV_OPT_TYPE_CHANNEL_LAYOUT, {.i64 = DEFAULT }, 0, UINT64_MAX, A|D, "request_channel_layout"},
 {"rc_max_vbv_use", NULL, OFFSET(rc_max_available_vbv_use), AV_OPT_TYPE_FLOAT, {.dbl = 0 }, 0.0, FLT_MAX, V|E},
 {"rc_min_vbv_use", NULL, OFFSET(rc_min_vbv_overflow_use),  AV_OPT_TYPE_FLOAT, {.dbl = 3 },     0.0, FLT_MAX, V|E},
 {"ticks_per_frame", NULL, OFFSET(ticks_per_frame), AV_OPT_TYPE_INT, {.i64 = 1 }, 1, INT_MAX, A|V|E|D},
@@ -366,8 +368,10 @@ static const AVOption avcodec_options[] = {
 {"auto",        NULL, 0, AV_OPT_TYPE_CONST, {.i64 = FF_SUB_CHARENC_MODE_AUTOMATIC},   INT_MIN, INT_MAX, S|D, "sub_charenc_mode"},
 {"pre_decoder", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = FF_SUB_CHARENC_MODE_PRE_DECODER}, INT_MIN, INT_MAX, S|D, "sub_charenc_mode"},
 {"ignore",      NULL, 0, AV_OPT_TYPE_CONST, {.i64 = FF_SUB_CHARENC_MODE_IGNORE},      INT_MIN, INT_MAX, S|D, "sub_charenc_mode"},
-{"sub_text_format", "set decoded text subtitle format", OFFSET(sub_text_format), AV_OPT_TYPE_INT, {.i64 = FF_SUB_TEXT_FMT_ASS}, 0, 1, S|D, "sub_text_format"},
+#if FF_API_SUB_TEXT_FORMAT
+{"sub_text_format", "Deprecated, does nothing", OFFSET(sub_text_format), AV_OPT_TYPE_INT, {.i64 = FF_SUB_TEXT_FMT_ASS}, 0, 1, S|D | AV_OPT_FLAG_DEPRECATED, "sub_text_format"},
 {"ass",              NULL, 0, AV_OPT_TYPE_CONST, {.i64 = FF_SUB_TEXT_FMT_ASS},              INT_MIN, INT_MAX, S|D, "sub_text_format"},
+#endif
 {"apply_cropping", NULL, OFFSET(apply_cropping), AV_OPT_TYPE_BOOL, { .i64 = 1 }, 0, 1, V | D },
 {"skip_alpha", "Skip processing alpha", OFFSET(skip_alpha), AV_OPT_TYPE_BOOL, {.i64 = 0 }, 0, 1, V|D },
 {"field_order", "Field order", OFFSET(field_order), AV_OPT_TYPE_INT, {.i64 = AV_FIELD_UNKNOWN }, 0, 5, V|D|E, "field_order" },

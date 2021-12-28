@@ -5,12 +5,14 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_FRAME_AD_TRACKER_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_FRAME_AD_TRACKER_H_
 
+#include <stdint.h>
+
 #include "base/feature_list.h"
-#include "third_party/blink/renderer/core/probe/async_task_id.h"
+#include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/loader/fetch/fetch_initiator_info.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
-#include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "v8/include/v8.h"
@@ -23,6 +25,7 @@ class LocalFrame;
 enum class ResourceType : uint8_t;
 
 namespace probe {
+class AsyncTaskContext;
 class CallFunction;
 class ExecuteScript;
 }  // namespace probe
@@ -67,13 +70,13 @@ class CORE_EXPORT AdTracker : public GarbageCollected<AdTracker> {
 
   // Called when an async task is created. Check at this point for ad script on
   // the stack and annotate the task if so.
-  void DidCreateAsyncTask(probe::AsyncTaskId* task);
+  void DidCreateAsyncTask(probe::AsyncTaskContext* task_context);
 
   // Called when an async task is eventually run.
-  void DidStartAsyncTask(probe::AsyncTaskId* task);
+  void DidStartAsyncTask(probe::AsyncTaskContext* task_context);
 
   // Called when the task has finished running.
-  void DidFinishAsyncTask(probe::AsyncTaskId* task);
+  void DidFinishAsyncTask(probe::AsyncTaskContext* task_context);
 
   // Returns true if any script in the pseudo call stack has previously been
   // identified as an ad resource, if the current ExecutionContext is a known ad
@@ -119,7 +122,7 @@ class CORE_EXPORT AdTracker : public GarbageCollected<AdTracker> {
   // an ad script. Each time the script or function finishes, it pops the stack.
   Vector<bool> stack_frame_is_ad_;
 
-  uint32_t num_ads_in_stack_ = 0;
+  int num_ads_in_stack_ = 0;
 
   // The set of ad scripts detected outside of ad-frame contexts. Scripts are
   // identified by name (i.e. resource URL). Scripts with no name (i.e. inline
@@ -127,7 +130,7 @@ class CORE_EXPORT AdTracker : public GarbageCollected<AdTracker> {
   HeapHashMap<WeakMember<ExecutionContext>, HashSet<String>> known_ad_scripts_;
 
   // The number of ad-related async tasks currently running in the stack.
-  uint32_t running_ad_async_tasks_ = 0;
+  int running_ad_async_tasks_ = 0;
 
   // True if the AdTracker looks not only at the current V8 stack for ad script
   // but also at the previous asynchronous stacks that caused this current

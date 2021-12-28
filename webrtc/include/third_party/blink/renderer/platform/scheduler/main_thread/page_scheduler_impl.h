@@ -51,11 +51,11 @@ class PLATFORM_EXPORT PageSchedulerImpl : public PageScheduler {
  public:
   // Interval between throttled wake ups, without intensive throttling.
   static constexpr base::TimeDelta kDefaultThrottledWakeUpInterval =
-      base::TimeDelta::FromSeconds(1);
+      base::Seconds(1);
 
   // Interval between throttled wake ups, with intensive throttling.
   static constexpr base::TimeDelta kIntensiveThrottledWakeUpInterval =
-      base::TimeDelta::FromMinutes(1);
+      base::Minutes(1);
 
   PageSchedulerImpl(PageScheduler::Delegate*, AgentGroupSchedulerImpl&);
   PageSchedulerImpl(const PageSchedulerImpl&) = delete;
@@ -124,6 +124,8 @@ class PLATFORM_EXPORT PageSchedulerImpl : public PageScheduler {
   void Unregister(FrameSchedulerImpl*);
 
   void OnThrottlingStatusUpdated();
+
+  void OnVirtualTimeEnabled();
 
   void OnTraceLogEnabled();
 
@@ -226,8 +228,7 @@ class PLATFORM_EXPORT PageSchedulerImpl : public PageScheduler {
   // silence during which a logo and button are shown after a YouTube ad. Since
   // most pages don't play audio in background, it was decided that the delay
   // can be increased to 30 seconds without significantly affecting performance.
-  static constexpr base::TimeDelta kRecentAudioDelay =
-      base::TimeDelta::FromSeconds(30);
+  static constexpr base::TimeDelta kRecentAudioDelay = base::Seconds(30);
 
   static const char kHistogramPageLifecycleStateTransition[];
 
@@ -286,11 +287,12 @@ class PLATFORM_EXPORT PageSchedulerImpl : public PageScheduler {
   void EnableThrottling();
 
   // Returns true if the page is backgrounded, false otherwise. A page is
-  // considered backgrounded if it is both not visible and not playing audio.
+  // considered backgrounded if it is not visible, not playing audio and
+  // virtual time is disabled.
   bool IsBackgrounded() const;
 
   // Returns true if the page should be frozen after delay, which happens if
-  // IsBackgrounded() and freezing is enabled.
+  // IsBackgrounded() is true and freezing is enabled.
   bool ShouldFreezePage() const;
 
   // Callback for freezing the page. Freezing must be enabled and the page must

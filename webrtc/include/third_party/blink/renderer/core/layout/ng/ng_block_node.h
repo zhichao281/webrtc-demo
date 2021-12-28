@@ -106,6 +106,8 @@ class CORE_EXPORT NGBlockNode : public NGLayoutInputNode {
     return box_->ContainingBlock()->IsLayoutNGGrid();
   }
 
+  bool IsParentNGGrid() const { return box_->Parent()->IsLayoutNGGrid(); }
+
   // Return true if this block node establishes an inline formatting context.
   // This will only be the case if there is actual inline content. Empty nodes
   // or nodes consisting purely of block-level, floats, and/or out-of-flow
@@ -203,9 +205,8 @@ class CORE_EXPORT NGBlockNode : public NGLayoutInputNode {
       return block->HasLineIfEmpty();
     return false;
   }
-  LayoutUnit EmptyLineBlockSize() const {
-    return box_->LogicalHeightForEmptyLine();
-  }
+  LayoutUnit EmptyLineBlockSize(
+      const NGBlockBreakToken* incoming_break_token) const;
 
   // After we run the layout algorithm, this function copies back the fragment
   // position to the layout box.

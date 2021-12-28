@@ -22,13 +22,8 @@ class CORE_EXPORT CompositingReasonFinder {
   static CompositingReasons PotentialCompositingReasonsFromStyle(
       const LayoutObject&);
 
-  static CompositingReasons NonStyleDeterminedDirectReasons(const PaintLayer&);
-
   CompositingReasonFinder(const CompositingReasonFinder&) = delete;
   CompositingReasonFinder& operator=(const CompositingReasonFinder&) = delete;
-
-  // Returns the direct reasons for compositing the given layer.
-  static CompositingReasons DirectReasons(const PaintLayer&);
 
   // Composited scrolling reason is not included because
   // PaintLayerScrollableArea needs the result of this function to determine
@@ -59,6 +54,8 @@ class CORE_EXPORT CompositingReasonFinder {
   static CompositingReasons PotentialCompositingReasonsFor3DTransform(
       const ComputedStyle&);
   static CompositingReasons CompositingReasonsFor3DTransform(
+      const LayoutObject&);
+  static CompositingReasons CompositingReasonsFor3DSceneLeaf(
       const LayoutObject&);
   static bool RequiresCompositingForRootScroller(const PaintLayer&);
 

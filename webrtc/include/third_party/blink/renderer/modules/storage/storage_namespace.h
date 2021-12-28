@@ -34,7 +34,6 @@
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "third_party/blink/renderer/platform/heap/heap_allocator.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
 #include "third_party/blink/renderer/platform/storage/blink_storage_key.h"
@@ -46,6 +45,7 @@
 namespace blink {
 
 class CachedStorageArea;
+class LocalDOMWindow;
 class InspectorDOMStorageAgent;
 class StorageController;
 
@@ -75,11 +75,11 @@ class MODULES_EXPORT StorageNamespace final
 
   // |storage_area| is ignored here if a cached namespace already exists.
   scoped_refptr<CachedStorageArea> GetCachedArea(
-      const BlinkStorageKey& storage_key,
+      const LocalDOMWindow* local_dom_window,
       mojo::PendingRemote<mojom::blink::StorageArea> storage_area = {});
 
   scoped_refptr<CachedStorageArea> CreateCachedAreaForPrerender(
-      const BlinkStorageKey& storage_key,
+      const LocalDOMWindow* local_dom_window,
       mojo::PendingRemote<mojom::blink::StorageArea> storage_area = {});
 
   void EvictSessionStorageCachedData();
@@ -110,7 +110,7 @@ class MODULES_EXPORT StorageNamespace final
   // Called by areas in `cached_areas_` to bind/rebind their StorageArea
   // interface.
   void BindStorageArea(
-      const BlinkStorageKey& storage_key,
+      const LocalDOMWindow& local_dom_window,
       mojo::PendingReceiver<mojom::blink::StorageArea> receiver);
 
   // If this StorageNamespace was previously connected to the backend, this

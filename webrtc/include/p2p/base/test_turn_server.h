@@ -11,7 +11,9 @@
 #ifndef P2P_BASE_TEST_TURN_SERVER_H_
 #define P2P_BASE_TEST_TURN_SERVER_H_
 
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "api/sequence_checker.h"
@@ -58,8 +60,11 @@ class TestTurnServer : public TurnAuthInterface {
                  const std::string& common_name = "test turn server")
       : server_(thread), thread_(thread) {
     AddInternalSocket(int_addr, int_protocol, ignore_bad_cert, common_name);
-    server_.SetExternalSocketFactory(new rtc::BasicPacketSocketFactory(thread),
-                                     udp_ext_addr);
+    // TODO(bugs.webrtc.org/13145): Take a SocketFactory as argument, so we
+    // don't need thread_->socketserver().
+    server_.SetExternalSocketFactory(
+        new rtc::BasicPacketSocketFactory(thread_->socketserver()),
+        udp_ext_addr);
     server_.set_realm(kTestRealm);
     server_.set_software(kTestSoftware);
     server_.set_auth_hook(this);
@@ -101,21 +106,24 @@ class TestTurnServer : public TurnAuthInterface {
       // new connections.
       rtc::Socket* socket =
           thread_->socketserver()->CreateSocket(AF_INET, SOCK_STREAM);
+      socket->Bind(int_addr);
+      socket->Listen(5);
       if (proto == cricket::PROTO_TLS) {
         // For TLS, wrap the TCP socket with an SSL adapter. The adapter must
         // be configured with a self-signed certificate for testing.
         // Additionally, the client will not present a valid certificate, so we
         // must not fail when checking the peer's identity.
-        rtc::SSLAdapter* adapter = rtc::SSLAdapter::Create(socket);
-        adapter->SetRole(rtc::SSL_SERVER);
-        adapter->SetIdentity(
+        std::unique_ptr<rtc::SSLAdapterFactory> ssl_adapter_factory =
+            rtc::SSLAdapterFactory::Create();
+        ssl_adapter_factory->SetRole(rtc::SSL_SERVER);
+        ssl_adapter_factory->SetIdentity(
             rtc::SSLIdentity::Create(common_name, rtc::KeyParams()));
-        adapter->SetIgnoreBadCert(ignore_bad_cert);
-        socket = adapter;
+        ssl_adapter_factory->SetIgnoreBadCert(ignore_bad_cert);
+        server_.AddInternalServerSocket(socket, proto,
+                                        std::move(ssl_adapter_factory));
+      } else {
+        server_.AddInternalServerSocket(socket, proto);
       }
-      socket->Bind(int_addr);
-      socket->Listen(5);
-      server_.AddInternalServerSocket(socket, proto);
     } else {
       RTC_NOTREACHED() << "Unknown protocol type: " << proto;
     }

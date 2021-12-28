@@ -15,9 +15,14 @@
 #include "base/base_export.h"
 #include "base/compiler_specific.h"
 
-#define PCSCAN_DISABLE_SAFEPOINTS 0
+// Double free detection comes with expensive cmpxchg (with the loop around it).
+// We currently disable it to improve the runtime.
+#define PA_STARSCAN_EAGER_DOUBLE_FREE_DETECTION_ENABLED 0
 
 namespace base {
+
+class StatsReporter;
+
 namespace internal {
 
 [[noreturn]] BASE_EXPORT NOINLINE NOT_TAIL_CALLED void DoubleFreeAttempt();
@@ -52,18 +57,29 @@ class BASE_EXPORT PCScan final {
     kEager,
   };
 
-  // Based on the provided mode, PCScan will try to use a certain
-  // WriteProtector, if supported by the system.
-  enum class WantedWriteProtectionMode : uint8_t {
-    kDisabled,
-    kEnabled,
+  // Parameters used to initialize *Scan.
+  struct InitConfig {
+    // Based on the provided mode, PCScan will try to use a certain
+    // WriteProtector, if supported by the system.
+    enum class WantedWriteProtectionMode : uint8_t {
+      kDisabled,
+      kEnabled,
+    } write_protection = WantedWriteProtectionMode::kDisabled;
+
+    // Flag that enables safepoints that stop mutator execution and help
+    // scanning.
+    enum class SafepointMode : uint8_t {
+      kDisabled,
+      kEnabled,
+    } safepoint = SafepointMode::kDisabled;
   };
 
   PCScan(const PCScan&) = delete;
   PCScan& operator=(const PCScan&) = delete;
 
   // Initializes PCScan and prepares internal data structures.
-  static void Initialize(WantedWriteProtectionMode);
+  static void Initialize(InitConfig);
+  static bool IsInitialized();
 
   // Disable/reenable PCScan. Temporal disabling can be useful in CPU demanding
   // contexts.
@@ -85,6 +101,7 @@ class BASE_EXPORT PCScan final {
 
   ALWAYS_INLINE static void MoveToQuarantine(void* ptr,
                                              size_t usable_size,
+                                             void* slot_start,
                                              size_t slot_size);
 
   // Performs scanning unconditionally.
@@ -94,6 +111,8 @@ class BASE_EXPORT PCScan final {
   // Performs scanning with specified delay.
   static void PerformDelayedScan(TimeDelta delay);
 
+  // Enables safepoints in mutator threads.
+  static void EnableSafepoints();
   // Join scan from safepoint in mutator thread. As soon as PCScan is scheduled,
   // mutators can join PCScan helping out with clearing and scanning.
   static void JoinScanIfNeeded();
@@ -122,10 +141,13 @@ class BASE_EXPORT PCScan final {
 
   inline static PCScanScheduler& scheduler();
 
+  // Registers reporting class.
+  static void RegisterStatsReporter(StatsReporter* reporter);
+
  private:
   class PCScanThread;
   friend class PCScanTask;
-  friend class PartitionAllocPCScanTest;
+  friend class PartitionAllocPCScanTestBase;
   friend class PCScanInternal;
 
   enum class State : uint8_t {
@@ -142,6 +164,7 @@ class BASE_EXPORT PCScan final {
   ALWAYS_INLINE static PCScan& Instance();
 
   ALWAYS_INLINE bool IsJoinable() const;
+  ALWAYS_INLINE void SetJoinableIfSafepointEnabled(bool);
 
   inline constexpr PCScan();
 
@@ -152,7 +175,7 @@ class BASE_EXPORT PCScan final {
   static void FinishScanForTesting();
 
   // Reinitialize internal structures (e.g. card table).
-  static void ReinitForTesting(WantedWriteProtectionMode);
+  static void ReinitForTesting(InitConfig);
 
   size_t epoch() const { return scheduler_.epoch(); }
 
@@ -161,6 +184,8 @@ class BASE_EXPORT PCScan final {
 
   PCScanScheduler scheduler_{};
   std::atomic<State> state_{State::kNotRunning};
+  std::atomic<bool> is_joinable_{false};
+  bool is_safepoint_enabled_{false};
   ClearType clear_type_{ClearType::kLazy};
 };
 
@@ -182,9 +207,23 @@ ALWAYS_INLINE bool PCScan::IsInProgress() {
 }
 
 ALWAYS_INLINE bool PCScan::IsJoinable() const {
-  // We can only join PCScan in the mutator if it's running and not sweeping.
   // This has acquire semantics since a mutator relies on the task being set up.
-  return state_.load(std::memory_order_acquire) == State::kScanning;
+  return is_joinable_.load(std::memory_order_acquire);
+}
+
+ALWAYS_INLINE void PCScan::SetJoinableIfSafepointEnabled(bool value) {
+  if (!is_safepoint_enabled_) {
+    PA_DCHECK(!is_joinable_.load(std::memory_order_relaxed));
+    return;
+  }
+  // Release semantics is required to "publish" the change of the state so that
+  // the mutators can join scanning and expect the consistent state.
+  is_joinable_.store(value, std::memory_order_release);
+}
+
+ALWAYS_INLINE void PCScan::EnableSafepoints() {
+  PCScan& instance = Instance();
+  instance.is_safepoint_enabled_ = true;
 }
 
 ALWAYS_INLINE void PCScan::JoinScanIfNeeded() {
@@ -195,6 +234,7 @@ ALWAYS_INLINE void PCScan::JoinScanIfNeeded() {
 
 ALWAYS_INLINE void PCScan::MoveToQuarantine(void* ptr,
                                             size_t usable_size,
+                                            void* slot_start,
                                             size_t slot_size) {
   PCScan& instance = Instance();
   if (instance.clear_type_ == ClearType::kEager) {
@@ -203,18 +243,24 @@ ALWAYS_INLINE void PCScan::MoveToQuarantine(void* ptr,
     // - usable_size is safe as it doesn't cover extras as opposed to slot_size.
     // TODO(bikineev): If we start protecting quarantine memory, we can lose
     // double-free coverage (the check below). Consider performing the
-    // double-free check before protecting if eager sweeping becomes default.
+    // double-free check before protecting if eager clearing becomes default.
     SecureMemset(ptr, 0, usable_size);
   }
 
-  auto* quarantine = QuarantineBitmapFromPointer(QuarantineBitmapType::kMutator,
-                                                 instance.epoch(), ptr);
-  // Mark the bit in the quarantine bitmap. Make sure to do it after the
-  // clearing to avoid the race with *Scan Sweeper.
-  const bool is_double_freed =
-      quarantine->SetBit(reinterpret_cast<uintptr_t>(ptr));
-  if (UNLIKELY(is_double_freed))
+  auto* unmasked_slot = memory::UnmaskPtr(slot_start);
+  auto* state_bitmap = StateBitmapFromPointer(unmasked_slot);
+
+  // Mark the state in the state bitmap as quarantined. Make sure to do it after
+  // the clearing to avoid racing with *Scan Sweeper.
+  const bool succeeded = state_bitmap->Quarantine(
+      reinterpret_cast<uintptr_t>(unmasked_slot), instance.epoch());
+#if PA_STARSCAN_EAGER_DOUBLE_FREE_DETECTION_ENABLED
+  if (UNLIKELY(!succeeded))
     DoubleFreeAttempt();
+#else
+  // The compiler is able to optimize cmpxchg to a lock-prefixed and.
+  (void)succeeded;
+#endif
 
   const bool is_limit_reached = instance.scheduler_.AccountFreed(slot_size);
   if (UNLIKELY(is_limit_reached)) {

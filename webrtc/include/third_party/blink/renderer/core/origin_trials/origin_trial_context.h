@@ -19,9 +19,11 @@
 
 namespace blink {
 
+class Document;
 class ExecutionContext;
 class ScriptState;
 class TrialToken;
+class TrialTokenResult;
 
 enum class OriginTrialStatus {
   kEnabled = 0,
@@ -83,12 +85,22 @@ class CORE_EXPORT OriginTrialContext final
   // Returns null if no tokens were added to the ExecutionContext.
   static std::unique_ptr<Vector<String>> GetTokens(ExecutionContext*);
 
+  // Returns the all enabled features to be inherited by worker.
+  static std::unique_ptr<Vector<OriginTrialFeature>> GetInheritedTrialFeatures(
+      ExecutionContext*);
+
   // Returns the navigation trial features that are enabled in the specified
   // ExecutionContext, that should be forwarded to (and activated in)
   // ExecutionContexts navigated to from the given ExecutionContext. Returns
   // null if no such trials were added to the ExecutionContext.
   static std::unique_ptr<Vector<OriginTrialFeature>>
   GetEnabledNavigationFeatures(ExecutionContext*);
+
+  // Activates trial features for dedicated worker or worklet. The input trial
+  // features are inherited from page loading the worker.
+  static void ActivateWorkerInheritedFeatures(
+      ExecutionContext*,
+      const Vector<OriginTrialFeature>*);
 
   // Activates navigation trial features forwarded from the ExecutionContext
   // that navigated to the specified ExecutionContext. Only features for which
@@ -106,6 +118,9 @@ class CORE_EXPORT OriginTrialContext final
   void AddTokenFromExternalScript(const String& token,
                                   const SecurityOrigin* origin);
   void AddTokens(const Vector<String>& tokens);
+
+  void ActivateWorkerInheritedFeatures(
+      const Vector<OriginTrialFeature>& features);
 
   void ActivateNavigationFeaturesFromInitiator(
       const Vector<OriginTrialFeature>& features);
@@ -127,6 +142,8 @@ class CORE_EXPORT OriginTrialContext final
   // time (base::Time()). Note: This will only find expiry times for features
   // backed by a token, so will not work for features enabled via |AddFeature|.
   base::Time GetFeatureExpiry(OriginTrialFeature feature);
+
+  std::unique_ptr<Vector<OriginTrialFeature>> GetInheritedTrialFeatures() const;
 
   std::unique_ptr<Vector<OriginTrialFeature>> GetEnabledNavigationFeatures()
       const;
@@ -183,6 +200,7 @@ class CORE_EXPORT OriginTrialContext final
   bool EnableTrialFromToken(const SecurityOrigin* origin,
                             bool is_secure,
                             const String& token);
+
   // Validate the trial token injected by external script from script_origin.
   // If is_third_party flag is set on the token, script_origin will be used for
   // validation. Otherwise it's the same as above.
@@ -193,15 +211,25 @@ class CORE_EXPORT OriginTrialContext final
                             const String& token);
 
   // Validate the token result returned from token validator.
-  OriginTrialTokenStatus ValidateTokenResult(const String& trial_name,
-                                             bool is_secure,
-                                             bool is_secure_script_origin,
-                                             bool is_third_party);
+  // `trial_name` is returned to avoid multiple conversions from `std::string`
+  // to `WTF::String`.
+  // `token_result` is modified in place to reflect the `OriginTrialTokenStatus`
+  // change.
+  void ValidateTokenResult(bool is_secure,
+                           bool is_secure_script_origin,
+                           String& trial_name,
+                           TrialTokenResult& token_result);
 
-  // Installs JavaScript bindings on the relevant objects for the specified
-  // OriginTrialFeature. Returns true if the feature was not already added
-  // before, otherwise false.
-  bool InstallFeature(OriginTrialFeature, ScriptState*);
+  // Installs a series of OriginTrialFeatures listed in a HashSet. The return
+  // value indicates whether binding features were added, signalling that V8
+  // has to proceed with installing the conditional features.
+  bool InstallFeatures(const HashSet<OriginTrialFeature>& features,
+                       Document&,
+                       ScriptState*);
+
+  // Installs a settings feature for the relevant Document instance. Returns
+  // whether the given OriginTrialFeature describes a setting feature.
+  bool InstallSettingFeature(Document&, OriginTrialFeature);
 
   // Caches raw origin trial token along with the parse result to
   // `trial_results_`.

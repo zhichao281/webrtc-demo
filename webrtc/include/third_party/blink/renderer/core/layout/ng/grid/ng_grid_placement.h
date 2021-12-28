@@ -6,7 +6,8 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_GRID_NG_GRID_PLACEMENT_H_
 
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/layout/ng/grid/ng_grid_layout_algorithm.h"
+#include "third_party/blink/renderer/core/layout/ng/grid/ng_grid_data.h"
+#include "third_party/blink/renderer/core/layout/ng/grid/ng_grid_item.h"
 #include "third_party/blink/renderer/core/layout/ng/grid/ng_grid_track_collection.h"
 #include "third_party/blink/renderer/platform/wtf/doubly_linked_list.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
@@ -21,16 +22,24 @@ class CORE_EXPORT NGGridPlacement {
  public:
   enum class PackingBehavior { kSparse, kDense };
 
-  using GridItems = NGGridLayoutAlgorithm::GridItems;
-  using GridItemData = NGGridLayoutAlgorithm::GridItemData;
-
   NGGridPlacement(const ComputedStyle& grid_style,
                   const wtf_size_t column_auto_repetitions,
                   const wtf_size_t row_auto_repetitions,
                   const wtf_size_t column_start_offset = 0,
-                  const wtf_size_t row_start_offset = 0);
+                  const wtf_size_t row_start_offset = 0,
+                  const bool has_grid_parent = false);
 
-  Vector<GridArea> RunAutoPlacementAlgorithm(const GridItems& grid_items);
+  NGGridPlacement(const ComputedStyle& grid_style,
+                  const NGGridPlacementData& placement_data)
+      : NGGridPlacement(grid_style,
+                        placement_data.column_auto_repetitions,
+                        placement_data.row_auto_repetitions,
+                        placement_data.column_start_offset,
+                        placement_data.row_start_offset) {}
+
+  void SetPlacementData(const NGGridPlacementData& placement_data);
+  NGGridPlacementData RunAutoPlacementAlgorithm(const GridItems& grid_items);
+
   // Helper function to resolve start and end lines of out of flow items.
   void ResolveOutOfFlowItemGridLines(
       const NGGridLayoutAlgorithmTrackCollection& track_collection,
@@ -86,7 +95,7 @@ class CORE_EXPORT NGGridPlacement {
   class AutoPlacementCursor {
    public:
     explicit AutoPlacementCursor(const PlacedGridItem* first_placed_item)
-        : has_new_item_overlapping_major_line_(false),
+        : should_move_to_next_item_major_end_line_(true),
           next_placed_item_(first_placed_item) {}
 
     void MoveCursorToFitGridSpan(
@@ -118,7 +127,7 @@ class CORE_EXPORT NGGridPlacement {
     void UpdateItemsOverlappingMajorLine();
 
     Vector<const PlacedGridItem*, 16> items_overlapping_major_line_;
-    bool has_new_item_overlapping_major_line_ : 1;
+    bool should_move_to_next_item_major_end_line_ : 1;
     const PlacedGridItem* next_placed_item_;
     GridPosition current_position_;
   };
@@ -134,10 +143,13 @@ class CORE_EXPORT NGGridPlacement {
 
   using PositionVector = Vector<GridArea*, 16>;
 
+  NGGridPlacementData BundlePlacementData(
+      Vector<GridArea>&& resolved_positions) const;
+
   // Place non auto-positioned elements from |grid_items|; returns true if any
   // item needs to resolve an automatic position. Otherwise, false.
   bool PlaceNonAutoGridItems(const GridItems& grid_items,
-                             Vector<GridArea>* positions,
+                             Vector<GridArea>* resolved_positions,
                              PositionVector* positions_locked_to_major_axis,
                              PositionVector* positions_not_locked_to_major_axis,
                              PlacedGridItemsList* placed_items);
@@ -173,6 +185,7 @@ class CORE_EXPORT NGGridPlacement {
   const wtf_size_t row_auto_repeat_track_count_;
   const wtf_size_t column_auto_repetitions_;
   const wtf_size_t row_auto_repetitions_;
+  const bool has_grid_parent_;
 
   wtf_size_t minor_max_end_line_;
   wtf_size_t column_start_offset_;

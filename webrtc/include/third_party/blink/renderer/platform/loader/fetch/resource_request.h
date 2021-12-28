@@ -56,12 +56,6 @@
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/wtf/ref_counted.h"
 
-namespace network {
-namespace mojom {
-class WebBundleHandle;
-}  // namespace mojom
-}  // namespace network
-
 namespace blink {
 
 class EncodedFormData;
@@ -98,13 +92,14 @@ class PLATFORM_EXPORT ResourceRequestHead {
     WebBundleTokenParams(
         const KURL& bundle_url,
         const base::UnguessableToken& token,
-        mojo::PendingRemote<network::mojom::WebBundleHandle> handle);
+        mojo::PendingRemote<network::mojom::blink::WebBundleHandle> handle);
 
-    mojo::PendingRemote<network::mojom::WebBundleHandle> CloneHandle() const;
+    mojo::PendingRemote<network::mojom::blink::WebBundleHandle> CloneHandle()
+        const;
 
     KURL bundle_url;
     base::UnguessableToken token;
-    mojo::PendingRemote<network::mojom::WebBundleHandle> handle;
+    mojo::PendingRemote<network::mojom::blink::WebBundleHandle> handle;
   };
 
   ResourceRequestHead();
@@ -161,6 +156,15 @@ class PLATFORM_EXPORT ResourceRequestHead {
   }
   void SetRequestorOrigin(scoped_refptr<const SecurityOrigin> origin) {
     requestor_origin_ = std::move(origin);
+  }
+
+  // The chain of URLs seen during navigation redirects.  This should only
+  // contain values if the mode is `RedirectMode::kNavigate`.
+  const WTF::Vector<KURL>& NavigationRedirectChain() const {
+    return navigation_redirect_chain_;
+  }
+  void SetNavigationRedirectChain(const WTF::Vector<KURL>& value) {
+    navigation_redirect_chain_ = value;
   }
 
   // The origin of the isolated world - set if this is a fetch/XHR initiated by
@@ -221,8 +225,14 @@ class PLATFORM_EXPORT ResourceRequestHead {
   bool AllowStoredCredentials() const;
   void SetAllowStoredCredentials(bool allow_credentials);
 
-  // TODO(yhirano): Describe what Priority and IntraPriorityValue are.
+  // The initial priority for the request.
+  ResourceLoadPriority InitialPriority() const;
+
+  // The current priority for the request (in case it was changed).
   ResourceLoadPriority Priority() const;
+
+  // Sub-priority for ordering requests at the same priority level.
+  // Used for visible images to load larger images before small.
   int IntraPriorityValue() const;
   bool PriorityHasBeenSet() const;
   void SetPriority(ResourceLoadPriority, int intra_priority_value = 0);
@@ -264,12 +274,6 @@ class PLATFORM_EXPORT ResourceRequestHead {
   bool GetSkipServiceWorker() const { return skip_service_worker_; }
   void SetSkipServiceWorker(bool skip_service_worker) {
     skip_service_worker_ = skip_service_worker;
-  }
-
-  // True if corresponding AppCache group should be resetted.
-  bool ShouldResetAppCache() const { return should_reset_app_cache_; }
-  void SetShouldResetAppCache(bool should_reset_app_cache) {
-    should_reset_app_cache_ = should_reset_app_cache;
   }
 
   // Extra data associated with this request.
@@ -518,6 +522,14 @@ class PLATFORM_EXPORT ResourceRequestHead {
     return allowHTTP1ForStreamingUpload_;
   }
 
+  // The original destination of a request passed through by a service worker.
+  network::mojom::RequestDestination GetOriginalDestination() const {
+    return original_destination_;
+  }
+  void SetOriginalDestination(network::mojom::RequestDestination value) {
+    original_destination_ = value;
+  }
+
   const absl::optional<ResourceRequestHead::WebBundleTokenParams>&
   GetWebBundleTokenParams() const {
     return web_bundle_token_params_;
@@ -548,6 +560,7 @@ class PLATFORM_EXPORT ResourceRequestHead {
   scoped_refptr<const SecurityOrigin> top_frame_origin_;
 
   scoped_refptr<const SecurityOrigin> requestor_origin_;
+  WTF::Vector<KURL> navigation_redirect_chain_;
   scoped_refptr<const SecurityOrigin> isolated_world_origin_;
 
   AtomicString http_method_;
@@ -559,12 +572,12 @@ class PLATFORM_EXPORT ResourceRequestHead {
   bool download_to_blob_ : 1;
   bool use_stream_on_response_ : 1;
   bool keepalive_ : 1;
-  bool should_reset_app_cache_ : 1;
   bool allow_stale_response_ : 1;
   mojom::FetchCacheMode cache_mode_;
   bool skip_service_worker_ : 1;
   bool download_to_cache_only_ : 1;
   bool site_for_cookies_set_ : 1;
+  ResourceLoadPriority initial_priority_;
   ResourceLoadPriority priority_;
   int intra_priority_value_;
   PreviewsState previews_state_;
@@ -607,6 +620,9 @@ class PLATFORM_EXPORT ResourceRequestHead {
   ukm::SourceId ukm_source_id_ = ukm::kInvalidSourceId;
 
   base::UnguessableToken fetch_window_id_;
+
+  network::mojom::RequestDestination original_destination_ =
+      network::mojom::RequestDestination::kEmpty;
 
   uint64_t inspector_id_ = 0;
 

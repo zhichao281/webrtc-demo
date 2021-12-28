@@ -151,6 +151,7 @@ class CORE_EXPORT AnimationEffect : public ScriptWrappable {
   // UpdateChildrenAndEffects.
   void UpdateInheritedTime(absl::optional<AnimationTimeDelta> inherited_time,
                            absl::optional<TimelinePhase> inherited_phase,
+                           bool at_progress_timeline_boundary,
                            double inherited_playback_rate,
                            TimingUpdateReason) const;
   void Invalidate() const { needs_update_ = true; }
@@ -177,6 +178,8 @@ class CORE_EXPORT AnimationEffect : public ScriptWrappable {
 
   const Animation* GetAnimation() const;
   Animation* GetAnimation();
+
+  virtual absl::optional<AnimationTimeDelta> TimelineDuration() const = 0;
 
   Member<AnimationEffectOwner> owner_;
   Timing timing_;

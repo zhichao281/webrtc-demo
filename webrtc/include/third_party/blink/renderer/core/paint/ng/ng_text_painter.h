@@ -6,12 +6,14 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_PAINT_NG_NG_TEXT_PAINTER_H_
 
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/layout/ng/ng_style_variant.h"
 #include "third_party/blink/renderer/core/paint/text_painter_base.h"
 #include "third_party/blink/renderer/platform/fonts/ng_text_fragment_paint_info.h"
 #include "third_party/blink/renderer/platform/graphics/dom_node_id.h"
 
 namespace blink {
 
+struct AutoDarkMode;
 class LayoutObject;
 class LayoutSVGInlineText;
 class NGFragmentItem;
@@ -32,6 +34,7 @@ class CORE_EXPORT NGTextPainter : public TextPainterBase {
    public:
     SvgTextPaintState(const LayoutSVGInlineText&,
                       const ComputedStyle&,
+                      NGStyleVariant style_variant,
                       bool is_rendering_clip_path_as_mask_image);
     SvgTextPaintState(const LayoutSVGInlineText&,
                       const ComputedStyle&,
@@ -54,6 +57,7 @@ class CORE_EXPORT NGTextPainter : public TextPainterBase {
     const ComputedStyle& style_;
     absl::optional<AffineTransform> shader_transform_;
     absl::optional<Color> text_match_color_;
+    NGStyleVariant style_variant_ = NGStyleVariant::kStandard;
     bool is_painting_selection_ = false;
     bool is_rendering_clip_path_as_mask_image_ = false;
     friend class NGTextPainter;
@@ -62,7 +66,7 @@ class CORE_EXPORT NGTextPainter : public TextPainterBase {
   NGTextPainter(GraphicsContext& context,
                 const Font& font,
                 const NGTextFragmentPaintInfo& fragment_paint_info,
-                const IntRect& visual_rect,
+                const gfx::Rect& visual_rect,
                 const PhysicalOffset& text_origin,
                 const PhysicalRect& text_frame_rect,
                 bool horizontal)
@@ -83,6 +87,7 @@ class CORE_EXPORT NGTextPainter : public TextPainterBase {
              unsigned length,
              const TextPaintStyle&,
              DOMNodeId,
+             const AutoDarkMode& auto_dark_mode,
              ShadowMode = kBothShadowsAndTextProper);
 
   void PaintSelectedText(unsigned start_offset,
@@ -91,7 +96,8 @@ class CORE_EXPORT NGTextPainter : public TextPainterBase {
                          const TextPaintStyle& text_style,
                          const TextPaintStyle& selection_style,
                          const PhysicalRect& selection_rect,
-                         DOMNodeId node_id);
+                         DOMNodeId node_id,
+                         const AutoDarkMode& auto_dark_mode);
 
   void PaintDecorationsExceptLineThrough(const NGFragmentItem& text_item,
                                          const PaintInfo& paint_info,
@@ -110,6 +116,7 @@ class CORE_EXPORT NGTextPainter : public TextPainterBase {
 
   SvgTextPaintState& SetSvgState(const LayoutSVGInlineText&,
                                  const ComputedStyle&,
+                                 NGStyleVariant style_variant,
                                  bool is_rendering_clip_path_as_mask_image);
   SvgTextPaintState& SetSvgState(const LayoutSVGInlineText& svg_inline_text,
                                  const ComputedStyle& style,
@@ -118,15 +125,20 @@ class CORE_EXPORT NGTextPainter : public TextPainterBase {
 
  private:
   template <PaintInternalStep step>
-  void PaintInternalFragment(unsigned from, unsigned to, DOMNodeId node_id);
+  void PaintInternalFragment(unsigned from,
+                             unsigned to,
+                             DOMNodeId node_id,
+                             const AutoDarkMode& auto_dark_mode);
 
   template <PaintInternalStep step>
   void PaintInternal(unsigned start_offset,
                      unsigned end_offset,
                      unsigned truncation_point,
-                     DOMNodeId node_id);
+                     DOMNodeId node_id,
+                     const AutoDarkMode& auto_dark_mode);
 
-  void PaintSvgTextFragment(DOMNodeId node_id);
+  void PaintSvgTextFragment(DOMNodeId node_id,
+                            const AutoDarkMode& auto_dark_mode);
   void PaintSvgDecorationsExceptLineThrough(
       const TextDecorationOffsetBase& decoration_offset,
       TextDecorationInfo& decoration_info,
@@ -141,7 +153,7 @@ class CORE_EXPORT NGTextPainter : public TextPainterBase {
       const TextPaintStyle& text_style);
 
   NGTextFragmentPaintInfo fragment_paint_info_;
-  const IntRect& visual_rect_;
+  const gfx::Rect visual_rect_;
   absl::optional<SvgTextPaintState> svg_text_paint_state_;
 };
 

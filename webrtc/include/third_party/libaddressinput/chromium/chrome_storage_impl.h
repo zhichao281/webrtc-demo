@@ -10,7 +10,6 @@
 #include <string>
 #include <vector>
 
-#include "base/macros.h"
 #include "base/scoped_observation.h"
 #include "components/prefs/pref_store.h"
 #include "third_party/libaddressinput/src/cpp/include/libaddressinput/storage.h"
@@ -26,6 +25,10 @@ class ChromeStorageImpl : public ::i18n::addressinput::Storage,
  public:
   // |store| must outlive |this|.
   explicit ChromeStorageImpl(WriteablePrefStore* store);
+
+  ChromeStorageImpl(const ChromeStorageImpl&) = delete;
+  ChromeStorageImpl& operator=(const ChromeStorageImpl&) = delete;
+
   virtual ~ChromeStorageImpl();
 
   // ::i18n::addressinput::Storage implementation.
@@ -55,8 +58,6 @@ class ChromeStorageImpl : public ::i18n::addressinput::Storage,
 
   base::ScopedObservation<PrefStore, PrefStore::Observer> scoped_observation_{
       this};
-
-  DISALLOW_COPY_AND_ASSIGN(ChromeStorageImpl);
 };
 
 }  // namespace autofill

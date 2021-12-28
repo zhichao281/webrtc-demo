@@ -20,12 +20,8 @@ static_assert(sizeof(void*) == 8, "");
 static_assert(sizeof(void*) != 8, "");
 #endif
 
-// BackupRefPtr and PCScan are incompatible, and due to its conservative nature,
-// it is 64 bits only.
-// Disable PCScan even for USE_BACKUP_REF_PTR_FAKE, so that a "fake" BRP
-// experiment is unaffected by PCScan, as a non-fake one would.
-#if defined(PA_HAS_64_BITS_POINTERS) && !BUILDFLAG(USE_BACKUP_REF_PTR) && \
-    !BUILDFLAG(USE_BACKUP_REF_PTR_FAKE)
+// PCScan supports 64 bits only.
+#if defined(PA_HAS_64_BITS_POINTERS)
 #define PA_ALLOW_PCSCAN
 #endif
 
@@ -41,19 +37,25 @@ static_assert(sizeof(void*) != 8, "");
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0)
 #define PA_STARSCAN_UFFD_WRITE_PROTECTOR_SUPPORTED
 #endif
+#endif
 
 #if defined(PA_HAS_64_BITS_POINTERS)
-// Disable currently the card table to check the memory improvement.
-#define PA_STARSCAN_USE_CARD_TABLE 0
+// Use card table to avoid races for PCScan configuration without safepoints.
+// The card table provides the guaranteee that for a marked card the underling
+// super-page is fully initialized.
+#define PA_STARSCAN_USE_CARD_TABLE 1
 #else
 // The card table is permanently disabled for 32-bit.
 #define PA_STARSCAN_USE_CARD_TABLE 0
-#endif
 #endif
 
 #if PA_STARSCAN_USE_CARD_TABLE && !defined(PA_ALLOW_PCSCAN)
 #error "Card table can only be used when *Scan is allowed"
 #endif
+
+// Use batched freeing when sweeping pages. This builds up a freelist in the
+// scanner thread and appends to the slot-span's freelist only once.
+#define PA_STARSCAN_BATCHED_FREE 1
 
 // POSIX is not only UNIX, e.g. macOS and other OSes. We do use Linux-specific
 // features such as futex(2).
@@ -61,10 +63,23 @@ static_assert(sizeof(void*) != 8, "");
 #define PA_HAS_LINUX_KERNEL
 #endif
 
-// SpinningMutex uses either futex(2) on Linux, or a fast userspace "try"
-// operation, which is available on Windows.
-#if defined(PA_HAS_LINUX_KERNEL) || defined(OS_WIN)
-#define PA_HAS_SPINNING_MUTEX
+// On some platforms, we implement locking by spinning in userspace, then going
+// into the kernel only if there is contention. This requires platform support,
+// namely:
+// - On Linux, futex(2)
+// - On Windows, a fast userspace "try" operation which is available
+//   with SRWLock
+// - Otherwise, a fast userspace pthread_mutex_trylock().
+//
+// On macOS, pthread_mutex_trylock() is fast by default starting with macOS
+// 10.14. Chromium targets an earlier version, so it cannot be known at
+// compile-time. So we use something different. On other POSIX systems, we
+// assume that pthread_mutex_trylock() is suitable.
+//
+// Otherwise, a userspace spinlock implementation is used.
+#if defined(PA_HAS_LINUX_KERNEL) || defined(OS_WIN) || \
+    (defined(OS_POSIX) && !defined(OS_APPLE)) || defined(OS_FUCHSIA)
+#define PA_HAS_FAST_MUTEX
 #endif
 
 // If set to 1, enables zeroing memory on Free() with roughly 1% probability.
@@ -76,7 +91,7 @@ static_assert(sizeof(void*) != 8, "");
 #endif
 
 // Need TLS support.
-#if defined(OS_POSIX) || defined(OS_WIN)
+#if defined(OS_POSIX) || defined(OS_WIN) || defined(OS_FUCHSIA)
 #define PA_THREAD_CACHE_SUPPORTED
 #endif
 
@@ -108,6 +123,41 @@ static_assert(sizeof(void*) != 8, "");
 // Specifies whether allocation extras need to be added.
 #if DCHECK_IS_ON() || BUILDFLAG(USE_BACKUP_REF_PTR)
 #define PA_EXTRAS_REQUIRED
+#endif
+
+// Count and total wall clock time spent in memory related system calls. This
+// doesn't cover all system calls, in particular the ones related to locking.
+//
+// Not enabled by default, as it has a runtime cost, and causes issues with some
+// builds (e.g. Windows).
+// #define PA_COUNT_SYSCALL_TIME
+
+// On Windows, |thread_local| variables cannot be marked "dllexport", see
+// compiler error C2492 at
+// https://docs.microsoft.com/en-us/cpp/error-messages/compiler-errors-1/compiler-error-c2492?view=msvc-160.
+// Don't use it there.
+//
+// On macOS and iOS:
+// - With PartitionAlloc-Everywhere, thread_local allocates, reentering the
+//   allocator.
+// - Component builds triggered a clang bug: crbug.com/1243375
+//
+// Regardless, the "normal" TLS access is fast on x86_64 (see partition_tls.h),
+// so don't bother with thread_local anywhere.
+#if !(defined(OS_WIN) && defined(COMPONENT_BUILD)) && !defined(OS_APPLE)
+#define PA_THREAD_LOCAL_TLS
+#endif
+
+// When PartitionAlloc is malloc(), detect malloc() becoming re-entrant by
+// calling malloc() again.
+//
+// Limitations:
+// - DCHECK_IS_ON() due to runtime cost
+// - thread_local TLS to simplify the implementation
+// - Not on Android due to bot failures
+#if DCHECK_IS_ON() && BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && \
+    defined(PA_THREAD_LOCAL_TLS) && !defined(OS_ANDROID)
+#define PA_HAS_ALLOCATION_GUARD
 #endif
 
 #endif  // BASE_ALLOCATOR_PARTITION_ALLOCATOR_PARTITION_ALLOC_CONFIG_H_

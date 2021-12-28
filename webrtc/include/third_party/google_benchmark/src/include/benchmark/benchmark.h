@@ -34,7 +34,7 @@ static void BM_StringCopy(benchmark::State& state) {
 BENCHMARK(BM_StringCopy);
 
 // Augment the main() program to invoke benchmarks if specified
-// via the --benchmarks command line flag.  E.g.,
+// via the --benchmark_filter command line flag.  E.g.,
 //       my_unittest --benchmark_filter=all
 //       my_unittest --benchmark_filter=BM_StringCreation
 //       my_unittest --benchmark_filter=String
@@ -140,13 +140,13 @@ thread exits the loop body. As such, any global setup or teardown you want to
 do can be wrapped in a check against the thread index:
 
 static void BM_MultiThreaded(benchmark::State& state) {
-  if (state.thread_index == 0) {
+  if (state.thread_index() == 0) {
     // Setup code here.
   }
   for (auto _ : state) {
     // Run the test as normal.
   }
-  if (state.thread_index == 0) {
+  if (state.thread_index() == 0) {
     // Teardown code here.
   }
 }
@@ -187,6 +187,7 @@ BENCHMARK(BM_test)->Unit(benchmark::kMillisecond);
 #include <vector>
 
 #if defined(BENCHMARK_HAS_CXX11)
+#include <atomic>
 #include <initializer_list>
 #include <type_traits>
 #include <utility>
@@ -327,6 +328,14 @@ BENCHMARK_UNUSED static int stream_init_anchor = InitializeStreams();
 #define BENCHMARK_HAS_NO_INLINE_ASSEMBLY
 #endif
 
+// Force the compiler to flush pending writes to global memory. Acts as an
+// effective read/write barrier
+#ifdef BENCHMARK_HAS_CXX11
+inline BENCHMARK_ALWAYS_INLINE void ClobberMemory() {
+  std::atomic_signal_fence(std::memory_order_acq_rel);
+}
+#endif
+
 // The DoNotOptimize(...) function can be used to prevent a value or
 // expression from being optimized away by the compiler. This function is
 // intended to add little to no overhead.
@@ -346,11 +355,11 @@ inline BENCHMARK_ALWAYS_INLINE void DoNotOptimize(Tp& value) {
 #endif
 }
 
-// Force the compiler to flush pending writes to global memory. Acts as an
-// effective read/write barrier
+#ifndef BENCHMARK_HAS_CXX11
 inline BENCHMARK_ALWAYS_INLINE void ClobberMemory() {
   asm volatile("" : : : "memory");
 }
+#endif
 #elif defined(_MSC_VER)
 template <class Tp>
 inline BENCHMARK_ALWAYS_INLINE void DoNotOptimize(Tp const& value) {
@@ -358,13 +367,15 @@ inline BENCHMARK_ALWAYS_INLINE void DoNotOptimize(Tp const& value) {
   _ReadWriteBarrier();
 }
 
+#ifndef BENCHMARK_HAS_CXX11
 inline BENCHMARK_ALWAYS_INLINE void ClobberMemory() { _ReadWriteBarrier(); }
+#endif
 #else
 template <class Tp>
 inline BENCHMARK_ALWAYS_INLINE void DoNotOptimize(Tp const& value) {
   internal::UseCharPointer(&reinterpret_cast<char const volatile&>(value));
 }
-// FIXME Add ClobberMemory() for non-gnu and non-msvc compilers
+// FIXME Add ClobberMemory() for non-gnu and non-msvc compilers, before C++11.
 #endif
 
 // This class is used for user-defined counters.
@@ -439,6 +450,8 @@ enum BigO { oNone, o1, oN, oNSquared, oNCubed, oLogN, oNLogN, oAuto, oLambda };
 
 typedef uint64_t IterationCount;
 
+enum StatisticUnit { kTime, kPercentage };
+
 // BigOFunc is passed to a benchmark in order to specify the asymptotic
 // computational complexity for the benchmark.
 typedef double(BigOFunc)(IterationCount);
@@ -451,9 +464,11 @@ namespace internal {
 struct Statistics {
   std::string name_;
   StatisticsFunc* compute_;
+  StatisticUnit unit_;
 
-  Statistics(const std::string& name, StatisticsFunc* compute)
-      : name_(name), compute_(compute) {}
+  Statistics(const std::string& name, StatisticsFunc* compute,
+             StatisticUnit unit = kTime)
+      : name_(name), compute_(compute), unit_(unit) {}
 };
 
 class BenchmarkInstance;
@@ -656,6 +671,14 @@ class State {
   BENCHMARK_DEPRECATED_MSG("use 'range(1)' instead")
   int64_t range_y() const { return range(1); }
 
+  // Number of threads concurrently executing the benchmark.
+  BENCHMARK_ALWAYS_INLINE
+  int threads() const { return threads_; }
+
+  // Index of the executing thread. Values from [0, threads).
+  BENCHMARK_ALWAYS_INLINE
+  int thread_index() const { return thread_index_; }
+
   BENCHMARK_ALWAYS_INLINE
   IterationCount iterations() const {
     if (BENCHMARK_BUILTIN_EXPECT(!started_, false)) {
@@ -664,8 +687,8 @@ class State {
     return max_iterations - total_iterations_ + batch_leftover_;
   }
 
- private
-     :  // items we expect on the first cache line (ie 64 bytes of the struct)
+ private:
+  // items we expect on the first cache line (ie 64 bytes of the struct)
   // When total_iterations_ is 0, KeepRunning() and friends will return false.
   // May be larger than max_iterations.
   IterationCount total_iterations_;
@@ -691,10 +714,6 @@ class State {
  public:
   // Container for user-defined counters.
   UserCounters counters;
-  // Index of the executing thread. Values from [0, threads).
-  const int thread_index;
-  // Number of threads concurrently executing the benchmark.
-  const int threads;
 
  private:
   State(IterationCount max_iters, const std::vector<int64_t>& ranges,
@@ -707,6 +726,10 @@ class State {
   // is_batch must be true unless n is 1.
   bool KeepRunningInternal(IterationCount n, bool is_batch);
   void FinishKeepRunning();
+
+  const int thread_index_;
+  const int threads_;
+
   internal::ThreadTimer* const timer_;
   internal::ThreadManager* const manager_;
   internal::PerfCountersMeasurement* const perf_counters_measurement_;
@@ -946,7 +969,8 @@ class Benchmark {
   Benchmark* Complexity(BigOFunc* complexity);
 
   // Add this statistics to be computed over all the values of benchmark run
-  Benchmark* ComputeStatistics(std::string name, StatisticsFunc* statistics);
+  Benchmark* ComputeStatistics(std::string name, StatisticsFunc* statistics,
+                               StatisticUnit unit = kTime);
 
   // Support for running multiple copies of the same benchmark concurrently
   // in multiple threads.  This may be useful when measuring the scaling
@@ -1402,6 +1426,7 @@ class BenchmarkReporter {
 
     Run()
         : run_type(RT_Iteration),
+          aggregate_unit(kTime),
           error_occurred(false),
           iterations(1),
           threads(1),
@@ -1425,6 +1450,7 @@ class BenchmarkReporter {
     int64_t per_family_instance_index;
     RunType run_type;
     std::string aggregate_name;
+    StatisticUnit aggregate_unit;
     std::string report_label;  // Empty if not set by benchmark.
     bool error_occurred;
     std::string error_message;
@@ -1648,6 +1674,21 @@ inline double GetTimeUnitMultiplier(TimeUnit unit) {
   }
   BENCHMARK_UNREACHABLE();
 }
+
+// Creates a list of integer values for the given range and multiplier.
+// This can be used together with ArgsProduct() to allow multiple ranges
+// with different multiplers.
+// Example:
+// ArgsProduct({
+//   CreateRange(0, 1024, /*multi=*/32),
+//   CreateRange(0, 100, /*multi=*/4),
+//   CreateDenseRange(0, 4, /*step=*/1),
+// });
+std::vector<int64_t> CreateRange(int64_t lo, int64_t hi, int multi);
+
+// Creates a list of integer values for the given range and step.
+std::vector<int64_t> CreateDenseRange(int64_t start, int64_t limit,
+                                      int step);
 
 }  // namespace benchmark
 

@@ -9,10 +9,12 @@
 #include <set>
 
 #include "base/callback.h"
+#include "base/containers/span.h"
 #include "base/i18n/rtl.h"
 #include "base/memory/weak_ptr.h"
 #include "base/types/pass_key.h"
 #include "base/unguessable_token.h"
+#include "build/build_config.h"
 #include "components/viz/common/surfaces/frame_sink_id.h"
 #include "services/network/public/mojom/web_sandbox_flags.mojom-shared.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -49,11 +51,11 @@
 #include "ui/accessibility/ax_tree_id.h"
 #include "ui/base/ime/ime_text_span.h"
 #include "ui/gfx/range/range.h"
-#include "v8/include/v8.h"
+#include "v8/include/v8-forward.h"
 
 namespace gfx {
 class Point;
-class ScrollOffset;
+class PointF;
 }  // namespace gfx
 
 namespace ui {
@@ -95,6 +97,10 @@ struct WebPrintPageDescription;
 struct WebPrintParams;
 struct WebPrintPresetOptions;
 struct WebScriptSource;
+
+#if defined(OS_WIN)
+struct WebFontFamilyNames;
+#endif
 
 namespace mojom {
 enum class TreeScopeType;
@@ -169,6 +175,10 @@ class WebLocalFrame : public WebFrame {
   // if the context is detached from the frame, or if the context doesn't
   // correspond to a frame (e.g., workers).
   BLINK_EXPORT static WebLocalFrame* FrameForContext(v8::Local<v8::Context>);
+
+  // Returns the frame associated with the |frame_token|.
+  BLINK_EXPORT static WebLocalFrame* FromFrameToken(
+      const LocalFrameToken& frame_token);
 
   virtual WebLocalFrameClient* Client() const = 0;
 
@@ -249,6 +259,11 @@ class WebLocalFrame : public WebFrame {
   virtual const absl::optional<base::UnguessableToken>& GetEmbeddingToken()
       const = 0;
 
+  // "Returns true if the frame the document belongs to, or any of its ancestor
+  // nodes is a fenced frame. See blink::Frame::IsInFencedFrameTree() for more
+  // details.
+  virtual bool IsInFencedFrameTree() const = 0;
+
   // Navigation Ping --------------------------------------------------------
 
   virtual void SendPings(const WebURL& destination_url) = 0;
@@ -312,6 +327,11 @@ class WebLocalFrame : public WebFrame {
 
   // Scripting --------------------------------------------------------------
 
+  // The following methods execute script within the frame synchronously, even
+  // if script execution is suspended (e.g. due to a devtools breakpoint).
+  // Prefer the RequestExecute*() methods below for any script that should
+  // respect script being suspended.
+
   // Executes script in the context of the current page.
   virtual void ExecuteScript(const WebScriptSource&) = 0;
 
@@ -320,15 +340,14 @@ class WebLocalFrame : public WebFrame {
   // intrinsic JavaScript objects (String, Array, and so-on). It also
   // gets its own wrappers for all DOM nodes and DOM constructors.
   //
-  // worldID must be > 0 (as 0 represents the main world).
-  // worldID must be < kEmbedderWorldIdLimit, high number used internally.
+  // `world_id` must be > kMainDOMWorldId and < kEmbedderWorldIdLimit (a
+  // high number used internally).
   virtual void ExecuteScriptInIsolatedWorld(int32_t world_id,
                                             const WebScriptSource&,
                                             BackForwardCacheAware) = 0;
 
-  // worldID must be > 0 (as 0 represents the main world).
-  // worldID must be < kEmbedderWorldIdLimit, high number used internally.
-  // DEPRECATED: Use WebLocalFrame::requestExecuteScriptInIsolatedWorld.
+  // `world_id` must be > kMainDOMWorldId and < kEmbedderWorldIdLimit (a
+  // high number used internally).
   WARN_UNUSED_RESULT virtual v8::Local<v8::Value>
   ExecuteScriptInIsolatedWorldAndReturnValue(int32_t world_id,
                                              const WebScriptSource&,
@@ -340,7 +359,6 @@ class WebLocalFrame : public WebFrame {
 
   // Executes script in the context of the current page and returns the value
   // that the script evaluated to.
-  // DEPRECATED: Use WebLocalFrame::requestExecuteScriptAndReturnValue.
   virtual v8::Local<v8::Value> ExecuteScriptAndReturnValue(
       const WebScriptSource&) = 0;
 
@@ -373,14 +391,12 @@ class WebLocalFrame : public WebFrame {
       v8::Isolate* isolate,
       int world_id) const = 0;
 
-  // Executes script in the context of the current page and returns the value
-  // that the script evaluated to with callback. Script execution can be
-  // suspend.
-  // DEPRECATED: Prefer requestExecuteScriptInIsolatedWorld().
-  virtual void RequestExecuteScriptAndReturnValue(
-      const WebScriptSource&,
-      bool user_gesture,
-      WebScriptExecutionCallback*) = 0;
+  // The following RequestExecute*() functions execute script within the frame,
+  // but respect script suspension (e.g. from devtools), allowing the script to
+  // (potentially) finish executing asynchronously, at which point the
+  // `WebScriptExecutionCallback` will be triggered. These methods are preferred
+  // when the injected script should respect suspension (e.g., for script
+  // inserted on behalf of a developer).
 
   // Requests execution of the given function, but allowing for script
   // suspension and asynchronous execution.
@@ -400,16 +416,26 @@ class WebLocalFrame : public WebFrame {
     kAsynchronousBlockingOnload
   };
 
-  // worldID must be > 0 (as 0 represents the main world).
-  // worldID must be < kEmbedderWorldIdLimit, high number used internally.
-  virtual void RequestExecuteScriptInIsolatedWorld(
-      int32_t world_id,
-      const WebScriptSource* source_in,
-      unsigned num_sources,
-      bool user_gesture,
-      ScriptExecutionType,
-      WebScriptExecutionCallback*,
-      BackForwardCacheAware) = 0;
+  enum class PromiseBehavior {
+    // If the result of the executed script is a promise or other then-able,
+    // wait for it to settle and pass the result of the promise to the caller.
+    // If the promise (and any subsequent thenables) resolves, this passes the
+    // value. If the promise rejects, the corresponding value will be empty.
+    kAwait,
+    // Don't wait for any promise to settle.
+    kDontWait,
+  };
+
+  // Executes the script in the main world of the page.
+  // Use kMainDOMWorldId to execute in the main world; otherwise,
+  // `world_id` must be a positive integer and less than kEmbedderWorldIdLimit.
+  virtual void RequestExecuteScript(int32_t world_id,
+                                    base::span<const WebScriptSource> sources,
+                                    bool user_gesture,
+                                    ScriptExecutionType,
+                                    WebScriptExecutionCallback*,
+                                    BackForwardCacheAware,
+                                    PromiseBehavior) = 0;
 
   // Logs to the console associated with this frame. If |discard_duplicates| is
   // set, the message will only be added if it is unique (i.e. has not been
@@ -476,11 +502,6 @@ class WebLocalFrame : public WebFrame {
   virtual void TextSelectionChanged(const WebString& selection_text,
                                     uint32_t offset,
                                     const gfx::Range& range) = 0;
-
-  // Expands the selection to a word around the caret and returns
-  // true. Does nothing and returns false if there is no caret or
-  // there is ranged selection.
-  virtual bool SelectWordAroundCaret() = 0;
 
   // DEPRECATED: Use moveRangeSelection.
   virtual void SelectRange(const gfx::Point& base,
@@ -680,8 +701,13 @@ class WebLocalFrame : public WebFrame {
   // not be accurate if the page layout is out-of-date.
 
   // The scroll offset from the top-left corner of the frame in pixels.
-  virtual gfx::ScrollOffset GetScrollOffset() const = 0;
-  virtual void SetScrollOffset(const gfx::ScrollOffset&) = 0;
+  // Note: This is actually corresponds to "scroll position" instead of
+  // "scroll offset" in blink renderer. We use the term "scroll offset" here
+  // because it is the term used throughout Chrome (except for blink renderer)
+  // where there is no concept of scroll origin.
+  // See renderer/core/scroll/scroll_area.h for details.
+  virtual gfx::PointF GetScrollOffset() const = 0;
+  virtual void SetScrollOffset(const gfx::PointF&) = 0;
 
   // The size of the document in this frame.
   virtual gfx::Size DocumentSize() const = 0;
@@ -782,20 +808,30 @@ class WebLocalFrame : public WebFrame {
 
   // User activation -----------------------------------------------------------
 
-  // See blink::LocalFrame::NotifyUserActivation().
+  // See |blink::LocalFrame::NotifyUserActivation()|.
   virtual void NotifyUserActivation(
       mojom::UserActivationNotificationType notification_type) = 0;
 
-  // See blink::LocalFrame::HasStickyUserActivation().
+  // See |blink::Frame::HasStickyUserActivation()|.
   virtual bool HasStickyUserActivation() = 0;
 
-  // See blink::LocalFrame::HasTransientUserActivation().
+  // See |blink::Frame::HasTransientUserActivation()|.
   virtual bool HasTransientUserActivation() = 0;
 
-  // See blink::LocalFrame::ConsumeTransientUserActivation().
+  // See |blink::LocalFrame::ConsumeTransientUserActivation()|.
   virtual bool ConsumeTransientUserActivation(
       UserActivationUpdateSource update_source =
           UserActivationUpdateSource::kRenderer) = 0;
+
+  // See |blink::Frame::LastActivationWasRestricted()|.
+  virtual bool LastActivationWasRestricted() const = 0;
+
+  // Fonts --------------------------------------------------------------------
+
+#if defined(OS_WIN)
+  // Returns the font family names currently used.
+  virtual WebFontFamilyNames GetWebFontFamilyNames() const = 0;
+#endif
 
   // Testing ------------------------------------------------------------------
 

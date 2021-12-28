@@ -264,6 +264,8 @@ class CORE_EXPORT LayoutBlockFlow : public LayoutBlock {
                 LayoutObject* before_child = nullptr) override;
   void RemoveChild(LayoutObject*) override;
 
+  bool CreatesAnonymousWrapper() const override;
+
   void MoveAllChildrenIncludingFloatsTo(LayoutBlock* to_block,
                                         bool full_remove_insert);
 
@@ -355,6 +357,17 @@ class CORE_EXPORT LayoutBlockFlow : public LayoutBlock {
       rare_data_->multi_column_flow_thread_ = nullptr;
   }
 
+  // Return true if this block establishes a fragmentation context root (e.g. a
+  // multicol container).
+  //
+  // Implementation detail: At some point in the future there should be no flow
+  // threads. Callers that only want to know if this is a fragmentation context
+  // root (and don't depend on flow threads) should call this method.
+  bool IsFragmentationContextRoot() const {
+    NOT_DESTROYED();
+    return MultiColumnFlowThread();
+  }
+
   void AddVisualOverflowFromInlineChildren();
 
   void AddLayoutOverflowFromInlineChildren();
@@ -415,7 +428,7 @@ class CORE_EXPORT LayoutBlockFlow : public LayoutBlock {
   LayoutUnit XPositionForFloatIncludingMargin(
       const FloatingObject& child) const {
     NOT_DESTROYED();
-    LayoutUnit scrollbar_adjustment(OriginAdjustmentForScrollbars().Width());
+    LayoutUnit scrollbar_adjustment(OriginAdjustmentForScrollbars().x());
     if (IsHorizontalWritingMode()) {
       return child.X() + child.GetLayoutObject()->MarginLeft() +
              scrollbar_adjustment;

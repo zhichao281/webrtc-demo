@@ -10,7 +10,6 @@
 
 #include "base/callback_forward.h"
 #include "base/gtest_prod_util.h"
-#include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/threading/thread_checker.h"
 #include "build/build_config.h"
@@ -21,6 +20,7 @@
 #include "third_party/blink/renderer/modules/mediastream/media_stream_constraints_util_audio.h"
 #include "third_party/blink/renderer/modules/mediastream/user_media_request.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
+#include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
@@ -56,6 +56,10 @@ class MODULES_EXPORT UserMediaProcessor
   UserMediaProcessor(LocalFrame* frame,
                      MediaDevicesDispatcherCallback media_devices_dispatcher_cb,
                      scoped_refptr<base::SingleThreadTaskRunner> task_runner);
+
+  UserMediaProcessor(const UserMediaProcessor&) = delete;
+  UserMediaProcessor& operator=(const UserMediaProcessor&) = delete;
+
   virtual ~UserMediaProcessor();
 
   // It can be assumed that the output of CurrentRequest() remains the same
@@ -305,8 +309,6 @@ class MODULES_EXPORT UserMediaProcessor
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 
   THREAD_CHECKER(thread_checker_);
-
-  DISALLOW_COPY_AND_ASSIGN(UserMediaProcessor);
 };
 
 }  // namespace blink

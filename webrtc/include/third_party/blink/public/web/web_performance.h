@@ -33,6 +33,7 @@
 
 #include "base/time/time.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/blink/public/common/performance/largest_contentful_paint_type.h"
 #include "third_party/blink/public/platform/web_common.h"
 #include "third_party/blink/public/platform/web_private_ptr.h"
 #include "third_party/blink/public/platform/web_vector.h"
@@ -111,6 +112,8 @@ class WebPerformance {
   BLINK_EXPORT double FirstImagePaint() const;
   BLINK_EXPORT double FirstContentfulPaint() const;
   BLINK_EXPORT base::TimeTicks FirstContentfulPaintAsMonotonicTime() const;
+  BLINK_EXPORT base::TimeTicks
+  FirstContentfulPaintRenderedButNotPresentedAsMonotonicTime() const;
   BLINK_EXPORT double FirstMeaningfulPaint() const;
   BLINK_EXPORT double FirstMeaningfulPaintCandidate() const;
   BLINK_EXPORT double LargestImagePaint() const;
@@ -120,6 +123,8 @@ class WebPerformance {
   BLINK_EXPORT base::TimeTicks LargestContentfulPaintAsMonotonicTime() const;
   BLINK_EXPORT double ExperimentalLargestImagePaint() const;
   BLINK_EXPORT uint64_t ExperimentalLargestImagePaintSize() const;
+  BLINK_EXPORT LargestContentfulPaintTypeMask
+  LargestContentfulPaintType() const;
   BLINK_EXPORT double ExperimentalLargestTextPaint() const;
   BLINK_EXPORT uint64_t ExperimentalLargestTextPaintSize() const;
   BLINK_EXPORT double FirstEligibleToPaint() const;

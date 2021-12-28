@@ -57,6 +57,7 @@ class CORE_EXPORT NGOutOfFlowLayoutPart {
   NGOutOfFlowLayoutPart(
       bool is_absolute_container,
       bool is_fixed_container,
+      bool is_grid_container,
       const ComputedStyle& container_style,
       const NGConstraintSpace& container_space,
       NGBoxFragmentBuilder* container_builder,
@@ -349,6 +350,16 @@ class CORE_EXPORT NGOutOfFlowLayoutPart {
   bool has_block_fragmentation_ = false;
   // A fixedpos containing block was found in an outer fragmentation context.
   bool outer_context_has_fixedpos_container_ = false;
+
+  // Set to true if there's a legacy flexbox inside a (non-containing) legacy
+  // object (so that it's found in LayoutBlock::PositionedObjects()). E.g.:
+  //
+  // <div style="position:relative;">
+  //   <div id="legacy" style="columns:2;">
+  //     <div style="display:flex; position:absolute;">
+  bool has_legacy_flex_box_ = false;
+
+  bool performing_extra_legacy_check_ = false;
 };
 
 }  // namespace blink

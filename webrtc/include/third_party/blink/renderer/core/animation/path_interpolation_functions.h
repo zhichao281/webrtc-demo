@@ -17,7 +17,7 @@ class CORE_EXPORT PathInterpolationFunctions {
   STATIC_ONLY(PathInterpolationFunctions);
 
  public:
-  enum CoordinateConversion { PreserveCoordinates, ForceAbsolute };
+  enum CoordinateConversion { kPreserveCoordinates, kForceAbsolute };
 
   static scoped_refptr<StylePath> AppliedValue(const InterpolableValue&,
                                                const NonInterpolableValue*);
@@ -36,6 +36,9 @@ class CORE_EXPORT PathInterpolationFunctions {
 
   static bool PathsAreCompatible(const NonInterpolableValue& start,
                                  const NonInterpolableValue& end);
+
+  static bool IsPathNonInterpolableValue(const NonInterpolableValue& value);
+
   static PairwiseInterpolationValue MaybeMergeSingles(
       InterpolationValue&& start,
       InterpolationValue&& end);

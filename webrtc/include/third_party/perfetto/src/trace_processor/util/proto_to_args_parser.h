@@ -86,6 +86,7 @@ class ProtoToArgsParser {
     // Returns whether an entry was added or not.
     virtual bool AddJson(const Key& key,
                          const protozero::ConstChars& value) = 0;
+    virtual void AddNull(const Key& key) = 0;
 
     virtual size_t GetArrayEntryIndex(const std::string& array_key) = 0;
     virtual size_t IncrementArrayEntryIndex(const std::string& array_key) = 0;
@@ -135,7 +136,8 @@ class ProtoToArgsParser {
   base::Status ParseMessage(const protozero::ConstBytes& cb,
                             const std::string& type,
                             const std::vector<uint16_t>* allowed_fields,
-                            Delegate& delegate);
+                            Delegate& delegate,
+                            int* unknown_extensions = nullptr);
 
   // This class is responsible for resetting the current key prefix to the old
   // value when deleted or reset.
@@ -236,7 +238,8 @@ class ProtoToArgsParser {
   base::Status ParseField(const FieldDescriptor& field_descriptor,
                           int repeated_field_number,
                           protozero::Field field,
-                          Delegate& delegate);
+                          Delegate& delegate,
+                          int* unknown_extensions);
 
   base::Optional<base::Status> MaybeApplyOverrideForField(
       const protozero::Field&,
@@ -254,7 +257,8 @@ class ProtoToArgsParser {
                                     const protozero::ConstBytes& cb,
                                     const std::string& type,
                                     const std::vector<uint16_t>* fields,
-                                    Delegate& delegate);
+                                    Delegate& delegate,
+                                    int* unknown_extensions);
 
   base::Status ParseSimpleField(const FieldDescriptor& desciptor,
                                 const protozero::Field& field,

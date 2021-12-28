@@ -61,8 +61,7 @@ class CORE_EXPORT NGBlockLayoutAlgorithm
 
   void SetBoxType(NGPhysicalFragment::NGBoxType type);
 
-  MinMaxSizesResult ComputeMinMaxSizes(
-      const MinMaxSizesFloatInput&) const override;
+  MinMaxSizesResult ComputeMinMaxSizes(const MinMaxSizesFloatInput&) override;
   scoped_refptr<const NGLayoutResult> Layout() override;
 
  private:
@@ -246,6 +245,8 @@ class CORE_EXPORT NGBlockLayoutAlgorithm
   // Propagates the baseline from the given |child| if needed.
   void PropagateBaselineFromChild(const NGPhysicalFragment& child,
                                   LayoutUnit block_offset);
+  void PropagateBaselineFromBlockChild(const NGPhysicalFragment& child,
+                                       LayoutUnit block_offset);
 
   // If still unresolved, resolve the fragment's BFC block offset.
   //

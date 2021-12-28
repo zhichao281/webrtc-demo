@@ -11,7 +11,7 @@
 
 #include "base/base_export.h"
 #include "base/json/json_common.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 
 namespace base {
 
@@ -36,6 +36,9 @@ class BASE_EXPORT JSONWriter {
     // help with readability).
     OPTIONS_PRETTY_PRINT = 1 << 2,
   };
+
+  JSONWriter(const JSONWriter&) = delete;
+  JSONWriter& operator=(const JSONWriter&) = delete;
 
   // Given a root node, generates a JSON string and puts it into |json|.
   // The output string is overwritten and not appended.
@@ -71,15 +74,13 @@ class BASE_EXPORT JSONWriter {
   bool pretty_print_;
 
   // Where we write JSON data as we generate it.
-  std::string* json_string_;
+  raw_ptr<std::string> json_string_;
 
   // Maximum depth to write.
   const size_t max_depth_;
 
   // The number of times the writer has recursed (current stack depth).
   size_t stack_depth_;
-
-  DISALLOW_COPY_AND_ASSIGN(JSONWriter);
 };
 
 }  // namespace base

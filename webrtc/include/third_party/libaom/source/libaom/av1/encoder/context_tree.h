@@ -53,10 +53,6 @@ typedef struct PICK_MODE_CONTEXT {
 #if CONFIG_INTERNAL_STATS
   THR_MODES best_mode_index;
 #endif  // CONFIG_INTERNAL_STATS
-  int hybrid_pred_diff;
-  int comp_pred_diff;
-  int single_pred_diff;
-
   RD_STATS rd_stats;
 
   int rd_mode_is_ready;  // Flag to indicate whether rd pick mode decision has
@@ -102,8 +98,9 @@ typedef struct SIMPLE_MOTION_DATA_TREE {
   int sms_rect_valid;
 } SIMPLE_MOTION_DATA_TREE;
 
-void av1_setup_shared_coeff_buffer(struct aom_internal_error_info *error,
-                                   PC_TREE_SHARED_BUFFERS *shared_bufs);
+void av1_setup_shared_coeff_buffer(const SequenceHeader *const seq_params,
+                                   PC_TREE_SHARED_BUFFERS *shared_bufs,
+                                   struct aom_internal_error_info *error);
 void av1_free_shared_coeff_buffer(PC_TREE_SHARED_BUFFERS *shared_bufs);
 
 PC_TREE *av1_alloc_pc_tree_node(BLOCK_SIZE bsize);

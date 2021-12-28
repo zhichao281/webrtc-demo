@@ -108,7 +108,9 @@ class Internals final : public ScriptWrappable {
   bool isLoading(const String& url);
   bool isLoadingFromMemoryCache(const String& url);
 
-  ScriptPromise getResourcePriority(ScriptState*, const String& url, Document*);
+  ScriptPromise getInitialResourcePriority(ScriptState*,
+                                           const String& url,
+                                           Document*);
   String getResourceHeader(const String& url, const String& header, Document*);
 
   bool doesWindowHaveUrlFragment(DOMWindow*);
@@ -352,8 +354,6 @@ class Internals final : public ScriptWrappable {
   String layerTreeAsText(Document*, unsigned flags, ExceptionState&) const;
   String layerTreeAsText(Document*, ExceptionState&) const;
 
-  bool scrollsWithRespectTo(Element*, Element*, ExceptionState&);
-
   String scrollingStateTreeAsText(Document*) const;
   String mainThreadScrollingReasons(Document*, ExceptionState&) const;
   DOMRectList* nonFastScrollableRects(Document*, ExceptionState&) const;
@@ -425,6 +425,7 @@ class Internals final : public ScriptWrappable {
   CallbackFunctionTest* callbackFunctionTest() const;
 
   Vector<String> getReferencedFilePaths() const;
+  void disableReferencedFilePathsVerification() const;
 
   void startTrackingRepaints(Document*, ExceptionState&);
   void stopTrackingRepaints(Document*, ExceptionState&);

@@ -36,6 +36,7 @@ class NGFragmentItem;
 class NGInlineItem;
 class PaintLayer;
 struct LogicalRect;
+struct NGFragmentedOutOfFlowData;
 struct NGPhysicalOutOfFlowPositionedNode;
 
 enum class NGOutlineType;
@@ -70,6 +71,8 @@ class CORE_EXPORT NGPhysicalFragment
     // A multi-column container creates column boxes as its children, which
     // content is flowed into. https://www.w3.org/TR/css-multicol-1/#column-box
     kColumnBox,
+    // A page box fragment. Used by printing.
+    kPageBox,
     kAtomicInline,
     kFloating,
     kOutOfFlowPositioned,
@@ -115,7 +118,8 @@ class CORE_EXPORT NGPhysicalFragment
   bool IsColumnBox() const {
     return IsBox() && BoxType() == NGBoxType::kColumnBox;
   }
-  bool IsFragmentainerBox() const { return IsColumnBox(); }
+  bool IsPageBox() const { return IsBox() && BoxType() == NGBoxType::kPageBox; }
+  bool IsFragmentainerBox() const { return IsColumnBox() || IsPageBox(); }
   bool IsColumnSpanAll() const {
     if (const auto* box = DynamicTo<LayoutBox>(GetLayoutObject()))
       return box->IsColumnSpanAll();
@@ -184,6 +188,7 @@ class CORE_EXPORT NGPhysicalFragment
            layout_object_->IsRubyBase();
   }
 
+  bool IsSvg() const { return layout_object_->IsSVG(); }
   bool IsSvgText() const { return layout_object_->IsNGSVGText(); }
 
   bool IsTableNGPart() const { return is_table_ng_part_; }
@@ -235,6 +240,12 @@ class CORE_EXPORT NGPhysicalFragment
   // |LayoutObject| after this fragment was placed. See comments in
   // |LayoutNGBlockFlow::UpdateBlockLayout()| and crbug.com/788590
   bool IsPlacedByLayoutNG() const;
+
+  // Returns true if we have a descendant within this formatting context, which
+  // is potentially above our block-start edge.
+  bool MayHaveDescendantAboveBlockStart() const {
+    return may_have_descendant_above_block_start_;
+  }
 
   // The accessors in this class shouldn't be used by layout code directly,
   // instead should be accessed by the NGFragmentBase classes. These accessors
@@ -341,6 +352,10 @@ class CORE_EXPORT NGPhysicalFragment
 
   bool ShouldClipOverflowAlongBothAxis() const {
     return IsCSSBox() && layout_object_->ShouldClipOverflowAlongBothAxis();
+  }
+
+  bool ShouldApplyOverflowClipMargin() const {
+    return IsCSSBox() && layout_object_->ShouldApplyOverflowClipMargin();
   }
 
   // Return whether we can traverse this fragment and its children directly, for
@@ -482,7 +497,7 @@ class CORE_EXPORT NGPhysicalFragment
 
   // Same as |base::span<const NGLink>|, except that:
   // * Each |NGLink| has the latest generation of post-layout. See
-  //   |NGPhysicalFragment::UpdatedFragment()| for more details.
+  //   |NGPhysicalFragment::PostLayout()| for more details.
   // * The iterator skips fragments for destroyed or moved |LayoutObject|.
   class PostLayoutChildLinkList {
     STACK_ALLOCATED();
@@ -580,19 +595,37 @@ class CORE_EXPORT NGPhysicalFragment
   void SetChildrenInvalid() const;
   bool ChildrenValid() const { return children_valid_; }
 
+  struct OutOfFlowData {
+    USING_FAST_MALLOC(OutOfFlowData);
+
+   public:
+    Vector<NGPhysicalOutOfFlowPositionedNode> oof_positioned_descendants;
+  };
+
+  // Returns true if some child is OOF in the fragment tree. This happens if
+  // it's the containing block of the OOF, or if it's a fragmentation context
+  // root containing them.
+  bool HasOutOfFlowFragmentChild() const {
+    return has_out_of_flow_fragment_child_;
+  }
+
   bool HasOutOfFlowPositionedDescendants() const {
-    DCHECK(!oof_positioned_descendants_ ||
-           !oof_positioned_descendants_->IsEmpty());
-    return oof_positioned_descendants_.get();
+    return oof_data_ && !oof_data_->oof_positioned_descendants.IsEmpty();
   }
 
   base::span<NGPhysicalOutOfFlowPositionedNode> OutOfFlowPositionedDescendants()
       const {
     if (!HasOutOfFlowPositionedDescendants())
       return base::span<NGPhysicalOutOfFlowPositionedNode>();
-    return {oof_positioned_descendants_->data(),
-            oof_positioned_descendants_->size()};
+    return {oof_data_->oof_positioned_descendants.data(),
+            oof_data_->oof_positioned_descendants.size()};
   }
+
+  const NGFragmentedOutOfFlowData* FragmentedOutOfFlowData() const;
+
+  // Figure out if the child has any out-of-flow positioned descendants, in
+  // which case we'll need to propagate this to the fragment builder.
+  bool NeedsOOFPositionedInfoPropagation() const;
 
  protected:
   const ComputedStyle& SlowEffectiveStyle() const;
@@ -632,6 +665,13 @@ class CORE_EXPORT NGPhysicalFragment
 
   static bool DependsOnPercentageBlockSize(const NGContainerFragmentBuilder&);
 
+  std::unique_ptr<OutOfFlowData> OutOfFlowDataFromBuilder(
+      NGContainerFragmentBuilder*);
+  std::unique_ptr<OutOfFlowData> FragmentedOutOfFlowDataFromBuilder(
+      NGContainerFragmentBuilder*);
+  void ClearOutOfFlowData();
+  std::unique_ptr<OutOfFlowData> CloneOutOfFlowData() const;
+
   UntracedMember<LayoutObject> layout_object_;
   const PhysicalSize size_;
 
@@ -646,7 +686,7 @@ class CORE_EXPORT NGPhysicalFragment
   unsigned has_hanging_ : 1;
 
   const unsigned type_ : 1;           // NGFragmentType
-  const unsigned sub_type_ : 3;       // NGBoxType, NGTextType, or NGLineBoxType
+  const unsigned sub_type_ : 4;       // NGBoxType, NGTextType, or NGLineBoxType
   const unsigned style_variant_ : 2;  // NGStyleVariant
   const unsigned is_hidden_for_paint_ : 1;
   unsigned is_opaque_ : 1;
@@ -664,13 +704,14 @@ class CORE_EXPORT NGPhysicalFragment
   unsigned has_collapsed_borders_ : 1;
   unsigned has_baseline_ : 1;
   unsigned has_last_baseline_ : 1;
+  const unsigned has_fragmented_out_of_flow_data_ : 1;
+  const unsigned has_out_of_flow_fragment_child_ : 1;
 
   // The following are only used by NGPhysicalLineBoxFragment.
   unsigned base_direction_ : 1;  // TextDirection
 
   Persistent<const NGBreakToken> break_token_;
-  const std::unique_ptr<Vector<NGPhysicalOutOfFlowPositionedNode>>
-      oof_positioned_descendants_;
+  const std::unique_ptr<OutOfFlowData> oof_data_;
 
  private:
   friend struct NGPhysicalFragmentTraits;

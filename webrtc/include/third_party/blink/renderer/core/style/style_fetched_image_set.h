@@ -44,7 +44,6 @@ class ImageResourceObserver;
 // alternatives via the referenced CSSImageSetValue.
 class StyleFetchedImageSet final : public StyleImage,
                                    public ImageResourceObserver {
-  USING_PRE_FINALIZER(StyleFetchedImageSet, Dispose);
 
  public:
   StyleFetchedImageSet(ImageResourceContent*,
@@ -67,16 +66,16 @@ class StyleFetchedImageSet final : public StyleImage,
   bool ErrorOccurred() const override;
   bool IsAccessAllowed(String&) const override;
 
-  FloatSize ImageSize(float multiplier,
-                      const FloatSize& default_object_size,
-                      RespectImageOrientationEnum) const override;
+  gfx::SizeF ImageSize(float multiplier,
+                       const gfx::SizeF& default_object_size,
+                       RespectImageOrientationEnum) const override;
   bool HasIntrinsicSize() const override;
   void AddClient(ImageResourceObserver*) override;
   void RemoveClient(ImageResourceObserver*) override;
   scoped_refptr<Image> GetImage(const ImageResourceObserver&,
                                 const Document&,
                                 const ComputedStyle&,
-                                const FloatSize& target_size) const override;
+                                const gfx::SizeF& target_size) const override;
   float ImageScaleFactor() const override { return image_scale_factor_; }
   bool KnownToBeOpaque(const Document&, const ComputedStyle&) const override;
   ImageResourceContent* CachedImage() const override;
@@ -88,7 +87,6 @@ class StyleFetchedImageSet final : public StyleImage,
 
  private:
   bool IsEqual(const StyleImage& other) const override;
-  void Dispose();
 
   // ImageResourceObserver overrides
   String DebugName() const override { return "StyleFetchedImageSet"; }

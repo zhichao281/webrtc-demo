@@ -10,7 +10,6 @@
 #include "base/base_export.h"
 #include "base/callback.h"
 #include "base/compiler_specific.h"
-#include "base/macros.h"
 #include "base/threading/thread_checker.h"
 #include "base/win/windows_types.h"
 
@@ -33,6 +32,10 @@ class BASE_EXPORT MessageWindow {
       bool(UINT message, WPARAM wparam, LPARAM lparam, LRESULT* result)>;
 
   MessageWindow();
+
+  MessageWindow(const MessageWindow&) = delete;
+  MessageWindow& operator=(const MessageWindow&) = delete;
+
   ~MessageWindow();
 
   // Creates a message-only window. The incoming messages will be passed by
@@ -69,8 +72,6 @@ class BASE_EXPORT MessageWindow {
   HWND window_ = nullptr;
 
   THREAD_CHECKER(thread_checker_);
-
-  DISALLOW_COPY_AND_ASSIGN(MessageWindow);
 };
 
 }  // namespace win

@@ -15,7 +15,6 @@
 
 #include "base/atomicops.h"
 #include "base/base_export.h"
-#include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "base/time/time.h"
 #include "base/values.h"
@@ -147,6 +146,10 @@ class BASE_EXPORT HistogramBase {
   // Construct the base histogram. The name is not copied; it's up to the
   // caller to ensure that it lives at least as long as this object.
   explicit HistogramBase(const char* name);
+
+  HistogramBase(const HistogramBase&) = delete;
+  HistogramBase& operator=(const HistogramBase&) = delete;
+
   virtual ~HistogramBase();
 
   const char* histogram_name() const { return histogram_name_; }
@@ -327,8 +330,6 @@ class BASE_EXPORT HistogramBase {
 
   // Additional information about the histogram.
   std::atomic<uint32_t> flags_{0};
-
-  DISALLOW_COPY_AND_ASSIGN(HistogramBase);
 };
 
 }  // namespace base

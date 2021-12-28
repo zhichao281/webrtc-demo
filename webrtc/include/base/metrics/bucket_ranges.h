@@ -25,7 +25,6 @@
 #include <vector>
 
 #include "base/base_export.h"
-#include "base/macros.h"
 #include "base/metrics/histogram_base.h"
 
 namespace base {
@@ -35,6 +34,10 @@ class BASE_EXPORT BucketRanges {
   typedef std::vector<HistogramBase::Sample> Ranges;
 
   explicit BucketRanges(size_t num_ranges);
+
+  BucketRanges(const BucketRanges&) = delete;
+  BucketRanges& operator=(const BucketRanges&) = delete;
+
   ~BucketRanges();
 
   size_t size() const { return ranges_.size(); }
@@ -91,8 +94,6 @@ class BASE_EXPORT BucketRanges {
   // re-used simply by having all histograms with the same ranges use the
   // same reference.
   mutable std::atomic<int32_t> persistent_reference_{0};
-
-  DISALLOW_COPY_AND_ASSIGN(BucketRanges);
 };
 
 }  // namespace base

@@ -97,6 +97,9 @@ class CORE_EXPORT ScopedStyleResolver final
   void AddCounterStyleRules(const RuleSet&);
   void AddKeyframeRules(const RuleSet&);
   void AddKeyframeStyle(StyleRuleKeyframes*);
+  bool KeyframeStyleShouldOverride(
+      const StyleRuleKeyframes* new_rule,
+      const StyleRuleKeyframes* existing_rule) const;
 
   CounterStyleMap& EnsureCounterStyleMap();
 
@@ -112,21 +115,6 @@ class CORE_EXPORT ScopedStyleResolver final
 
   Member<CounterStyleMap> counter_style_map_;
   Member<CascadeLayerMap> cascade_layer_map_;
-
-  class RuleSubSet final : public GarbageCollected<RuleSubSet> {
-   public:
-    RuleSubSet(CSSStyleSheet* sheet, unsigned index, RuleSet* rules)
-        : parent_style_sheet_(sheet), parent_index_(index), rule_set_(rules) {}
-
-    Member<CSSStyleSheet> parent_style_sheet_;
-    unsigned parent_index_;
-    Member<RuleSet> rule_set_;
-
-    void Trace(Visitor*) const;
-  };
-  using CSSStyleSheetRuleSubSet = HeapVector<Member<RuleSubSet>>;
-
-  Member<CSSStyleSheetRuleSubSet> slotted_rule_set_;
 
   bool has_unresolved_keyframes_rule_ = false;
   bool needs_append_all_sheets_ = false;

@@ -7,7 +7,6 @@
 
 #include "base/base_export.h"
 #include "base/containers/flat_map.h"
-#include "base/macros.h"
 
 namespace base {
 namespace internal {
@@ -24,6 +23,10 @@ namespace internal {
 class BASE_EXPORT SequenceLocalStorageMap {
  public:
   SequenceLocalStorageMap();
+
+  SequenceLocalStorageMap(const SequenceLocalStorageMap&) = delete;
+  SequenceLocalStorageMap& operator=(const SequenceLocalStorageMap&) = delete;
+
   ~SequenceLocalStorageMap();
 
   // Returns the SequenceLocalStorage bound to the current thread. It is invalid
@@ -43,6 +46,10 @@ class BASE_EXPORT SequenceLocalStorageMap {
     using DestructorFunc = void(void*);
 
     ValueDestructorPair(void* value, DestructorFunc* destructor);
+
+    ValueDestructorPair(const ValueDestructorPair&) = delete;
+    ValueDestructorPair& operator=(const ValueDestructorPair&) = delete;
+
     ~ValueDestructorPair();
 
     ValueDestructorPair(ValueDestructorPair&& value_destructor_pair);
@@ -52,10 +59,10 @@ class BASE_EXPORT SequenceLocalStorageMap {
     void* value() const { return value_; }
 
    private:
+    // `value_` and `destructor_` are not a raw_ptr<...> for performance reasons
+    // (based on analysis of sampling profiler data and tab_search:top100:2020).
     void* value_;
     DestructorFunc* destructor_;
-
-    DISALLOW_COPY_AND_ASSIGN(ValueDestructorPair);
   };
 
   // Returns the value stored in |slot_id| or nullptr if no value was stored.
@@ -71,8 +78,6 @@ class BASE_EXPORT SequenceLocalStorageMap {
   // in the map. For low number of entries, flat_map is known to perform better
   // than other map implementations.
   base::flat_map<int, ValueDestructorPair> sls_map_;
-
-  DISALLOW_COPY_AND_ASSIGN(SequenceLocalStorageMap);
 };
 
 // Within the scope of this object,
@@ -84,10 +89,12 @@ class BASE_EXPORT ScopedSetSequenceLocalStorageMapForCurrentThread {
   ScopedSetSequenceLocalStorageMapForCurrentThread(
       SequenceLocalStorageMap* sequence_local_storage);
 
-  ~ScopedSetSequenceLocalStorageMapForCurrentThread();
+  ScopedSetSequenceLocalStorageMapForCurrentThread(
+      const ScopedSetSequenceLocalStorageMapForCurrentThread&) = delete;
+  ScopedSetSequenceLocalStorageMapForCurrentThread& operator=(
+      const ScopedSetSequenceLocalStorageMapForCurrentThread&) = delete;
 
- private:
-  DISALLOW_COPY_AND_ASSIGN(ScopedSetSequenceLocalStorageMapForCurrentThread);
+  ~ScopedSetSequenceLocalStorageMapForCurrentThread();
 };
 }  // namespace internal
 }  // namespace base

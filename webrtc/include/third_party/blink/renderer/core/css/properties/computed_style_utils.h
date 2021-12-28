@@ -26,6 +26,7 @@ class CSSValue;
 class ComputedStyle;
 class FontFamily;
 class StyleColor;
+class StyleIntrinsicLength;
 class StylePropertyShorthand;
 
 enum class CSSValuePhase { kComputedValue, kUsedValue };
@@ -126,8 +127,8 @@ class CORE_EXPORT ComputedStyleUtils {
                                          const LayoutObject*,
                                          const ComputedStyle&);
   static CSSValue* ValueForGridPosition(const GridPosition&);
-  static FloatSize UsedBoxSize(const LayoutObject&);
-  static CSSValue* RenderTextDecorationFlagsToCSSValue(TextDecoration);
+  static gfx::SizeF UsedBoxSize(const LayoutObject&);
+  static CSSValue* RenderTextDecorationFlagsToCSSValue(TextDecorationLine);
   static CSSValue* ValueForTextDecorationStyle(ETextDecorationStyle);
   static CSSValue* ValueForTextDecorationSkipInk(ETextDecorationSkipInk);
   static CSSValue* TouchActionFlagsToCSSValue(TouchAction);
@@ -170,12 +171,13 @@ class CORE_EXPORT ComputedStyleUtils {
   static CSSFunctionValue* ValueForTransformOperation(
       const TransformOperation&,
       float zoom,
-      FloatSize box_size = FloatSize(0, 0));
+      gfx::SizeF box_size = gfx::SizeF(0, 0));
   // Serialize a transform list.
   static CSSValue* ValueForTransformList(const TransformOperations&,
                                          float zoom,
-                                         FloatSize box_size = FloatSize(0, 0));
-  static FloatRect ReferenceBoxForTransform(
+                                         gfx::SizeF box_size = gfx::SizeF(0,
+                                                                          0));
+  static gfx::RectF ReferenceBoxForTransform(
       const LayoutObject&,
       UsePixelSnappedBox = kUsePixelSnappedBox);
   // The LayoutObject parameter is only used for converting unreperesentable
@@ -246,6 +248,9 @@ class CORE_EXPORT ComputedStyleUtils {
   static CSSValue* ValuesForFontVariantProperty(const ComputedStyle&,
                                                 const LayoutObject*,
                                                 bool allow_visited_style);
+  static CSSValue* ValuesForFontSynthesisProperty(const ComputedStyle&,
+                                                  const LayoutObject*,
+                                                  bool allow_visited_style);
   static CSSValueList* ValuesForContainerShorthand(const ComputedStyle&,
                                                    const LayoutObject*,
                                                    bool allow_visited_style);
@@ -258,6 +263,9 @@ class CORE_EXPORT ComputedStyleUtils {
   static const CSSValue* ValueForStyleAutoColor(const ComputedStyle&,
                                                 const StyleAutoColor&,
                                                 CSSValuePhase);
+  static CSSValue* ValueForIntrinsicLength(
+      const ComputedStyle&,
+      const absl::optional<StyleIntrinsicLength>&);
   static std::unique_ptr<CrossThreadStyleValue>
   CrossThreadStyleValueFromCSSStyleValue(CSSStyleValue* style_value);
 
@@ -277,6 +285,18 @@ class CORE_EXPORT ComputedStyleUtils {
   static const CSSValue* ComputedPropertyValue(const CSSProperty&,
                                                const ComputedStyle&,
                                                const LayoutObject* = nullptr);
+
+ private:
+  // Returns the CSSValueID for a scale transform operation.
+  static CSSValueID CSSValueIDForScaleOperation(
+      const TransformOperation::OperationType);
+  // Returns the CSSValueID for a translate transform operation.
+
+  static CSSValueID CSSValueIDForTranslateOperation(
+      const TransformOperation::OperationType);
+  // Returns the CSSValueID for a rotate transform operation.
+  static CSSValueID CSSValueIDForRotateOperation(
+      const TransformOperation::OperationType);
 };
 
 }  // namespace blink

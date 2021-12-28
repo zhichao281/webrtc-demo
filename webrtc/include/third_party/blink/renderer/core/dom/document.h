@@ -66,10 +66,11 @@
 #include "third_party/blink/renderer/core/dom/tree_scope.h"
 #include "third_party/blink/renderer/core/dom/user_action_element_set.h"
 #include "third_party/blink/renderer/core/editing/forward.h"
-#include "third_party/blink/renderer/core/frame/fragment_directive.h"
+#include "third_party/blink/renderer/core/fragment_directive/fragment_directive.h"
 #include "third_party/blink/renderer/core/html/forms/listed_element.h"
 #include "third_party/blink/renderer/core/html/parser/parser_synchronization_policy.h"
 #include "third_party/blink/renderer/core/loader/font_preload_manager.h"
+#include "third_party/blink/renderer/platform/heap/collection_support/heap_linked_hash_set.h"
 #include "third_party/blink/renderer/platform/heap_observer_set.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/scheduler/public/post_cancellable_task.h"
@@ -77,10 +78,15 @@
 #include "third_party/blink/renderer/platform/timer.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
+#include "third_party/blink/renderer/platform/wtf/gc_plugin_ignore.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
 
 namespace base {
 class SingleThreadTaskRunner;
+}
+
+namespace gfx {
+class RectF;
 }
 
 namespace ukm {
@@ -143,7 +149,6 @@ template <typename EventType>
 class EventWithHitTestResults;
 class ExceptionState;
 class FloatQuad;
-class FloatRect;
 class FontMatchingMetrics;
 class FormController;
 class FrameCallback;
@@ -177,13 +182,13 @@ class MediaQueryListListener;
 class MediaQueryMatcher;
 class NodeIterator;
 class NthIndexCache;
-class OriginAccessEntry;
 class Page;
 class PendingAnimations;
 class ProcessingInstruction;
 class PropertyRegistry;
 class QualifiedName;
 class Range;
+class ResizeObserver;
 class ResourceFetcher;
 class RootScrollerController;
 class SVGDocumentExtensions;
@@ -212,7 +217,9 @@ class TransformSource;
 class TreeWalker;
 class TrustedHTML;
 class V8NodeFilter;
+class V8ObservableArrayCSSStyleSheet;
 class V8UnionElementCreationOptionsOrString;
+class V8UnionStringOrTrustedHTML;
 class ViewportData;
 class VisitedLinkState;
 class WebMouseEvent;
@@ -248,8 +255,6 @@ enum DocumentClass {
   kSVGDocumentClass = 1 << 5,
   kXMLDocumentClass = 1 << 6,
 };
-
-enum ShadowCascadeOrder { kShadowCascadeNone, kShadowCascade };
 
 using DocumentClassFlags = unsigned char;
 
@@ -1159,8 +1164,14 @@ class CORE_EXPORT Document : public ContainerNode,
   // See "core/editing/commands/document_exec_command.cc" for implementations.
   bool execCommand(const String& command,
                    bool show_ui,
+                   const V8UnionStringOrTrustedHTML* value,
+                   ExceptionState&);
+
+  bool execCommand(const String& command,
+                   bool show_ui,
                    const String& value,
                    ExceptionState&);
+
   bool IsRunningExecCommand() const { return is_running_exec_command_; }
   bool queryCommandEnabled(const String& command, ExceptionState&);
   bool queryCommandIndeterm(const String& command, ExceptionState&);
@@ -1349,6 +1360,10 @@ class CORE_EXPORT Document : public ContainerNode,
 
   const DocumentTiming& GetTiming() const { return document_timing_; }
 
+  bool ShouldMarkFontPerformance() const {
+    return !IsInitialEmptyDocument() && !IsXMLDocument();
+  }
+
   int RequestAnimationFrame(FrameCallback*);
   void CancelAnimationFrame(int id);
   void ServiceScriptedAnimations(base::TimeTicks monotonic_animation_start_time,
@@ -1372,8 +1387,8 @@ class CORE_EXPORT Document : public ContainerNode,
 
   void AdjustFloatQuadsForScrollAndAbsoluteZoom(Vector<FloatQuad>&,
                                                 const LayoutObject&) const;
-  void AdjustFloatRectForScrollAndAbsoluteZoom(FloatRect&,
-                                               const LayoutObject&) const;
+  void AdjustRectForScrollAndAbsoluteZoom(gfx::RectF&,
+                                          const LayoutObject&) const;
 
   void SetContextFeatures(ContextFeatures&);
   ContextFeatures& GetContextFeatures() const { return *context_features_; }
@@ -1420,6 +1435,9 @@ class CORE_EXPORT Document : public ContainerNode,
   // This hides all visible popups up to, but not including,
   // |endpoint|. If |endpoint| is nullptr, all popups are hidden.
   void HideAllPopupsUntil(const HTMLPopupElement* endpoint);
+  // This hides the provided popup, if it is showing. This will also
+  // hide all popups above |popup| in the popup stack.
+  void HidePopupIfShowing(const HTMLPopupElement* popup);
 
   // A non-null template_document_host_ implies that |this| was created by
   // EnsureTemplateDocument().
@@ -1483,14 +1501,9 @@ class CORE_EXPORT Document : public ContainerNode,
   SnapCoordinator& GetSnapCoordinator();
   void PerformScrollSnappingTasks();
 
-  ShadowCascadeOrder GetShadowCascadeOrder() const {
-    return shadow_cascade_order_;
-  }
-  void SetShadowCascadeOrder(ShadowCascadeOrder);
+  void SetContainsShadowRoot() { may_contain_shadow_roots_ = true; }
 
-  bool ContainsShadowTree() const {
-    return shadow_cascade_order_ == ShadowCascadeOrder::kShadowCascade;
-  }
+  bool MayContainShadowRoots() const { return may_contain_shadow_roots_; }
 
   RootScrollerController& GetRootScrollerController() const {
     DCHECK(root_scroller_controller_);
@@ -1661,11 +1674,6 @@ class CORE_EXPORT Document : public ContainerNode,
     return !pending_javascript_urls_.IsEmpty();
   }
 
-  String GetFragmentDirective() const { return fragment_directive_string_; }
-  bool UseCountFragmentDirective() const {
-    return use_count_fragment_directive_;
-  }
-
   void ApplyScrollRestorationLogic();
 
   void MarkHasFindInPageRequest();
@@ -1683,7 +1691,12 @@ class CORE_EXPORT Document : public ContainerNode,
                                  unsigned offset,
                                  unsigned old_length,
                                  unsigned new_length);
-  void NotifyChangeChildren(const ContainerNode& container);
+  void NotifyChangeChildren(const ContainerNode& container,
+                            const ContainerNode::ChildrenChange& change);
+  void NotifyAttributeChanged(const Element& element,
+                              const QualifiedName& name,
+                              const AtomicString& old_value,
+                              const AtomicString& new_value);
 
   FontPreloadManager& GetFontPreloadManager() { return *font_preload_manager_; }
   void FontPreloadingFinishedOrTimedOut();
@@ -1725,6 +1738,11 @@ class CORE_EXPORT Document : public ContainerNode,
   bool IsDirAttributeDirty() { return dir_attribute_dirty_; }
   void SetDirAttributeDirty() { dir_attribute_dirty_ = true; }
 
+  ResizeObserver& EnsureResizeObserver();
+
+  void ObserveForIntrinsicSize(Element* element);
+  void UnobserveForIntrinsicSize(Element* element);
+
  protected:
   void ClearXMLVersion() { xml_version_ = String(); }
 
@@ -1734,6 +1752,16 @@ class CORE_EXPORT Document : public ContainerNode,
   ParserSynchronizationPolicy GetParserSynchronizationPolicy() const {
     return parser_sync_policy_;
   }
+
+  void OnAdoptedStyleSheetSet(ScriptState*,
+                              V8ObservableArrayCSSStyleSheet&,
+                              uint32_t,
+                              Member<CSSStyleSheet>&,
+                              ExceptionState&) override;
+  void OnAdoptedStyleSheetDelete(ScriptState*,
+                                 V8ObservableArrayCSSStyleSheet&,
+                                 uint32_t,
+                                 ExceptionState&) override;
 
  private:
   friend class DocumentTest;
@@ -1752,7 +1780,6 @@ class CORE_EXPORT Document : public ContainerNode,
                            BeforeMatchExpandedHiddenMatchableUkm);
   FRIEND_TEST_ALL_PREFIXES(TextFinderSimTest,
                            BeforeMatchExpandedHiddenMatchableUkmNoHandler);
-  class NetworkStateObserver;
 
   // Listed elements that are not associated to a <form> element.
   class UnassociatedListedElementsList {
@@ -1806,8 +1833,6 @@ class CORE_EXPORT Document : public ContainerNode,
 
   void UpdateStyleInvalidationIfNeeded();
   void UpdateStyle();
-  void UpdateStyleInternal();
-  void NotifyLayoutTreeOfSubtreeChanges();
   bool ChildrenCanHaveStyle() const final;
 
   // Objects and embeds depend on "being rendered" for delaying the load event.
@@ -1835,8 +1860,6 @@ class CORE_EXPORT Document : public ContainerNode,
   bool ChildTypeAllowed(NodeType) const final;
   Node* Clone(Document&, CloneChildrenFlag) const override;
   void CloneDataFromDocument(const Document&);
-
-  ShadowCascadeOrder shadow_cascade_order_ = kShadowCascadeNone;
 
   void UpdateTitle(const String&);
   void DispatchDidReceiveTitle();
@@ -1875,8 +1898,6 @@ class CORE_EXPORT Document : public ContainerNode,
     DCHECK(!has_matched_cache_scope_ || !has_matched_cache_scope);
     has_matched_cache_scope_ = has_matched_cache_scope;
   }
-
-  const OriginAccessEntry& AccessEntryFromURL();
 
   void UpdateActiveState(bool is_active, bool update_active_chain, Element*);
   void UpdateHoverState(Element*);
@@ -1920,7 +1941,7 @@ class CORE_EXPORT Document : public ContainerNode,
   Vector<base::OnceClosure> will_dispatch_prerenderingchange_callbacks_;
 
   // The callback list for post-prerendering activation step.
-  // https://jeremyroman.github.io/alternate-loading-modes/#document-post-prerendering-activation-steps-list
+  // https://wicg.github.io/nav-speculation/prerendering.html#document-post-prerendering-activation-steps-list
   Vector<base::OnceClosure> post_prerendering_activation_callbacks_;
 
   bool evaluate_media_queries_on_style_recalc_;
@@ -1955,7 +1976,6 @@ class CORE_EXPORT Document : public ContainerNode,
                             // over base_url_ (but not base_element_url_).
   KURL base_element_url_;   // The URL set by the <base> element.
   KURL cookie_url_;         // The URL to use for cookie access.
-  std::unique_ptr<OriginAccessEntry> access_entry_from_url_;
 
   KURL web_bundle_claimed_url_;
 
@@ -2047,6 +2067,10 @@ class CORE_EXPORT Document : public ContainerNode,
   bool have_explicitly_disabled_dns_prefetch_;
   bool contains_plugins_;
 
+  // Set to true whenever shadow root is attached to document. Does not
+  // get reset if all roots are removed.
+  bool may_contain_shadow_roots_ = false;
+
   // https://html.spec.whatwg.org/C/dynamic-markup-insertion.html#ignore-destructive-writes-counter
   unsigned ignore_destructive_write_count_;
   // https://html.spec.whatwg.org/C/dynamic-markup-insertion.html#throw-on-dynamic-markup-insertion-counter
@@ -2111,14 +2135,14 @@ class CORE_EXPORT Document : public ContainerNode,
   // the stack and cleared upon leaving its allocated scope. Hence it
   // is acceptable not to trace it -- should a conservative GC occur,
   // the cache object's references will be traced by a stack walk.
-  GC_PLUGIN_IGNORE("461878")
+  GC_PLUGIN_IGNORE("https://crbug.com/461878")
   NthIndexCache* nth_index_cache_ = nullptr;
 
   // This is an untraced pointer to the cache-scoped object that is first
   // allocated on the stack. It is set upon the first object being allocated
   // on the stack, and cleared upon leaving its allocated scope. The object's
   // references will be traced by a stack walk.
-  GC_PLUGIN_IGNORE("669058")
+  GC_PLUGIN_IGNORE("https://crbug.com/669058")
   HasMatchedCacheScope* has_matched_cache_scope_ = nullptr;
 
   DocumentClassFlags document_classes_;
@@ -2196,8 +2220,6 @@ class CORE_EXPORT Document : public ContainerNode,
   Member<SnapCoordinator> snap_coordinator_;
 
   Member<PropertyRegistry> property_registry_;
-
-  Member<NetworkStateObserver> network_state_observer_;
 
   UnassociatedListedElementsList unassociated_listed_elements_;
 
@@ -2287,10 +2309,7 @@ class CORE_EXPORT Document : public ContainerNode,
 
   bool is_for_markup_sanitization_ = false;
 
-  String fragment_directive_string_;
   Member<FragmentDirective> fragment_directive_;
-
-  bool use_count_fragment_directive_ = false;
 
   HeapHashMap<WeakMember<Element>, Member<ExplicitlySetAttrElementsMap>>
       element_explicitly_set_attr_elements_map_;
@@ -2330,6 +2349,8 @@ class CORE_EXPORT Document : public ContainerNode,
   // List of meta[name=theme-color] elements cached used when getting theme
   // color.
   HeapVector<Member<HTMLMetaElement>> meta_theme_color_elements_;
+
+  Member<ResizeObserver> intrinsic_size_observer_;
 
   // If you want to add new data members to blink::Document, please reconsider
   // if the members really should be in blink::Document.  document.h is a very
@@ -2377,7 +2398,7 @@ struct DowncastTraits<Document> {
 
 #ifndef NDEBUG
 // Outside the blink namespace for ease of invocation from gdb.
-CORE_EXPORT void showLiveDocumentInstances();
+CORE_EXPORT void ShowLiveDocumentInstances();
 #endif
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_DOM_DOCUMENT_H_

@@ -17,6 +17,7 @@
 #include "base/allocator/partition_allocator/partition_stats.h"
 #include "base/allocator/partition_allocator/partition_tls.h"
 #include "base/base_export.h"
+#include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/dcheck_is_on.h"
 #include "base/gtest_prod_util.h"
@@ -33,44 +34,57 @@ namespace internal {
 
 namespace tools {
 
+// This is used from ThreadCacheInspector, which runs in a different process. It
+// scans the process memory looking for the two needles, to locate the thread
+// cache registry instance.
+//
+// These two values were chosen randomly, and in particular neither is a valid
+// pointer on most 64 bit architectures.
+#if defined(PA_HAS_64_BITS_POINTERS)
+constexpr uintptr_t kNeedle1 = 0xe69e32f3ad9ea63;
+constexpr uintptr_t kNeedle2 = 0x9615ee1c5eb14caf;
+#else
+constexpr uintptr_t kNeedle1 = 0xe69e32f3;
+constexpr uintptr_t kNeedle2 = 0x9615ee1c;
+#endif
+
+// This array contains, in order:
+// - kNeedle1
+// - &ThreadCacheRegistry::Instance()
+// - kNeedle2
+//
+// It is refererenced in the thread cache constructor to make sure it is not
+// removed by the compiler. It is also not const to make sure it ends up in
+// .data.
+extern uintptr_t kThreadCacheNeedleArray[3];
+
 class ThreadCacheInspector;
 
-}
+}  // namespace tools
 
 class ThreadCache;
 
 extern BASE_EXPORT PartitionTlsKey g_thread_cache_key;
-// On Windows, |thread_local| variables cannot be marked "dllexport", see
-// compiler error C2492 at
-// https://docs.microsoft.com/en-us/cpp/error-messages/compiler-errors-1/compiler-error-c2492?view=msvc-160.
-// Don't use it there.
-//
 // On Android, we have to go through emutls, since this is always a shared
 // library, so don't bother.
-//
-// On macOS and iOS with PartitionAlloc-Everywhere enabled, thread_local
-// allocates memory and it causes an infinite loop of ThreadCache::Get() ->
-// malloc_zone_malloc -> ShimMalloc -> ThreadCache::Get() -> ...
-// Exact stack trace is:
-//   libsystem_malloc.dylib`_malloc_zone_malloc
-//   libdyld.dylib`tlv_allocate_and_initialize_for_key
-//   libdyld.dylib`tlv_get_addr
-//   libbase.dylib`thread-local wrapper routine for
-//       base::internal::g_thread_cache
-//   libbase.dylib`base::internal::ThreadCache::Get()
-// where tlv_allocate_and_initialize_for_key performs memory allocation.
-//
-// Finally, we have crashes with component builds on macOS,
-// see crbug.com/1243375.
-#if !(defined(OS_WIN) && defined(COMPONENT_BUILD)) && !defined(OS_ANDROID) && \
-    !(defined(OS_APPLE) &&                                                    \
-      (BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) || defined(COMPONENT_BUILD)))
+#if defined(PA_THREAD_LOCAL_TLS) && !defined(OS_ANDROID)
 #define PA_THREAD_CACHE_FAST_TLS
 #endif
 
 #if defined(PA_THREAD_CACHE_FAST_TLS)
 extern BASE_EXPORT thread_local ThreadCache* g_thread_cache;
 #endif
+
+struct ThreadCacheLimits {
+  // When trying to conserve memory, set the thread cache limit to this.
+  static constexpr size_t kDefaultSizeThreshold = 512;
+  // 32kiB is chosen here as from local experiments, "zone" allocation in
+  // V8 is performance-sensitive, and zones can (and do) grow up to 32kiB for
+  // each individual allocation.
+  static constexpr size_t kLargeSizeThreshold = 1 << 15;
+  static_assert(kLargeSizeThreshold <= std::numeric_limits<uint16_t>::max(),
+                "");
+};
 
 // Global registry of all ThreadCache instances.
 //
@@ -103,12 +117,20 @@ class BASE_EXPORT ThreadCacheRegistry {
   // a later point (during a deallocation).
   void PurgeAll();
 
-  // Starts a periodic timer on the current thread to purge all thread caches.
-  void StartPeriodicPurge();
+  typedef void (*RunAfterDelayCallback)(OnceClosure task,
+                                        base::TimeDelta delay);
+
+  // Starts purging all thread caches with the parameter:
+  // "run_after_delay_callback". The parameter: "run_after_delay_callback" takes
+  // 2 parameters: "purge_action" and "delay". ThreadCacheRegistry invokes
+  // "run_after_delay_clalback" to request the caller to execute "purge_action"
+  // after "delay" passes.
+  void StartPeriodicPurge(RunAfterDelayCallback run_afer_delay_callback);
 
   // Controls the thread cache size, by setting the multiplier to a value above
   // or below |ThreadCache::kDefaultMultiplier|.
   void SetThreadCacheMultiplier(float multiplier);
+  void SetLargestActiveBucketIndex(uint8_t largest_active_bucket_index);
 
   static PartitionLock& GetLock() { return Instance().lock_; }
   // Purges all thread caches *now*. This is completely thread-unsafe, and
@@ -119,8 +141,8 @@ class BASE_EXPORT ThreadCacheRegistry {
 
   void ResetForTesting();
 
-  static constexpr TimeDelta kMinPurgeInterval = TimeDelta::FromSeconds(1);
-  static constexpr TimeDelta kMaxPurgeInterval = TimeDelta::FromMinutes(1);
+  static constexpr TimeDelta kMinPurgeInterval = Seconds(1);
+  static constexpr TimeDelta kMaxPurgeInterval = Minutes(1);
   static constexpr TimeDelta kDefaultPurgeInterval = 2 * kMinPurgeInterval;
   static constexpr size_t kMinCachedMemoryForPurging = 500 * 1024;
 
@@ -135,6 +157,16 @@ class BASE_EXPORT ThreadCacheRegistry {
   ThreadCache* list_head_ GUARDED_BY(GetLock()) = nullptr;
   base::TimeDelta purge_interval_ = kDefaultPurgeInterval;
   bool periodic_purge_running_ = false;
+  RunAfterDelayCallback run_after_delay_callback_ = nullptr;
+
+#if defined(OS_NACL)
+  // The thread cache is never used with NaCl, but its compiler doesn't
+  // understand enough constexpr to handle the code below.
+  uint8_t largest_active_bucket_index_ = 1;
+#else
+  uint8_t largest_active_bucket_index_ =
+      BucketIndexLookup::GetIndex(ThreadCacheLimits::kDefaultSizeThreshold);
+#endif
 };
 
 constexpr ThreadCacheRegistry::ThreadCacheRegistry() = default;
@@ -195,6 +227,9 @@ class BASE_EXPORT ThreadCache {
 
   // Deletes existing thread cache and creates a new one for |root|.
   static void SwapForTesting(PartitionRoot<ThreadSafe>* root);
+
+  // Removes the tombstone marker that would be returned by Get() otherwise.
+  static void RemoveTombstoneForTesting();
 
   // Can be called several times, must be called before any ThreadCache
   // interactions.
@@ -258,7 +293,7 @@ class BASE_EXPORT ThreadCache {
   void Purge();
   // Amount of cached memory for this thread's cache, in bytes.
   size_t CachedMemory() const;
-  void AccumulateStats(ThreadCacheStats* stats, bool with_alloc_stats) const;
+  void AccumulateStats(ThreadCacheStats* stats) const;
 
   // Purge the thread cache of the current thread, if one exists.
   static void PurgeCurrentThread();
@@ -282,14 +317,10 @@ class BASE_EXPORT ThreadCache {
   static constexpr float kDefaultMultiplier = 2.;
   static constexpr uint8_t kSmallBucketBaseCount = 64;
 
-  // When trying to conserve memory, set the thread cache limit to this.
-  static constexpr size_t kDefaultSizeThreshold = 512;
-  // 32kiB is chosen here as from local experiments, "zone" allocation in
-  // V8 is performance-sensitive, and zones can (and do) grow up to 32kiB for
-  // each individual allocation.
-  static constexpr size_t kLargeSizeThreshold = 1 << 15;
-  static_assert(kLargeSizeThreshold <= std::numeric_limits<uint16_t>::max(),
-                "");
+  static constexpr size_t kDefaultSizeThreshold =
+      ThreadCacheLimits::kDefaultSizeThreshold;
+  static constexpr size_t kLargeSizeThreshold =
+      ThreadCacheLimits::kLargeSizeThreshold;
 
  private:
   friend class tools::ThreadCacheInspector;
@@ -326,7 +357,8 @@ class BASE_EXPORT ThreadCache {
   static constexpr uint16_t kBucketCount = 1;
 #else
   static constexpr uint16_t kBucketCount =
-      internal::BucketIndexLookup::GetIndex(kLargeSizeThreshold) + 1;
+      internal::BucketIndexLookup::GetIndex(ThreadCache::kLargeSizeThreshold) +
+      1;
 #endif
   static_assert(
       kBucketCount < kNumBuckets,
@@ -375,6 +407,7 @@ class BASE_EXPORT ThreadCache {
 
   friend class ThreadCacheRegistry;
   friend class PartitionAllocThreadCacheTest;
+  friend class tools::ThreadCacheInspector;
   FRIEND_TEST_ALL_PREFIXES(PartitionAllocThreadCacheTest, Simple);
   FRIEND_TEST_ALL_PREFIXES(PartitionAllocThreadCacheTest,
                            MultipleObjectsCachedPerBucket);
@@ -505,12 +538,12 @@ ALWAYS_INLINE void ThreadCache::PutInBucket(Bucket& bucket, void* slot_start) {
   uintptr_t address = reinterpret_cast<uintptr_t>(slot_start);
 #endif
 
-  // We assume that the cacheline size is 64 byte, which is true on all x86_64
-  // CPUs as of 2021.
-  //
   // The pointer is always 16 bytes aligned, so its start address is always == 0
   // % 16. Its distance to the next cacheline is 64 - ((address & 63) / 16) *
   // 16.
+  static_assert(
+      kPartitionCachelineSize == 64,
+      "The computation below assumes that cache lines are 64 bytes long.");
   int distance_to_next_cacheline_in_16_bytes = 4 - ((address >> 4) & 3);
   int slot_size_remaining_in_16_bytes =
       std::min(bucket.slot_size / 16, distance_to_next_cacheline_in_16_bytes);

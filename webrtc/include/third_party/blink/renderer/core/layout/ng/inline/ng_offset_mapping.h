@@ -128,6 +128,12 @@ class CORE_EXPORT NGOffsetMapping final
   // given position.
   static const NGOffsetMapping* GetFor(const Position&);
 
+  // Returns the mapping object of the inline formatting context laying out the
+  // given position even if legacy layout tree.
+  // TODO(yosin): Once we get rid of legacy layout, we should get rid of
+  // |ForceGetFor()|.
+  static const NGOffsetMapping* ForceGetFor(const Position&);
+
   // Returns the mapping object of the inline formatting context containing the
   // given LayoutObject, if it's laid out with LayoutNG. If the LayoutObject is
   // itself an inline formatting context, returns its own offset mapping object.
@@ -252,6 +258,15 @@ CORE_EXPORT LayoutBlockFlow* NGInlineFormattingContextOf(const Position&);
 
 }  // namespace blink
 
-WTF_ALLOW_CLEAR_UNUSED_SLOTS_WITH_MEM_FUNCTIONS(blink::NGOffsetMappingUnit)
+namespace WTF {
+
+template <>
+struct VectorTraits<blink::NGOffsetMappingUnit>
+    : VectorTraitsBase<blink::NGOffsetMappingUnit> {
+  static constexpr bool kCanClearUnusedSlotsWithMemset = true;
+  static constexpr bool kCanTraceConcurrently = true;
+};
+
+}  // namespace WTF
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_INLINE_NG_OFFSET_MAPPING_H_

@@ -12,15 +12,20 @@
 
 #include "base/base_export.h"
 #include "base/files/file_path.h"
-#include "base/macros.h"
+#include "base/json/json_reader.h"
 #include "base/values.h"
 
 class BASE_EXPORT JSONFileValueSerializer : public base::ValueSerializer {
  public:
+  JSONFileValueSerializer() = delete;
+
   // |json_file_path_| is the path of a file that will be destination of the
   // serialization. The serializer will attempt to create the file at the
   // specified location.
   explicit JSONFileValueSerializer(const base::FilePath& json_file_path);
+
+  JSONFileValueSerializer(const JSONFileValueSerializer&) = delete;
+  JSONFileValueSerializer& operator=(const JSONFileValueSerializer&) = delete;
 
   ~JSONFileValueSerializer() override;
 
@@ -42,30 +47,41 @@ class BASE_EXPORT JSONFileValueSerializer : public base::ValueSerializer {
   bool SerializeInternal(const base::Value& root, bool omit_binary_values);
 
   const base::FilePath json_file_path_;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSONFileValueSerializer);
 };
 
 class BASE_EXPORT JSONFileValueDeserializer : public base::ValueDeserializer {
  public:
+  JSONFileValueDeserializer() = delete;
+
   // |json_file_path_| is the path of a file that will be source of the
   // deserialization. |options| is a bitmask of JSONParserOptions.
-  explicit JSONFileValueDeserializer(const base::FilePath& json_file_path,
-                                     int options = 0);
+  explicit JSONFileValueDeserializer(
+      const base::FilePath& json_file_path,
+      int options = base::JSON_PARSE_CHROMIUM_EXTENSIONS);
+
+  JSONFileValueDeserializer(const JSONFileValueDeserializer&) = delete;
+  JSONFileValueDeserializer& operator=(const JSONFileValueDeserializer&) =
+      delete;
 
   ~JSONFileValueDeserializer() override;
 
-  // Attempt to deserialize the data structure encoded in the file passed
-  // in to the constructor into a structure of Value objects.  If the return
-  // value is NULL, and if |error_code| is non-null, |error_code| will
-  // contain an integer error code (either JsonFileError or JsonParseError).
-  // If |error_message| is non-null, it will be filled in with a formatted
-  // error message including the location of the error if appropriate.
+  // Attempts to deserialize the data structure encoded in the file passed to
+  // the constructor into a structure of Value objects. If the return value is
+  // null, then
+  // (1) |error_code| will be filled with an integer error code (either a
+  //     JsonFileError or base::ValueDeserializer::kErrorCodeInvalidFormat) if a
+  //     non-null |error_code| was given.
+  // (2) |error_message| will be filled with a formatted error message,
+  //     including the location of the error (if appropriate), if a non-null
+  //     |error_message| was given.
   // The caller takes ownership of the returned value.
   std::unique_ptr<base::Value> Deserialize(int* error_code,
                                            std::string* error_message) override;
 
-  // This enum is designed to safely overlap with JSONReader::JsonParseError.
+  // This enum is designed to safely overlap with JSONParser::JsonParseError.
+  //
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
   enum JsonFileError {
     JSON_NO_ERROR = 0,
     JSON_ACCESS_DENIED = kErrorCodeFirstMetadataError,
@@ -96,8 +112,6 @@ class BASE_EXPORT JSONFileValueDeserializer : public base::ValueDeserializer {
   const base::FilePath json_file_path_;
   const int options_;
   size_t last_read_size_ = 0u;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSONFileValueDeserializer);
 };
 
 #endif  // BASE_JSON_JSON_FILE_VALUE_SERIALIZER_H_

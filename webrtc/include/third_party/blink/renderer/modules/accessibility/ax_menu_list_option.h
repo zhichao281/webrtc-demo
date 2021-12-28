@@ -26,7 +26,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_ACCESSIBILITY_AX_MENU_LIST_OPTION_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_ACCESSIBILITY_AX_MENU_LIST_OPTION_H_
 
-#include "base/macros.h"
 #include "third_party/blink/renderer/core/html/forms/html_option_element.h"
 #include "third_party/blink/renderer/modules/accessibility/ax_node_object.h"
 
@@ -37,6 +36,10 @@ class AXObjectCacheImpl;
 class AXMenuListOption final : public AXNodeObject {
  public:
   AXMenuListOption(HTMLOptionElement*, AXObjectCacheImpl&);
+
+  AXMenuListOption(const AXMenuListOption&) = delete;
+  AXMenuListOption& operator=(const AXMenuListOption&) = delete;
+
   ~AXMenuListOption() override = default;
 
   // For an <option>/<optgroup>, return an AXObject* for its popup, if any,
@@ -57,7 +60,7 @@ class AXMenuListOption final : public AXNodeObject {
   bool OnNativeSetSelectedAction(bool) override;
 
   void GetRelativeBounds(AXObject** out_container,
-                         FloatRect& out_bounds_in_container,
+                         gfx::RectF& out_bounds_in_container,
                          skia::Matrix44& out_container_transform,
                          bool* clips_children = nullptr) const override;
   String TextAlternative(bool recursive,
@@ -67,8 +70,6 @@ class AXMenuListOption final : public AXNodeObject {
                          AXRelatedObjectVector*,
                          NameSources*) const override;
   bool ComputeAccessibilityIsIgnored(IgnoredReasons* = nullptr) const override;
-
-  DISALLOW_COPY_AND_ASSIGN(AXMenuListOption);
 };
 
 template <>

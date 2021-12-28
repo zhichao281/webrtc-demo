@@ -48,9 +48,8 @@ extern AVCodecContext *avcodec_opts[AVMEDIA_TYPE_NB];
 extern AVFormatContext *avformat_opts;
 extern AVDictionary *sws_dict;
 extern AVDictionary *swr_opts;
-extern AVDictionary *format_opts, *codec_opts, *resample_opts;
+extern AVDictionary *format_opts, *codec_opts;
 extern int hide_banner;
-extern int cpu_count;
 
 /**
  * Register a program-specific cleanup routine.
@@ -324,7 +323,6 @@ typedef struct OptionGroup {
 
     AVDictionary *codec_opts;
     AVDictionary *format_opts;
-    AVDictionary *resample_opts;
     AVDictionary *sws_dict;
     AVDictionary *swr_opts;
 } OptionGroup;
@@ -650,6 +648,6 @@ void *grow_array(void *array, int elem_size, int *size, int new_size);
     char name[128];\
     av_get_channel_layout_string(name, sizeof(name), 0, ch_layout);
 
-double get_rotation(AVStream *st);
+double get_rotation(int32_t *displaymatrix);
 
 #endif /* FFTOOLS_CMDUTILS_H */

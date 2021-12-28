@@ -43,15 +43,24 @@ enum AlphaDisposition {
   kDontChangeAlpha,
 };
 
-enum DataU8ColorType {
-  kRGBAColorType,
-  kN32ColorType,
+enum class PredefinedColorSpace {
+  kSRGB,
+  kRec2020,
+  kP3,
+  kRec2100HLG,
+  kRec2100PQ,
+  kSRGBLinear,
 };
 
-enum ImageDataStorageFormat {
-  kUint8ClampedArrayStorageFormat,
-  kUint16ArrayStorageFormat,
-  kFloat32ArrayStorageFormat,
+enum class CanvasPixelFormat {
+  kUint8,
+  kF16,
+};
+
+enum class ImageDataStorageFormat {
+  kUint8,
+  kUint16,
+  kFloat32,
 };
 
 enum ImageEncodingMimeType {
@@ -219,6 +228,12 @@ PLATFORM_EXPORT bool ParseTextAlign(const String&, TextAlign&);
 
 PLATFORM_EXPORT String TextBaselineName(TextBaseline);
 PLATFORM_EXPORT bool ParseTextBaseline(const String&, TextBaseline&);
+
+PLATFORM_EXPORT String PredefinedColorSpaceName(PredefinedColorSpace);
+
+PLATFORM_EXPORT String CanvasPixelFormatName(CanvasPixelFormat);
+
+PLATFORM_EXPORT String ImageDataStorageFormatName(ImageDataStorageFormat);
 
 }  // namespace blink
 

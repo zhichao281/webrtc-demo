@@ -34,8 +34,9 @@ class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
         CanvasRenderingContextHost* host,
         const CanvasContextCreationAttributesCore& attrs) override;
 
-    CanvasRenderingContext::ContextType GetContextType() const override {
-      return CanvasRenderingContext::kContext2D;
+    CanvasRenderingContext::CanvasRenderingAPI GetRenderingAPI()
+        const override {
+      return CanvasRenderingContext::CanvasRenderingAPI::k2D;
     }
   };
 
@@ -52,9 +53,9 @@ class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
 
   // CanvasRenderingContext implementation
   ~OffscreenCanvasRenderingContext2D() override;
-  ContextType GetContextType() const override { return kContext2D; }
   bool IsComposited() const override { return false; }
   bool IsAccelerated() const override;
+  NoAllocDirectCallHost* AsNoAllocDirectCallHost() final;
   V8RenderingContext* AsV8RenderingContext() final;
   V8OffscreenRenderingContext* AsV8OffscreenRenderingContext() final;
   void SetIsInHiddenPage(bool) final { NOTREACHED(); }
@@ -72,7 +73,11 @@ class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
   // This method will avoid this class to be garbage collected, as soon as
   // HasPendingActivity returns true.
   bool HasPendingActivity() const final {
-    return !dirty_rect_for_commit_.isEmpty();
+    if (!Host())
+      return false;
+    DCHECK(Host()->IsOffscreenCanvas());
+    return static_cast<OffscreenCanvas*>(Host())->HasPlaceholderCanvas() &&
+           !dirty_rect_for_commit_.isEmpty();
   }
 
   String font() const;
@@ -81,8 +86,8 @@ class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
   String direction() const;
   void setDirection(const String&);
 
-  void setLetterSpacing(const double letter_spacing);
-  void setWordSpacing(const double word_spacing);
+  void setLetterSpacing(const String&);
+  void setWordSpacing(const String&);
   void setTextRendering(const String&);
   void setFontKerning(const String&);
   void setFontStretch(const String&);
@@ -138,6 +143,7 @@ class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
   bool PushFrame() override;
 
   CanvasRenderingContextHost* GetCanvasRenderingContextHost() override;
+  ExecutionContext* GetTopExecutionContext() const override;
 
   IdentifiableToken IdentifiableTextToken() const override {
     return identifiability_study_helper_.GetToken();
@@ -155,14 +161,14 @@ class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
     return identifiability_study_helper_.encountered_partially_digested_image();
   }
 
+  void FlushCanvas() override;
+
  protected:
-  // This reports CanvasColorParams to the CanvasRenderingContext interface.
   CanvasColorParams CanvasRenderingContextColorParams() const override {
     return color_params_;
   }
-  // This reports CanvasColorParams to the BaseRenderingContext2D interface.
-  CanvasColorParams GetCanvas2DColorParams() const override {
-    return color_params_;
+  PredefinedColorSpace GetDefaultImageDataColorSpace() const final {
+    return color_params_.ColorSpace();
   }
   bool WritePixels(const SkImageInfo& orig_info,
                    const void* pixels,

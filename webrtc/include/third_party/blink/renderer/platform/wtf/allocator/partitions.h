@@ -47,22 +47,26 @@ class WTF_EXPORT Partitions {
 
   // Should be called on the thread which is or will become the main one.
   static void Initialize();
+  static void InitializeArrayBufferPartition();
   static void StartPeriodicReclaim(
       scoped_refptr<base::SequencedTaskRunner> task_runner);
 
+  // The ArrayBufferPartition is initialized separately from the other
+  // partitions and so may not always be available. This function can be used to
+  // determine whether the partition has been initialized.
+  ALWAYS_INLINE static bool ArrayBufferPartitionInitialized() {
+    return array_buffer_root_ != nullptr;
+  }
+
   ALWAYS_INLINE static base::ThreadSafePartitionRoot* ArrayBufferPartition() {
     DCHECK(initialized_);
+    DCHECK(ArrayBufferPartitionInitialized());
     return array_buffer_root_;
   }
 
   ALWAYS_INLINE static base::ThreadSafePartitionRoot* BufferPartition() {
     DCHECK(initialized_);
     return buffer_root_;
-  }
-
-  ALWAYS_INLINE static base::ThreadUnsafePartitionRoot* LayoutPartition() {
-    DCHECK(initialized_);
-    return layout_root_;
   }
 
   ALWAYS_INLINE static size_t ComputeAllocationSize(size_t count, size_t size) {
@@ -94,23 +98,19 @@ class WTF_EXPORT Partitions {
   static void HandleOutOfMemory(size_t size);
 
  private:
-#if !BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
   ALWAYS_INLINE static base::ThreadSafePartitionRoot* FastMallocPartition() {
     DCHECK(initialized_);
     return fast_malloc_root_;
   }
-#endif  // !BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 
   static bool InitializeOnce();
 
   static bool initialized_;
+  static bool scan_is_enabled_;
   // See Allocator.md for a description of these partitions.
-#if !BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
   static base::ThreadSafePartitionRoot* fast_malloc_root_;
-#endif
   static base::ThreadSafePartitionRoot* array_buffer_root_;
   static base::ThreadSafePartitionRoot* buffer_root_;
-  static base::ThreadUnsafePartitionRoot* layout_root_;
 };
 
 }  // namespace WTF

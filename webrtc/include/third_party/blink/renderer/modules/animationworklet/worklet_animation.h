@@ -18,6 +18,7 @@
 #include "third_party/blink/renderer/platform/animation/compositor_animation_client.h"
 #include "third_party/blink/renderer/platform/animation/compositor_animation_delegate.h"
 #include "third_party/blink/renderer/platform/graphics/animation_worklet_mutators_state.h"
+#include "third_party/blink/renderer/platform/heap/prefinalizer.h"
 
 namespace blink {
 
@@ -116,9 +117,12 @@ class MODULES_EXPORT WorkletAnimation : public WorkletAnimationBase,
   }
 
   // CompositorAnimationDelegate implementation.
-  void NotifyAnimationStarted(double monotonic_time, int group) override {}
-  void NotifyAnimationFinished(double monotonic_time, int group) override {}
-  void NotifyAnimationAborted(double monotonic_time, int group) override {}
+  void NotifyAnimationStarted(base::TimeDelta monotonic_time,
+                              int group) override {}
+  void NotifyAnimationFinished(base::TimeDelta monotonic_time,
+                               int group) override {}
+  void NotifyAnimationAborted(base::TimeDelta monotonic_time,
+                              int group) override {}
   void NotifyLocalTimeUpdated(
       absl::optional<base::TimeDelta> local_time) override;
 

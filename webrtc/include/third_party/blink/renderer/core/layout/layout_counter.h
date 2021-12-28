@@ -31,7 +31,7 @@ namespace blink {
 class CounterNode;
 class PseudoElement;
 
-using CounterMap = HashMap<AtomicString, scoped_refptr<CounterNode>>;
+using CounterMap = HeapHashMap<AtomicString, Member<CounterNode>>;
 
 // LayoutCounter is used to represent the text of a counter.
 // See http://www.w3.org/TR/CSS21/generate.html#counters
@@ -94,7 +94,7 @@ class LayoutCounter : public LayoutText {
   void Invalidate();
 
   Member<const CounterContentData> counter_;
-  CounterNode* counter_node_;
+  Member<CounterNode> counter_node_;
   Member<LayoutCounter> next_for_same_counter_;
   friend class CounterNode;
 };
@@ -110,7 +110,7 @@ struct DowncastTraits<LayoutCounter> {
 
 #if DCHECK_IS_ON()
 // Outside the blink namespace for ease of invocation from gdb.
-void showCounterLayoutTree(const blink::LayoutObject*, const char* counterName);
+void ShowCounterLayoutTree(const blink::LayoutObject*, const char* counterName);
 #endif
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_LAYOUT_COUNTER_H_

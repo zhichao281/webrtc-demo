@@ -14,6 +14,7 @@
 #include "third_party/blink/renderer/platform/animation/compositor_animation_delegate.h"
 #include "third_party/blink/renderer/platform/graphics/compositor_element_id.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
+#include "third_party/blink/renderer/platform/heap/prefinalizer.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "ui/gfx/animation/keyframe/animation_curve.h"
 
@@ -99,14 +100,10 @@ class CORE_EXPORT ScrollAnimatorCompositorCoordinator
   // and continues it on the main thread. This should only be called when in
   // DocumentLifecycle::LifecycleState::CompositingClean state.
   virtual void TakeOverCompositorAnimation();
-  // Updates the scroll offset of the animator's ScrollableArea by
-  // adjustment and update the target of an ongoing scroll offset animation.
-  virtual void AdjustAnimationAndSetScrollOffset(const ScrollOffset&,
-                                                 mojom::blink::ScrollType);
   virtual void UpdateCompositorAnimations();
 
   virtual ScrollableArea* GetScrollableArea() const = 0;
-  virtual void TickAnimation(double monotonic_time) = 0;
+  virtual void TickAnimation(base::TimeTicks monotonic_time) = 0;
   virtual void NotifyCompositorAnimationFinished(int group_id) = 0;
   virtual void NotifyCompositorAnimationAborted(int group_id) = 0;
   virtual void MainThreadScrollingDidChange() = 0;
@@ -120,8 +117,8 @@ class CORE_EXPORT ScrollAnimatorCompositorCoordinator
 
   void ScrollOffsetChanged(const ScrollOffset&, mojom::blink::ScrollType);
 
-  void AdjustImplOnlyScrollOffsetAnimation(const IntSize& adjustment);
-  IntSize ImplOnlyAnimationAdjustmentForTesting() {
+  void AdjustImplOnlyScrollOffsetAnimation(const gfx::Vector2d& adjustment);
+  gfx::Vector2d ImplOnlyAnimationAdjustmentForTesting() {
     return impl_only_animation_adjustment_;
   }
 
@@ -141,17 +138,20 @@ class CORE_EXPORT ScrollAnimatorCompositorCoordinator
   // writing-mode:vertical-rl,
   // and flex-direction:row-reverse), they aren't.  See core/layout/README.md
   // for more info.
-  FloatPoint CompositorOffsetFromBlinkOffset(ScrollOffset);
-  ScrollOffset BlinkOffsetFromCompositorOffset(FloatPoint);
+  gfx::PointF CompositorOffsetFromBlinkOffset(ScrollOffset);
+  ScrollOffset BlinkOffsetFromCompositorOffset(gfx::PointF);
 
   void CompositorAnimationFinished(int group_id);
   // Returns true if the compositor animation was attached to a new layer.
   bool ReattachCompositorAnimationIfNeeded(CompositorAnimationTimeline*);
 
   // CompositorAnimationDelegate implementation.
-  void NotifyAnimationStarted(double monotonic_time, int group) override;
-  void NotifyAnimationFinished(double monotonic_time, int group) override;
-  void NotifyAnimationAborted(double monotonic_time, int group) override;
+  void NotifyAnimationStarted(base::TimeDelta monotonic_time,
+                              int group) override;
+  void NotifyAnimationFinished(base::TimeDelta monotonic_time,
+                               int group) override;
+  void NotifyAnimationAborted(base::TimeDelta monotonic_time,
+                              int group) override;
   void NotifyAnimationTakeover(double monotonic_time,
                                double animation_start_time,
                                std::unique_ptr<gfx::AnimationCurve>) override {}
@@ -178,17 +178,17 @@ class CORE_EXPORT ScrollAnimatorCompositorCoordinator
   // The element id to which the compositor animation is attached when
   // the animation is present.
   CompositorElementId element_id_;
-  RunState run_state_ = RunState::kIdle;
+  RunState run_state_;
   int compositor_animation_id() const { return compositor_animation_id_; }
 
   // An adjustment to the scroll offset on the main thread that may affect
   // impl-only scroll offset animations.
-  IntSize impl_only_animation_adjustment_;
+  gfx::Vector2d impl_only_animation_adjustment_;
 
   // If set to true, sends a cc::ScrollOffsetAnimationUpdate to cc which will
   // abort the impl-only scroll offset animation and continue it on main
   // thread.
-  bool impl_only_animation_takeover_ = false;
+  bool impl_only_animation_takeover_;
 
  private:
   CompositorElementId GetScrollElementId() const;
@@ -198,10 +198,8 @@ class CORE_EXPORT ScrollAnimatorCompositorCoordinator
   // DocumentLifecycle::LifecycleState::CompositingClean.
   void TakeOverImplOnlyScrollOffsetAnimation();
 
-  void CancelImplOnlyScrollOffsetAnimation();
-
-  int compositor_animation_id_ = 0;
-  int compositor_animation_group_id_ = 0;
+  int compositor_animation_id_;
+  int compositor_animation_group_id_;
 };
 
 }  // namespace blink

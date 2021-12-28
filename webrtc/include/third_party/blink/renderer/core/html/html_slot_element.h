@@ -43,9 +43,6 @@ class CORE_EXPORT HTMLSlotElement final : public HTMLElement {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static HTMLSlotElement* CreateUserAgentDefaultSlot(Document&);
-  static HTMLSlotElement* CreateUserAgentCustomAssignSlot(Document&);
-
   HTMLSlotElement(Document&);
 
   const HeapVector<Member<Node>>& AssignedNodes() const;
@@ -114,7 +111,11 @@ class CORE_EXPORT HTMLSlotElement final : public HTMLElement {
   static const AtomicString& UserAgentDefaultSlotName();
 
   // For imperative Shadow DOM distribution APIs
-  void assign(HeapVector<Member<V8UnionElementOrText>> nodes, ExceptionState&);
+  // IDL assign() implementation.
+  void assign(HeapVector<Member<V8UnionElementOrText>>& nodes, ExceptionState&);
+  // assign() c++ implementation.
+  void Assign(const HeapVector<Member<Node>>& nodes);
+
   const HeapLinkedHashSet<WeakMember<Node>>& ManuallyAssignedNodes() const {
     return manually_assigned_nodes_;
   }

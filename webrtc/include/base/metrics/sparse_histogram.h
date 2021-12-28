@@ -13,7 +13,6 @@
 #include <string>
 
 #include "base/base_export.h"
-#include "base/macros.h"
 #include "base/metrics/histogram_base.h"
 #include "base/metrics/histogram_samples.h"
 #include "base/synchronization/lock.h"
@@ -39,6 +38,9 @@ class BASE_EXPORT SparseHistogram : public HistogramBase {
       const char* name,
       HistogramSamples::Metadata* meta,
       HistogramSamples::Metadata* logged_meta);
+
+  SparseHistogram(const SparseHistogram&) = delete;
+  SparseHistogram& operator=(const SparseHistogram&) = delete;
 
   ~SparseHistogram() override;
 
@@ -88,8 +90,6 @@ class BASE_EXPORT SparseHistogram : public HistogramBase {
 
   std::unique_ptr<HistogramSamples> unlogged_samples_;
   std::unique_ptr<HistogramSamples> logged_samples_;
-
-  DISALLOW_COPY_AND_ASSIGN(SparseHistogram);
 };
 
 }  // namespace base

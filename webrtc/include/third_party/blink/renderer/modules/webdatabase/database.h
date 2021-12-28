@@ -27,8 +27,9 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_WEBDATABASE_DATABASE_H_
 
 #include <atomic>
-#include "base/single_thread_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_database_callback.h"
+#include "third_party/blink/renderer/core/probe/async_task_context.h"
 #include "third_party/blink/renderer/modules/webdatabase/database_authorizer.h"
 #include "third_party/blink/renderer/modules/webdatabase/database_basic_types.h"
 #include "third_party/blink/renderer/modules/webdatabase/database_error.h"
@@ -135,8 +136,9 @@ class Database final : public ScriptWrappable {
   bool PerformOpenAndVerify(bool set_version_in_new_database,
                             DatabaseError&,
                             String& error_message);
-  void RunCreationCallback(V8DatabaseCallback* creation_callback,
-                           std::unique_ptr<probe::AsyncTaskId> task_id);
+  void RunCreationCallback(
+      V8DatabaseCallback* creation_callback,
+      std::unique_ptr<probe::AsyncTaskContext> async_task_context);
 
   void ScheduleTransaction();
 
@@ -194,7 +196,8 @@ class Database final : public ScriptWrappable {
   bool transaction_in_progress_;
   bool is_transaction_queue_enabled_;
 
-  // Gates a UKM counter to execute once per database instance.
+  // Gates UKM counters to execute once per database instance.
+  bool did_try_to_count_transaction_;
   bool did_try_to_count_third_party_transaction_;
 
   // Disable BackForwardCache when using WebDatabase feature, because we do not

@@ -13,8 +13,8 @@
 #include "third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h"
 #include "third_party/blink/renderer/core/testing/core_unit_test_helper.h"
 #include "third_party/blink/renderer/platform/graphics/graphics_context.h"
-#include "third_party/blink/renderer/platform/graphics/graphics_layer.h"
 #include "third_party/blink/renderer/platform/graphics/paint/cull_rect.h"
+#include "third_party/blink/renderer/platform/graphics/paint/paint_chunk_subset.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_controller_test.h"
 #include "third_party/blink/renderer/platform/testing/paint_test_configurations.h"
 
@@ -28,12 +28,7 @@ class PaintControllerPaintTestBase : public RenderingTest {
  protected:
   LayoutView& GetLayoutView() const { return *GetDocument().GetLayoutView(); }
   PaintController& RootPaintController() const {
-    if (RuntimeEnabledFeatures::CompositeAfterPaintEnabled())
-      return GetDocument().View()->GetPaintControllerForTesting();
-    return GetLayoutView()
-        .Layer()
-        ->GraphicsLayerBacking()
-        ->GetPaintController();
+    return GetDocument().View()->GetPaintControllerForTesting();
   }
 
   void SetUp() override {
@@ -56,7 +51,7 @@ class PaintControllerPaintTestBase : public RenderingTest {
       CullRectUpdater(*GetLayoutView().Layer()).Update();
   }
 
-  void PaintContents(const IntRect& interest_rect) {
+  void PaintContents(const gfx::Rect& interest_rect) {
     GetDocument().View()->PaintContentsForTest(CullRect(interest_rect));
   }
 
@@ -153,7 +148,7 @@ const DisplayItem::Type kClippedContentsBackgroundChunkType =
 // This version also checks the following additional parameters:
 //   wtf_size_t display_item_count,
 //   const HitTestData* hit_test_data,
-//   (optional) const IntRect& bounds
+//   (optional) const gfx::Rect& bounds
 #define VIEW_SCROLLING_BACKGROUND_CHUNK(display_item_count, ...)     \
   IsPaintChunk(0, display_item_count,                                \
                PaintChunk::Id(ViewScrollingBackgroundClient().Id(),  \

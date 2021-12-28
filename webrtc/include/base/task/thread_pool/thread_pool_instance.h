@@ -11,12 +11,12 @@
 #include "base/callback.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/ref_counted.h"
-#include "base/sequenced_task_runner.h"
-#include "base/single_thread_task_runner.h"
 #include "base/strings/string_piece.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/task/single_thread_task_runner_thread_mode.h"
+#include "base/task/task_runner.h"
 #include "base/task/task_traits.h"
-#include "base/task_runner.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 
@@ -92,9 +92,9 @@ class BASE_EXPORT ThreadPoolInstance {
     // *TaskLatencyMicroseconds.Renderer* histograms.
     TimeDelta suggested_reclaim_time =
 #if defined(OS_ANDROID)
-        TimeDelta::FromMinutes(5);
+        Minutes(5);
 #else
-        TimeDelta::FromSeconds(30);
+        Seconds(30);
 #endif
   };
 

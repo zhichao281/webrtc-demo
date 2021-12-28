@@ -17,7 +17,6 @@
 #include <lib/zx/channel.h>
 
 #include "base/base_export.h"
-#include "base/macros.h"
 #include "base/strings/string_piece.h"
 
 namespace base {
@@ -43,12 +42,14 @@ class BASE_EXPORT ScopedServicePublisher {
                           std::make_unique<vfs::Service>(std::move(handler)));
   }
 
+  ScopedServicePublisher(const ScopedServicePublisher&) = delete;
+  ScopedServicePublisher& operator=(const ScopedServicePublisher&) = delete;
+
   ~ScopedServicePublisher() { pseudo_dir_->RemoveEntry(name_); }
 
  private:
   vfs::PseudoDir* const pseudo_dir_ = nullptr;
   std::string name_;
-  DISALLOW_COPY_AND_ASSIGN(ScopedServicePublisher);
 };
 
 }  // namespace base

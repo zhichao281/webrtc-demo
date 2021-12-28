@@ -6,7 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_MEDIARECORDER_VPX_ENCODER_H_
 
 #include "base/compiler_specific.h"
-#include "base/sequenced_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
 #include "third_party/blink/renderer/modules/mediarecorder/video_track_recorder.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "third_party/libvpx/source/libvpx/vpx/vp8cx.h"
@@ -32,6 +32,9 @@ class VpxEncoder final : public VideoTrackRecorder::Encoder {
              const VideoTrackRecorder::OnEncodedVideoCB& on_encoded_video_cb,
              int32_t bits_per_second,
              scoped_refptr<base::SequencedTaskRunner> main_task_runner);
+
+  VpxEncoder(const VpxEncoder&) = delete;
+  VpxEncoder& operator=(const VpxEncoder&) = delete;
 
  private:
   // VideoTrackRecorder::Encoder implementation.
@@ -89,8 +92,6 @@ class VpxEncoder final : public VideoTrackRecorder::Encoder {
   // used to predict the duration of the next frame. Only used on
   // VideoTrackRecorder::Encoder::encoding_thread_.
   base::TimeDelta last_frame_timestamp_;
-
-  DISALLOW_COPY_AND_ASSIGN(VpxEncoder);
 };
 
 }  // namespace blink

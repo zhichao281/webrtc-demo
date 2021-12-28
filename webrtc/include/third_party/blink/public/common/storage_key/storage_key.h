@@ -11,9 +11,15 @@
 #include "base/strings/string_piece.h"
 #include "base/unguessable_token.h"
 #include "net/base/schemeful_site.h"
+#include "net/cookies/site_for_cookies.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/common_export.h"
+#include "url/gurl.h"
 #include "url/origin.h"
+
+namespace net {
+class IsolationInfo;
+}
 
 namespace blink {
 
@@ -37,6 +43,8 @@ class BLINK_COMMON_EXPORT StorageKey {
   // StorageKey without a top-level site specified. Eventually these will all
   // merge into a static function(s) that will require the caller to explicitly
   // specify that they do not want a top-level site.
+  // TODO(https://crbug.com/1271615): Remove or mark as test-only most of these
+  // constructors and factory methods.
   explicit StorageKey(const url::Origin& origin)
       : StorageKey(origin, net::SchemefulSite(origin), nullptr) {}
 
@@ -53,6 +61,12 @@ class BLINK_COMMON_EXPORT StorageKey {
   static StorageKey CreateWithNonce(const url::Origin& origin,
                                     const base::UnguessableToken& nonce);
 
+  // Same to the above, but this method does take a top-level site.
+  static StorageKey CreateWithOptionalNonce(
+      const url::Origin& origin,
+      const net::SchemefulSite& top_level_site,
+      const base::UnguessableToken* nonce);
+
   // Copyable and Moveable.
   StorageKey(const StorageKey& other) = default;
   StorageKey& operator=(const StorageKey& other) = default;
@@ -60,6 +74,10 @@ class BLINK_COMMON_EXPORT StorageKey {
   StorageKey& operator=(StorageKey&& other) noexcept = default;
 
   ~StorageKey() = default;
+
+  // Constructs a StorageKey from a `net::IsolationInfo`.
+  static StorageKey FromNetIsolationInfo(
+      const net::IsolationInfo& isolation_info);
 
   // Returns a newly constructed StorageKey from, a previously serialized, `in`.
   // If `in` is invalid then the return value will be nullopt. If this returns a
@@ -80,14 +98,26 @@ class BLINK_COMMON_EXPORT StorageKey {
   static bool IsThirdPartyStoragePartitioningEnabled();
 
   // Serializes the `StorageKey` into a string.
-  // This function will return the spec url of the underlying Origin. Do not
-  // call if `this` is opaque.
+  // Do not call if `this` is opaque.
   std::string Serialize() const;
 
   // Serializes into a string in the format used for localStorage (without
   // trailing slashes). Prefer Serialize() for uses other than localStorage. Do
   // not call if `this` is opaque.
   std::string SerializeForLocalStorage() const;
+
+  // `IsThirdPartyContext` returns true if the StorageKey is for a context that
+  // is "third-party", i.e. the StorageKey's top-level site and origin have
+  // different schemes and/or domains.
+  //
+  // `IsThirdPartyContext` returns true if the StorageKey was created with a
+  // nonce.
+  //
+  // If storage partitioning is disabled, this always returns false.
+  bool IsThirdPartyContext() const {
+    return nonce_ || net::SchemefulSite(origin_) != top_level_site_;
+  }
+  bool IsFirstPartyContext() const { return !IsThirdPartyContext(); }
 
   const url::Origin& origin() const { return origin_; }
 
@@ -101,13 +131,42 @@ class BLINK_COMMON_EXPORT StorageKey {
   // Limits the length to `max_length` chars and strips special characters.
   std::string GetMemoryDumpString(size_t max_length) const;
 
+  // Return the "site for cookies" for the StorageKey's frame (or worker).
+  //
+  // Right now this "site for cookies" is not entirely accurate. For example
+  // consider if A.com embeds B.com which embeds A.com in a child frame. The
+  // site for cookies according to this method will be A.com, but according to
+  // the spec it should be an opaque origin.
+  const net::SiteForCookies ToNetSiteForCookies() const;
+
  private:
+  // This enum represents the different type of encodable partitioning
+  // attributes.
+  enum class EncodedAttribute : uint8_t {
+    kTopLevelSite = 0,
+    kNonceHigh = 1,
+    kNonceLow = 2,
+    kMax
+  };
+
   StorageKey(const url::Origin& origin,
              const net::SchemefulSite& top_level_site,
              const base::UnguessableToken* nonce)
       : origin_(origin),
-        top_level_site_(top_level_site),
+        top_level_site_(IsThirdPartyStoragePartitioningEnabled()
+                            ? top_level_site
+                            : net::SchemefulSite(origin)),
         nonce_(nonce ? absl::make_optional(*nonce) : absl::nullopt) {}
+
+  // Converts the attribute type into the separator + uint8_t byte
+  // serialization. E.x.: kTopLevelSite becomes "^0"
+  static std::string SerializeAttributeSeparator(const EncodedAttribute type);
+
+  // Converts the serialized separator into an EncodedAttribute enum.
+  // E.x.: "^0" becomes kTopLevelSite.
+  // Expects `in` to have a length of 2.
+  static EncodedAttribute DeserializeAttributeSeparator(
+      const base::StringPiece& in);
 
   BLINK_COMMON_EXPORT
   friend bool operator==(const StorageKey& lhs, const StorageKey& rhs);
@@ -126,9 +185,11 @@ class BLINK_COMMON_EXPORT StorageKey {
   // this StorageKey was created for (for storage partitioning purposes).
   //
   // Like everything, this too has exceptions:
-  // * If the nonce is populated then this value doesn't matter.
   // * For extensions or related enterprise policies this may not represent the
   // top-level site.
+  //
+  // Note that this value is populated with `origin_`'s site unless the feature
+  // flag `kThirdPartyStoragePartitioning` is enabled.
   net::SchemefulSite top_level_site_;
 
   // An optional nonce, forcing a partitioned storage from anything else. Used

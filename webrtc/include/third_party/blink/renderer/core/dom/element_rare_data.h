@@ -23,6 +23,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_DOM_ELEMENT_RARE_DATA_H_
 
 #include <memory>
+#include "base/token.h"
 #include "third_party/blink/renderer/core/animation/element_animations.h"
 #include "third_party/blink/renderer/core/aom/accessible_node.h"
 #include "third_party/blink/renderer/core/css/container_query_data.h"
@@ -42,6 +43,7 @@
 #include "third_party/blink/renderer/core/html/custom/custom_element_definition.h"
 #include "third_party/blink/renderer/core/intersection_observer/element_intersection_observer_data.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
+#include "third_party/blink/renderer/platform/region_capture_crop_id.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
 
 namespace blink {
@@ -147,6 +149,20 @@ class ElementRareData final : public NodeRareData {
     return element_internals_;
   }
 
+  // Returns the crop-ID if one was set, or nullptr otherwise.
+  const RegionCaptureCropId* GetRegionCaptureCropId() const {
+    return region_capture_crop_id_.get();
+  }
+
+  // Sets a crop-ID on the item. Must be called at most once. Cannot be used
+  // to unset a previously set crop-ID.
+  void SetRegionCaptureCropId(std::unique_ptr<RegionCaptureCropId> crop_id) {
+    DCHECK(!GetRegionCaptureCropId());
+    DCHECK(crop_id);
+    DCHECK(!crop_id->value().is_zero());
+    region_capture_crop_id_ = std::move(crop_id);
+  }
+
   void SetStyleShouldForceLegacyLayout(bool force) {
     style_should_force_legacy_layout_ = force;
   }
@@ -161,6 +177,12 @@ class ElementRareData final : public NodeRareData {
   }
   bool HasUndoStack() const { return has_undo_stack_; }
   void SetHasUndoStack(bool value) { has_undo_stack_ = value; }
+  bool ScrollbarPseudoElementStylesDependOnFontMetrics() const {
+    return scrollbar_pseudo_element_styles_depend_on_font_metrics_;
+  }
+  void SetScrollbarPseudoElementStylesDependOnFontMetrics(bool value) {
+    scrollbar_pseudo_element_styles_depend_on_font_metrics_ = value;
+  }
 
   AccessibleNode* GetAccessibleNode() const { return accessible_node_.Get(); }
   AccessibleNode* EnsureAccessibleNode(Element* owner_element) {
@@ -207,6 +229,7 @@ class ElementRareData final : public NodeRareData {
   }
 
   ContainerQueryData& EnsureContainerQueryData() {
+    DCHECK(RuntimeEnabledFeatures::CSSContainerQueriesEnabled());
     if (!container_query_data_)
       container_query_data_ = MakeGarbageCollected<ContainerQueryData>();
     return *container_query_data_;
@@ -229,6 +252,14 @@ class ElementRareData final : public NodeRareData {
 
   const AtomicString& GetNonce() const { return nonce_; }
   void SetNonce(const AtomicString& nonce) { nonce_ = nonce; }
+
+  void SaveLastIntrinsicSize(ResizeObserverSize* size) {
+    last_intrinsic_size_ = size;
+  }
+
+  const ResizeObserverSize* LastIntrinsicSize() const {
+    return last_intrinsic_size_;
+  }
 
   void TraceAfterDispatch(blink::Visitor*) const;
 
@@ -256,15 +287,19 @@ class ElementRareData final : public NodeRareData {
   Member<ElementInternals> element_internals_;
 
   Member<PseudoElementData> pseudo_element_data_;
+  Member<ResizeObserverSize> last_intrinsic_size_;
 
   Member<AccessibleNode> accessible_node_;
 
   Member<DisplayLockContext> display_lock_context_;
   Member<ContainerQueryData> container_query_data_;
-  bool did_attach_internals_ = false;
-  bool should_force_legacy_layout_for_child_ = false;
-  bool style_should_force_legacy_layout_ = false;
-  bool has_undo_stack_ = false;
+  std::unique_ptr<RegionCaptureCropId> region_capture_crop_id_;
+
+  unsigned did_attach_internals_ : 1;
+  unsigned should_force_legacy_layout_for_child_ : 1;
+  unsigned style_should_force_legacy_layout_ : 1;
+  unsigned has_undo_stack_ : 1;
+  unsigned scrollbar_pseudo_element_styles_depend_on_font_metrics_ : 1;
 };
 
 inline LayoutSize DefaultMinimumSizeForResizing() {

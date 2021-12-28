@@ -32,6 +32,9 @@ class GPUCommandEncoder : public DawnObject<WGPUCommandEncoder> {
   explicit GPUCommandEncoder(GPUDevice* device,
                              WGPUCommandEncoder command_encoder);
 
+  GPUCommandEncoder(const GPUCommandEncoder&) = delete;
+  GPUCommandEncoder& operator=(const GPUCommandEncoder&) = delete;
+
   // gpu_command_encoder.idl
   GPURenderPassEncoder* beginRenderPass(
       const GPURenderPassDescriptor* descriptor,
@@ -80,10 +83,17 @@ class GPUCommandEncoder : public DawnObject<WGPUCommandEncoder> {
     GetProcs().commandEncoderWriteTimestamp(GetHandle(), querySet->GetHandle(),
                                             queryIndex);
   }
+  void clearBuffer(DawnObject<WGPUBuffer>* buffer, uint64_t offset) {
+    GetProcs().commandEncoderClearBuffer(GetHandle(), buffer->GetHandle(),
+                                         offset, WGPU_WHOLE_SIZE);
+  }
+  void clearBuffer(DawnObject<WGPUBuffer>* buffer,
+                   uint64_t offset,
+                   uint64_t size) {
+    GetProcs().commandEncoderClearBuffer(GetHandle(), buffer->GetHandle(),
+                                         offset, size);
+  }
   GPUCommandBuffer* finish(const GPUCommandBufferDescriptor* descriptor);
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(GPUCommandEncoder);
 };
 
 }  // namespace blink

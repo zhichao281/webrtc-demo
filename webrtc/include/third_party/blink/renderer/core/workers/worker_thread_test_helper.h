@@ -66,8 +66,7 @@ class FakeWorkerGlobalScope : public WorkerGlobalScope {
       network::mojom::ReferrerPolicy response_referrer_policy,
       network::mojom::IPAddressSpace response_address_space,
       Vector<network::mojom::blink::ContentSecurityPolicyPtr> response_csp,
-      const Vector<String>* response_origin_trial_tokens,
-      int64_t appcache_id) override {
+      const Vector<String>* response_origin_trial_tokens) override {
     InitializeURL(response_url);
     SetReferrerPolicy(response_referrer_policy);
     SetAddressSpace(response_address_space);
@@ -142,11 +141,13 @@ class WorkerThreadForTest : public WorkerThread {
         "fake global scope name", "fake user agent", UserAgentMetadata(),
         nullptr /* web_worker_fetch_context */,
         Vector<network::mojom::blink::ContentSecurityPolicyPtr>(),
+        Vector<network::mojom::blink::ContentSecurityPolicyPtr>(),
         network::mojom::ReferrerPolicy::kDefault, security_origin,
         false /* starter_secure_context */,
         CalculateHttpsState(security_origin), worker_clients,
         nullptr /* content_settings_client */,
-        network::mojom::IPAddressSpace::kLocal, nullptr,
+        network::mojom::IPAddressSpace::kLocal,
+        nullptr /* inherited_trial_features */,
         base::UnguessableToken::Create(),
         std::make_unique<WorkerSettings>(std::make_unique<Settings>().get()),
         mojom::blink::V8CacheOptions::kDefault,

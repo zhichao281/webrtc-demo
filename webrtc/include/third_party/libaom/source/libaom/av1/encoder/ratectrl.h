@@ -19,7 +19,6 @@
 
 #include "av1/common/av1_common_int.h"
 #include "av1/common/blockd.h"
-#include "av1/encoder/tpl_model.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -46,6 +45,9 @@ extern "C" {
 #define MAX_GF_INTERVAL 32
 #define FIXED_GF_INTERVAL 16
 #define MAX_GF_LENGTH_LAP 16
+
+#define FIXED_GF_INTERVAL_RT 80
+#define MAX_GF_INTERVAL_RT 160
 
 #define MAX_NUM_GF_INTERVALS 15
 
@@ -145,22 +147,6 @@ typedef struct {
   int sb64_target_rate;
 
   /*!
-   * Q used on last encoded frame of the given type.
-   */
-  int last_q[FRAME_TYPES];
-
-  /*!
-   * Q used for last boosted (non leaf) frame (GF/KF/ARF)
-   */
-  int last_boosted_qindex;
-
-  /*!
-   * Correction factors used to adjust the q estimate for a given target rate
-   * in the encode loop.
-   */
-  double rate_correction_factors[RATE_FACTOR_LEVELS];
-
-  /*!
    * Number of frames since the last ARF / GF.
    */
   int frames_since_golden;
@@ -201,23 +187,9 @@ typedef struct {
 
   int ni_av_qi;
   int ni_tot_qi;
-  double avg_q;
-
-  int64_t buffer_level;
-  int64_t bits_off_target;
-  int64_t vbr_bits_off_target;
-  int64_t vbr_bits_off_target_fast;
 
   int decimation_factor;
   int decimation_count;
-
-  int rolling_target_bits;
-  int rolling_actual_bits;
-
-  int rate_error_estimate;
-
-  int64_t total_actual_bits;
-  int64_t total_target_bits;
 
   /*!\endcond */
   /*!
@@ -245,10 +217,6 @@ typedef struct {
    * Proposed maximum alloed Q for current frame
    */
   int active_worst_quality;
-  /*!
-   * Proposed minimum allowed Q different layers in a coding pyramid
-   */
-  int active_best_quality[MAX_ARF_LAYERS + 1];
 
   /*!\cond */
   // Track amount of low motion in scene
@@ -259,6 +227,9 @@ typedef struct {
   int resize_avg_qp;
   int resize_buffer_underflow;
   int resize_count;
+
+  // Flag to disable content related qp adjustment.
+  int rtc_external_ratectrl;
 #if CONFIG_FRAME_PARALLEL_ENCODE
   int frame_level_fast_extra_bits;
   double frame_level_rate_correction_factors[RATE_FACTOR_LEVELS];
@@ -347,8 +318,6 @@ typedef struct {
   // Total number of stats required by gfu_boost calculation.
   int num_stats_required_for_gfu_boost;
 
-  int next_is_fwd_key;
-
   int enable_scenecut_detection;
 
   int use_arf_in_this_kf_group;
@@ -368,7 +337,7 @@ typedef struct {
    */
   int avg_frame_qindex[FRAME_TYPES];
 
-#if CONFIG_FRAME_PARALLEL_ENCODE
+#if CONFIG_FRAME_PARALLEL_ENCODE && CONFIG_FPMT_TEST
   /*!
    * Temporary variable used in simulating the delayed update of
    * active_best_quality.
@@ -452,7 +421,97 @@ typedef struct {
    * bits_left;.
    */
   int64_t temp_bits_left;
+
+  /*!
+   * Temporary variable used in simulating the delayed update of
+   * extend_minq.
+   */
+  int temp_extend_minq;
+
+  /*!
+   * Temporary variable used in simulating the delayed update of
+   * extend_maxq.
+   */
+  int temp_extend_maxq;
+
+  /*!
+   * Temporary variable used in simulating the delayed update of
+   * extend_minq_fast.
+   */
+  int temp_extend_minq_fast;
 #endif
+  /*!
+   * Proposed minimum allowed Q different layers in a coding pyramid
+   */
+  int active_best_quality[MAX_ARF_LAYERS + 1];
+
+  /*!
+   * Q used for last boosted (non leaf) frame (GF/KF/ARF)
+   */
+  int last_boosted_qindex;
+
+  /*!
+   * Average Q value of previous inter frames
+   */
+  double avg_q;
+
+  /*!
+   * Q used on last encoded frame of the given type.
+   */
+  int last_q[FRAME_TYPES];
+
+  /*!
+   * Correction factors used to adjust the q estimate for a given target rate
+   * in the encode loop.
+   */
+  double rate_correction_factors[RATE_FACTOR_LEVELS];
+
+  /*!
+   * Current total consumed bits.
+   */
+  int64_t total_actual_bits;
+
+  /*!
+   * Current total target bits.
+   */
+  int64_t total_target_bits;
+
+  /*!
+   * Current buffer level.
+   */
+  int64_t buffer_level;
+
+  /*!
+   * PCT rc error.
+   */
+  int rate_error_estimate;
+
+  /*!
+   * Error bits available from previously encoded frames.
+   */
+  int64_t vbr_bits_off_target;
+
+  /*!
+   * Error bits available from previously encoded frames undershoot.
+   */
+  int64_t vbr_bits_off_target_fast;
+
+  /*!
+   * Total bits deviated from the average frame target, from previously
+   * encoded frames.
+   */
+  int64_t bits_off_target;
+
+  /*!
+   * Rolling monitor target bits updated based on current frame target size.
+   */
+  int rolling_target_bits;
+
+  /*!
+   * Rolling monitor actual bits updated based on current frame final projected
+   * size.
+   */
+  int rolling_actual_bits;
 } PRIMARY_RATE_CONTROL;
 
 struct AV1_COMP;
@@ -462,8 +521,7 @@ struct GF_GROUP;
 void av1_primary_rc_init(const struct AV1EncoderConfig *oxcf,
                          PRIMARY_RATE_CONTROL *p_rc);
 
-void av1_rc_init(const struct AV1EncoderConfig *oxcf, RATE_CONTROL *rc,
-                 const PRIMARY_RATE_CONTROL *const p_rc);
+void av1_rc_init(const struct AV1EncoderConfig *oxcf, RATE_CONTROL *rc);
 
 int av1_estimate_bits_at_q(FRAME_TYPE frame_kind, int q, int mbs,
                            double correction_factor, aom_bit_depth_t bit_depth,
@@ -615,6 +673,8 @@ int av1_resize_one_pass_cbr(struct AV1_COMP *cpi);
 void av1_rc_set_frame_target(struct AV1_COMP *cpi, int target, int width,
                              int height);
 
+void av1_adjust_gf_refresh_qp_one_pass_rt(struct AV1_COMP *cpi);
+
 void av1_set_reference_structure_one_pass_rt(struct AV1_COMP *cpi,
                                              int gf_update);
 
@@ -710,18 +770,16 @@ int av1_encodedframe_overshoot_cbr(struct AV1_COMP *cpi, int *q);
 #if !CONFIG_REALTIME_ONLY
 /*!\brief Compute the q_indices for the entire GOP.
  *
- * \param[in]       gf_frame_index    Index of the current frame
  * \param[in]       base_q_index      Base q index
- * \param[in]       arf_qstep_ratio   The quantize step ratio between arf q
- *                                    index and base q index
+ * \param[in]       qstep_ratio_list  Stores the qstep_ratio for each frame
  * \param[in]       bit_depth         Bit depth
  * \param[in]       gf_group          Pointer to the GOP
  * \param[out]      q_index_list      An array to store output gop q indices.
  *                                    the array size should be equal or
  *                                    greater than gf_group.size()
  */
-void av1_q_mode_compute_gop_q_indices(int gf_frame_index, int base_q_index,
-                                      double arf_qstep_ratio,
+void av1_q_mode_compute_gop_q_indices(int base_q_index,
+                                      const double *qstep_ratio_list,
                                       aom_bit_depth_t bit_depth,
                                       const struct GF_GROUP *gf_group,
                                       int *q_index_list);
@@ -754,6 +812,7 @@ int av1_get_arf_q_index(int base_q_index, int gfu_boost, int bit_depth,
                         double arf_boost_factor);
 
 #if !CONFIG_REALTIME_ONLY
+struct TplDepFrame;
 /*!\brief Compute the q_indices for the ARF of a GOP in Q mode.
  *
  * \param[in]       cpi               Top level encoder structure

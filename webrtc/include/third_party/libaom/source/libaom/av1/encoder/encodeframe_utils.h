@@ -337,6 +337,9 @@ void av1_get_tpl_stats_sb(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
 int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, BLOCK_SIZE bsize,
                                    int mi_row, int mi_col);
 
+int av1_get_q_for_hdr(AV1_COMP *const cpi, MACROBLOCK *const x,
+                      BLOCK_SIZE bsize, int mi_row, int mi_col);
+
 int av1_get_hier_tpl_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
                             const BLOCK_SIZE bsize, const int mi_row,
                             const int mi_col, int orig_rdmult);
@@ -402,33 +405,39 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
 
 static AOM_INLINE void av1_dealloc_mb_data(struct AV1Common *cm,
                                            struct macroblock *mb) {
-  if (mb->txfm_search_info.txb_rd_records) {
-    aom_free(mb->txfm_search_info.txb_rd_records);
-    mb->txfm_search_info.txb_rd_records = NULL;
-  }
+  aom_free(mb->txfm_search_info.mb_rd_record);
+  mb->txfm_search_info.mb_rd_record = NULL;
+
+  aom_free(mb->inter_modes_info);
+  mb->inter_modes_info = NULL;
+
   const int num_planes = av1_num_planes(cm);
   for (int plane = 0; plane < num_planes; plane++) {
-    if (mb->plane[plane].src_diff) {
-      aom_free(mb->plane[plane].src_diff);
-      mb->plane[plane].src_diff = NULL;
-    }
+    aom_free(mb->plane[plane].src_diff);
+    mb->plane[plane].src_diff = NULL;
   }
-  if (mb->e_mbd.seg_mask) {
-    aom_free(mb->e_mbd.seg_mask);
-    mb->e_mbd.seg_mask = NULL;
-  }
-  if (mb->winner_mode_stats) {
-    aom_free(mb->winner_mode_stats);
-    mb->winner_mode_stats = NULL;
-  }
+
+  aom_free(mb->e_mbd.seg_mask);
+  mb->e_mbd.seg_mask = NULL;
+
+  aom_free(mb->winner_mode_stats);
+  mb->winner_mode_stats = NULL;
 }
 
 static AOM_INLINE void av1_alloc_mb_data(struct AV1Common *cm,
                                          struct macroblock *mb,
-                                         int use_nonrd_pick_mode) {
+                                         int use_nonrd_pick_mode,
+                                         int use_mb_rd_hash) {
   if (!use_nonrd_pick_mode) {
-    mb->txfm_search_info.txb_rd_records =
-        (TxbRdRecords *)aom_malloc(sizeof(TxbRdRecords));
+    // Memory for mb_rd_record is allocated only when use_mb_rd_hash sf is
+    // enabled.
+    if (use_mb_rd_hash)
+      mb->txfm_search_info.mb_rd_record =
+          (MB_RD_RECORD *)aom_malloc(sizeof(MB_RD_RECORD));
+    if (!frame_is_intra_only(cm))
+      CHECK_MEM_ERROR(
+          cm, mb->inter_modes_info,
+          (InterModesInfo *)aom_malloc(sizeof(*mb->inter_modes_info)));
   }
   const int num_planes = av1_num_planes(cm);
   for (int plane = 0; plane < num_planes; plane++) {

@@ -22,6 +22,8 @@
 
 namespace base {
 
+class StatsReporter;
+
 namespace internal {
 
 class PCScanTask;
@@ -54,7 +56,7 @@ class PCScanInternal final {
 
   ~PCScanInternal();
 
-  void Initialize(PCScan::WantedWriteProtectionMode);
+  void Initialize(PCScan::InitConfig);
   bool is_initialized() const { return is_initialized_; }
 
   void PerformScan(PCScan::InvocationMode);
@@ -66,8 +68,8 @@ class PCScanInternal final {
   void SetCurrentPCScanTask(TaskHandle task);
   void ResetCurrentPCScanTask();
 
-  void RegisterScannableRoot(Root* root);
-  void RegisterNonScannableRoot(Root* root);
+  void RegisterScannableRoot(Root*);
+  void RegisterNonScannableRoot(Root*);
 
   RootsMap& scannable_roots() { return scannable_roots_; }
   const RootsMap& scannable_roots() const { return scannable_roots_; }
@@ -102,8 +104,11 @@ class PCScanInternal final {
   void UnprotectPages(uintptr_t begin, size_t size);
 
   void ClearRootsForTesting();                               // IN-TEST
-  void ReinitForTesting(PCScan::WantedWriteProtectionMode);  // IN-TEST
+  void ReinitForTesting(PCScan::InitConfig);                 // IN-TEST
   void FinishScanForTesting();                               // IN-TEST
+
+  void RegisterStatsReporter(StatsReporter* reporter);
+  StatsReporter& GetReporter();
 
  private:
   friend base::NoDestructor<PCScanInternal>;
@@ -137,6 +142,7 @@ class PCScanInternal final {
   const SimdSupport simd_support_;
 
   std::unique_ptr<WriteProtector> write_protector_;
+  StatsReporter* stats_reporter_ = nullptr;
 
   bool is_initialized_ = false;
 };

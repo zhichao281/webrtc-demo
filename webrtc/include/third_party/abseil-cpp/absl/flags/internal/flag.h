@@ -163,7 +163,7 @@ inline ptrdiff_t ValueOffset(FlagOpFn op) {
 // Returns an address of RTTI's typeid(T).
 template <typename T>
 inline const std::type_info* GenRuntimeTypeId() {
-#if defined(ABSL_FLAGS_INTERNAL_HAS_RTTI)
+#ifdef ABSL_INTERNAL_HAS_RTTI
   return &typeid(T);
 #else
   return nullptr;
@@ -290,7 +290,7 @@ constexpr T InitDefaultValue(EmptyBraces) {
 
 template <typename ValueT, typename GenT,
           typename std::enable_if<std::is_integral<ValueT>::value, int>::type =
-              (GenT{}, 0)>
+              ((void)GenT{}, 0)>
 constexpr FlagDefaultArg DefaultArg(int) {
   return {FlagDefaultSrc(GenT{}.value), FlagDefaultKind::kOneWord};
 }

@@ -40,6 +40,7 @@
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "third_party/blink/public/common/responsiveness_metrics/user_interaction_latency.h"
 #include "third_party/blink/public/mojom/devtools/devtools_agent.mojom-blink-forward.h"
 #include "third_party/blink/renderer/core/frame/local_frame_client.h"
 #include "third_party/blink/renderer/core/frame/web_local_frame_impl.h"
@@ -95,7 +96,8 @@ class CORE_EXPORT LocalFrameClientImpl final : public LocalFrameClient {
                                        WebHistoryCommitType,
                                        bool is_handled_within_agent,
                                        mojom::blink::SameDocumentNavigationType,
-                                       bool is_client_redirect) override;
+                                       bool is_client_redirect,
+                                       bool is_browser_initiated) override;
   void DispatchDidOpenDocumentInputStream(const KURL& url) override;
   void DispatchDidReceiveTitle(const String&) override;
   void DispatchDidCommitLoad(
@@ -136,6 +138,9 @@ class CORE_EXPORT LocalFrameClientImpl final : public LocalFrameClient {
   void DidDispatchPingLoader(const KURL&) override;
   void DidChangePerformanceTiming() override;
   void DidObserveInputDelay(base::TimeDelta) override;
+  void DidObserveUserInteraction(base::TimeDelta max_event_duration,
+                                 base::TimeDelta total_event_duration,
+                                 UserInteractionType interaction_type) override;
   void DidChangeCpuTiming(base::TimeDelta) override;
   void DidObserveLoadingBehavior(LoadingBehaviorFlag) override;
   void DidObserveNewFeatureUsage(const UseCounterFeature&) override;
@@ -252,7 +257,7 @@ class CORE_EXPORT LocalFrameClientImpl final : public LocalFrameClient {
   void FocusedElementChanged(Element* element) override;
 
   void OnMainFrameIntersectionChanged(
-      const IntRect& intersection_rect) override;
+      const gfx::Rect& intersection_rect) override;
 
   void OnOverlayPopupAdDetected() override;
 
@@ -270,9 +275,6 @@ class CORE_EXPORT LocalFrameClientImpl final : public LocalFrameClient {
       WebDedicatedWorkerHostFactoryClient*) override;
   std::unique_ptr<WebContentSettingsClient> CreateWorkerContentSettingsClient()
       override;
-
-  std::unique_ptr<media::SpeechRecognitionClient> CreateSpeechRecognitionClient(
-      media::SpeechRecognitionClient::OnReadyCallback callback) override;
 
   void SetMouseCapture(bool capture) override;
 

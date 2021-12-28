@@ -213,6 +213,12 @@ class CORE_EXPORT Frame : public GarbageCollected<Frame> {
     return user_activation_state_.HasBeenActive();
   }
 
+  // Returns if the last user activation for this frame was restricted in
+  // nature.
+  bool LastActivationWasRestricted() const {
+    return user_activation_state_.LastActivationWasRestricted();
+  }
+
   // Resets the user activation state of this frame.
   void ClearUserActivation() { user_activation_state_.Clear(); }
 
@@ -325,8 +331,8 @@ class CORE_EXPORT Frame : public GarbageCollected<Frame> {
   // Called when the focus controller changes the focus to this frame.
   virtual void DidFocus() = 0;
 
-  virtual IntSize GetMainFrameViewportSize() const = 0;
-  virtual IntPoint GetMainFrameScrollOffset() const = 0;
+  virtual gfx::Size GetMainFrameViewportSize() const = 0;
+  virtual gfx::Point GetMainFrameScrollOffset() const = 0;
 
   // Sets this frame's opener to another frame, or disowned the opener
   // if opener is null. See http://html.spec.whatwg.org/#dom-opener.
@@ -338,13 +344,16 @@ class CORE_EXPORT Frame : public GarbageCollected<Frame> {
   Frame* Opener() const { return opener_; }
 
   // Returns the parent frame or null if this is the top-most frame.
-  Frame* Parent() const { return parent_; }
+  Frame* Parent(FrameTreeBoundary frame_tree_boundary =
+                    FrameTreeBoundary::kIgnoreFence) const;
 
   // Returns the top-most frame in the hierarchy containing this frame.
-  Frame* Top();
+  Frame* Top(
+      FrameTreeBoundary frame_tree_boundary = FrameTreeBoundary::kIgnoreFence);
 
   // Returns the first child frame.
-  Frame* FirstChild() const { return first_child_; }
+  Frame* FirstChild(FrameTreeBoundary frame_tree_boundary =
+                        FrameTreeBoundary::kIgnoreFence) const;
 
   // Returns the previous sibling frame.
   Frame* PreviousSibling() const { return previous_sibling_; }
@@ -373,6 +382,14 @@ class CORE_EXPORT Frame : public GarbageCollected<Frame> {
     DCHECK_NE(!!provisional_frame, !!provisional_frame_);
     provisional_frame_ = provisional_frame;
   }
+
+  // Returns false if fenced frames are disabled. Returns true if the
+  // feature is enabled and if |this| or any of its ancestor nodes is a
+  // fenced frame. For MPArch based fenced frames returns the value of
+  // Page::IsMainFrameFencedFrameRoot and for shadowDOM based fenced frames
+  // returns true, if the FrameTree that this frame is in is not the outermost
+  // FrameTree.
+  bool IsInFencedFrameTree() const;
 
  protected:
   // |inheriting_agent_factory| should basically be set to the parent frame or

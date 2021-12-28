@@ -28,7 +28,6 @@
 #include <vector>
 
 #include "base/base_export.h"
-#include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "base/win/windows_types.h"
 
@@ -120,7 +119,9 @@ BASE_EXPORT void SetAbortBehaviorForCrashReporting();
 
 // Checks whether the supplied |hwnd| is in Windows 10 tablet mode. Will return
 // false on versions below 10.
-BASE_EXPORT bool IsWindows10TabletMode(HWND hwnd);
+// While tablet mode isn't officially supported in Windows 11, the function will
+// make an attempt to inspect other signals for tablet mode.
+BASE_EXPORT bool IsWindows10OrGreaterTabletMode(HWND hwnd);
 
 // A tablet is a device that is touch enabled and also is being used
 // "like a tablet". This is used by the following:
@@ -231,11 +232,15 @@ BASE_EXPORT bool IsCurrentSessionRemote();
 class BASE_EXPORT ScopedDomainStateForTesting {
  public:
   explicit ScopedDomainStateForTesting(bool state);
+
+  ScopedDomainStateForTesting(const ScopedDomainStateForTesting&) = delete;
+  ScopedDomainStateForTesting& operator=(const ScopedDomainStateForTesting&) =
+      delete;
+
   ~ScopedDomainStateForTesting();
 
  private:
   bool initial_state_;
-  DISALLOW_COPY_AND_ASSIGN(ScopedDomainStateForTesting);
 };
 
 // Allows changing the management registration state for the life time of the
@@ -243,11 +248,16 @@ class BASE_EXPORT ScopedDomainStateForTesting {
 class BASE_EXPORT ScopedDeviceRegisteredWithManagementForTesting {
  public:
   explicit ScopedDeviceRegisteredWithManagementForTesting(bool state);
+
+  ScopedDeviceRegisteredWithManagementForTesting(
+      const ScopedDeviceRegisteredWithManagementForTesting&) = delete;
+  ScopedDeviceRegisteredWithManagementForTesting& operator=(
+      const ScopedDeviceRegisteredWithManagementForTesting&) = delete;
+
   ~ScopedDeviceRegisteredWithManagementForTesting();
 
  private:
   bool initial_state_;
-  DISALLOW_COPY_AND_ASSIGN(ScopedDeviceRegisteredWithManagementForTesting);
 };
 
 }  // namespace win

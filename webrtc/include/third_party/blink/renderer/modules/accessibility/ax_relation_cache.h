@@ -5,7 +5,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_ACCESSIBILITY_AX_RELATION_CACHE_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_ACCESSIBILITY_AX_RELATION_CACHE_H_
 
-#include "base/macros.h"
 #include "third_party/blink/renderer/modules/accessibility/ax_object_cache_impl.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
@@ -20,6 +19,10 @@ class AXRelationCache {
 
  public:
   explicit AXRelationCache(AXObjectCacheImpl*);
+
+  AXRelationCache(const AXRelationCache&) = delete;
+  AXRelationCache& operator=(const AXRelationCache&) = delete;
+
   virtual ~AXRelationCache();
 
   //
@@ -178,8 +181,6 @@ class AXRelationCache {
   // Do an initial scan of the document to find any relationships.
   // We'll catch any subsequent ones when attributes change.
   void DoInitialDocumentScan();
-
-  DISALLOW_COPY_AND_ASSIGN(AXRelationCache);
 };
 
 }  // namespace blink

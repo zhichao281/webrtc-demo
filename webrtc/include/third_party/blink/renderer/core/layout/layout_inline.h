@@ -148,7 +148,7 @@ class CORE_EXPORT LayoutInline : public LayoutBoxModelObject {
   LayoutUnit MarginTop() const final;
   LayoutUnit MarginBottom() const final;
 
-  FloatRect LocalBoundingBoxRectForAccessibility() const final;
+  gfx::RectF LocalBoundingBoxRectForAccessibility() const final;
 
   PhysicalRect PhysicalLinesBoundingBox() const;
   PhysicalRect PhysicalVisualOverflowRect() const final;
@@ -200,7 +200,7 @@ class CORE_EXPORT LayoutInline : public LayoutBoxModelObject {
 
   void AddOutlineRects(Vector<PhysicalRect>&,
                        const PhysicalOffset& additional_offset,
-                       NGOutlineType) const final;
+                       NGOutlineType) const override;
   // The following methods are called from the container if it has already added
   // outline rects for line boxes and/or children of this LayoutInline.
   void AddOutlineRectsForChildrenAndContinuations(
@@ -386,14 +386,8 @@ class CORE_EXPORT LayoutInline : public LayoutBoxModelObject {
 
   LayoutUnit OffsetLeft(const Element*) const final;
   LayoutUnit OffsetTop(const Element*) const final;
-  LayoutUnit OffsetWidth() const final {
-    NOT_DESTROYED();
-    return PhysicalLinesBoundingBox().Width();
-  }
-  LayoutUnit OffsetHeight() const final {
-    NOT_DESTROYED();
-    return PhysicalLinesBoundingBox().Height();
-  }
+  LayoutUnit OffsetWidth() const final;
+  LayoutUnit OffsetHeight() const final;
 
   // This method differs from VisualOverflowRect() in that
   // 1. it doesn't include the rects for culled inline boxes, which aren't
@@ -408,10 +402,10 @@ class CORE_EXPORT LayoutInline : public LayoutBoxModelObject {
 
   PositionWithAffinity PositionForPoint(const PhysicalOffset&) const override;
 
-  IntRect BorderBoundingBox() const final {
+  gfx::Rect BorderBoundingBox() const final {
     NOT_DESTROYED();
-    IntRect bounding_box = EnclosingIntRect(PhysicalLinesBoundingBox());
-    return IntRect(0, 0, bounding_box.Width(), bounding_box.Height());
+    gfx::Rect bounding_box = ToEnclosingRect(PhysicalLinesBoundingBox());
+    return gfx::Rect(bounding_box.size());
   }
 
   virtual InlineFlowBox* CreateInlineFlowBox();  // Subclassed by SVG and Ruby

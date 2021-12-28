@@ -11,6 +11,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "gpu/command_buffer/common/mailbox.h"
 #include "gpu/command_buffer/common/sync_token.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_color_params.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/dawn_control_client_holder.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/webgpu_resource_provider_cache.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
@@ -29,7 +30,7 @@ class PLATFORM_EXPORT WebGPUMailboxTexture
       WGPUDevice device,
       WGPUTextureUsage usage,
       scoped_refptr<StaticBitmapImage> image,
-      CanvasColorSpace color_space,
+      PredefinedColorSpace color_space,
       SkColorType color_type);
 
   static scoped_refptr<WebGPUMailboxTexture> FromCanvasResource(
@@ -37,6 +38,15 @@ class PLATFORM_EXPORT WebGPUMailboxTexture
       WGPUDevice device,
       WGPUTextureUsage usage,
       std::unique_ptr<RecyclableCanvasResource> recyclable_canvas_resource);
+
+  static scoped_refptr<WebGPUMailboxTexture> FromExistingMailbox(
+      scoped_refptr<DawnControlClientHolder> dawn_control_client,
+      WGPUDevice device,
+      WGPUTextureUsage usage,
+      const gpu::Mailbox& mailbox,
+      const gpu::SyncToken& sync_token,
+      gpu::webgpu::MailboxFlags mailbox_flags =
+          gpu::webgpu::WEBGPU_MAILBOX_NONE);
 
   ~WebGPUMailboxTexture();
 
@@ -52,6 +62,7 @@ class PLATFORM_EXPORT WebGPUMailboxTexture
       WGPUTextureUsage usage,
       const gpu::Mailbox& mailbox,
       const gpu::SyncToken& sync_token,
+      gpu::webgpu::MailboxFlags mailbox_flags,
       base::OnceCallback<void(const gpu::SyncToken&)> destroy_callback,
       std::unique_ptr<RecyclableCanvasResource> recyclable_canvas_resource);
 

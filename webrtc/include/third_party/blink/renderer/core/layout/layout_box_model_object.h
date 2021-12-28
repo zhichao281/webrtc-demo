@@ -185,7 +185,7 @@ class CORE_EXPORT LayoutBoxModelObject : public LayoutObject {
 
   // This will work on inlines to return the bounding box of all of the lines'
   // border boxes.
-  virtual IntRect BorderBoundingBox() const = 0;
+  virtual gfx::Rect BorderBoundingBox() const = 0;
 
   virtual PhysicalRect PhysicalVisualOverflowRect() const = 0;
 
@@ -511,8 +511,6 @@ class CORE_EXPORT LayoutBoxModelObject : public LayoutObject {
       LineDirectionMode,
       LinePositionMode = kPositionOnContainingLine) const = 0;
 
-  void ContentChanged(ContentChangeType);
-
   // Returns true if the background is painted opaque in the given rect.
   // The query rect is given in local coordinate system.
   virtual bool BackgroundIsKnownToBeOpaqueInRect(const PhysicalRect&) const {
@@ -545,7 +543,7 @@ class CORE_EXPORT LayoutBoxModelObject : public LayoutObject {
                      MapCoordinatesFlags mode = 0) const override;
 
   // Returns the bounodiong box of all quads returned by LocalQuads.
-  FloatRect LocalBoundingBoxFloatRect() const;
+  gfx::RectF LocalBoundingBoxRectF() const;
 
   virtual LayoutUnit OverrideContainingBlockContentWidth() const {
     NOT_DESTROYED();

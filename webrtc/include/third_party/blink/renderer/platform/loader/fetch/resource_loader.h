@@ -33,15 +33,15 @@
 #include "base/containers/span.h"
 #include "base/feature_list.h"
 #include "base/gtest_prod_util.h"
-#include "base/single_thread_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 #include "mojo/public/cpp/base/big_buffer.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "services/network/public/mojom/fetch_api.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/blob/blob_registry.mojom-blink.h"
-#include "third_party/blink/public/mojom/frame/back_forward_cache_controller.mojom-blink-forward.h"
 #include "third_party/blink/public/platform/web_url_loader.h"
 #include "third_party/blink/public/platform/web_url_loader_client.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
+#include "third_party/blink/renderer/platform/heap/prefinalizer.h"
 #include "third_party/blink/renderer/platform/loader/fetch/data_pipe_bytes_consumer.h"
 #include "third_party/blink/renderer/platform/loader/fetch/loader_freeze_mode.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource.h"
@@ -134,7 +134,8 @@ class PLATFORM_EXPORT ResourceLoader final
                           const WebString& new_method,
                           const WebURLResponse& passed_redirect_response,
                           bool& has_devtools_request_id,
-                          std::vector<std::string>* removed_headers) override;
+                          std::vector<std::string>* removed_headers,
+                          bool insecure_scheme_was_upgraded) override;
   void DidSendData(uint64_t bytes_sent,
                    uint64_t total_bytes_to_be_sent) override;
   void DidReceiveResponse(const WebURLResponse&) override;

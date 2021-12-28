@@ -135,6 +135,10 @@ class CORE_EXPORT CSSParserImpl {
       wtf_size_t offset,
       const CSSParserContext*);
 
+  // Consumes a value from the remaining tokens in the (possibly bounded)
+  // stream.
+  //
+  // See also CSSParserTokenStream::Boundary.
   static CSSTokenizedValue ConsumeValue(CSSParserTokenStream&);
 
   static bool RemoveImportantAnnotationIfPresent(CSSTokenizedValue&);
@@ -156,7 +160,7 @@ class CORE_EXPORT CSSParserImpl {
   StyleRuleBase* ConsumeQualifiedRule(CSSParserTokenStream&, AllowedRulesType);
 
   static StyleRuleCharset* ConsumeCharsetRule(CSSParserTokenStream&);
-  StyleRuleImport* ConsumeImportRule(AtomicString prelude_uri,
+  StyleRuleImport* ConsumeImportRule(const AtomicString& prelude_uri,
                                      CSSParserTokenStream&);
   StyleRuleNamespace* ConsumeNamespaceRule(CSSParserTokenStream&);
   StyleRuleMedia* ConsumeMediaRule(CSSParserTokenStream&);

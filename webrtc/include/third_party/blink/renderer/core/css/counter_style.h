@@ -6,6 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_COUNTER_STYLE_H_
 
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 
@@ -86,6 +87,10 @@ class CORE_EXPORT CounterStyle final : public GarbageCollected<CounterStyle> {
   String GetPrefix() const { return prefix_; }
   String GetSuffix() const { return suffix_; }
 
+  String GenerateRepresentationWithPrefixAndSuffix(int value) const {
+    return prefix_ + GenerateRepresentation(value) + suffix_;
+  }
+
   AtomicString GetExtendsName() const { return extends_name_; }
   const CounterStyle& GetExtendedStyle() const { return *extended_style_; }
   bool HasUnresolvedExtends() const {
@@ -116,6 +121,13 @@ class CORE_EXPORT CounterStyle final : public GarbageCollected<CounterStyle> {
     return *speak_as_style_;
   }
 
+  // Converts kReference and kAuto to one of the remaining values.
+  CounterStyleSpeakAs EffectiveSpeakAs() const;
+
+  // Generates the alternative text for the given counter value according to the
+  // 'speak-as' descriptor. Consumed by accessibility.
+  String GenerateTextAlternative(int value) const;
+
   void Trace(Visitor*) const;
 
   explicit CounterStyle(const StyleRuleCounterStyle& rule);
@@ -139,6 +151,8 @@ class CORE_EXPORT CounterStyle final : public GarbageCollected<CounterStyle> {
   String GenerateFallbackRepresentation(int value) const;
 
   String IndexesToString(const Vector<wtf_size_t>& symbol_indexes) const;
+
+  String GenerateTextAlternativeWithoutPrefixSuffix(int value) const;
 
   // The corresponding style rule in CSS.
   Member<const StyleRuleCounterStyle> style_rule_;

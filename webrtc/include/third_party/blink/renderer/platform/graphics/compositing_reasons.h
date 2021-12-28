@@ -23,6 +23,7 @@ using CompositingReasons = uint64_t;
   V(Canvas)                                                                   \
   V(Plugin)                                                                   \
   V(IFrame)                                                                   \
+  V(DocumentTransitionContentElement)                                         \
   /* This is used for pre-CompositAfterPaint + CompositeSVG only. */          \
   V(SVGRoot)                                                                  \
   V(BackfaceVisibilityHidden)                                                 \
@@ -34,15 +35,19 @@ using CompositingReasons = uint64_t;
   V(FixedPosition)                                                            \
   V(StickyPosition)                                                           \
   V(OverflowScrolling)                                                        \
-  V(OverflowScrollingParent)                                                  \
   V(OutOfFlowClipping)                                                        \
   V(VideoOverlay)                                                             \
   V(WillChangeTransform)                                                      \
   V(WillChangeOpacity)                                                        \
   V(WillChangeFilter)                                                         \
   V(WillChangeBackdropFilter)                                                 \
+                                                                              \
   /* Reasons that depend on ancestor properties */                            \
   V(BackfaceInvisibility3DAncestor)                                           \
+  /* TODO(crbug.com/1256990): Transform3DSceneLeaf today depends only on the  \
+     element and its properties, but in the future it could be optimized      \
+     to consider descendants and moved to the subtree group below. */         \
+  V(Transform3DSceneLeaf)                                                     \
   /* This flag is needed only when none of the explicit kWillChange* reasons  \
      are set. */                                                              \
   V(WillChangeOther)                                                          \
@@ -57,7 +62,6 @@ using CompositingReasons = uint64_t;
   V(AssumedOverlap)                                                           \
   V(Overlap)                                                                  \
   V(NegativeZIndexChildren)                                                   \
-  V(SquashingDisallowed)                                                      \
                                                                               \
   /* Subtree reasons that require knowing what the status of your subtree is  \
      before knowing the answer. */                                            \
@@ -135,10 +139,10 @@ class PLATFORM_EXPORT CompositingReason {
     kComboScrollDependentPosition = kFixedPosition | kStickyPosition,
 
     kComboAllDirectNonStyleDeterminedReasons =
-        kVideo | kCanvas | kPlugin | kIFrame | kSVGRoot |
-        kOverflowScrollingParent | kOutOfFlowClipping | kVideoOverlay |
-        kXrOverlay | kRoot | kRootScroller | kComboScrollDependentPosition |
-        kAffectedByOuterViewportBoundsDelta | kBackfaceInvisibility3DAncestor |
+        kVideo | kCanvas | kPlugin | kIFrame | kSVGRoot | kOutOfFlowClipping |
+        kVideoOverlay | kXrOverlay | kRoot | kRootScroller |
+        kComboScrollDependentPosition | kAffectedByOuterViewportBoundsDelta |
+        kBackfaceInvisibility3DAncestor | kTransform3DSceneLeaf |
         kDocumentTransitionSharedElement,
 
     kComboAllDirectReasons = kComboAllDirectStyleDeterminedReasons |
@@ -161,9 +165,6 @@ class PLATFORM_EXPORT CompositingReason {
                                       kComboCompositedDescendants |
                                       kCombo3DDescendants,
 
-    kComboSquashableReasons =
-        kOverlap | kAssumedOverlap | kOverflowScrollingParent,
-
     kPreventingSubpixelAccumulationReasons = kWillChangeTransform,
 
     kDirectReasonsForPaintOffsetTranslationProperty =
@@ -178,34 +179,13 @@ class PLATFORM_EXPORT CompositingReason {
     kDirectReasonsForEffectProperty =
         kActiveOpacityAnimation | kWillChangeOpacity | kBackdropFilter |
         kWillChangeBackdropFilter | kActiveBackdropFilterAnimation |
-        kDocumentTransitionSharedElement,
+        kDocumentTransitionSharedElement | kTransform3DSceneLeaf,
     kDirectReasonsForFilterProperty =
         kActiveFilterAnimation | kWillChangeFilter,
     kDirectReasonsForBackdropFilter = kBackdropFilter |
                                       kActiveBackdropFilterAnimation |
                                       kWillChangeBackdropFilter,
   };
-};
-
-// Any reasons other than overlap or assumed overlap will require the layer to
-// be separately compositing.
-inline bool RequiresCompositing(CompositingReasons reasons) {
-  return reasons & ~CompositingReason::kComboSquashableReasons;
-}
-
-// If the layer has overlap or assumed overlap, but no other reasons, then it
-// should be squashed.
-inline bool RequiresSquashing(CompositingReasons reasons) {
-  return !RequiresCompositing(reasons) &&
-         (reasons & CompositingReason::kComboSquashableReasons);
-}
-
-struct CompositingReasonsStats {
-  int overlap_layers = 0;
-  int active_animation_layers = 0;
-  int assumed_overlap_layers = 0;
-  int indirect_composited_layers = 0;
-  int total_composited_layers = 0;
 };
 
 }  // namespace blink

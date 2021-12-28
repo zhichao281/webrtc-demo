@@ -31,17 +31,17 @@ static AOM_INLINE void check_reset_rc_flag(AV1_COMP *cpi) {
           rc->avg_frame_bandwidth < (rc->prev_avg_frame_bandwidth >> 1)) {
         rc->rc_1_frame = 0;
         rc->rc_2_frame = 0;
-        rc->bits_off_target = p_rc->optimal_buffer_level;
-        rc->buffer_level = p_rc->optimal_buffer_level;
+        p_rc->bits_off_target = p_rc->optimal_buffer_level;
+        p_rc->buffer_level = p_rc->optimal_buffer_level;
       }
     }
   }
 }
 
-static AOM_INLINE void set_rc_buffer_sizes(AV1_COMP *cpi) {
-  RATE_CONTROL *rc = &cpi->rc;
-  PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
-  const RateControlCfg *const rc_cfg = &cpi->oxcf.rc_cfg;
+static AOM_INLINE void set_primary_rc_buffer_sizes(const AV1EncoderConfig *oxcf,
+                                                   AV1_PRIMARY *ppi) {
+  PRIMARY_RATE_CONTROL *p_rc = &ppi->p_rc;
+  const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
 
   const int64_t bandwidth = rc_cfg->target_bandwidth;
   const int64_t starting = rc_cfg->starting_buffer_level_ms;
@@ -56,8 +56,9 @@ static AOM_INLINE void set_rc_buffer_sizes(AV1_COMP *cpi) {
 
   // Under a configuration change, where maximum_buffer_size may change,
   // keep buffer level clipped to the maximum allowed buffer size.
-  rc->bits_off_target = AOMMIN(rc->bits_off_target, p_rc->maximum_buffer_size);
-  rc->buffer_level = AOMMIN(rc->buffer_level, p_rc->maximum_buffer_size);
+  p_rc->bits_off_target =
+      AOMMIN(p_rc->bits_off_target, p_rc->maximum_buffer_size);
+  p_rc->buffer_level = AOMMIN(p_rc->buffer_level, p_rc->maximum_buffer_size);
 }
 
 static AOM_INLINE void config_target_level(AV1_COMP *const cpi,
@@ -300,6 +301,35 @@ static AOM_INLINE void recode_loop_update_q(
       }
     }
     if (*low_cr_seen) return;
+  }
+
+  if (cpi->ppi->level_params.keep_level_stats &&
+      !is_stat_generation_stage(cpi)) {
+    // Initialize level info. at the beginning of each sequence.
+    if (cm->current_frame.frame_type == KEY_FRAME &&
+        cpi->ppi->gf_group.refbuf_state[cpi->gf_frame_index] == REFBUF_RESET) {
+      av1_init_level_info(cpi);
+    }
+    const AV1LevelParams *const level_params = &cpi->ppi->level_params;
+    // TODO(any): currently only checking operating point 0
+    const AV1LevelInfo *const level_info = level_params->level_info[0];
+    const DECODER_MODEL *const decoder_models = level_info->decoder_models;
+    const AV1_LEVEL target_level = level_params->target_seq_level_idx[0];
+
+    if (target_level < SEQ_LEVELS) {
+      DECODER_MODEL_STATUS status = av1_decoder_model_try_smooth_buf(
+          cpi, rc->projected_frame_size, &decoder_models[target_level]);
+
+      if ((status == SMOOTHING_BUFFER_UNDERFLOW ||
+           status == SMOOTHING_BUFFER_OVERFLOW) &&
+          *q < rc->worst_quality) {
+        *q = AOMMIN(*q + 10, rc->worst_quality);
+        *q_low = AOMMAX(*q, *q_low);
+        *q_high = AOMMAX(*q, *q_high);
+        *loop = 1;
+        return;
+      }
+    }
   }
 
   if (rc_cfg->mode == AOM_Q) return;

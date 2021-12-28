@@ -10,10 +10,13 @@
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 
+namespace gfx {
+class Rect;
+class RectF;
+}
+
 namespace blink {
 
-class FloatRect;
-class IntRect;
 class LayoutRect;
 
 class PLATFORM_EXPORT DoubleRect {
@@ -25,8 +28,8 @@ class PLATFORM_EXPORT DoubleRect {
       : location_(location), size_(size) {}
   constexpr DoubleRect(double x, double y, double width, double height)
       : location_(DoublePoint(x, y)), size_(DoubleSize(width, height)) {}
-  DoubleRect(const IntRect&);
-  DoubleRect(const FloatRect&);
+  DoubleRect(const gfx::Rect&);
+  DoubleRect(const gfx::RectF&);
   DoubleRect(const LayoutRect&);
 
   constexpr DoublePoint Location() const { return location_; }
@@ -80,12 +83,12 @@ class PLATFORM_EXPORT DoubleRect {
   DoubleSize size_;
 };
 
-PLATFORM_EXPORT IntRect EnclosingIntRect(const DoubleRect&);
+PLATFORM_EXPORT gfx::Rect ToEnclosingRect(const DoubleRect&);
 
-// Returns a valid IntRect contained within the given DoubleRect.
-PLATFORM_EXPORT IntRect EnclosedIntRect(const DoubleRect&);
+// Returns a valid gfx::Rect contained within the given DoubleRect.
+PLATFORM_EXPORT gfx::Rect ToEnclosedRect(const DoubleRect&);
 
-PLATFORM_EXPORT IntRect RoundedIntRect(const DoubleRect&);
+PLATFORM_EXPORT gfx::Rect RoundedIntRect(const DoubleRect&);
 
 PLATFORM_EXPORT std::ostream& operator<<(std::ostream&, const DoubleRect&);
 

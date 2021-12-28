@@ -6,7 +6,6 @@
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_PAINT_DISPLAY_ITEM_H_
 
 #include "base/dcheck_is_on.h"
-#include "third_party/blink/renderer/platform/geometry/int_rect.h"
 #include "third_party/blink/renderer/platform/graphics/graphics_types.h"
 #include "third_party/blink/renderer/platform/graphics/paint_invalidation_reason.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
@@ -14,6 +13,7 @@
 #include "third_party/blink/renderer/platform/wtf/assertions.h"
 #include "third_party/blink/renderer/platform/wtf/hash_functions.h"
 #include "third_party/blink/renderer/platform/wtf/hash_traits.h"
+#include "ui/gfx/geometry/rect.h"
 
 #if DCHECK_IS_ON()
 #include "third_party/blink/renderer/platform/json/json_values.h"
@@ -105,11 +105,11 @@ class PLATFORM_EXPORT DisplayItem {
     kForeignLayerPlugin,
     kForeignLayerVideo,
     kForeignLayerRemoteFrame,
-    kForeignLayerContentsWrapper,
     kForeignLayerLinkHighlight,
     kForeignLayerViewportScroll,
     kForeignLayerViewportScrollbar,
-    kForeignLayerLast = kForeignLayerViewportScrollbar,
+    kForeignLayerDocumentTransitionContent,
+    kForeignLayerLast = kForeignLayerDocumentTransitionContent,
 
     kClipPaintPhaseFirst,
     kClipPaintPhaseLast = kClipPaintPhaseFirst + kPaintPhaseMax,
@@ -132,6 +132,9 @@ class PLATFORM_EXPORT DisplayItem {
     // include content that does not paint. Hit test data ensure a layer exists
     // and is sized properly even if no content would otherwise be painted.
     kHitTest,
+
+    // Used for paint chunks that contain region capture data.
+    kRegionCapture,
 
     // Used both for specifying the paint-order scroll location, and for non-
     // composited scroll hit testing (see: hit_test_data.h).
@@ -208,7 +211,7 @@ class PLATFORM_EXPORT DisplayItem {
 
   // The bounding box of all pixels of this display item, in the transform space
   // of the containing paint chunk.
-  const IntRect& VisualRect() const { return visual_rect_; }
+  const gfx::Rect& VisualRect() const { return visual_rect_; }
 
   RasterEffectOutset GetRasterEffectOutset() const {
     return static_cast<RasterEffectOutset>(raster_effect_outset_);
@@ -290,7 +293,7 @@ class PLATFORM_EXPORT DisplayItem {
   // later paint cycles when |client| may have been destroyed.
   DisplayItem(const DisplayItemClientId client_id,
               Type type,
-              const IntRect& visual_rect,
+              const gfx::Rect& visual_rect,
               RasterEffectOutset raster_effect_outset,
               PaintInvalidationReason paint_invalidation_reason,
               bool draws_content = false)
@@ -325,7 +328,7 @@ class PLATFORM_EXPORT DisplayItem {
   }
 
   DisplayItemClientId client_id_;
-  IntRect visual_rect_;
+  gfx::Rect visual_rect_;
   wtf_size_t fragment_;
   // paint_invalidation_reason_ is set during construction (or, in the case of a
   // DisplayItem copied from the cache, shortly thereafter). Once set, it is

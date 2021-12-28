@@ -530,8 +530,6 @@ class BASE_EXPORT Value {
   // If the current object can be converted into the given type, the value is
   // returned through the `out_value` parameter and true is returned;
   // otherwise, false is returned and `out_value` is unchanged.
-  // DEPRECATED, use `GetIfBool()` instead.
-  bool GetAsBoolean(bool* out_value) const;
   // DEPRECATED, use `GetIfString()` instead.
   bool GetAsString(std::string* out_value) const;
   bool GetAsString(std::u16string* out_value) const;
@@ -647,10 +645,6 @@ class BASE_EXPORT DictionaryValue : public Value {
   // DEPRECATED, use `Value::FindKey(key)` instead.
   bool HasKey(StringPiece key) const;
 
-  // Clears any current contents of this dictionary.
-  // DEPRECATED, use `Value::DictClear()` instead.
-  void Clear();
-
   // Sets the Value associated with the given path starting from this object.
   // A path has the form "<key>" or "<key>.<key>.[...]", where "." indexes
   // into the next DictionaryValue down.  Obviously, "." can't be used
@@ -666,18 +660,18 @@ class BASE_EXPORT DictionaryValue : public Value {
   // value at that path, even if it has a different type.
   // DEPRECATED, use `Value::SetBoolKey()` or `Value::SetBoolPath()`.
   Value* SetBoolean(StringPiece path, bool in_value);
-  // DEPRECATED, use `Value::SetIntPath()`.
+  // DEPRECATED, use `Value::SetIntKey()` or `Value::SetBoolPath()`.
   Value* SetInteger(StringPiece path, int in_value);
-  // DEPRECATED, use `Value::SetDoublePath()`.
+  // DEPRECATED, use `Value::SetDoubleKey()` or `Value::SetDoublePath()`.
   Value* SetDouble(StringPiece path, double in_value);
-  // DEPRECATED, use `Value::SetStringPath()`.
+  // DEPRECATED, use `Value::SetStringKey()` or `Value::SetStringPath()`.
   Value* SetString(StringPiece path, StringPiece in_value);
-  // DEPRECATED, use `Value::SetStringPath()`.
+  // DEPRECATED, use `Value::SetStringKey()` or `Value::SetStringPath()`.
   Value* SetString(StringPiece path, const std::u16string& in_value);
-  // DEPRECATED, use `Value::SetPath()`.
+  // DEPRECATED, use `Value::SetKey()` or `Value::SetPath()`.
   DictionaryValue* SetDictionary(StringPiece path,
                                  std::unique_ptr<DictionaryValue> in_value);
-  // DEPRECATED, use `Value::SetPath()`.
+  // DEPRECATED, use `Value::SetKey()` or `Value::SetPath()`.
   ListValue* SetList(StringPiece path, std::unique_ptr<ListValue> in_value);
 
   // Like Set(), but without special treatment of '.'.  This allows e.g. URLs to
@@ -694,42 +688,38 @@ class BASE_EXPORT DictionaryValue : public Value {
   // Otherwise, it will return false and `out_value` will be untouched.
   // Note that the dictionary always owns the value that's returned.
   // `out_value` is optional and will only be set if non-NULL.
-  // DEPRECATED, use `Value::FindPath(path)` instead.
+  // DEPRECATED, use `Value::FindKey(key)` or `Value::FindPath(path)` instead.
   bool Get(StringPiece path, const Value** out_value) const;
-  // DEPRECATED, use `Value::FindPath(path)` instead.
+  // DEPRECATED, use `Value::FindKey(key)` or `Value::FindPath(path)` instead.
   bool Get(StringPiece path, Value** out_value);
 
   // These are convenience forms of `Get()`.  The value will be retrieved
   // and the return value will be true if the path is valid and the value at
   // the end of the path can be returned in the form specified.
   // `out_value` is optional and will only be set if non-NULL.
-  // DEPRECATED, use `Value::FindBoolPath(path)` instead.
-  bool GetBoolean(StringPiece path, bool* out_value) const;
-  // DEPRECATED, use `Value::FindIntPath(path)` instead.
+  // DEPRECATED, use `Value::FindIntKey(key)` or `Value::FindIntPath(path)`
+  // instead.
   bool GetInteger(StringPiece path, int* out_value) const;
-  // Values of both type Type::INTEGER and Type::DOUBLE can be obtained as
-  // doubles.
-  // DEPRECATED, use `Value::FindDoublePath(path)`.
-  bool GetDouble(StringPiece path, double* out_value) const;
-  // DEPRECATED, use `Value::FindStringPath(path)` instead.
+  // DEPRECATED, use `Value::FindStringKey(key)` or
+  // `Value::FindStringPath(path)` instead.
   bool GetString(StringPiece path, std::string* out_value) const;
-  // DEPRECATED, use `Value::FindStringPath(path)` instead.
+  // DEPRECATED, use `Value::FindStringKey(key)` or
+  // `Value::FindStringPath(path)` instead.
   bool GetString(StringPiece path, std::u16string* out_value) const;
-  // DEPRECATED, use `Value::FindString(path)` and `IsAsciiString()` instead.
+  // DEPRECATED, use `Value::FindString(path)` or `Value::FindStPath(path)`, and
+  // `IsAsciiString()` instead.
   bool GetStringASCII(StringPiece path, std::string* out_value) const;
-  // DEPRECATED, use `Value::FindBlobPath(path)` instead.
-  bool GetBinary(StringPiece path, const Value** out_value) const;
-  // DEPRECATED, use `Value::FindBlobPath(path)` instead.
-  bool GetBinary(StringPiece path, Value** out_value);
-  // DEPRECATED, use `Value::FindPath(path)` and Value's Dictionary API
-  // instead.
+  // DEPRECATED, use `Value::FindDictKey(key)` or `Value::FindDictPah(path)`,
+  // and Value's Dictionary API instead.
   bool GetDictionary(StringPiece path, const DictionaryValue** out_value) const;
-  // DEPRECATED, use `Value::FindPath(path)` and Value's Dictionary API
-  // instead.
+  // DEPRECATED, use `Value::FindDictKey(key)` or `Value::FindDictPath(path)`,
+  // and Value's Dictionary API instead.
   bool GetDictionary(StringPiece path, DictionaryValue** out_value);
-  // DEPRECATED, use `Value::FindPath(path)` and `Value::GetList()` instead.
+  // DEPRECATED, use `Value::FindListKey(key)` or `Value::FindListPath(path)`,
+  // and `Value::GetList()` instead.
   bool GetList(StringPiece path, const ListValue** out_value) const;
-  // DEPRECATED, use `Value::FindPath(path)` and `Value::GetList()` instead.
+  // DEPRECATED, use `Value::FindListKey(key)` or `Value::FindListPath(path)`,
+  // and `Value::GetList()` instead.
   bool GetList(StringPiece path, ListValue** out_value);
 
   // Like `Get()`, but without special treatment of '.'.  This allows e.g. URLs
@@ -796,18 +786,6 @@ class BASE_EXPORT ListValue : public Value {
   explicit ListValue(span<const Value> in_list);
   explicit ListValue(ListStorage&& in_list) noexcept;
 
-  // Returns the number of Values in this list.
-  // DEPRECATED, use `GetList()::size()` instead.
-  size_t GetSize() const { return list().size(); }
-
-  // Sets the list item at the given index to be the Value specified by
-  // the value given.  If the index beyond the current end of the list, null
-  // Values will be used to pad out the list.
-  // Returns true if successful, or false if the index was negative or
-  // the value is a null pointer.
-  // DEPRECATED, use `GetList()::operator[] instead.
-  bool Set(size_t index, std::unique_ptr<Value> in_value);
-
   // Gets the Value at the given index.  Modifies `out_value` (and returns true)
   // only if the index falls within the current list range.
   // Note that the list always owns the Value passed out via `out_value`.
@@ -820,11 +798,6 @@ class BASE_EXPORT ListValue : public Value {
   // only if the index is valid and the Value at that index can be returned
   // in the specified form.
   // `out_value` is optional and will only be set if non-NULL.
-  // DEPRECATED, use `GetList()::operator[]::GetBool()` instead.
-  bool GetBoolean(size_t index, bool* out_value) const;
-  // DEPRECATED, use `GetList()::operator[]::GetString()` instead.
-  bool GetString(size_t index, std::string* out_value) const;
-  bool GetString(size_t index, std::u16string* out_value) const;
 
   bool GetDictionary(size_t index, const DictionaryValue** out_value) const;
   bool GetDictionary(size_t index, DictionaryValue** out_value);
@@ -833,11 +806,6 @@ class BASE_EXPORT ListValue : public Value {
   // Appends a Value to the end of the list.
   // DEPRECATED, use `Value::Append()` instead.
   void Append(std::unique_ptr<Value> in_value);
-
-  // Convenience forms of Append.
-  // DEPRECATED, use `Value::Append()` instead.
-  void AppendString(StringPiece in_value);
-  void AppendString(const std::u16string& in_value);
 
   // Swaps contents with the `other` list.
   // DEPRECATED, use `GetList()::swap()` instead.
@@ -895,6 +863,9 @@ class BASE_EXPORT ValueDeserializer {
   //  - Values 1000 and above mean an error in the metadata (i.e. context). The
   //    file could not be read, the network is down, etc.
   //  - Negative values are reserved.
+  //
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
   enum ErrorCode {
     kErrorCodeNoError = 0,
     // kErrorCodeInvalidFormat is a generic error code for "the data is not in
