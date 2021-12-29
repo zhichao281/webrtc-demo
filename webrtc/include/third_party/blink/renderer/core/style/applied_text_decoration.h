@@ -17,15 +17,13 @@ class CORE_EXPORT AppliedTextDecoration {
   DISALLOW_NEW();
 
  public:
-  AppliedTextDecoration(TextDecorationLine,
+  AppliedTextDecoration(TextDecoration,
                         ETextDecorationStyle,
                         Color,
                         TextDecorationThickness,
                         Length);
 
-  TextDecorationLine Lines() const {
-    return static_cast<TextDecorationLine>(lines_);
-  }
+  TextDecoration Lines() const { return static_cast<TextDecoration>(lines_); }
   ETextDecorationStyle Style() const {
     return static_cast<ETextDecorationStyle>(style_);
   }
@@ -41,7 +39,7 @@ class CORE_EXPORT AppliedTextDecoration {
   }
 
  private:
-  unsigned lines_ : kTextDecorationLineBits;
+  unsigned lines_ : kTextDecorationBits;
   unsigned style_ : 3;  // ETextDecorationStyle
   Color color_;
   TextDecorationThickness thickness_;

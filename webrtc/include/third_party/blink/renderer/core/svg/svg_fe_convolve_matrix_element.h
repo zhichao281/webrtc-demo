@@ -61,8 +61,8 @@ class SVGFEConvolveMatrixElement final
   void Trace(Visitor*) const override;
 
  private:
-  gfx::Size MatrixOrder() const;
-  gfx::Point TargetPoint() const;
+  IntSize MatrixOrder() const;
+  IntPoint TargetPoint() const;
   float ComputeDivisor() const;
 
   bool SetFilterEffectAttribute(FilterEffect*, const QualifiedName&) override;

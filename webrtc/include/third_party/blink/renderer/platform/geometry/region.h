@@ -28,11 +28,10 @@
 
 #include "base/dcheck_is_on.h"
 #include "cc/base/region.h"
+#include "third_party/blink/renderer/platform/geometry/int_rect.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
-#include "ui/gfx/geometry/rect.h"
-#include "ui/gfx/geometry/vector2d.h"
 
 namespace cc {
 class Region;
@@ -51,24 +50,24 @@ class PLATFORM_EXPORT Region {
 
  public:
   Region();
-  Region(const gfx::Rect&);
+  Region(const IntRect&);
 
-  gfx::Rect Bounds() const { return bounds_; }
+  IntRect Bounds() const { return bounds_; }
   bool IsEmpty() const { return bounds_.IsEmpty(); }
   bool IsRect() const { return shape_.IsRect(); }
 
-  Vector<gfx::Rect> Rects() const;
+  Vector<IntRect> Rects() const;
 
   void Unite(const Region&);
   void Intersect(const Region&);
   void Subtract(const Region&);
 
-  void Translate(const gfx::Vector2d&);
+  void Translate(const IntSize&);
 
   // Returns true if the query region is a subset of this region.
   bool Contains(const Region&) const;
 
-  bool Contains(const gfx::Point&) const;
+  bool Contains(const IntPoint&) const;
 
   // Returns true if the query region intersects any part of this region.
   bool Intersects(const Region&) const;
@@ -105,10 +104,10 @@ class PLATFORM_EXPORT Region {
 
    public:
     Shape();
-    Shape(const gfx::Rect&);
+    Shape(const IntRect&);
     Shape(wtf_size_t segments_capacity, wtf_size_t spans_capacity);
 
-    gfx::Rect Bounds() const;
+    IntRect Bounds() const;
     bool IsEmpty() const { return spans_.IsEmpty(); }
     bool IsRect() const { return spans_.size() <= 2 && segments_.size() <= 2; }
 
@@ -126,7 +125,7 @@ class PLATFORM_EXPORT Region {
     static Shape IntersectShapes(const Shape& shape1, const Shape& shape2);
     static Shape SubtractShapes(const Shape& shape1, const Shape& shape2);
 
-    void Translate(const gfx::Vector2d&);
+    void Translate(const IntSize&);
     void Swap(Shape&);
 
     struct CompareContainsOperation;
@@ -164,7 +163,7 @@ class PLATFORM_EXPORT Region {
     friend bool operator==(const Shape&, const Shape&);
   };
 
-  gfx::Rect bounds_;
+  IntRect bounds_;
   Shape shape_;
 
   friend bool operator==(const Region&, const Region&);
@@ -186,8 +185,7 @@ static inline Region Subtract(const Region& a, const Region& b) {
   return result;
 }
 
-static inline Region Translate(const Region& region,
-                               const gfx::Vector2d& offset) {
+static inline Region Translate(const Region& region, const IntSize& offset) {
   Region result(region);
   result.Translate(offset);
 
@@ -196,9 +194,9 @@ static inline Region Translate(const Region& region,
 
 // Creates a cc::Region with the same data as |region|.
 static inline cc::Region RegionToCCRegion(const Region& in_region) {
-  Vector<gfx::Rect> rects = in_region.Rects();
+  Vector<IntRect> rects = in_region.Rects();
   cc::Region out_region;
-  for (const gfx::Rect& r : rects)
+  for (const IntRect& r : rects)
     out_region.Union(gfx::Rect(r.x(), r.y(), r.width(), r.height()));
   return out_region;
 }

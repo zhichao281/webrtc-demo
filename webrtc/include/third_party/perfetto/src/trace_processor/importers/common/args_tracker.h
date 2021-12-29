@@ -17,7 +17,6 @@
 #ifndef SRC_TRACE_PROCESSOR_IMPORTERS_COMMON_ARGS_TRACKER_H_
 #define SRC_TRACE_PROCESSOR_IMPORTERS_COMMON_ARGS_TRACKER_H_
 
-#include "perfetto/ext/base/small_vector.h"
 #include "src/trace_processor/importers/common/global_args_tracker.h"
 #include "src/trace_processor/storage/trace_storage.h"
 #include "src/trace_processor/types/trace_processor_context.h"
@@ -39,8 +38,8 @@ class ArgsTracker {
    public:
     virtual ~BoundInserter();
 
-    BoundInserter(BoundInserter&&) noexcept;
-    BoundInserter& operator=(BoundInserter&&) noexcept;
+    BoundInserter(BoundInserter&&);
+    BoundInserter& operator=(BoundInserter&&);
 
     BoundInserter(const BoundInserter&) = delete;
     BoundInserter& operator=(const BoundInserter&) = delete;
@@ -161,7 +160,7 @@ class ArgsTracker {
               Variadic,
               UpdatePolicy);
 
-  base::SmallVector<GlobalArgsTracker::Arg, 16> args_;
+  std::vector<GlobalArgsTracker::Arg> args_;
   TraceProcessorContext* const context_;
 
   using ArrayKeyTuple =

@@ -80,6 +80,10 @@ class PLATFORM_EXPORT SchemeRegistry {
   // Serialize the registered schemes in a comma-separated list.
   static String ListOfCorsEnabledURLSchemes();
 
+  // "Legacy" schemes (e.g. 'ftp:') which we might want to treat differently
+  // from "webby" schemes.
+  static bool ShouldTreatURLSchemeAsLegacy(const String& scheme);
+
   // Does the scheme represent a location relevant to web compatibility metrics?
   static bool ShouldTrackUsageMetricsForScheme(const String& scheme);
 

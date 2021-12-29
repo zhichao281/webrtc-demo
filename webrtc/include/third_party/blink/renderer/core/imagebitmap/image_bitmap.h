@@ -13,6 +13,7 @@
 #include "third_party/blink/renderer/core/html/canvas/canvas_image_source.h"
 #include "third_party/blink/renderer/core/imagebitmap/image_bitmap_source.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
+#include "third_party/blink/renderer/platform/geometry/int_rect.h"
 #include "third_party/blink/renderer/platform/graphics/image.h"
 #include "third_party/blink/renderer/platform/graphics/image_orientation.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_record.h"
@@ -20,7 +21,6 @@
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
-#include "ui/gfx/geometry/rect.h"
 
 namespace blink {
 class HTMLCanvasElement;
@@ -39,32 +39,32 @@ class CORE_EXPORT ImageBitmap final : public ScriptWrappable,
   // Expects the ImageElementBase to return/have an SVGImage.
   static ScriptPromise CreateAsync(
       ImageElementBase*,
-      absl::optional<gfx::Rect>,
+      absl::optional<IntRect>,
       ScriptState*,
       const ImageBitmapOptions* = ImageBitmapOptions::Create());
   static sk_sp<SkImage> GetSkImageFromDecoder(std::unique_ptr<ImageDecoder>);
 
   ImageBitmap(ImageElementBase*,
-              absl::optional<gfx::Rect>,
+              absl::optional<IntRect>,
               const ImageBitmapOptions* = ImageBitmapOptions::Create());
   ImageBitmap(HTMLVideoElement*,
-              absl::optional<gfx::Rect>,
+              absl::optional<IntRect>,
               const ImageBitmapOptions* = ImageBitmapOptions::Create());
   ImageBitmap(HTMLCanvasElement*,
-              absl::optional<gfx::Rect>,
+              absl::optional<IntRect>,
               const ImageBitmapOptions* = ImageBitmapOptions::Create());
   ImageBitmap(OffscreenCanvas*,
-              absl::optional<gfx::Rect>,
+              absl::optional<IntRect>,
               const ImageBitmapOptions* = ImageBitmapOptions::Create());
   ImageBitmap(ImageData*,
-              absl::optional<gfx::Rect>,
+              absl::optional<IntRect>,
               const ImageBitmapOptions* = ImageBitmapOptions::Create());
   ImageBitmap(ImageBitmap*,
-              absl::optional<gfx::Rect>,
+              absl::optional<IntRect>,
               const ImageBitmapOptions* = ImageBitmapOptions::Create());
   ImageBitmap(scoped_refptr<StaticBitmapImage>);
   ImageBitmap(scoped_refptr<StaticBitmapImage>,
-              absl::optional<gfx::Rect>,
+              absl::optional<IntRect>,
               const ImageBitmapOptions* = ImageBitmapOptions::Create());
   // This constructor may called by structured-cloning an ImageBitmap.
   // isImageBitmapOriginClean indicates whether the original ImageBitmap is
@@ -86,7 +86,7 @@ class CORE_EXPORT ImageBitmap final : public ScriptWrappable,
                                  bool apply_orientation);
   unsigned width() const;
   unsigned height() const;
-  gfx::Size Size() const;
+  IntSize Size() const;
 
   bool IsNeutered() const override { return is_neutered_; }
   bool OriginClean() const { return image_->OriginClean(); }
@@ -99,20 +99,20 @@ class CORE_EXPORT ImageBitmap final : public ScriptWrappable,
   // CanvasImageSource implementation
   scoped_refptr<Image> GetSourceImageForCanvas(
       SourceImageStatus*,
-      const gfx::SizeF&,
+      const FloatSize&,
       const AlphaDisposition alpha_disposition = kPremultiplyAlpha) override;
   bool WouldTaintOrigin() const override {
     return image_ ? !image_->OriginClean() : false;
   }
-  gfx::SizeF ElementSize(const gfx::SizeF&,
-                         const RespectImageOrientationEnum) const override;
+  FloatSize ElementSize(const FloatSize&,
+                        const RespectImageOrientationEnum) const override;
   bool IsImageBitmap() const override { return true; }
   bool IsAccelerated() const override;
 
   // ImageBitmapSource implementation
-  gfx::Size BitmapSourceSize() const override { return Size(); }
+  IntSize BitmapSourceSize() const override { return Size(); }
   ScriptPromise CreateImageBitmap(ScriptState*,
-                                  absl::optional<gfx::Rect>,
+                                  absl::optional<IntRect>,
                                   const ImageBitmapOptions*,
                                   ExceptionState&) override;
 
@@ -124,7 +124,7 @@ class CORE_EXPORT ImageBitmap final : public ScriptWrappable,
     bool source_is_unpremul = false;
     unsigned resize_width = 0;
     unsigned resize_height = 0;
-    gfx::Rect crop_rect;
+    IntRect crop_rect;
     cc::PaintFlags::FilterQuality resize_quality =
         cc::PaintFlags::FilterQuality::kLow;
   };
@@ -138,7 +138,7 @@ class CORE_EXPORT ImageBitmap final : public ScriptWrappable,
                                              const ImageOrientationEnum);
   static void RasterizeImageOnBackgroundThread(
       sk_sp<PaintRecord>,
-      const gfx::Rect&,
+      const IntRect&,
       scoped_refptr<base::SequencedTaskRunner>,
       WTF::CrossThreadOnceFunction<void(sk_sp<SkImage>,
                                         const ImageOrientationEnum)> callback);

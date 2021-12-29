@@ -34,8 +34,6 @@
 #include "third_party/blink/renderer/core/layout/shapes/shape.h"
 #include "third_party/blink/renderer/core/layout/shapes/shape_interval.h"
 #include "third_party/blink/renderer/platform/geometry/float_polygon.h"
-#include "ui/gfx/geometry/point_f.h"
-#include "ui/gfx/geometry/vector2d_f.h"
 
 namespace blink {
 
@@ -43,11 +41,11 @@ class OffsetPolygonEdge final : public VertexPair {
   DISALLOW_NEW();
 
  public:
-  OffsetPolygonEdge(const FloatPolygonEdge& edge, const gfx::Vector2dF& offset)
+  OffsetPolygonEdge(const FloatPolygonEdge& edge, const FloatSize& offset)
       : vertex1_(edge.Vertex1() + offset), vertex2_(edge.Vertex2() + offset) {}
 
-  const gfx::PointF& Vertex1() const override { return vertex1_; }
-  const gfx::PointF& Vertex2() const override { return vertex2_; }
+  const FloatPoint& Vertex1() const override { return vertex1_; }
+  const FloatPoint& Vertex2() const override { return vertex2_; }
 
   bool IsWithinYRange(float y1, float y2) const {
     return y1 <= MinY() && y2 >= MaxY();
@@ -59,13 +57,13 @@ class OffsetPolygonEdge final : public VertexPair {
   FloatShapeInterval ClippedEdgeXRange(float y1, float y2) const;
 
  private:
-  gfx::PointF vertex1_;
-  gfx::PointF vertex2_;
+  FloatPoint vertex1_;
+  FloatPoint vertex2_;
 };
 
 class PolygonShape final : public Shape {
  public:
-  PolygonShape(Vector<gfx::PointF> vertices, WindRule fill_rule)
+  PolygonShape(Vector<FloatPoint> vertices, WindRule fill_rule)
       : Shape(), polygon_(std::move(vertices)) {}
   PolygonShape(const PolygonShape&) = delete;
   PolygonShape& operator=(const PolygonShape&) = delete;

@@ -11,6 +11,8 @@
 
 namespace blink {
 
+struct NGGridProperties;
+
 // NGGridTrackCollectionBase provides an implementation for some shared
 // functionality on track range collections, specifically binary search on
 // the collection to get a range index given a track number.
@@ -66,38 +68,33 @@ class CORE_EXPORT NGGridTrackCollectionBase {
   virtual wtf_size_t RangeCount() const = 0;
 };
 
-class CORE_EXPORT TrackSpanProperties {
+struct CORE_EXPORT TrackSpanProperties {
  public:
   enum PropertyId : unsigned {
     kNone = 0,
-    kHasAutoMinimumTrack = 1 << 1,
-    kHasFixedMaximumTrack = 1 << 2,
-    kHasFixedMinimumTrack = 1 << 3,
-    kHasFlexibleTrack = 1 << 4,
-    kHasIntrinsicTrack = 1 << 5,
-    kHasNonDefiniteTrack = 1 << 6,
-    kIsCollapsed = 1 << 7,
-    kIsDependentOnAvailableSize = 1 << 8,
-    kIsImplicit = 1 << 9,
+    kHasIntrinsicTrack = 1 << 0,
+    kHasFlexibleTrack = 1 << 1,
+    kHasAutoMinimumTrack = 1 << 2,
+    kIsCollapsed = 1 << 3,
+    kIsImplicit = 1 << 4
   };
 
   inline bool HasProperty(PropertyId id) const { return bitmask_ & id; }
   inline void SetProperty(PropertyId id) { bitmask_ |= id; }
-  inline void Reset() { bitmask_ = kNone; }
 
  private:
-  uint16_t bitmask_{kNone};
+  uint8_t bitmask_{kNone};
 };
 
 class CORE_EXPORT NGGridBlockTrackCollection
     : public NGGridTrackCollectionBase {
  public:
-  struct CORE_EXPORT Range {
-    bool IsCollapsed() const;
+  struct Range {
     bool IsImplicit() const;
+    bool IsCollapsed() const;
 
-    void SetIsCollapsed();
     void SetIsImplicit();
+    void SetIsCollapsed();
 
     wtf_size_t start_line;
     wtf_size_t track_count;
@@ -121,8 +118,7 @@ class CORE_EXPORT NGGridBlockTrackCollection
   };
 
   explicit NGGridBlockTrackCollection(
-      const GridTrackSizingDirection track_direction = kForColumns)
-      : track_direction_(track_direction) {}
+      GridTrackSizingDirection track_direction = kForColumns);
 
   // Sets the specified, implicit tracks, along with a given auto repeat value.
   void SetSpecifiedTracks(const NGGridTrackList* explicit_tracks,
@@ -142,9 +138,11 @@ class CORE_EXPORT NGGridBlockTrackCollection
   // SetSpecifiedTracks and EnsureTrackCoverage.
   void FinalizeRanges(wtf_size_t start_offset);
 
-  GridTrackSizingDirection Direction() const { return track_direction_; }
-  bool IsForColumns() const { return track_direction_ == kForColumns; }
-  const Vector<Range>& Ranges() const { return ranges_; }
+  bool IsRangeImplicit(wtf_size_t range_index) const;
+  const Range& RangeAtRangeIndex(wtf_size_t range_index) const;
+
+  GridTrackSizingDirection Direction() const { return direction_; }
+  bool IsForColumns() const { return direction_ == kForColumns; }
 
   const NGGridTrackList& ExplicitTracks() const;
   const NGGridTrackList& ImplicitTracks() const;
@@ -163,8 +161,8 @@ class CORE_EXPORT NGGridBlockTrackCollection
   // Returns the repeat size of the implicit tracks.
   wtf_size_t ImplicitRepeatSize() const;
 
-  GridTrackSizingDirection track_direction_;
   bool track_indices_need_sort_ = false;
+  GridTrackSizingDirection direction_;
   wtf_size_t auto_repetitions_ = 0;
 
   // Stores the specified and implicit tracks specified by SetSpecifiedTracks.
@@ -275,7 +273,7 @@ class CORE_EXPORT NGGridSet {
 class CORE_EXPORT NGGridLayoutAlgorithmTrackCollection
     : public NGGridTrackCollectionBase {
  public:
-  struct CORE_EXPORT Range {
+  struct Range {
     Range(const Range& range) = default;
     // Copies fields that are the same as in |GridBlockTrackCollection::Range|.
     Range(const NGGridBlockTrackCollection::Range& block_track_range,
@@ -283,10 +281,10 @@ class CORE_EXPORT NGGridLayoutAlgorithmTrackCollection
 
     bool IsCollapsed() const;
 
-    wtf_size_t set_count;
     wtf_size_t start_line;
-    wtf_size_t starting_set_index;
     wtf_size_t track_count;
+    wtf_size_t starting_set_index;
+    wtf_size_t set_count;
     TrackSpanProperties properties;
   };
 
@@ -336,17 +334,17 @@ class CORE_EXPORT NGGridLayoutAlgorithmTrackCollection
   typedef SetIteratorBase<true> ConstSetIterator;
 
   NGGridLayoutAlgorithmTrackCollection() = default;
-
   // |is_available_size_indefinite| is used to normalize percentage track
   // sizing functions (see the constructor for |NGGridSet|).
   NGGridLayoutAlgorithmTrackCollection(
       const NGGridBlockTrackCollection& block_track_collection,
-      bool is_available_size_indefinite);
+      bool is_available_size_indefinite,
+      NGGridProperties* grid_properties);
 
-  NGGridLayoutAlgorithmTrackCollection(
-      const Vector<Range>& range_data,
-      const GridTrackSizingDirection track_direction)
-      : track_direction_(track_direction), ranges_(range_data) {}
+  // TODO(ansollan): Refactor the track collection abstraction so that we only
+  // pass what is needed for placing in flow and out of flow items.
+  NGGridLayoutAlgorithmTrackCollection(const Vector<Range>& ranges,
+                                       GridTrackSizingDirection direction);
 
   void SetAllGrowthLimitsToBaseSize();
 
@@ -360,11 +358,13 @@ class CORE_EXPORT NGGridLayoutAlgorithmTrackCollection
   const NGGridSet& SetAt(wtf_size_t set_index) const;
   // Returns an iterator for all the sets contained in this collection.
   SetIterator GetSetIterator();
-  ConstSetIterator GetConstSetIterator() const;
+  ConstSetIterator GetSetIterator() const;
   // Returns an iterator for every set in this collection's |sets_| located at
   // an index in the interval [begin_set_index, end_set_index).
   SetIterator GetSetIterator(wtf_size_t begin_set_index,
                              wtf_size_t end_set_index);
+  ConstSetIterator GetSetIterator(wtf_size_t begin_set_index,
+                                  wtf_size_t end_set_index) const;
 
   wtf_size_t RangeSetCount(wtf_size_t range_index) const;
   wtf_size_t RangeStartingSetIndex(wtf_size_t range_index) const;
@@ -383,9 +383,16 @@ class CORE_EXPORT NGGridLayoutAlgorithmTrackCollection
   wtf_size_t NonCollapsedTrackCount() const {
     return non_collapsed_track_count_;
   }
-  GridTrackSizingDirection Direction() const { return track_direction_; }
-  bool IsForColumns() const { return track_direction_ == kForColumns; }
+  GridTrackSizingDirection Direction() const { return direction_; }
+  bool IsForColumns() const { return direction_ == kForColumns; }
   const Vector<Range>& Ranges() const { return ranges_; }
+
+  // If any of the tracks will change based on the available-size.
+  bool DependsOnAvailableSize() const { return depends_on_available_size_; }
+  bool IsSpanningFlexibleTrack() const { return is_spanning_flexible_track_; }
+  bool IsSpanningOnlyDefiniteTracks() const {
+    return is_spanning_only_definite_tracks_;
+  }
 
  protected:
   // NGGridTrackCollectionBase override.
@@ -395,10 +402,15 @@ class CORE_EXPORT NGGridLayoutAlgorithmTrackCollection
   void AppendTrackRange(
       const NGGridBlockTrackCollection::Range& block_track_range,
       const NGGridTrackList& specified_track_list,
-      bool is_available_size_indefinite);
+      bool is_available_size_indefinite,
+      NGGridProperties* grid_properties);
 
-  GridTrackSizingDirection track_direction_;
   wtf_size_t non_collapsed_track_count_;
+  GridTrackSizingDirection direction_;
+
+  bool depends_on_available_size_ : 1;
+  bool is_spanning_flexible_track_ : 1;
+  bool is_spanning_only_definite_tracks_ : 1;
 
   Vector<Range> ranges_;
   // A vector of every set element that compose the entire collection's ranges;

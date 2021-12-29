@@ -11,6 +11,8 @@
 #include <cmath>
 #include <type_traits>
 
+#include "base/macros.h"
+
 namespace fdlibm {
 
 // Helpers for performing overflowing arithmetic operations without relying

@@ -169,8 +169,8 @@ class CORE_EXPORT WebPagePopupImpl final : public WebPagePopup,
   void SetCursor(const ui::Cursor& cursor) override;
   bool HandlingInputEvent() override;
   void SetHandlingInputEvent(bool handling) override;
-  void ProcessInputEventSynchronouslyForTesting(
-      const WebCoalescedInputEvent&) override;
+  void ProcessInputEventSynchronouslyForTesting(const WebCoalescedInputEvent&,
+                                                HandledEventCallback) override;
   void UpdateTextInputState() override;
   void UpdateSelectionBounds() override;
   void ShowVirtualKeyboard() override;
@@ -205,13 +205,13 @@ class CORE_EXPORT WebPagePopupImpl final : public WebPagePopup,
   bool ShouldCheckPopupPositionForTelemetry() const;
   void CheckScreenPointInOwnerWindowAndCount(const gfx::PointF& point_in_screen,
                                              WebFeature feature) const;
-  gfx::Rect OwnerWindowRectInScreen() const;
+  IntRect OwnerWindowRectInScreen() const;
   // Returns anchor rect in screen coordinates for this popup.
-  gfx::Rect GetAnchorRectInScreen() const;
+  IntRect GetAnchorRectInScreen() const;
 
   // PagePopup function
   AXObject* RootAXObject() override;
-  void SetWindowRect(const gfx::Rect&) override;
+  void SetWindowRect(const IntRect&) override;
 
   WebPagePopupImpl(
       CrossVariantMojoAssociatedRemote<

@@ -66,7 +66,7 @@ class CORE_EXPORT NGTextPainter : public TextPainterBase {
   NGTextPainter(GraphicsContext& context,
                 const Font& font,
                 const NGTextFragmentPaintInfo& fragment_paint_info,
-                const gfx::Rect& visual_rect,
+                const IntRect& visual_rect,
                 const PhysicalOffset& text_origin,
                 const PhysicalRect& text_frame_rect,
                 bool horizontal)
@@ -153,7 +153,7 @@ class CORE_EXPORT NGTextPainter : public TextPainterBase {
       const TextPaintStyle& text_style);
 
   NGTextFragmentPaintInfo fragment_paint_info_;
-  const gfx::Rect visual_rect_;
+  const IntRect visual_rect_;
   absl::optional<SvgTextPaintState> svg_text_paint_state_;
 };
 

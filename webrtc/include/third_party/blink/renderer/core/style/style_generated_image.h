@@ -49,9 +49,9 @@ class CORE_EXPORT StyleGeneratedImage final : public StyleImage {
 
   bool IsAccessAllowed(String&) const override { return true; }
 
-  gfx::SizeF ImageSize(float multiplier,
-                       const gfx::SizeF& default_object_size,
-                       RespectImageOrientationEnum) const override;
+  FloatSize ImageSize(float multiplier,
+                      const FloatSize& default_object_size,
+                      RespectImageOrientationEnum) const override;
   bool HasIntrinsicSize() const override { return false; }
   void AddClient(ImageResourceObserver*) override;
   void RemoveClient(ImageResourceObserver*) override;
@@ -59,7 +59,7 @@ class CORE_EXPORT StyleGeneratedImage final : public StyleImage {
   scoped_refptr<Image> GetImage(const ImageResourceObserver&,
                                 const Document&,
                                 const ComputedStyle&,
-                                const gfx::SizeF& target_size) const override;
+                                const FloatSize& target_size) const override;
   bool KnownToBeOpaque(const Document&, const ComputedStyle&) const override;
 
   bool IsUsingCustomProperty(const AtomicString& custom_property_name,

@@ -73,6 +73,7 @@ void  printfVersion()
 #include "rtc_base/socket_address.h"
 #include "rtc_base/socket_server.h"
 #include "rtc_base/thread.h"
+#include "api/peer_connection_interface.h"
 using cricket::StunServer;
 int main(int argc, char* argv[]) {
 

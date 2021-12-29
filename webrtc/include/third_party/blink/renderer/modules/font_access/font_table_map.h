@@ -13,9 +13,8 @@ namespace blink {
 
 class ScriptState;
 
-class BLINK_EXPORT FontTableMap final
-    : public ScriptWrappable,
-      public Maplike<String, IDLString, Member<Blob>, Blob> {
+class BLINK_EXPORT FontTableMap final : public ScriptWrappable,
+                                        public Maplike<String, Member<Blob>> {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
@@ -31,8 +30,9 @@ class BLINK_EXPORT FontTableMap final
   void Trace(Visitor* visitor) const override;
 
  private:
-  PairIterable<String, IDLString, Member<Blob>, Blob>::IterationSource*
-  StartIteration(ScriptState*, ExceptionState&) override;
+  PairIterable<String, Member<Blob>>::IterationSource* StartIteration(
+      ScriptState*,
+      ExceptionState&) override;
 
   bool GetMapEntry(ScriptState*,
                    const String& key,

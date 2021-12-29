@@ -25,7 +25,6 @@
 #include <string>
 #include <vector>
 
-#include "perfetto/base/build_config.h"
 #include "perfetto/base/export.h"
 #include "perfetto/base/logging.h"
 

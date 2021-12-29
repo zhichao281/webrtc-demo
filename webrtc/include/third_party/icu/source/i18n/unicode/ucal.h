@@ -1289,7 +1289,7 @@ enum UCalendarLimitType {
   UCAL_MAXIMUM,
   /** Greatest minimum value */
   UCAL_GREATEST_MINIMUM,
-  /** Least maximum value */
+  /** Leaest maximum value */
   UCAL_LEAST_MAXIMUM,
   /** Actual minimum value */
   UCAL_ACTUAL_MINIMUM,

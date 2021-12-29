@@ -24,12 +24,9 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
-namespace gfx {
-class PointF;
-}
-
 namespace blink {
 
+class FloatPoint;
 class SVGPathByteStream;
 
 class CORE_EXPORT SVGPathQuery {
@@ -39,7 +36,7 @@ class CORE_EXPORT SVGPathQuery {
   explicit SVGPathQuery(const SVGPathByteStream&);
 
   float GetTotalLength() const;
-  gfx::PointF GetPointAtLength(float length) const;
+  FloatPoint GetPointAtLength(float length) const;
 
  private:
   const SVGPathByteStream& path_byte_stream_;

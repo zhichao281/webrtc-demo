@@ -42,7 +42,7 @@ class CORE_EXPORT WindowControlsOverlay final
   DEFINE_ATTRIBUTE_EVENT_LISTENER(geometrychange, kGeometrychange)
 
   bool visible() const;
-  DOMRect* getTitlebarAreaRect() const;
+  DOMRect* getBoundingClientRect() const;
 
   void WindowControlsOverlayChanged(const gfx::Rect& rect);
 

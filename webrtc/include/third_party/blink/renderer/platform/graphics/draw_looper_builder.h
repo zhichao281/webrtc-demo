@@ -38,13 +38,10 @@
 
 class SkDrawLooper;
 
-namespace gfx {
-class Vector2dF;
-}
-
 namespace blink {
 
 class Color;
+class FloatSize;
 
 class PLATFORM_EXPORT DrawLooperBuilder final {
   STACK_ALLOCATED();
@@ -69,7 +66,7 @@ class PLATFORM_EXPORT DrawLooperBuilder final {
   sk_sp<SkDrawLooper> DetachDrawLooper();
 
   void AddUnmodifiedContent();
-  void AddShadow(const gfx::Vector2dF& offset,
+  void AddShadow(const FloatSize& offset,
                  float blur,
                  const Color&,
                  ShadowTransformMode = kShadowRespectsTransforms,

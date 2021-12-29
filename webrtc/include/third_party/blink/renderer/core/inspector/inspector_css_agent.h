@@ -35,7 +35,7 @@
 #include "third_party/blink/renderer/core/inspector/inspector_base_agent.h"
 #include "third_party/blink/renderer/core/inspector/inspector_dom_agent.h"
 #include "third_party/blink/renderer/core/inspector/inspector_style_sheet.h"
-#include "third_party/blink/renderer/core/inspector/protocol/css.h"
+#include "third_party/blink/renderer/core/inspector/protocol/CSS.h"
 #include "third_party/blink/renderer/core/probe/core_probes.h"
 #include "third_party/blink/renderer/platform/wtf/hash_counted_set.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
@@ -49,7 +49,6 @@ namespace probe {
 class RecalculateStyle;
 }  // namespace probe
 
-class CSSContainerRule;
 class CSSPropertyName;
 class CSSRule;
 class CSSStyleRule;
@@ -297,10 +296,8 @@ class CORE_EXPORT InspectorCSSAgent final
       std::unique_ptr<protocol::Array<protocol::CSS::StyleDeclarationEdit>>,
       HeapVector<Member<StyleSheetAction>>* actions);
 
-  // If the |animating_element| is a pseudo element, then |element| is a
-  // reference to its originating DOM element.
   std::unique_ptr<protocol::Array<protocol::CSS::CSSKeyframesRule>>
-  AnimationsForNode(Element* element, Element* animating_element);
+  AnimationsForNode(Element*);
 
   void CollectPlatformFontsForLayoutObject(
       LayoutObject*,
@@ -333,7 +330,9 @@ class CORE_EXPORT InspectorCSSAgent final
 
   // Container Queries implementation
   std::unique_ptr<protocol::CSS::CSSContainerQuery> BuildContainerQueryObject(
-      CSSContainerRule*);
+      const MediaList*,
+      CSSStyleSheet*,
+      const AtomicString&);
   void CollectContainerQueriesFromRule(
       CSSRule*,
       protocol::Array<protocol::CSS::CSSContainerQuery>*);

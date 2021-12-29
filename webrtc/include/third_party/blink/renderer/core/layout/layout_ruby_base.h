@@ -59,7 +59,7 @@ class LayoutRubyBase : public LayoutBlockFlow {
 
   // The argument must be nullptr. It's necessary for the LayoutNGMixin
   // constructor.
-  explicit LayoutRubyBase(ContainerNode*);
+  explicit LayoutRubyBase(Element*);
 
  private:
   ETextAlign TextAlignmentForLine(bool ends_with_soft_break) const override;

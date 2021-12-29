@@ -110,7 +110,6 @@ class CORE_EXPORT InputTypeView : public GarbageCollectedMixin {
                                            LegacyLayout) const;
   virtual void CustomStyleForLayoutObject(ComputedStyle& style);
   virtual TextDirection ComputedTextDirection();
-  virtual void OpenPopupView();
   virtual void ClosePopupView();
   virtual bool HasOpenedPopup() const;
 

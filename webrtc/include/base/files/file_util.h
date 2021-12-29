@@ -205,9 +205,7 @@ BASE_EXPORT bool ReadFileToStringWithMaxSize(const FilePath& path,
                                              size_t max_size);
 
 // As ReadFileToString, but reading from an open stream after seeking to its
-// start (if supported by the stream). This can also be used to read the whole
-// file from a file descriptor by converting the file descriptor into a stream
-// by using base::FileToFILE() before calling this function.
+// start (if supported by the stream).
 BASE_EXPORT bool ReadStreamToString(FILE* stream, std::string* contents);
 
 // As ReadFileToStringWithMaxSize, but reading from an open stream after seeking

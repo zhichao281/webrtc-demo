@@ -28,6 +28,7 @@
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/style/shadow_data.h"
+#include "third_party/blink/renderer/platform/geometry/float_rect.h"
 #include "third_party/blink/renderer/platform/geometry/length.h"
 #include "third_party/blink/renderer/platform/graphics/box_reflection.h"
 #include "third_party/blink/renderer/platform/graphics/color.h"
@@ -36,7 +37,6 @@
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
-#include "ui/gfx/geometry/rect_f.h"
 
 namespace blink {
 
@@ -49,46 +49,46 @@ class SVGResourceClient;
 class CORE_EXPORT FilterOperation : public GarbageCollected<FilterOperation> {
  public:
   enum OperationType {
-    kReference,  // url(#somefilter)
-    kGrayscale,
-    kSepia,
-    kSaturate,
-    kHueRotate,
-    kLuminanceToAlpha,
-    kInvert,
-    kOpacity,
-    kBrightness,
-    kContrast,
-    kBlur,
-    kDropShadow,
-    kBoxReflect,
-    kColorMatrix,
-    kComponentTransfer,
-    kConvolveMatrix,
-    kNone
+    REFERENCE,  // url(#somefilter)
+    GRAYSCALE,
+    SEPIA,
+    SATURATE,
+    HUE_ROTATE,
+    LUMINANCE_TO_ALPHA,
+    INVERT,
+    OPACITY,
+    BRIGHTNESS,
+    CONTRAST,
+    BLUR,
+    DROP_SHADOW,
+    BOX_REFLECT,
+    COLOR_MATRIX,
+    COMPONENT_TRANSFER,
+    CONVOLVE_MATRIX,
+    NONE
   };
 
   static bool CanInterpolate(FilterOperation::OperationType type) {
     switch (type) {
-      case kGrayscale:
-      case kSepia:
-      case kSaturate:
-      case kHueRotate:
-      case kLuminanceToAlpha:
-      case kInvert:
-      case kOpacity:
-      case kBrightness:
-      case kContrast:
-      case kBlur:
-      case kDropShadow:
-      case kColorMatrix:
+      case GRAYSCALE:
+      case SEPIA:
+      case SATURATE:
+      case HUE_ROTATE:
+      case LUMINANCE_TO_ALPHA:
+      case INVERT:
+      case OPACITY:
+      case BRIGHTNESS:
+      case CONTRAST:
+      case BLUR:
+      case DROP_SHADOW:
+      case COLOR_MATRIX:
         return true;
-      case kReference:
-      case kComponentTransfer:
-      case kConvolveMatrix:
-      case kBoxReflect:
+      case REFERENCE:
+      case COMPONENT_TRANSFER:
+      case CONVOLVE_MATRIX:
+      case BOX_REFLECT:
         return false;
-      case kNone:
+      case NONE:
         break;
     }
     NOTREACHED();
@@ -115,7 +115,7 @@ class CORE_EXPORT FilterOperation : public GarbageCollected<FilterOperation> {
   // Maps "forward" to determine which pixels in a destination rect are
   // affected by pixels in the source rect.
   // See also FilterEffect::MapRect.
-  virtual gfx::RectF MapRect(const gfx::RectF& rect) const { return rect; }
+  virtual FloatRect MapRect(const FloatRect& rect) const { return rect; }
 
  protected:
   FilterOperation(OperationType type) : type_(type) {}
@@ -133,7 +133,7 @@ class CORE_EXPORT ReferenceFilterOperation : public FilterOperation {
 
   bool AffectsOpacity() const override { return true; }
   bool MovesPixels() const override { return true; }
-  gfx::RectF MapRect(const gfx::RectF&) const override;
+  FloatRect MapRect(const FloatRect&) const override;
 
   const AtomicString& Url() const { return url_; }
 
@@ -158,7 +158,7 @@ class CORE_EXPORT ReferenceFilterOperation : public FilterOperation {
 template <>
 struct DowncastTraits<ReferenceFilterOperation> {
   static bool AllowFrom(const FilterOperation& op) {
-    return op.GetType() == FilterOperation::kReference;
+    return op.GetType() == FilterOperation::REFERENCE;
   }
 };
 
@@ -207,11 +207,10 @@ class CORE_EXPORT ColorMatrixFilterOperation : public FilterOperation {
 inline bool IsBasicColorMatrixFilterOperation(
     const FilterOperation& operation) {
   FilterOperation::OperationType type = operation.GetType();
-  return type == FilterOperation::kGrayscale ||
-         type == FilterOperation::kSepia ||
-         type == FilterOperation::kSaturate ||
-         type == FilterOperation::kHueRotate ||
-         type == FilterOperation::kLuminanceToAlpha;
+  return type == FilterOperation::GRAYSCALE || type == FilterOperation::SEPIA ||
+         type == FilterOperation::SATURATE ||
+         type == FilterOperation::HUE_ROTATE ||
+         type == FilterOperation::LUMINANCE_TO_ALPHA;
 }
 
 template <>
@@ -224,7 +223,7 @@ struct DowncastTraits<BasicColorMatrixFilterOperation> {
 template <>
 struct DowncastTraits<ColorMatrixFilterOperation> {
   static bool AllowFrom(const FilterOperation& op) {
-    return op.GetType() == FilterOperation::kColorMatrix;
+    return op.GetType() == FilterOperation::COLOR_MATRIX;
   }
 };
 
@@ -238,7 +237,7 @@ class CORE_EXPORT BasicComponentTransferFilterOperation
 
   double Amount() const { return amount_; }
 
-  bool AffectsOpacity() const override { return type_ == kOpacity; }
+  bool AffectsOpacity() const override { return type_ == OPACITY; }
 
  private:
   bool operator==(const FilterOperation& o) const override {
@@ -255,10 +254,9 @@ class CORE_EXPORT BasicComponentTransferFilterOperation
 inline bool IsBasicComponentTransferFilterOperation(
     const FilterOperation& operation) {
   FilterOperation::OperationType type = operation.GetType();
-  return type == FilterOperation::kInvert ||
-         type == FilterOperation::kOpacity ||
-         type == FilterOperation::kBrightness ||
-         type == FilterOperation::kContrast;
+  return type == FilterOperation::INVERT || type == FilterOperation::OPACITY ||
+         type == FilterOperation::BRIGHTNESS ||
+         type == FilterOperation::CONTRAST;
 }
 
 template <>
@@ -271,13 +269,13 @@ struct DowncastTraits<BasicComponentTransferFilterOperation> {
 class CORE_EXPORT BlurFilterOperation : public FilterOperation {
  public:
   explicit BlurFilterOperation(const Length& std_deviation)
-      : FilterOperation(kBlur), std_deviation_(std_deviation) {}
+      : FilterOperation(BLUR), std_deviation_(std_deviation) {}
 
   const Length& StdDeviation() const { return std_deviation_; }
 
   bool AffectsOpacity() const override { return true; }
   bool MovesPixels() const override { return true; }
-  gfx::RectF MapRect(const gfx::RectF&) const override;
+  FloatRect MapRect(const FloatRect&) const override;
 
  private:
   bool operator==(const FilterOperation& o) const override {
@@ -294,20 +292,20 @@ class CORE_EXPORT BlurFilterOperation : public FilterOperation {
 template <>
 struct DowncastTraits<BlurFilterOperation> {
   static bool AllowFrom(const FilterOperation& op) {
-    return op.GetType() == FilterOperation::kBlur;
+    return op.GetType() == FilterOperation::BLUR;
   }
 };
 
 class CORE_EXPORT DropShadowFilterOperation : public FilterOperation {
  public:
   explicit DropShadowFilterOperation(const ShadowData& shadow)
-      : FilterOperation(kDropShadow), shadow_(shadow) {}
+      : FilterOperation(DROP_SHADOW), shadow_(shadow) {}
 
   const ShadowData& Shadow() const { return shadow_; }
 
   bool AffectsOpacity() const override { return true; }
   bool MovesPixels() const override { return true; }
-  gfx::RectF MapRect(const gfx::RectF&) const override;
+  FloatRect MapRect(const FloatRect&) const override;
 
  private:
   bool operator==(const FilterOperation& o) const override {
@@ -324,20 +322,20 @@ class CORE_EXPORT DropShadowFilterOperation : public FilterOperation {
 template <>
 struct DowncastTraits<DropShadowFilterOperation> {
   static bool AllowFrom(const FilterOperation& op) {
-    return op.GetType() == FilterOperation::kDropShadow;
+    return op.GetType() == FilterOperation::DROP_SHADOW;
   }
 };
 
 class CORE_EXPORT BoxReflectFilterOperation : public FilterOperation {
  public:
   explicit BoxReflectFilterOperation(const BoxReflection& reflection)
-      : FilterOperation(kBoxReflect), reflection_(reflection) {}
+      : FilterOperation(BOX_REFLECT), reflection_(reflection) {}
 
   const BoxReflection& Reflection() const { return reflection_; }
 
   bool AffectsOpacity() const override { return true; }
   bool MovesPixels() const override { return true; }
-  gfx::RectF MapRect(const gfx::RectF&) const override;
+  FloatRect MapRect(const FloatRect&) const override;
 
  private:
   bool operator==(const FilterOperation&) const override;
@@ -348,20 +346,20 @@ class CORE_EXPORT BoxReflectFilterOperation : public FilterOperation {
 template <>
 struct DowncastTraits<BoxReflectFilterOperation> {
   static bool AllowFrom(const FilterOperation& op) {
-    return op.GetType() == FilterOperation::kBoxReflect;
+    return op.GetType() == FilterOperation::BOX_REFLECT;
   }
 };
 
 class CORE_EXPORT ConvolveMatrixFilterOperation : public FilterOperation {
  public:
-  ConvolveMatrixFilterOperation(const gfx::Size& kernel_size,
+  ConvolveMatrixFilterOperation(const IntSize& kernel_size,
                                 float divisor,
                                 float bias,
-                                const gfx::Point& target_offset,
+                                const IntPoint& target_offset,
                                 FEConvolveMatrix::EdgeModeType edge_mode,
                                 bool preserve_alpha,
                                 const Vector<float>& kernel_matrix)
-      : FilterOperation(kConvolveMatrix),
+      : FilterOperation(CONVOLVE_MATRIX),
         kernel_size_(kernel_size),
         divisor_(divisor),
         bias_(bias),
@@ -370,10 +368,10 @@ class CORE_EXPORT ConvolveMatrixFilterOperation : public FilterOperation {
         preserve_alpha_(preserve_alpha),
         kernel_matrix_(kernel_matrix) {}
 
-  const gfx::Size& KernelSize() const { return kernel_size_; }
+  const IntSize& KernelSize() const { return kernel_size_; }
   float Divisor() const { return divisor_; }
   float Bias() const { return bias_; }
-  const gfx::Point& TargetOffset() const { return target_offset_; }
+  const IntPoint& TargetOffset() const { return target_offset_; }
   FEConvolveMatrix::EdgeModeType EdgeMode() const { return edge_mode_; }
   bool PreserveAlpha() const { return preserve_alpha_; }
   const Vector<float>& KernelMatrix() const { return kernel_matrix_; }
@@ -392,10 +390,10 @@ class CORE_EXPORT ConvolveMatrixFilterOperation : public FilterOperation {
             kernel_matrix_ == other->kernel_matrix_);
   }
 
-  gfx::Size kernel_size_;
+  IntSize kernel_size_;
   float divisor_;
   float bias_;
-  gfx::Point target_offset_;
+  IntPoint target_offset_;
   FEConvolveMatrix::EdgeModeType edge_mode_;
   bool preserve_alpha_;
   Vector<float> kernel_matrix_;
@@ -404,7 +402,7 @@ class CORE_EXPORT ConvolveMatrixFilterOperation : public FilterOperation {
 template <>
 struct DowncastTraits<ConvolveMatrixFilterOperation> {
   static bool AllowFrom(const FilterOperation& op) {
-    return op.GetType() == FilterOperation::kConvolveMatrix;
+    return op.GetType() == FilterOperation::CONVOLVE_MATRIX;
   }
 };
 
@@ -414,7 +412,7 @@ class CORE_EXPORT ComponentTransferFilterOperation : public FilterOperation {
                                    const ComponentTransferFunction& green_func,
                                    const ComponentTransferFunction& blue_func,
                                    const ComponentTransferFunction& alpha_func)
-      : FilterOperation(kComponentTransfer),
+      : FilterOperation(COMPONENT_TRANSFER),
         red_func_(red_func),
         green_func_(green_func),
         blue_func_(blue_func),
@@ -445,7 +443,7 @@ class CORE_EXPORT ComponentTransferFilterOperation : public FilterOperation {
 template <>
 struct DowncastTraits<ComponentTransferFilterOperation> {
   static bool AllowFrom(const FilterOperation& op) {
-    return op.GetType() == FilterOperation::kComponentTransfer;
+    return op.GetType() == FilterOperation::COMPONENT_TRANSFER;
   }
 };
 

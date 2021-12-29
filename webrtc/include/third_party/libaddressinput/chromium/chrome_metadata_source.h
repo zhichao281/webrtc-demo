@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 
+#include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
 #include "third_party/libaddressinput/src/cpp/include/libaddressinput/source.h"
 

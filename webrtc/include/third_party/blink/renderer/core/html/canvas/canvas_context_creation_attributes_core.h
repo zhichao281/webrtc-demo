@@ -7,7 +7,6 @@
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
-#include "third_party/blink/renderer/platform/graphics/graphics_types.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
@@ -24,11 +23,11 @@ class CORE_EXPORT CanvasContextCreationAttributesCore {
 
   bool alpha = true;
   bool antialias = true;
-  PredefinedColorSpace color_space = PredefinedColorSpace::kSRGB;
+  String color_space = "srgb";
   bool depth = true;
   bool fail_if_major_performance_caveat = false;
   bool desynchronized = false;
-  CanvasPixelFormat pixel_format = CanvasPixelFormat::kUint8;
+  String pixel_format = "uint8";
   bool premultiplied_alpha = true;
   bool preserve_drawing_buffer = false;
   String power_preference = "default";

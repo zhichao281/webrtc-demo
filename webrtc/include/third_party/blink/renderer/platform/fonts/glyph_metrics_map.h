@@ -32,14 +32,15 @@
 #include <memory>
 
 #include "base/memory/ptr_util.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/platform/fonts/glyph.h"
+#include "third_party/blink/renderer/platform/geometry/float_rect.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/assertions.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
-#include "ui/gfx/geometry/rect_f.h"
 
 namespace blink {
+
+const float kCGlyphSizeUnknown = -1;
 
 template <class T>
 class GlyphMetricsMap {
@@ -49,7 +50,7 @@ class GlyphMetricsMap {
   GlyphMetricsMap() : filled_primary_page_(false) {}
   GlyphMetricsMap(const GlyphMetricsMap&) = delete;
   GlyphMetricsMap& operator=(const GlyphMetricsMap&) = delete;
-  absl::optional<T> MetricsForGlyph(Glyph glyph) {
+  T MetricsForGlyph(Glyph glyph) {
     return LocatePage(glyph / GlyphMetricsPage::kSize)->MetricsForGlyph(glyph);
   }
 
@@ -69,12 +70,7 @@ class GlyphMetricsMap {
         256;  // Usually covers Latin-1 in a single page.
     GlyphMetricsPage() {}
 
-    absl::optional<T> MetricsForGlyph(Glyph glyph) const {
-      T value = metrics_[glyph % kSize];
-      if (value == UnknownMetrics())
-        return absl::nullopt;
-      return value;
-    }
+    T MetricsForGlyph(Glyph glyph) const { return metrics_[glyph % kSize]; }
     void SetMetricsForGlyph(Glyph glyph, const T& metrics) {
       SetMetricsForIndex(glyph % kSize, metrics);
     }
@@ -95,7 +91,7 @@ class GlyphMetricsMap {
 
   GlyphMetricsPage* LocatePageSlowCase(unsigned page_number);
 
-  static constexpr T UnknownMetrics();
+  static T UnknownMetrics();
 
   bool filled_primary_page_;
   // We optimize for the page that contains glyph indices 0-255.
@@ -104,13 +100,13 @@ class GlyphMetricsMap {
 };
 
 template <>
-inline constexpr float GlyphMetricsMap<float>::UnknownMetrics() {
-  return -1;
+inline float GlyphMetricsMap<float>::UnknownMetrics() {
+  return kCGlyphSizeUnknown;
 }
 
 template <>
-inline constexpr gfx::RectF GlyphMetricsMap<gfx::RectF>::UnknownMetrics() {
-  return gfx::RectF(std::numeric_limits<float>::min(), 0, 0, 0);
+inline FloatRect GlyphMetricsMap<FloatRect>::UnknownMetrics() {
+  return FloatRect(0, 0, kCGlyphSizeUnknown, kCGlyphSizeUnknown);
 }
 
 template <class T>

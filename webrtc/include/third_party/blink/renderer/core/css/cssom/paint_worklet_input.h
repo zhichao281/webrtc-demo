@@ -10,8 +10,8 @@
 
 #include "cc/paint/paint_worklet_input.h"
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/platform/geometry/float_size.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
-#include "ui/gfx/geometry/size_f.h"
 
 namespace blink {
 
@@ -22,7 +22,6 @@ class CORE_EXPORT PaintWorkletInput : public cc::PaintWorkletInput {
   enum class PaintWorkletInputType {
     kCSS,
     kBackgroundColor,
-    kBoxShadow,
     kClipPath,
   };
 
@@ -36,12 +35,12 @@ class CORE_EXPORT PaintWorkletInput : public cc::PaintWorkletInput {
   }
 
   // These accessors are safe on any thread.
-  const gfx::SizeF& ContainerSize() const { return container_size_; }
+  const FloatSize& ContainerSize() const { return container_size_; }
 
   virtual PaintWorkletInputType GetType() const = 0;
 
  protected:
-  PaintWorkletInput(const gfx::SizeF& container_size,
+  PaintWorkletInput(const FloatSize& container_size,
                     int worklet_id,
                     cc::PaintWorkletInput::PropertyKeys property_keys)
       : container_size_(container_size),
@@ -53,7 +52,7 @@ class CORE_EXPORT PaintWorkletInput : public cc::PaintWorkletInput {
  private:
   bool IsCSSPaintWorkletInput() const override { return true; }
 
-  const gfx::SizeF container_size_;
+  const FloatSize container_size_;
   const int worklet_id_;
 
   // List of properties associated with this PaintWorkletInput.

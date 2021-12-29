@@ -25,7 +25,7 @@
 #ifndef TMMINTRIN_H_
 #define TMMINTRIN_H_
 
-#if defined(__ppc64__) && (defined(__linux__) || defined(__FreeBSD__))
+#if defined(__linux__) && defined(__ppc64__)
 
 #include <altivec.h>
 
@@ -490,7 +490,6 @@ _mm_mulhrs_pi16 (__m64 __A, __m64 __B)
 
 #else
 #include_next <tmmintrin.h>
-#endif /* defined(__ppc64__) && (defined(__linux__) || defined(__FreeBSD__))   \
-        */
+#endif /* defined(__linux__) && defined(__ppc64__) */
 
 #endif /* TMMINTRIN_H_ */

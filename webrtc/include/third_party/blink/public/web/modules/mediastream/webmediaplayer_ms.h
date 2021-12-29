@@ -196,9 +196,6 @@ class BLINK_MODULES_EXPORT WebMediaPlayerMS
   std::unique_ptr<WebMediaPlayer::VideoFramePresentationMetadata>
   GetVideoFramePresentationMetadata() override;
 
-  void RegisterFrameSinkHierarchy() override;
-  void UnregisterFrameSinkHierarchy() override;
-
  private:
   friend class WebMediaPlayerMSTest;
 

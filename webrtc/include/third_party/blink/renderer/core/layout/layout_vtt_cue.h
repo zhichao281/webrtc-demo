@@ -30,6 +30,8 @@
 
 namespace blink {
 
+class IntRect;
+
 class LayoutVTTCue final : public LayoutBlockFlow {
  public:
   LayoutVTTCue(ContainerNode*, float snap_to_lines_position);
@@ -44,7 +46,7 @@ class LayoutVTTCue final : public LayoutBlockFlow {
  private:
   void UpdateLayout() override;
 
-  gfx::Rect ComputeControlsRect() const;
+  IntRect ComputeControlsRect() const;
   void RepositionCueSnapToLinesNotSet();
 
   float snap_to_lines_position_;

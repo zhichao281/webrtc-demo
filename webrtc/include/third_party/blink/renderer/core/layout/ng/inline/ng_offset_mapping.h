@@ -258,15 +258,6 @@ CORE_EXPORT LayoutBlockFlow* NGInlineFormattingContextOf(const Position&);
 
 }  // namespace blink
 
-namespace WTF {
-
-template <>
-struct VectorTraits<blink::NGOffsetMappingUnit>
-    : VectorTraitsBase<blink::NGOffsetMappingUnit> {
-  static constexpr bool kCanClearUnusedSlotsWithMemset = true;
-  static constexpr bool kCanTraceConcurrently = true;
-};
-
-}  // namespace WTF
+WTF_ALLOW_CLEAR_UNUSED_SLOTS_WITH_MEM_FUNCTIONS(blink::NGOffsetMappingUnit)
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_INLINE_NG_OFFSET_MAPPING_H_

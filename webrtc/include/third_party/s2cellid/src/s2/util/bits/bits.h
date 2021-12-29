@@ -36,6 +36,7 @@
 #endif
 
 #include "base/logging.h"
+#include "base/macros.h"
 
 class Bits {
  public:

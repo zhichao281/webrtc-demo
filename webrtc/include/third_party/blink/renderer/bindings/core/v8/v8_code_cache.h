@@ -25,8 +25,8 @@ class TextPosition;
 namespace blink {
 
 class CachedMetadata;
-class ClassicScript;
 class KURL;
+class ScriptSourceCode;
 class ModuleRecordProduceCacheData;
 
 namespace mojom {
@@ -62,7 +62,7 @@ class CORE_EXPORT V8CodeCache final {
   static std::tuple<v8::ScriptCompiler::CompileOptions,
                     ProduceCacheOptions,
                     v8::ScriptCompiler::NoCacheReason>
-  GetCompileOptions(mojom::blink::V8CacheOptions, const ClassicScript&);
+  GetCompileOptions(mojom::blink::V8CacheOptions, const ScriptSourceCode&);
   static std::tuple<v8::ScriptCompiler::CompileOptions,
                     ProduceCacheOptions,
                     v8::ScriptCompiler::NoCacheReason>

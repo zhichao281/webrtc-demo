@@ -22,8 +22,6 @@
 
 namespace base {
 
-class StatsReporter;
-
 namespace internal {
 
 class PCScanTask;
@@ -68,8 +66,8 @@ class PCScanInternal final {
   void SetCurrentPCScanTask(TaskHandle task);
   void ResetCurrentPCScanTask();
 
-  void RegisterScannableRoot(Root*);
-  void RegisterNonScannableRoot(Root*);
+  void RegisterScannableRoot(Root* root);
+  void RegisterNonScannableRoot(Root* root);
 
   RootsMap& scannable_roots() { return scannable_roots_; }
   const RootsMap& scannable_roots() const { return scannable_roots_; }
@@ -107,9 +105,6 @@ class PCScanInternal final {
   void ReinitForTesting(PCScan::InitConfig);                 // IN-TEST
   void FinishScanForTesting();                               // IN-TEST
 
-  void RegisterStatsReporter(StatsReporter* reporter);
-  StatsReporter& GetReporter();
-
  private:
   friend base::NoDestructor<PCScanInternal>;
   friend class StarScanSnapshot;
@@ -142,7 +137,6 @@ class PCScanInternal final {
   const SimdSupport simd_support_;
 
   std::unique_ptr<WriteProtector> write_protector_;
-  StatsReporter* stats_reporter_ = nullptr;
 
   bool is_initialized_ = false;
 };

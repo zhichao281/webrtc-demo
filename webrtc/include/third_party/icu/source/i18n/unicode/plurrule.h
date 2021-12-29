@@ -71,8 +71,8 @@ class UFormattedNumberRangeData;
  * default rule(other) is returned.
  *
  * For more information, details, and tips for writing rules, see the
- * LDML spec, Part 3.5 Language Plural Rules:
- * https://www.unicode.org/reports/tr35/tr35-numbers.html#Language_Plural_Rules
+ * LDML spec, C.11 Language Plural Rules:
+ * http://www.unicode.org/draft/reports/tr35/tr35.html#Language_Plural_Rules
  *
  * Examples:<pre>
  *   "one: n is 1; few: n in 2..4"</pre>
@@ -200,7 +200,7 @@ class UFormattedNumberRangeData;
  *  <p>
  *   ICU defines plural rules for many locales based on CLDR <i>Language Plural Rules</i>.
  *   For these predefined rules, see CLDR page at
- *   https://unicode-org.github.io/cldr-staging/charts/latest/supplemental/language_plural_rules.html
+ *    http://unicode.org/repos/cldr-tmp/trunk/diff/supplemental/language_plural_rules.html
  * </p>
  */
 class U_I18N_API PluralRules : public UObject {
@@ -373,6 +373,7 @@ public:
      */
     UnicodeString select(const number::FormattedNumber& number, UErrorCode& status) const;
 
+#ifndef U_HIDE_DRAFT_API
     /**
      * Given a formatted number range, returns the overall plural form of the
      * range. For example, "3-5" returns "other" in English.
@@ -387,9 +388,10 @@ public:
      *               This could happen if the FormattedNumberRange is invalid,
      *               or if plural ranges data is unavailable.
      * @return       The keyword of the selected rule.
-     * @stable ICU 68
+     * @draft ICU 68
      */
     UnicodeString select(const number::FormattedNumberRange& range, UErrorCode& status) const;
+#endif // U_HIDE_DRAFT_API
 
 #ifndef U_HIDE_INTERNAL_API
     /**
@@ -532,21 +534,21 @@ public:
      * Compares the equality of two PluralRules objects.
      *
      * @param other The other PluralRules object to be compared with.
-     * @return      true if the given PluralRules is the same as this
+     * @return      True if the given PluralRules is the same as this
      *              PluralRules; false otherwise.
      * @stable ICU 4.0
      */
-    virtual bool operator==(const PluralRules& other) const;
+    virtual UBool operator==(const PluralRules& other) const;
 
     /**
      * Compares the inequality of two PluralRules objects.
      *
      * @param other The PluralRules object to be compared with.
-     * @return      true if the given PluralRules is not the same as this
+     * @return      True if the given PluralRules is not the same as this
      *              PluralRules; false otherwise.
      * @stable ICU 4.0
      */
-    bool operator!=(const PluralRules& other) const  {return !operator==(other);}
+    UBool operator!=(const PluralRules& other) const  {return !operator==(other);}
 
 
     /**
@@ -562,7 +564,7 @@ public:
      *
      * @stable ICU 4.0
      */
-    virtual UClassID getDynamicClassID() const override;
+    virtual UClassID getDynamicClassID() const;
 
 
 private:

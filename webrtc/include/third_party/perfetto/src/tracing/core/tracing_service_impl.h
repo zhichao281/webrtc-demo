@@ -97,7 +97,6 @@ class TracingServiceImpl : public TracingService {
 
     // TracingService::ProducerEndpoint implementation.
     void RegisterDataSource(const DataSourceDescriptor&) override;
-    void UpdateDataSource(const DataSourceDescriptor&) override;
     void UnregisterDataSource(const std::string& name) override;
     void RegisterTraceWriter(uint32_t writer_id,
                              uint32_t target_buffer) override;
@@ -251,7 +250,6 @@ class TracingServiceImpl : public TracingService {
   // Called by ProducerEndpointImpl.
   void DisconnectProducer(ProducerID);
   void RegisterDataSource(ProducerID, const DataSourceDescriptor&);
-  void UpdateDataSource(ProducerID, const DataSourceDescriptor&);
   void UnregisterDataSource(ProducerID, const std::string& name);
   void CopyProducerPageIntoLogBuffer(ProducerID,
                                      uid_t,
@@ -285,30 +283,7 @@ class TracingServiceImpl : public TracingService {
              uint32_t timeout_ms,
              ConsumerEndpoint::FlushCallback);
   void FlushAndDisableTracing(TracingSessionID);
-
-  // Starts reading the internal tracing buffers from the tracing session `tsid`
-  // and sends them to `*consumer` (which must be != nullptr).
-  //
-  // Only reads a limited amount of data in one call. If there's more data,
-  // immediately schedules itself on a PostTask.
-  //
-  // Returns false in case of error.
-  bool ReadBuffersIntoConsumer(TracingSessionID tsid,
-                               ConsumerEndpointImpl* consumer);
-
-  // Reads all the tracing buffers from the tracing session `tsid` and writes
-  // them into the associated file.
-  //
-  // Reads all the data in the buffers (or until the file is full) before
-  // returning.
-  //
-  // If the tracing session write_period_ms is 0, the file is full or there has
-  // been an error, flushes the file and closes it. Otherwise, schedules itself
-  // to be executed after write_period_ms.
-  //
-  // Returns false in case of error.
-  bool ReadBuffersIntoFile(TracingSessionID);
-
+  bool ReadBuffers(TracingSessionID, ConsumerEndpointImpl*);
   void FreeBuffers(TracingSessionID);
 
   // Service implementation.
@@ -677,10 +652,6 @@ class TracingServiceImpl : public TracingService {
   void ScrapeSharedMemoryBuffers(TracingSession*, ProducerEndpointImpl*);
   void PeriodicClearIncrementalStateTask(TracingSessionID, bool post_next_only);
   TraceBuffer* GetBufferByID(BufferID);
-  bool ReadBuffers(TracingSessionID, TracingSession*, ConsumerEndpointImpl*);
-  // Returns true if `*tracing_session` is waiting for a trigger that hasn't
-  // happened.
-  static bool IsWaitingForTrigger(TracingSession*);
   void OnStartTriggersTimeout(TracingSessionID tsid);
   void MaybeLogUploadEvent(const TraceConfig&,
                            PerfettoStatsdAtom atom,

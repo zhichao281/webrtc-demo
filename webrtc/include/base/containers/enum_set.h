@@ -11,7 +11,6 @@
 #include <utility>
 
 #include "base/check_op.h"
-#include "base/memory/raw_ptr.h"
 
 namespace base {
 
@@ -47,10 +46,6 @@ class EnumSet {
       std::is_enum<E>::value,
       "First template parameter of EnumSet must be an enumeration type");
   using enum_underlying_type = std::underlying_type_t<E>;
-
-  static constexpr bool InRange(E value) {
-    return (value >= MinEnumValue) && (value <= MaxEnumValue);
-  }
 
   static constexpr enum_underlying_type GetUnderlyingValue(E value) {
     return static_cast<enum_underlying_type>(value);
@@ -99,7 +94,7 @@ class EnumSet {
   class Iterator {
    public:
     Iterator() : enums_(nullptr), i_(kValueCount) {}
-    ~Iterator() = default;
+    ~Iterator() {}
 
     bool operator==(const Iterator& other) const { return i_ == other.i_; }
 
@@ -147,19 +142,16 @@ class EnumSet {
       return i;
     }
 
-    raw_ptr<const EnumBitSet> enums_;
+    const EnumBitSet* enums_;
     size_t i_;
   };
 
-  EnumSet() = default;
+  EnumSet() {}
 
   ~EnumSet() = default;
 
   static constexpr uint64_t single_val_bitstring(E val) {
-    const uint64_t bitstring = 1;
-    const size_t shift_amount = ToIndex(val);
-    CHECK_LT(shift_amount, sizeof(bitstring) * 8);
-    return bitstring << shift_amount;
+    return 1ULL << (ToIndex(val));
   }
 
   template <class... T>
@@ -182,7 +174,6 @@ class EnumSet {
 
   // Returns an EnumSet with all the values from start to end, inclusive.
   static constexpr EnumSet FromRange(E start, E end) {
-    CHECK_LE(start, end);
     return EnumSet(EnumBitSet(
         ((single_val_bitstring(end)) - (single_val_bitstring(start))) |
         (single_val_bitstring(end))));
@@ -226,8 +217,8 @@ class EnumSet {
 
   // Adds all values in the given range to our set, inclusive.
   void PutRange(E start, E end) {
-    CHECK_LE(start, end);
     size_t endIndexInclusive = ToIndex(end);
+    DCHECK_LE(ToIndex(start), endIndexInclusive);
     for (size_t current = ToIndex(start); current <= endIndexInclusive;
          ++current) {
       enums_.set(current);
@@ -296,14 +287,17 @@ class EnumSet {
   // some minor optimizations.
   explicit constexpr EnumSet(EnumBitSet enums) : enums_(enums) {
     static_assert(kValueCount <= 64,
-                  "Max number of enum values is 64 for constexpr constructor");
+                  "Max number of enum values is 64 for constexpr ");
+  }
+
+  static constexpr bool InRange(E value) {
+    return (value >= MinEnumValue) && (value <= MaxEnumValue);
   }
 
   // Converts a value to/from an index into |enums_|.
+
   static constexpr size_t ToIndex(E value) {
-    CHECK(InRange(value));
-    return static_cast<size_t>(GetUnderlyingValue(value)) -
-           static_cast<size_t>(GetUnderlyingValue(MinEnumValue));
+    return GetUnderlyingValue(value) - GetUnderlyingValue(MinEnumValue);
   }
 
   static E FromIndex(size_t i) {

@@ -18,7 +18,8 @@ namespace blink {
 
 class FakeCanvasResourceHost : public CanvasResourceHost {
  public:
-  explicit FakeCanvasResourceHost(gfx::Size size) : size_(size) {}
+  FakeCanvasResourceHost(IntSize size) : size_(size) {}
+  ~FakeCanvasResourceHost() override {}
   void NotifyGpuContextLost() override {}
   void SetNeedsCompositingUpdate() override {}
   void RestoreCanvasMatrixClipStack(cc::PaintCanvas*) const override {}
@@ -66,7 +67,7 @@ class FakeCanvasResourceHost : public CanvasResourceHost {
   }
 
  private:
-  gfx::Size size_;
+  IntSize size_;
 };
 
 }  // namespace blink

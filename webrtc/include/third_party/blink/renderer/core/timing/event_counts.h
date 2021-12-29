@@ -13,9 +13,8 @@
 
 namespace blink {
 
-class EventCounts final
-    : public ScriptWrappable,
-      public Maplike<AtomicString, IDLString, uint32_t, IDLUnsignedLong> {
+class EventCounts final : public ScriptWrappable,
+                          public Maplike<AtomicString, unsigned> {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
@@ -39,9 +38,9 @@ class EventCounts final
 
  private:
   // Maplike implementation.
-  PairIterable<AtomicString, IDLString, uint32_t, IDLUnsignedLong>::
-      IterationSource*
-      StartIteration(ScriptState*, ExceptionState&) override;
+  PairIterable<AtomicString, unsigned>::IterationSource* StartIteration(
+      ScriptState*,
+      ExceptionState&) override;
   bool GetMapEntry(ScriptState*,
                    const AtomicString& key,
                    unsigned& value,

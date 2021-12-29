@@ -648,6 +648,6 @@ void *grow_array(void *array, int elem_size, int *size, int new_size);
     char name[128];\
     av_get_channel_layout_string(name, sizeof(name), 0, ch_layout);
 
-double get_rotation(int32_t *displaymatrix);
+double get_rotation(AVStream *st);
 
 #endif /* FFTOOLS_CMDUTILS_H */

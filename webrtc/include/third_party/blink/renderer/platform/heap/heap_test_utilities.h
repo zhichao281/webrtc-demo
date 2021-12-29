@@ -74,8 +74,8 @@ class IncrementalMarkingTestDriver {
 
   virtual void StartGC();
   virtual void TriggerMarkingSteps(
-      ThreadState::StackState stack_state =
-          ThreadState::StackState::kNoHeapPointers);
+      BlinkGC::StackState stack_state =
+          BlinkGC::StackState::kNoHeapPointersOnStack);
   virtual void FinishGC();
 
  protected:
@@ -90,8 +90,8 @@ class ConcurrentMarkingTestDriver : public IncrementalMarkingTestDriver {
 
   void StartGC() override;
   void TriggerMarkingSteps(
-      ThreadState::StackState stack_state =
-          ThreadState::StackState::kNoHeapPointers) override;
+      BlinkGC::StackState stack_state =
+          BlinkGC::StackState::kNoHeapPointersOnStack) override;
   void FinishGC() override;
 };
 

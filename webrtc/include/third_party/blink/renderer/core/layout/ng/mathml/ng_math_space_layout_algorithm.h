@@ -20,7 +20,8 @@ class CORE_EXPORT NGMathSpaceLayoutAlgorithm
  private:
   scoped_refptr<const NGLayoutResult> Layout() final;
 
-  MinMaxSizesResult ComputeMinMaxSizes(const MinMaxSizesFloatInput&) final;
+  MinMaxSizesResult ComputeMinMaxSizes(
+      const MinMaxSizesFloatInput&) const final;
 };
 
 }  // namespace blink

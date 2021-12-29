@@ -8,6 +8,7 @@
 #include <libunwind.h>
 #include <vector>
 
+#include "base/macros.h"
 #include "base/profiler/unwinder.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 

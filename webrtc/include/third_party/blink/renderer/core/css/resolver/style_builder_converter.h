@@ -235,7 +235,6 @@ class StyleBuilderConverter {
       OrderedNamedGridLines&,
       wtf_size_t& auto_repeat_insertion_point,
       AutoRepeatType&,
-      GridAxisType&,
       StyleResolverState&);
   static void CreateImplicitNamedGridLinesFromGridArea(
       const NamedGridAreaMap&,

@@ -43,9 +43,7 @@ class CORE_EXPORT MediaValuesCached final : public MediaValues {
         mojom::blink::HoverType::kHoverNone;
     // Bitmask of |ui::HoverType|
     int available_hover_types = ui::HOVER_TYPE_NONE;
-    float em_size = 16.f;
-    float ex_size = 8.f;
-    float ch_size = 8.f;
+    int default_font_size = 16;
     bool three_d_enabled = false;
     bool immersive_mode = false;
     bool strict_mode = true;
@@ -83,9 +81,7 @@ class CORE_EXPORT MediaValuesCached final : public MediaValues {
       data.available_pointer_types = available_pointer_types;
       data.primary_hover_type = primary_hover_type;
       data.available_hover_types = available_hover_types;
-      data.em_size = em_size;
-      data.ex_size = ex_size;
-      data.ch_size = ch_size;
+      data.default_font_size = default_font_size;
       data.three_d_enabled = three_d_enabled;
       data.immersive_mode = immersive_mode;
       data.strict_mode = strict_mode;
@@ -106,11 +102,19 @@ class CORE_EXPORT MediaValuesCached final : public MediaValues {
   };
 
   MediaValuesCached();
-  explicit MediaValuesCached(Document&);
+  explicit MediaValuesCached(LocalFrame*);
   explicit MediaValuesCached(const MediaValuesCachedData&);
 
-  MediaValues* Copy() const;
+  MediaValues* Copy() const override;
+  bool ComputeLength(double value,
+                     CSSPrimitiveValue::UnitType,
+                     int& result) const override;
+  bool ComputeLength(double value,
+                     CSSPrimitiveValue::UnitType,
+                     double& result) const override;
 
+  double ViewportWidth() const override;
+  double ViewportHeight() const override;
   int DeviceWidth() const override;
   int DeviceHeight() const override;
   float DevicePixelRatio() const override;
@@ -139,19 +143,9 @@ class CORE_EXPORT MediaValuesCached final : public MediaValues {
   int GetVerticalViewportSegments() const override;
   device::mojom::blink::DevicePostureType GetDevicePosture() const override;
 
-  void OverrideViewportDimensions(double width, double height);
+  void OverrideViewportDimensions(double width, double height) override;
 
  protected:
-  double ViewportWidth() const override;
-  double ViewportHeight() const override;
-  float EmSize() const override;
-  float RemSize() const override;
-  float ExSize() const override;
-  float ChSize() const override;
-  WritingMode GetWritingMode() const override {
-    return WritingMode::kHorizontalTb;
-  }
-
   MediaValuesCachedData data_;
 };
 

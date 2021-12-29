@@ -53,9 +53,9 @@ class LayoutSVGHiddenContainer : public LayoutSVGContainer {
     NOT_DESTROYED();
     return PhysicalRect();
   }
-  gfx::RectF VisualRectInLocalSVGCoordinates() const final {
+  FloatRect VisualRectInLocalSVGCoordinates() const final {
     NOT_DESTROYED();
-    return gfx::RectF();
+    return FloatRect();
   }
   void AbsoluteQuads(Vector<FloatQuad>&,
                      MapCoordinatesFlags mode = 0) const final {

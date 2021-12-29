@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_PEERCONNECTION_PEER_CONNECTION_DEPENDENCY_FACTORY_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_PEERCONNECTION_PEER_CONNECTION_DEPENDENCY_FACTORY_H_
 
+#include "base/macros.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
@@ -13,13 +14,12 @@
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
-#include "third_party/blink/renderer/platform/heap/prefinalizer.h"
+#include "third_party/blink/renderer/platform/heap/thread_state.h"
 #include "third_party/blink/renderer/platform/mojo/mojo_binding_context.h"
 #include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "third_party/webrtc/api/peer_connection_interface.h"
-#include "third_party/webrtc_overrides/metronome_provider.h"
 #include "third_party/webrtc_overrides/metronome_source.h"
 
 namespace base {
@@ -53,6 +53,20 @@ class RTCPeerConnectionHandlerClient;
 class RTCPeerConnectionHandler;
 class WebLocalFrame;
 class WebRtcAudioDeviceImpl;
+
+// The factory informs the listener whether or not the metronome may be used.
+class MODULES_EXPORT UseMetronomeSourceListener {
+ public:
+  virtual ~UseMetronomeSourceListener() = default;
+
+  // The metronome is considered active and may be used.
+  virtual void OnCanUseMetronome(
+      scoped_refptr<MetronomeSource> metronome_source) = 0;
+  // The metronome should not be used anymore. The listener must stop using it
+  // so that it can become inactive.
+  virtual void OnStopUsingMetronome(
+      scoped_refptr<MetronomeSource> metronome_source) = 0;
+};
 
 // Object factory for RTC PeerConnections.
 class MODULES_EXPORT PeerConnectionDependencyFactory
@@ -98,6 +112,16 @@ class MODULES_EXPORT PeerConnectionDependencyFactory
       const String& id,
       webrtc::VideoTrackSourceInterface* source);
 
+  // Add or remove a listener to be informed when there exists a metronome
+  // source that may be used. If the metronome is already in use, the listener
+  // will be informed upon adding it. When the metronome should not be used
+  // anymore, the listener is responsible for no longer using it, as is required
+  // for a metronome to become inactive.
+  void AddUseMetronomeSourceListener(
+      UseMetronomeSourceListener* use_metronome_source_listener);
+  void RemoveUseMetronomeSourceListener(
+      UseMetronomeSourceListener* use_metronome_source_listener);
+
   // Asks the libjingle PeerConnection factory to create a libjingle
   // PeerConnection object.
   // The PeerConnection object is owned by PeerConnectionHandler.
@@ -108,7 +132,6 @@ class MODULES_EXPORT PeerConnectionDependencyFactory
       ExceptionState& exception_state);
   size_t open_peer_connections() const;
   void OnPeerConnectionClosed();
-  scoped_refptr<MetronomeProvider> metronome_provider() const;
 
   // Creates a PortAllocator that uses Chrome IPC sockets and enforces privacy
   // controls according to the permissions granted on the page.
@@ -196,8 +219,8 @@ class MODULES_EXPORT PeerConnectionDependencyFactory
   scoped_refptr<webrtc::PeerConnectionFactoryInterface> pc_factory_;
   // The metronome should only be used if kWebRtcMetronomeTaskQueue is enabled
   // and there exists open RTCPeerConnection objects.
-  scoped_refptr<MetronomeProvider> metronome_provider_;
   scoped_refptr<MetronomeSource> metronome_source_;
+  Vector<UseMetronomeSourceListener*> use_metronome_source_listeners_;
 
   // Dispatches all P2P sockets.
   Member<P2PSocketDispatcher> p2p_socket_dispatcher_;
@@ -205,8 +228,6 @@ class MODULES_EXPORT PeerConnectionDependencyFactory
   scoped_refptr<blink::WebRtcAudioDeviceImpl> audio_device_;
 
   media::GpuVideoAcceleratorFactories* gpu_factories_;
-
-  bool encode_decode_capabilities_reported_ = false;
 
   THREAD_CHECKER(thread_checker_);
 };

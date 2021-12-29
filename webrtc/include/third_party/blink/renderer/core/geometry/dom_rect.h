@@ -7,7 +7,7 @@
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/geometry/dom_rect_read_only.h"
-#include "ui/gfx/geometry/rect_f.h"
+#include "third_party/blink/renderer/platform/geometry/float_rect.h"
 
 namespace blink {
 
@@ -22,7 +22,7 @@ class CORE_EXPORT DOMRect final : public DOMRectReadOnly {
                          double y = 0,
                          double width = 0,
                          double height = 0);
-  static DOMRect* FromRectF(const gfx::RectF&);
+  static DOMRect* FromFloatRect(const FloatRect&);
   static DOMRect* fromRect(const DOMRectInit*);
 
   DOMRect(double x, double y, double z, double w);

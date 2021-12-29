@@ -22,17 +22,14 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_SVG_SVG_TRANSFORM_H_
 
 #include "third_party/blink/renderer/core/svg/properties/svg_listable_property.h"
+#include "third_party/blink/renderer/platform/geometry/float_point.h"
 #include "third_party/blink/renderer/platform/transforms/affine_transform.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
-#include "ui/gfx/geometry/point_f.h"
-
-namespace gfx {
-class Vector2dF;
-}
 
 namespace blink {
 
+class FloatSize;
 class SVGTransformTearOff;
 
 enum class SVGTransformType {
@@ -60,7 +57,7 @@ class SVGTransform final : public SVGListablePropertyBase {
   explicit SVGTransform(const AffineTransform&);
   SVGTransform(SVGTransformType,
                float,
-               const gfx::PointF&,
+               const FloatPoint&,
                const AffineTransform&);
   ~SVGTransform() override;
 
@@ -76,7 +73,7 @@ class SVGTransform final : public SVGListablePropertyBase {
   void OnMatrixChange();
 
   float Angle() const { return angle_; }
-  gfx::PointF RotationCenter() const { return center_; }
+  FloatPoint RotationCenter() const { return center_; }
 
   void SetMatrix(const AffineTransform&);
   void SetTranslate(float tx, float ty);
@@ -86,8 +83,8 @@ class SVGTransform final : public SVGListablePropertyBase {
   void SetSkewY(float angle);
 
   // Internal use only (animation system)
-  gfx::Vector2dF Translate() const;
-  gfx::Vector2dF Scale() const;
+  FloatPoint Translate() const;
+  FloatSize Scale() const;
 
   String ValueAsString() const override;
 
@@ -109,7 +106,7 @@ class SVGTransform final : public SVGListablePropertyBase {
  private:
   SVGTransformType transform_type_;
   float angle_;
-  gfx::PointF center_;
+  FloatPoint center_;
   AffineTransform matrix_;
 };
 

@@ -194,10 +194,10 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   void AddStyleSheetCandidateNode(Node&);
   void RemoveStyleSheetCandidateNode(Node&, ContainerNode& insertion_point);
   void ModifiedStyleSheetCandidateNode(Node&);
-
-  void AdoptedStyleSheetAdded(TreeScope& tree_scope, CSSStyleSheet* sheet);
-  void AdoptedStyleSheetRemoved(TreeScope& tree_scope, CSSStyleSheet* sheet);
-
+  void AdoptedStyleSheetsWillChange(
+      TreeScope&,
+      const HeapVector<Member<CSSStyleSheet>>& old_sheets,
+      const HeapVector<Member<CSSStyleSheet>>& new_sheets);
   void AddedCustomElementDefaultStyles(
       const HeapVector<Member<CSSStyleSheet>>& default_styles);
   void WatchedSelectorsChanged();
@@ -367,10 +367,7 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   void IdChangedForElement(const AtomicString& old_id,
                            const AtomicString& new_id,
                            Element&);
-  void PseudoStateChangedForElement(CSSSelector::PseudoType,
-                                    Element&,
-                                    bool invalidate_descendants_or_siblings,
-                                    bool invalidate_ancestors);
+  void PseudoStateChangedForElement(CSSSelector::PseudoType, Element&);
   void PartChangedForElement(Element&);
   void ExportpartsChangedForElement(Element&);
 
@@ -388,8 +385,6 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
                                         InvalidationScope =
                                             kInvalidateCurrentScope);
   void ScheduleCustomElementInvalidations(HashSet<AtomicString> tag_names);
-  void ElementInsertedOrRemoved(Element* parent, Element& element);
-  void SubtreeInsertedOrRemoved(Element* parent, Element& subtree_root);
 
   void NodeWillBeRemoved(Node&);
   void ChildrenRemoved(ContainerNode& parent);
@@ -526,6 +521,7 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
 
   void LoadVisionDeficiencyFilter();
 
+ private:
   bool NeedsActiveStyleSheetUpdate() const {
     return tree_scopes_removed_ || document_scope_dirty_ ||
            dirty_tree_scopes_.size() || user_style_dirty_;
@@ -581,7 +577,6 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
       UnorderedTreeScopeSet& tree_scopes_removed);
 
   bool ShouldSkipInvalidationFor(const Element&) const;
-  bool IsSubtreeAndSiblingsStyleDirty(const Element&) const;
   void ScheduleRuleSetInvalidationsForElement(
       Element&,
       const HeapHashSet<Member<RuleSet>>&);
@@ -650,12 +645,6 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   // We may need to update whitespaces in the layout tree after a flat tree
   // removal which caused a layout subtree to be detached.
   void MarkForLayoutTreeChangesAfterDetach();
-
-  void RebuildLayoutTreeForTraversalRootAncestors(Element* parent);
-
-  // Separate path for layout tree rebuild for html fieldset as a size query
-  // container.
-  void RebuildFieldSetContainer(HTMLFieldSetElement& fieldset);
 
   Member<Document> document_;
 

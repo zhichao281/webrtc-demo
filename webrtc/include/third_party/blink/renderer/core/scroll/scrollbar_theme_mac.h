@@ -26,9 +26,16 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_SCROLL_SCROLLBAR_THEME_MAC_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_SCROLL_SCROLLBAR_THEME_MAC_H_
 
+#include <AppKit/AppKit.h>
+
+#include "third_party/blink/renderer/core/scroll/ns_scroller_imp_details.h"
 #include "third_party/blink/renderer/core/scroll/scrollbar_theme.h"
 
+typedef id ScrollbarPainter;
+
 namespace blink {
+
+class Pattern;
 
 class CORE_EXPORT ScrollbarThemeMac : public ScrollbarTheme {
  public:
@@ -36,7 +43,6 @@ class CORE_EXPORT ScrollbarThemeMac : public ScrollbarTheme {
   ~ScrollbarThemeMac() override;
 
   void RegisterScrollbar(Scrollbar&) override;
-  bool IsScrollbarRegistered(Scrollbar&) const;
 
   // On Mac, the painting code itself animates the opacity so there's no need
   // to disable in order to make the scrollbars invisible. In fact,
@@ -56,7 +62,7 @@ class CORE_EXPORT ScrollbarThemeMac : public ScrollbarTheme {
 
   void PaintTickmarks(GraphicsContext&,
                       const Scrollbar&,
-                      const gfx::Rect&) override;
+                      const IntRect&) override;
 
   bool ShouldCenterOnThumb(const Scrollbar&, const WebMouseEvent&) override;
   bool JumpOnTrackClick() const override;
@@ -72,28 +78,29 @@ class CORE_EXPORT ScrollbarThemeMac : public ScrollbarTheme {
   bool UsesOverlayScrollbars() const override;
   void UpdateScrollbarOverlayColorTheme(const Scrollbar&) override;
 
-  void SetNewPainterForScrollbar(Scrollbar&);
+  void SetNewPainterForScrollbar(Scrollbar&, ScrollbarPainter);
+  ScrollbarPainter PainterForScrollbar(const Scrollbar&) const;
 
   void PaintThumb(GraphicsContext& context,
                   const Scrollbar& scrollbar,
-                  const gfx::Rect& rect) override {
+                  const IntRect& rect) override {
     PaintThumbInternal(context, scrollbar, rect, 1.0f);
   }
   void PaintThumbWithOpacity(GraphicsContext& context,
                              const Scrollbar& scrollbar,
-                             const gfx::Rect& rect) override {
+                             const IntRect& rect) override {
     PaintThumbInternal(context, scrollbar, rect, Opacity(scrollbar));
   }
 
   float Opacity(const Scrollbar&) const override;
 
-  static bool PreferOverlayScrollerStyle();
+  static NSScrollerStyle RecommendedScrollerStyle();
 
   // See WebScrollbarTheme for parameters description.
   static void UpdateScrollbarsWithNSDefaults(
       absl::optional<float> initial_button_delay,
       absl::optional<float> autoscroll_button_delay,
-      bool prefer_overlay_scroller_style,
+      NSScrollerStyle preferred_scroller_style,
       bool redraw,
       bool jump_on_track_click);
 
@@ -103,9 +110,9 @@ class CORE_EXPORT ScrollbarThemeMac : public ScrollbarTheme {
   bool ShouldDragDocumentInsteadOfThumb(const Scrollbar&,
                                         const WebMouseEvent&) override;
 
-  gfx::Rect TrackRect(const Scrollbar&) override;
-  gfx::Rect BackButtonRect(const Scrollbar&) override;
-  gfx::Rect ForwardButtonRect(const Scrollbar&) override;
+  IntRect TrackRect(const Scrollbar&) override;
+  IntRect BackButtonRect(const Scrollbar&) override;
+  IntRect ForwardButtonRect(const Scrollbar&) override;
 
   bool NativeThemeHasButtons() override { return false; }
   bool HasThumb(const Scrollbar&) override;
@@ -114,18 +121,18 @@ class CORE_EXPORT ScrollbarThemeMac : public ScrollbarTheme {
 
   int TickmarkBorderWidth() override { return 1; }
 
-  void PaintTrack(GraphicsContext&,
-                  const Scrollbar&,
-                  const gfx::Rect&) override;
+  void PaintTrack(GraphicsContext&, const Scrollbar&, const IntRect&) override;
   void PaintScrollCorner(GraphicsContext&,
                          const Scrollbar* vertical_scrollbar,
                          const DisplayItemClient&,
-                         const gfx::Rect& corner_rect,
+                         const IntRect& corner_rect,
                          mojom::blink::ColorScheme color_scheme) override;
   void PaintThumbInternal(GraphicsContext&,
                           const Scrollbar&,
-                          const gfx::Rect&,
+                          const IntRect&,
                           float opacity);
+
+  scoped_refptr<Pattern> overhang_pattern_;
 };
 }  // namespace blink
 

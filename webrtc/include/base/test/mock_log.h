@@ -10,6 +10,7 @@
 #include <string>
 
 #include "base/logging.h"
+#include "base/macros.h"
 #include "base/synchronization/lock.h"
 #include "testing/gmock/include/gmock/gmock.h"
 

@@ -135,14 +135,13 @@ class InternalVisitedTextFillColor;
 class InternalVisitedTextStrokeColor;
 class LightingColor;
 class OutlineColor;
-class PointerEvents;
 class Position;
 class Resize;
 class StopColor;
 class Stroke;
 class TextDecorationColor;
-class TextEmphasisColor;
 class WebkitTapHighlightColor;
+class WebkitTextEmphasisColor;
 class WebkitTextFillColor;
 class WebkitTextStrokeColor;
 
@@ -249,14 +248,13 @@ class ComputedStyle : public ComputedStyleBase,
   friend class css_longhand::InternalVisitedTextStrokeColor;
   friend class css_longhand::LightingColor;
   friend class css_longhand::OutlineColor;
-  friend class css_longhand::PointerEvents;
   friend class css_longhand::Position;
   friend class css_longhand::Resize;
   friend class css_longhand::StopColor;
   friend class css_longhand::Stroke;
   friend class css_longhand::TextDecorationColor;
-  friend class css_longhand::TextEmphasisColor;
   friend class css_longhand::WebkitTapHighlightColor;
+  friend class css_longhand::WebkitTextEmphasisColor;
   friend class css_longhand::WebkitTextFillColor;
   friend class css_longhand::WebkitTextStrokeColor;
   // Access to private Appearance() and HasAppearance().
@@ -286,7 +284,7 @@ class ComputedStyle : public ComputedStyleBase,
   StyleCachedData& EnsureCachedData() const;
 
   bool HasCachedPseudoElementStyles() const;
-  CORE_EXPORT PseudoElementStyleCache* GetPseudoElementStyleCache() const;
+  PseudoElementStyleCache* GetPseudoElementStyleCache() const;
   PseudoElementStyleCache& EnsurePseudoElementStyleCache() const;
 
   Vector<AtomicString>* GetVariableNamesCache() const;
@@ -390,51 +388,6 @@ class ComputedStyle : public ComputedStyleBase,
                                IsAtShadowBoundary = kNotAtShadowBoundary);
   void CopyNonInheritedFromCached(const ComputedStyle&);
 
-  bool AncestorsAffectedByHas() const {
-    return DynamicRestyleFlagsForHas() & kAncestorsAffectedByHas;
-  }
-
-  void SetAncestorsAffectedByHas() {
-    SetDynamicRestyleFlagsForHas(DynamicRestyleFlagsForHas() |
-                                 kAncestorsAffectedByHas);
-  }
-
-  bool AncestorsAffectedByHoverInHas() const {
-    return DynamicRestyleFlagsForHas() & kAncestorsAffectedByHoverInHas;
-  }
-
-  void SetAncestorsAffectedByHoverInHas() {
-    SetDynamicRestyleFlagsForHas(DynamicRestyleFlagsForHas() |
-                                 kAncestorsAffectedByHoverInHas);
-  }
-
-  bool AncestorsAffectedByActiveInHas() const {
-    return DynamicRestyleFlagsForHas() & kAncestorsAffectedByActiveInHas;
-  }
-
-  void SetAncestorsAffectedByActiveInHas() {
-    SetDynamicRestyleFlagsForHas(DynamicRestyleFlagsForHas() |
-                                 kAncestorsAffectedByActiveInHas);
-  }
-
-  bool AncestorsAffectedByFocusInHas() const {
-    return DynamicRestyleFlagsForHas() & kAncestorsAffectedByFocusInHas;
-  }
-
-  void SetAncestorsAffectedByFocusInHas() {
-    SetDynamicRestyleFlagsForHas(DynamicRestyleFlagsForHas() |
-                                 kAncestorsAffectedByFocusInHas);
-  }
-
-  bool AncestorsAffectedByFocusVisibleInHas() const {
-    return DynamicRestyleFlagsForHas() & kAncestorsAffectedByFocusVisibleInHas;
-  }
-
-  void SetAncestorsAffectedByFocusVisibleInHas() {
-    SetDynamicRestyleFlagsForHas(DynamicRestyleFlagsForHas() |
-                                 kAncestorsAffectedByFocusVisibleInHas);
-  }
-
   PseudoId StyleType() const {
     return static_cast<PseudoId>(StyleTypeInternal());
   }
@@ -464,11 +417,6 @@ class ComputedStyle : public ComputedStyleBase,
   }
 
   StyleHighlightData& MutableHighlightData();
-
-  HashSet<AtomicString>* CustomHighlightNames() const {
-    return CustomHighlightNamesInternal().get();
-  }
-  void SetHasCustomHighlightName(const AtomicString&);
 
   /**
    * ComputedStyle properties
@@ -1926,7 +1874,7 @@ class ComputedStyle : public ComputedStyleBase,
     SetBorderBottomLeftRadius(s);
     SetBorderBottomRightRadius(s);
   }
-  void SetBorderRadius(const gfx::Size& s) {
+  void SetBorderRadius(const IntSize& s) {
     SetBorderRadius(
         LengthSize(Length::Fixed(s.width()), Length::Fixed(s.height())));
   }
@@ -1945,9 +1893,11 @@ class ComputedStyle : public ComputedStyleBase,
     const EFloat value = FloatingInternal();
     switch (value) {
       case EFloat::kInlineStart:
-        return IsLtr(cb_direction) ? EFloat::kLeft : EFloat::kRight;
-      case EFloat::kInlineEnd:
-        return IsLtr(cb_direction) ? EFloat::kRight : EFloat::kLeft;
+      case EFloat::kInlineEnd: {
+        return IsLtr(cb_direction) == (value == EFloat::kInlineStart)
+                   ? EFloat::kLeft
+                   : EFloat::kRight;
+      }
       default:
         return value;
     }
@@ -2023,9 +1973,11 @@ class ComputedStyle : public ComputedStyleBase,
     const EClear value = ClearInternal();
     switch (value) {
       case EClear::kInlineStart:
-        return IsLtr(cb_direction) ? EClear::kLeft : EClear::kRight;
-      case EClear::kInlineEnd:
-        return IsLtr(cb_direction) ? EClear::kRight : EClear::kLeft;
+      case EClear::kInlineEnd: {
+        return IsLtr(cb_direction) == (value == EClear::kInlineStart)
+                   ? EClear::kLeft
+                   : EClear::kRight;
+      }
       default:
         return value;
     }
@@ -2120,8 +2072,9 @@ class ComputedStyle : public ComputedStyleBase,
   CORE_EXPORT bool ShouldApplyAnyContainment(const Element& element) const;
 
   bool IsContainerForContainerQueries() const {
-    return IsInlineOrBlockSizeContainer() && StyleType() == kPseudoIdNone &&
-           !InsideFragmentationContextWithNondeterministicEngine();
+    return (StyleType() == kPseudoIdNone) &&
+           (ContainsStyle() && ContainsLayout() &&
+            (ContainsInlineSize() || ContainsBlockSize()));
   }
 
   // Display utility functions.
@@ -2189,7 +2142,7 @@ class ComputedStyle : public ComputedStyleBase,
   CursorList* Cursors() const { return CursorDataInternal().Get(); }
   CORE_EXPORT void AddCursor(StyleImage*,
                              bool hot_spot_specified,
-                             const gfx::Point& hot_spot = gfx::Point());
+                             const IntPoint& hot_spot = IntPoint());
   void SetCursorList(CursorList*);
   void ClearCursorList();
 
@@ -2203,40 +2156,15 @@ class ComputedStyle : public ComputedStyleBase,
     EResize value = ResizeInternal();
     switch (value) {
       case EResize::kBlock:
-        return cb_style.IsHorizontalWritingMode() ? EResize::kVertical
-                                                  : EResize::kHorizontal;
-      case EResize::kInline:
-        return cb_style.IsHorizontalWritingMode() ? EResize::kHorizontal
-                                                  : EResize::kVertical;
+      case EResize::kInline: {
+        return ::blink::IsHorizontalWritingMode(cb_style.GetWritingMode()) ==
+                       (value == EResize::kBlock)
+                   ? EResize::kVertical
+                   : EResize::kHorizontal;
+      }
       default:
         return value;
     }
-  }
-
-  // Inertness utility functions.
-  bool IsInert() const { return InertnessInternal() != Inertness::kNone; }
-  void SetIsInert(bool is_inert) {
-    if (InertnessInternal() == Inertness::kForced) {
-      DCHECK(is_inert);
-      return;
-    }
-    SetInertnessInternal(is_inert ? Inertness::kOverridable : Inertness::kNone);
-  }
-  bool IsForcedInert() const {
-    return InertnessInternal() == Inertness::kForced;
-  }
-  void SetIsForcedInert() { SetInertnessInternal(Inertness::kForced); }
-
-  // Pointer-events utility functions.
-  EPointerEvents UsedPointerEvents() const {
-    if (IsInert())
-      return EPointerEvents::kNone;
-    return PointerEventsInternal();
-  }
-
-  bool IsSelectable() const {
-    return !IsInert() && !(UserSelect() == EUserSelect::kNone &&
-                           UserModify() == EUserModify::kReadOnly);
   }
 
   // Text decoration utility functions.
@@ -2247,7 +2175,7 @@ class ComputedStyle : public ComputedStyleBase,
   void RestoreParentTextDecorations(const ComputedStyle& parent_style);
   CORE_EXPORT const Vector<AppliedTextDecoration>& AppliedTextDecorations()
       const;
-  CORE_EXPORT TextDecorationLine TextDecorationsInEffect() const;
+  CORE_EXPORT TextDecoration TextDecorationsInEffect() const;
 
   // Overflow utility functions.
 
@@ -2309,7 +2237,7 @@ class ComputedStyle : public ComputedStyleBase,
   // Visibility utility functions.
   bool VisibleToHitTesting() const {
     return Visibility() == EVisibility::kVisible &&
-           UsedPointerEvents() != EPointerEvents::kNone;
+           PointerEvents() != EPointerEvents::kNone;
   }
 
   // Animation utility functions.
@@ -2408,7 +2336,7 @@ class ComputedStyle : public ComputedStyleBase,
                       ApplyMotionPath,
                       ApplyIndependentTransformProperties) const;
   void ApplyTransform(TransformationMatrix&,
-                      const gfx::RectF& bounding_box,
+                      const FloatRect& bounding_box,
                       ApplyTransformOrigin,
                       ApplyMotionPath,
                       ApplyIndependentTransformProperties) const;
@@ -2729,10 +2657,10 @@ class ComputedStyle : public ComputedStyleBase,
 
   LogicalSize LogicalAspectRatio() const {
     DCHECK_NE(AspectRatio().GetType(), EAspectRatioType::kAuto);
-    gfx::SizeF ratio = AspectRatio().GetRatio();
+    FloatSize ratio = AspectRatio().GetRatio();
     if (!IsHorizontalWritingMode())
-      ratio.Transpose();
-    return LogicalSize::AspectRatioFromSizeF(ratio);
+      ratio = ratio.TransposedSize();
+    return LogicalSize::AspectRatioFromFloatSize(ratio);
   }
 
   EBoxSizing BoxSizingForAspectRatio() const {
@@ -2741,12 +2669,14 @@ class ComputedStyle : public ComputedStyleBase,
     return EBoxSizing::kContentBox;
   }
 
-  bool ForceDark() const { return DarkColorScheme() && ColorSchemeForced(); }
+  bool ForceDark() const {
+    return DarkColorScheme() && ColorSchemeForced() &&
+           !HasFilterInducingProperty();
+  }
 
  private:
   EClear Clear() const { return ClearInternal(); }
   EFloat Floating() const { return FloatingInternal(); }
-  EPointerEvents PointerEvents() const { return PointerEventsInternal(); }
   EResize Resize() const { return ResizeInternal(); }
 
   bool IsInlineSizeContainer() const {
@@ -2989,7 +2919,7 @@ class ComputedStyle : public ComputedStyleBase,
   void OverrideTextDecorationColors(Color propagated_color);
   void ApplyMotionPathTransform(float origin_x,
                                 float origin_y,
-                                const gfx::RectF& bounding_box,
+                                const FloatRect& bounding_box,
                                 TransformationMatrix&) const;
 
   bool ScrollAnchorDisablingPropertyChanged(const ComputedStyle& other,
@@ -3132,7 +3062,6 @@ class ComputedStyle : public ComputedStyleBase,
       TextDecorationEqualDoesNotRequireRecomputeInkOverflow);
   FRIEND_TEST_ALL_PREFIXES(ComputedStyleTest,
                            TextDecorationNotEqualRequiresRecomputeInkOverflow);
-  FRIEND_TEST_ALL_PREFIXES(StyleEngineTest, ScrollbarStyleNoExcessiveCaching);
 };
 
 inline bool ComputedStyle::HasAnyPseudoElementStyles() const {
@@ -3141,13 +3070,13 @@ inline bool ComputedStyle::HasAnyPseudoElementStyles() const {
 
 inline bool ComputedStyle::HasPseudoElementStyle(PseudoId pseudo) const {
   DCHECK(pseudo >= kFirstPublicPseudoId);
-  DCHECK(pseudo <= kLastTrackedPublicPseudoId);
+  DCHECK(pseudo < kFirstInternalPseudoId);
   return (1 << (pseudo - kFirstPublicPseudoId)) & PseudoBitsInternal();
 }
 
 inline void ComputedStyle::SetHasPseudoElementStyle(PseudoId pseudo) {
   DCHECK(pseudo >= kFirstPublicPseudoId);
-  DCHECK(pseudo <= kLastTrackedPublicPseudoId);
+  DCHECK(pseudo < kFirstInternalPseudoId);
   // TODO: Fix up this code. It is hard to understand.
   SetPseudoBitsInternal(PseudoBitsInternal() |
                         1 << (pseudo - kFirstPublicPseudoId));

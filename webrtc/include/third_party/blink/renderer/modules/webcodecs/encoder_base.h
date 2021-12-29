@@ -7,8 +7,8 @@
 
 #include <memory>
 
-#include "media/base/encoder_status.h"
 #include "media/base/media_log.h"
+#include "media/base/status.h"
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_codec_state.h"
@@ -19,12 +19,7 @@
 #include "third_party/blink/renderer/modules/webcodecs/reclaimable_codec.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/context_lifecycle_observer.h"
-#include "third_party/blink/renderer/platform/heap/collection_support/heap_deque.h"
 #include "third_party/blink/renderer/platform/heap/visitor.h"
-
-namespace base {
-class SingleThreadTaskRunner;
-}
 
 namespace blink {
 
@@ -137,7 +132,7 @@ class MODULES_EXPORT EncoderBase
 
   void TraceQueueSizes() const;
 
-  std::unique_ptr<CodecLogger<media::EncoderStatus>> logger_;
+  std::unique_ptr<CodecLogger> logger_;
 
   std::unique_ptr<MediaEncoderType> media_encoder_;
 
@@ -165,9 +160,6 @@ class MODULES_EXPORT EncoderBase
 
   // Used to differentiate Encoders' counters during tracing.
   int trace_counter_id_;
-
-  // A runner for callbacks and deleting objects.
-  scoped_refptr<base::SingleThreadTaskRunner> callback_runner_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 };

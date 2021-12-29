@@ -54,7 +54,7 @@ class ProgrammaticScrollAnimator : public ScrollAnimatorCompositorCoordinator {
   void Trace(Visitor*) const override;
 
  private:
-  mojom::blink::ScrollType GetScrollType() const;
+  void NotifyOffsetChanged(const ScrollOffset&);
   void AnimationFinished();
 
   Member<ScrollableArea> scrollable_area_;

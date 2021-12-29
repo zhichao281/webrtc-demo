@@ -19,7 +19,6 @@
 #include <memory>
 #include <string>
 
-#include "third_party/private-join-and-compute/base/private_join_and_compute_export.h"
 #include "third_party/private-join-and-compute/src/crypto/big_num.h"
 #include "third_party/private-join-and-compute/src/crypto/context.h"
 #include "third_party/private-join-and-compute/src/crypto/openssl.inc"
@@ -30,7 +29,7 @@ namespace private_join_and_compute {
 class ECPoint;
 
 // Wrapper class for openssl EC_GROUP.
-class PRIVATE_COMPUTE_EXPORT ECGroup {
+class ECGroup {
  public:
   // Deletes a EC_GROUP.
   class ECGroupDeleter {

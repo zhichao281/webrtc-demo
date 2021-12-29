@@ -13,7 +13,6 @@
 namespace blink {
 
 class FragmentData;
-class LayoutObject;
 class PaintLayer;
 
 // This class is used for updating the cull rects of PaintLayer fragments (see:
@@ -32,9 +31,6 @@ class CORE_EXPORT CullRectUpdater {
       : starting_layer_(starting_layer) {}
 
   void Update();
-
-  static void PaintPropertiesChanged(const LayoutObject&,
-                                     PaintLayer& painting_layer);
 
  private:
   friend class OverriddenCullRectScope;

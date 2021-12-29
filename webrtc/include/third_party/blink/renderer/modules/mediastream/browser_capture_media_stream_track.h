@@ -7,12 +7,10 @@
 
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/modules/mediastream/focusable_media_stream_track.h"
-#include "third_party/blink/renderer/modules/modules_export.h"
 
 namespace blink {
 
-class MODULES_EXPORT BrowserCaptureMediaStreamTrack final
-    : public FocusableMediaStreamTrack {
+class BrowserCaptureMediaStreamTrack final : public FocusableMediaStreamTrack {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
@@ -33,7 +31,7 @@ class MODULES_EXPORT BrowserCaptureMediaStreamTrack final
 
   BrowserCaptureMediaStreamTrack* clone(ScriptState*) override;
 
- private:
+ protected:
   // Given a partially built MediaStreamTrack, finishes the job of making it
   // into a clone of |this|.
   // Useful for sub-classes (caveat below), as they need to clone both state

@@ -8,8 +8,8 @@
 #include <list>
 
 #include "third_party/blink/public/common/input/web_coalesced_input_event.h"
+#include "third_party/blink/public/platform/input/input_handler_proxy.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
-#include "third_party/blink/renderer/platform/widget/input/input_handler_proxy.h"
 #include "ui/latency/latency_info.h"
 
 namespace cc {
@@ -77,7 +77,7 @@ class PLATFORM_EXPORT EventWithCallback {
   }
   void SetScrollbarManipulationHandledOnCompositorThread();
 
-  cc::EventMetrics* metrics() const {
+  const cc::EventMetrics* metrics() const {
     return original_events_.empty() ? nullptr
                                     : original_events_.front().metrics_.get();
   }

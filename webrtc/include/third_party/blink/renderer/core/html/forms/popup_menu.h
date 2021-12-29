@@ -32,8 +32,7 @@ class PopupMenu : public GarbageCollected<PopupMenu> {
  public:
   virtual ~PopupMenu() = default;
   virtual void Trace(Visitor* visitor) const {}
-  enum ShowEventType { kTouch, kOther };
-  virtual void Show(ShowEventType type) = 0;
+  virtual void Show() = 0;
   virtual void Hide() = 0;
   enum UpdateReason {
     kBySelectionChange,

@@ -23,12 +23,10 @@
 
 #include "base/dcheck_is_on.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
+#include "third_party/blink/renderer/platform/geometry/float_point.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
-#include "ui/gfx/geometry/point_f.h"
-#include "ui/gfx/geometry/vector2d_f.h"
 
 namespace blink {
 
@@ -70,8 +68,8 @@ class CORE_EXPORT SVGDocumentExtensions final
 
   bool ZoomAndPanEnabled() const;
 
-  void StartPan(const gfx::PointF& start);
-  void UpdatePan(const gfx::PointF& pos) const;
+  void StartPan(const FloatPoint& start);
+  void UpdatePan(const FloatPoint& pos) const;
 
   static SVGSVGElement* rootElement(const Document&);
 
@@ -84,7 +82,7 @@ class CORE_EXPORT SVGDocumentExtensions final
   SVGElementSet web_animations_pending_svg_elements_;
   // Root SVG elements with relative length descendants.
   HeapHashSet<Member<SVGSVGElement>> relative_length_svg_roots_;
-  gfx::Vector2dF translate_;
+  FloatPoint translate_;
 #if DCHECK_IS_ON()
   bool in_relative_length_svg_roots_invalidation_ = false;
 #endif

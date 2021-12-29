@@ -33,15 +33,12 @@
 #include "third_party/blink/renderer/platform/text/text_direction.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_uchar.h"
 
-namespace gfx {
-class Point;
-class Rect;
-}
-
 namespace blink {
 
 class LayoutObject;
 class Node;
+class IntPoint;
+class IntRect;
 class LocalFrame;
 
 // |WordSide| is used as a parameter of |StartOfWordPosition()| and
@@ -53,7 +50,6 @@ enum WordSide {
 };
 
 enum class PlatformWordBehavior { kWordSkipSpaces, kWordDontSkipSpaces };
-enum class SentenceTrailingSpaceBehavior { kIncludeSpace, kOmitSpace };
 
 // offset functions on Node
 CORE_EXPORT int CaretMinOffset(const Node*);
@@ -145,22 +141,12 @@ bool IsWordBreak(UChar);
 CORE_EXPORT Position StartOfSentencePosition(const Position&);
 CORE_EXPORT PositionInFlatTree
 StartOfSentencePosition(const PositionInFlatTree&);
-CORE_EXPORT PositionWithAffinity
-EndOfSentence(const Position&,
-              SentenceTrailingSpaceBehavior =
-                  SentenceTrailingSpaceBehavior::kIncludeSpace);
+CORE_EXPORT PositionWithAffinity EndOfSentence(const Position&);
 CORE_EXPORT PositionInFlatTreeWithAffinity
-EndOfSentence(const PositionInFlatTree&,
-              SentenceTrailingSpaceBehavior =
-                  SentenceTrailingSpaceBehavior::kIncludeSpace);
-CORE_EXPORT VisiblePosition
-EndOfSentence(const VisiblePosition&,
-              SentenceTrailingSpaceBehavior =
-                  SentenceTrailingSpaceBehavior::kIncludeSpace);
+EndOfSentence(const PositionInFlatTree&);
+CORE_EXPORT VisiblePosition EndOfSentence(const VisiblePosition&);
 CORE_EXPORT VisiblePositionInFlatTree
-EndOfSentence(const VisiblePositionInFlatTree&,
-              SentenceTrailingSpaceBehavior =
-                  SentenceTrailingSpaceBehavior::kIncludeSpace);
+EndOfSentence(const VisiblePositionInFlatTree&);
 PositionInFlatTree PreviousSentencePosition(const PositionInFlatTree&);
 PositionInFlatTree NextSentencePosition(const PositionInFlatTree&);
 EphemeralRange ExpandEndToSentenceBoundary(const EphemeralRange&);
@@ -256,20 +242,19 @@ bool HasRenderedNonAnonymousDescendantsWithHeight(const LayoutObject*);
 // Returns a hit-tested PositionWithAffinity for the given point in
 // contents-space coordinates.
 CORE_EXPORT PositionWithAffinity
-PositionForContentsPointRespectingEditingBoundary(const gfx::Point&,
-                                                  LocalFrame*);
+PositionForContentsPointRespectingEditingBoundary(const IntPoint&, LocalFrame*);
 
 CORE_EXPORT bool RendersInDifferentPosition(const Position&, const Position&);
 
 CORE_EXPORT Position SkipWhitespace(const Position&);
 CORE_EXPORT PositionInFlatTree SkipWhitespace(const PositionInFlatTree&);
 
-CORE_EXPORT gfx::Rect ComputeTextRect(const EphemeralRange&);
-gfx::Rect ComputeTextRect(const EphemeralRangeInFlatTree&);
-gfx::RectF ComputeTextRectF(const EphemeralRange&);
+CORE_EXPORT IntRect ComputeTextRect(const EphemeralRange&);
+IntRect ComputeTextRect(const EphemeralRangeInFlatTree&);
+FloatRect ComputeTextFloatRect(const EphemeralRange&);
 
 // |FirstRectForRange| requires up-to-date layout.
-gfx::Rect FirstRectForRange(const EphemeralRange&);
+IntRect FirstRectForRange(const EphemeralRange&);
 
 CORE_EXPORT PositionWithAffinity
 AdjustForwardPositionToAvoidCrossingEditingBoundaries(

@@ -25,9 +25,8 @@ class V8UnionUSVStringOrUSVStringSequenceSequenceOrUSVStringUSVStringRecord;
 using URLSearchParamsInit =
     V8UnionUSVStringOrUSVStringSequenceSequenceOrUSVStringUSVStringRecord;
 
-class CORE_EXPORT URLSearchParams final
-    : public ScriptWrappable,
-      public PairIterable<String, IDLString, String, IDLString> {
+class CORE_EXPORT URLSearchParams final : public ScriptWrappable,
+                                          public PairIterable<String, String> {
   DEFINE_WRAPPERTYPEINFO();
 
  public:

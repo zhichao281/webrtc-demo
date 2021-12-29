@@ -11,7 +11,7 @@
 namespace blink {
 
 class TextFormatUpdateEventInit;
-class TextFormat;
+class TextFormatUpdateEvent;
 
 // The textformatupdate event is fired when the input method desires a specific
 // region to be styled in a certain fashion, limited to the style properties
@@ -26,19 +26,38 @@ class CORE_EXPORT TextFormatUpdateEvent final : public Event {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  explicit TextFormatUpdateEvent(const TextFormatUpdateEventInit* dict);
-  explicit TextFormatUpdateEvent(HeapVector<Member<TextFormat>>& textFormats);
+  TextFormatUpdateEvent(const TextFormatUpdateEventInit* dict);
+  TextFormatUpdateEvent(uint32_t format_range_start,
+                        uint32_t format_range_end,
+                        const String& underline_color,
+                        const String& background_color,
+                        const String& text_decoration_color,
+                        const String& text_color,
+                        const String& underline_thickness,
+                        const String& underline_style);
   static TextFormatUpdateEvent* Create(const TextFormatUpdateEventInit* dict);
   ~TextFormatUpdateEvent() override;
 
-  HeapVector<Member<TextFormat>> getTextFormats() const;
+  uint32_t formatRangeStart() const;
+  uint32_t formatRangeEnd() const;
+  String underlineColor() const;
+  String backgroundColor() const;
+  String suggestionHighlightColor() const;
+  String textColor() const;
+  String underlineThickness() const;
+  String underlineStyle() const;
 
   const AtomicString& InterfaceName() const override;
-
-  void Trace(Visitor*) const override;
-
+  // member variables to keep track of the event parameters
  private:
-  HeapVector<Member<TextFormat>> text_formats_;
+  uint32_t format_range_start_ = 0;
+  uint32_t format_range_end_ = 0;
+  String underline_color_;
+  String background_color_;
+  String suggestion_highlight_color_;
+  String text_color_;
+  String underline_thickness_;
+  String underline_style_;
 };
 
 }  // namespace blink

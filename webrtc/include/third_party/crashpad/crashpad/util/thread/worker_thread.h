@@ -15,7 +15,6 @@
 #ifndef CRASHPAD_UTIL_THREAD_WORKER_THREAD_H_
 #define CRASHPAD_UTIL_THREAD_WORKER_THREAD_H_
 
-#include <atomic>
 #include <memory>
 
 #include "util/synchronization/semaphore.h"
@@ -96,7 +95,7 @@ class WorkerThread {
   Delegate* delegate_;  // weak
   std::unique_ptr<internal::WorkerThreadImpl> impl_;
   bool running_;
-  std::atomic_bool do_work_now_;
+  bool do_work_now_;
 };
 
 }  // namespace crashpad

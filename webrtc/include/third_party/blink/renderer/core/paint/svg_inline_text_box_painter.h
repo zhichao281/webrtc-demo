@@ -19,6 +19,7 @@ class Font;
 class LayoutSVGInlineText;
 class SelectionBoundsRecorder;
 class SVGInlineTextBox;
+class TextMarkerBase;
 class TextRun;
 struct PaintInfo;
 struct PhysicalOffset;
@@ -46,12 +47,12 @@ class SVGInlineTextBoxPainter {
   void PaintSelectionBackground(const PaintInfo&);
   void PaintTextMarkerForeground(const PaintInfo&,
                                  const PhysicalOffset&,
-                                 const DocumentMarker&,
+                                 const TextMarkerBase&,
                                  const ComputedStyle&,
                                  const Font&);
   void PaintTextMarkerBackground(const PaintInfo&,
                                  const PhysicalOffset&,
-                                 const DocumentMarker&,
+                                 const TextMarkerBase&,
                                  const ComputedStyle&,
                                  const Font&);
 
@@ -59,7 +60,7 @@ class SVGInlineTextBoxPainter {
   bool ShouldPaintSelection(const PaintInfo&) const;
   void PaintTextFragments(const PaintInfo&, LayoutObject&);
   void PaintDecoration(const PaintInfo&,
-                       TextDecorationLine,
+                       TextDecoration,
                        const SVGTextFragment&);
   bool SetupTextPaint(const PaintInfo&,
                       const ComputedStyle&,

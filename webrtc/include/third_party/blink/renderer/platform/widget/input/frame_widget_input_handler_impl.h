@@ -83,10 +83,7 @@ class PLATFORM_EXPORT FrameWidgetInputHandlerImpl
   void CollapseSelection() override;
   void SelectRange(const gfx::Point& base, const gfx::Point& extent) override;
 #if defined(OS_ANDROID)
-  void SelectAroundCaret(mojom::blink::SelectionGranularity granularity,
-                         bool should_show_handle,
-                         bool should_show_context_menu,
-                         SelectAroundCaretCallback callback) override;
+  void SelectWordAroundCaret(SelectWordAroundCaretCallback callback) override;
 #endif  // defined(OS_ANDROID)
   void AdjustSelectionByCharacterOffset(
       int32_t start,

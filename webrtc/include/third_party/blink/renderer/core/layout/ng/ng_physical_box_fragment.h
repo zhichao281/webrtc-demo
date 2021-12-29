@@ -261,7 +261,7 @@ class CORE_EXPORT NGPhysicalBoxFragment final : public NGPhysicalFragment {
       const PhysicalOffset& location,
       const NGBlockBreakToken* incoming_break_token,
       OverlayScrollbarClipBehavior = kIgnoreOverlayScrollbarSize) const;
-  gfx::Vector2d PixelSnappedScrolledContentOffset() const;
+  IntPoint PixelSnappedScrolledContentOffset() const;
   PhysicalSize ScrollSize() const;
 
   NGInkOverflow::Type InkOverflowType() const {

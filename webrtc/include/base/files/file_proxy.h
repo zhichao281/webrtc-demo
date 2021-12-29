@@ -64,11 +64,11 @@ class BASE_EXPORT FileProxy : public SupportsWeakPtr<FileProxy> {
                     StatusCallback callback);
 
   // Creates a temporary file for writing. The path and an open file are
-  // returned. It is invalid to pass a null callback. These additional file
-  // flags will be added on top of the default file flags:
+  // returned. It is invalid to pass a null callback. The additional file flags
+  // will be added on top of the default file flags which are:
   //   File::FLAG_CREATE_ALWAYS
   //   File::FLAG_WRITE
-  //   File::FLAG_WIN_TEMPORARY.
+  //   File::FLAG_TEMPORARY.
   //
   // This returns false if task posting to |task_runner| has failed.
   bool CreateTemporary(uint32_t additional_file_flags,

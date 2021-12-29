@@ -28,7 +28,7 @@ namespace blink {
 template <typename Base>
 class LayoutNGMixin : public Base {
  public:
-  explicit LayoutNGMixin(ContainerNode*);
+  explicit LayoutNGMixin(Element* element);
   ~LayoutNGMixin() override;
 
   void Paint(const PaintInfo&) const override;
@@ -41,9 +41,13 @@ class LayoutNGMixin : public Base {
   RecalcLayoutOverflowResult RecalcChildLayoutOverflow() override;
   void RecalcVisualOverflow() override;
 
-  bool IsLayoutNGObject() const final;
+  bool IsLayoutNGObject() const final { return true; }
+
+  const NGPhysicalBoxFragment* CurrentFragment() const final;
 
  protected:
+  bool IsOfType(LayoutObject::LayoutObjectType) const override;
+
   MinMaxSizes ComputeIntrinsicLogicalWidths() const override;
   NGConstraintSpace ConstraintSpaceForMinMaxSizes() const;
 

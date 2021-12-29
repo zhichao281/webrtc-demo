@@ -76,9 +76,6 @@ class BASE_EXPORT OperationsController {
    private:
     friend class OperationsController;
     explicit OperationToken(OperationsController* outer) : outer_(outer) {}
-
-    // `outer_` is not a raw_ptr<...> for performance reasons (based on analysis
-    // of sampling profiler data and tab_search:top100:2020).
     OperationsController* outer_;
   };
 

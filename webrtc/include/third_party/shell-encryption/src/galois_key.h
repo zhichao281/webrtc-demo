@@ -23,8 +23,6 @@
 #include "relinearization_key.h"
 #include "status_macros.h"
 #include "statusor.h"
-#include "third_party/shell-encryption/base/shell_encryption_export.h"
-#include "third_party/shell-encryption/base/shell_encryption_export_template.h"
 
 namespace rlwe {
 
@@ -43,7 +41,7 @@ namespace rlwe {
 //
 // Details can be found in Appendix D.2 of https://eprint.iacr.org/2011/566.pdf
 template <typename ModularInt>
-class EXPORT_TEMPLATE_DECLARE(SHELL_ENCRYPTION_EXPORT) GaloisKey {
+class GaloisKey {
  public:
   // Initializes a GaloisKey based on a SymmetricRlweKey key that can key-switch
   // two component ciphertexts. A positive log_decomposition_modulus corresponds
@@ -51,7 +49,7 @@ class EXPORT_TEMPLATE_DECLARE(SHELL_ENCRYPTION_EXPORT) GaloisKey {
   // power of x in the secret key polynomial s(x^substitution_power) that the
   // ciphertext is encrypted with. The prng_seed is used to generate and encode
   // the bottom row of the matrix, which consists of random entries.
-  static SHELL_ENCRYPTION_EXPORT rlwe::StatusOr<GaloisKey> Create(
+  static rlwe::StatusOr<GaloisKey> Create(
       const SymmetricRlweKey<ModularInt>& key, absl::string_view prng_seed,
       Uint64 substitution_power, Uint64 log_decomposition_modulus) {
     RLWE_ASSIGN_OR_RETURN(auto relinearization_key,
@@ -90,7 +88,7 @@ class EXPORT_TEMPLATE_DECLARE(SHELL_ENCRYPTION_EXPORT) GaloisKey {
   // SerializedGaloisKey is (2 * num_parts * dimension) where dimension is the
   // number of digits needed to represent the modulus in base
   // 2^{log_decomposition_modulus}. Crashes for non-valid input parameters.
-  static SHELL_ENCRYPTION_EXPORT rlwe::StatusOr<GaloisKey> Deserialize(
+  static rlwe::StatusOr<GaloisKey> Deserialize(
       const SerializedGaloisKey& serialized,
       const typename ModularInt::Params* modulus_params,
       const NttParameters<ModularInt>* ntt_params) {
@@ -112,14 +110,6 @@ class EXPORT_TEMPLATE_DECLARE(SHELL_ENCRYPTION_EXPORT) GaloisKey {
   RelinearizationKey<ModularInt> relinearization_key_;
 };
 
-template class EXPORT_TEMPLATE_DECLARE(
-    SHELL_ENCRYPTION_EXPORT) GaloisKey<rlwe::MontgomeryInt<Uint16>>;
-template class EXPORT_TEMPLATE_DECLARE(
-    SHELL_ENCRYPTION_EXPORT) GaloisKey<rlwe::MontgomeryInt<Uint32>>;
-template class EXPORT_TEMPLATE_DECLARE(
-    SHELL_ENCRYPTION_EXPORT) GaloisKey<rlwe::MontgomeryInt<Uint64>>;
-template class EXPORT_TEMPLATE_DECLARE(
-    SHELL_ENCRYPTION_EXPORT) GaloisKey<rlwe::MontgomeryInt<absl::uint128>>;
 }  //  namespace rlwe
 
 #endif  // RLWE_GALOIS_KEY_H_

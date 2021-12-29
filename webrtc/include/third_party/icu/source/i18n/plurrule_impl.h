@@ -324,13 +324,9 @@ class U_I18N_API FixedDecimal: public IFixedDecimal, public UObject {
     static int64_t getFractionalDigits(double n, int32_t v);
     static int32_t decimals(double n);
 
-    FixedDecimal& operator=(const FixedDecimal& other) = default;
     bool operator==(const FixedDecimal &other) const;
 
     UnicodeString toString() const;
-
-    double doubleValue() const;
-    int64_t longValue() const;
 
     double      source;
     int32_t     visibleDecimalDigitCount;
@@ -411,10 +407,10 @@ public:
     PluralKeywordEnumeration(RuleChain *header, UErrorCode& status);
     virtual ~PluralKeywordEnumeration();
     static UClassID U_EXPORT2 getStaticClassID(void);
-    virtual UClassID getDynamicClassID(void) const override;
-    virtual const UnicodeString* snext(UErrorCode& status) override;
-    virtual void reset(UErrorCode& status) override;
-    virtual int32_t count(UErrorCode& status) const override;
+    virtual UClassID getDynamicClassID(void) const;
+    virtual const UnicodeString* snext(UErrorCode& status);
+    virtual void reset(UErrorCode& status);
+    virtual int32_t count(UErrorCode& status) const;
 private:
     int32_t         pos;
     UVector         fKeywordNames;
@@ -425,9 +421,9 @@ class U_I18N_API PluralAvailableLocalesEnumeration: public StringEnumeration {
   public:
     PluralAvailableLocalesEnumeration(UErrorCode &status);
     virtual ~PluralAvailableLocalesEnumeration();
-    virtual const char* next(int32_t *resultLength, UErrorCode& status) override;
-    virtual void reset(UErrorCode& status) override;
-    virtual int32_t count(UErrorCode& status) const override;
+    virtual const char* next(int32_t *resultLength, UErrorCode& status);
+    virtual void reset(UErrorCode& status);
+    virtual int32_t count(UErrorCode& status) const;
   private:
     UErrorCode      fOpenStatus;
     UResourceBundle *fLocales = nullptr;

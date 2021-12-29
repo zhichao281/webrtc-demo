@@ -24,7 +24,7 @@ DEMANGLE_NAMESPACE_BEGIN
 
 // Stream that AST nodes write their string representation into after the AST
 // has been parsed.
-class OutputBuffer {
+class OutputStream {
   char *Buffer = nullptr;
   size_t CurrentPosition = 0;
   size_t BufferCapacity = 0;
@@ -63,9 +63,9 @@ class OutputBuffer {
   }
 
 public:
-  OutputBuffer(char *StartBuf, size_t Size)
+  OutputStream(char *StartBuf, size_t Size)
       : Buffer(StartBuf), CurrentPosition(0), BufferCapacity(Size) {}
-  OutputBuffer() = default;
+  OutputStream() = default;
   void reset(char *Buffer_, size_t BufferCapacity_) {
     CurrentPosition = 0;
     Buffer = Buffer_;
@@ -77,7 +77,7 @@ public:
   unsigned CurrentPackIndex = std::numeric_limits<unsigned>::max();
   unsigned CurrentPackMax = std::numeric_limits<unsigned>::max();
 
-  OutputBuffer &operator+=(StringView R) {
+  OutputStream &operator+=(StringView R) {
     size_t Size = R.size();
     if (Size == 0)
       return *this;
@@ -87,28 +87,17 @@ public:
     return *this;
   }
 
-  OutputBuffer &operator+=(char C) {
+  OutputStream &operator+=(char C) {
     grow(1);
     Buffer[CurrentPosition++] = C;
     return *this;
   }
 
-  OutputBuffer &operator<<(StringView R) { return (*this += R); }
+  OutputStream &operator<<(StringView R) { return (*this += R); }
 
-  OutputBuffer prepend(StringView R) {
-    size_t Size = R.size();
+  OutputStream &operator<<(char C) { return (*this += C); }
 
-    grow(Size);
-    std::memmove(Buffer + Size, Buffer, CurrentPosition);
-    std::memcpy(Buffer, R.begin(), Size);
-    CurrentPosition += Size;
-
-    return *this;
-  }
-
-  OutputBuffer &operator<<(char C) { return (*this += C); }
-
-  OutputBuffer &operator<<(long long N) {
+  OutputStream &operator<<(long long N) {
     if (N < 0)
       writeUnsigned(static_cast<unsigned long long>(-N), true);
     else
@@ -116,24 +105,24 @@ public:
     return *this;
   }
 
-  OutputBuffer &operator<<(unsigned long long N) {
+  OutputStream &operator<<(unsigned long long N) {
     writeUnsigned(N, false);
     return *this;
   }
 
-  OutputBuffer &operator<<(long N) {
+  OutputStream &operator<<(long N) {
     return this->operator<<(static_cast<long long>(N));
   }
 
-  OutputBuffer &operator<<(unsigned long N) {
+  OutputStream &operator<<(unsigned long N) {
     return this->operator<<(static_cast<unsigned long long>(N));
   }
 
-  OutputBuffer &operator<<(int N) {
+  OutputStream &operator<<(int N) {
     return this->operator<<(static_cast<long long>(N));
   }
 
-  OutputBuffer &operator<<(unsigned int N) {
+  OutputStream &operator<<(unsigned int N) {
     return this->operator<<(static_cast<unsigned long long>(N));
   }
 
@@ -192,7 +181,7 @@ public:
   SwapAndRestore &operator=(const SwapAndRestore &) = delete;
 };
 
-inline bool initializeOutputBuffer(char *Buf, size_t *N, OutputBuffer &OB,
+inline bool initializeOutputStream(char *Buf, size_t *N, OutputStream &S,
                                    size_t InitSize) {
   size_t BufferSize;
   if (Buf == nullptr) {
@@ -203,7 +192,7 @@ inline bool initializeOutputBuffer(char *Buf, size_t *N, OutputBuffer &OB,
   } else
     BufferSize = *N;
 
-  OB.reset(Buf, BufferSize);
+  S.reset(Buf, BufferSize);
   return true;
 }
 

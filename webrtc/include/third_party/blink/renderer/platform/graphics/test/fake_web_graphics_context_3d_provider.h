@@ -37,13 +37,10 @@ class FakeWebGraphicsContext3DProvider : public WebGraphicsContext3DProvider {
       gr_context_ = GrDirectContext::MakeMock(&mockOptions);
     }
 
-    if (!raster_context_provider_) {
-      // If there is no raster context provider, fall back to using a locally
-      // created raster interface. Unit tests that want to use something other
-      // than RasterImplementationGLES should pas a raster_context_provider.
-      raster_interface_ =
-          std::make_unique<gpu::raster::RasterImplementationGLES>(gl_, nullptr);
-    }
+    // TODO(nazabris, crbug.com/1017508) Use RasterImplementation after
+    // all references to GLES2Interface have been removed.
+    raster_interface_ =
+        std::make_unique<gpu::raster::RasterImplementationGLES>(gl_, nullptr);
 
     webgpu_interface_ = std::make_unique<gpu::webgpu::WebGPUInterfaceStub>();
 
@@ -75,9 +72,10 @@ class FakeWebGraphicsContext3DProvider : public WebGraphicsContext3DProvider {
   gpu::InterfaceBase* InterfaceBase() override { return gl_; }
   gpu::gles2::GLES2Interface* ContextGL() override { return gl_; }
   gpu::raster::RasterInterface* RasterInterface() override {
-    return raster_context_provider_
-               ? raster_context_provider_->RasterInterface()
-               : raster_interface_.get();
+    if (!raster_interface_)
+      return nullptr;
+
+    return raster_interface_.get();
   }
   bool IsContextLost() override {
     return RasterInterface() &&

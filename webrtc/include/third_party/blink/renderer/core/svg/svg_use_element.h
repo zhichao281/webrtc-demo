@@ -65,7 +65,7 @@ class SVGUseElement final : public SVGGraphicsElement,
   void Trace(Visitor*) const override;
 
  private:
-  gfx::RectF GetBBox() override;
+  FloatRect GetBBox() override;
 
   void CollectStyleForPresentationAttribute(
       const QualifiedName&,

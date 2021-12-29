@@ -7,11 +7,9 @@
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/geometry/physical_rect.h"
+#include "third_party/blink/renderer/platform/geometry/float_size.h"
+#include "third_party/blink/renderer/platform/geometry/int_point.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "ui/gfx/geometry/point.h"
-#include "ui/gfx/geometry/point_f.h"
-#include "ui/gfx/geometry/size_f.h"
-#include "ui/gfx/geometry/vector2d_f.h"
 
 namespace blink {
 
@@ -35,7 +33,7 @@ class CORE_EXPORT RotationViewportAnchor {
  public:
   RotationViewportAnchor(LocalFrameView& root_frame_view,
                          VisualViewport&,
-                         const gfx::PointF& anchor_in_inner_view_coords,
+                         const FloatSize& anchor_in_inner_view_coords,
                          PageScaleConstraintsSet&);
   ~RotationViewportAnchor();
 
@@ -43,11 +41,11 @@ class CORE_EXPORT RotationViewportAnchor {
   void SetAnchor();
   void RestoreToAnchor();
 
-  gfx::PointF GetInnerOrigin(const gfx::SizeF& inner_size) const;
+  FloatPoint GetInnerOrigin(const FloatSize& inner_size) const;
 
-  void ComputeOrigins(const gfx::SizeF& inner_size,
-                      gfx::Point& main_frame_origin,
-                      gfx::PointF& visual_viewport_origin) const;
+  void ComputeOrigins(const FloatSize& inner_size,
+                      IntPoint& main_frame_offset,
+                      FloatPoint& visual_viewport_offset) const;
   ScrollableArea& LayoutViewport() const;
 
   LocalFrameView* root_frame_view_;
@@ -57,19 +55,19 @@ class CORE_EXPORT RotationViewportAnchor {
   float old_minimum_page_scale_factor_;
 
   // Inner viewport origin in the reference frame of the document in CSS pixels
-  gfx::PointF visual_viewport_in_document_;
+  FloatPoint visual_viewport_in_document_;
 
   // Inner viewport origin in the reference frame of the outer viewport
   // normalized to the outer viewport size.
-  gfx::Vector2dF normalized_visual_viewport_offset_;
+  FloatSize normalized_visual_viewport_offset_;
 
   Node* anchor_node_;
 
   // In Document coordinates.
   PhysicalRect anchor_node_bounds_;
 
-  gfx::PointF anchor_in_inner_view_coords_;
-  gfx::PointF anchor_in_node_coords_;
+  FloatSize anchor_in_inner_view_coords_;
+  FloatSize anchor_in_node_coords_;
 
   PageScaleConstraintsSet* page_scale_constraints_set_;
 };

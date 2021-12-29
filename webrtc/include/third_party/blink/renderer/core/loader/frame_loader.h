@@ -220,35 +220,11 @@ class CORE_EXPORT FrameLoader final {
 
   bool HasAccessedInitialDocument() { return has_accessed_initial_document_; }
 
-  void SetIsNotOnInitialEmptyDocument() {
-    // The "initial empty document" state can be false if the frame has loaded
-    // a non-initial/synchronous about:blank document, or if the document has
-    // done a document.open() before. However, this function can only be called
-    // when a frame is first re-created in a new renderer, which can only be
-    // caused by a new document load. So, we know that the state must be set to
-    // kNotInitialOrSynchronousAboutBlank instead of
-    // kInitialOrSynchronousAboutBlankButExplicitlyOpened here.
-    initial_empty_document_status_ =
-        InitialEmptyDocumentStatus::kNotInitialOrSynchronousAboutBlank;
+  void SetDidLoadNonEmptyDocument() {
+    empty_document_status_ = EmptyDocumentStatus::kNonEmpty;
   }
-
-  // Whether the frame's current document is still considered as the "initial
-  // empty document" or not. Might be false even when
-  // HasLoadedNonInitialEmptyDocument() is false, if the frame is still on the
-  // first about:blank document that loaded in the frame, but it has done
-  // a document.open(), causing it to lose its "initial empty document"-ness
-  // even though it's still on the same document.
-  bool IsOnInitialEmptyDocument() {
-    return initial_empty_document_status_ ==
-           InitialEmptyDocumentStatus::kInitialOrSynchronousAboutBlank;
-  }
-
-  // Whether the frame has loaded a document that is not the initial empty
-  // document. Might be false even when IsOnInitialEmptyDocument() is false (see
-  // comment for IsOnInitialEmptyDocument() for details).
-  bool HasLoadedNonInitialEmptyDocument() {
-    return initial_empty_document_status_ ==
-           InitialEmptyDocumentStatus::kNotInitialOrSynchronousAboutBlank;
+  bool HasLoadedNonEmptyDocument() {
+    return empty_document_status_ == EmptyDocumentStatus::kNonEmpty;
   }
 
   static bool NeedsHistoryItemRestore(WebFrameLoadType type);
@@ -259,6 +235,9 @@ class CORE_EXPORT FrameLoader final {
 
  private:
   bool AllowRequestForThisFrame(const FrameLoadRequest&);
+  WebFrameLoadType HandleInitialEmptyDocumentReplacementIfNeeded(
+      const KURL& url,
+      WebFrameLoadType);
 
   bool ShouldPerformFragmentNavigation(bool is_form_submission,
                                        const String& http_method,
@@ -313,30 +292,12 @@ class CORE_EXPORT FrameLoader final {
   bool committing_navigation_ = false;
   bool has_accessed_initial_document_ = false;
 
-  // Enum to determine the frame's "initial empty document"-ness.
-  // NOTE: we treat both the "initial about:blank document" and the
-  // "synchronously committed about:blank document" as the initial empty
-  // document. In the future, we plan to remove the synchronous about:blank
-  // commit so that this enum only considers the true "initial about:blank"
-  // document. See also:
-  // - https://github.com/whatwg/html/issues/6863
-  // - https://crbug.com/1215096
-  enum class InitialEmptyDocumentStatus {
-    // The document is the initial about:blank document or the synchronously
-    // committed about:blank document.
-    kInitialOrSynchronousAboutBlank,
-    // The document is the initial about:blank document or the synchronously
-    // committed about:blank document, but the document's input stream has been
-    // opened with document.open(), so the document lost its "initial empty
-    // document" status, per the spec:
-    // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#opening-the-input-stream:is-initial-about:blank
-    kInitialOrSynchronousAboutBlankButExplicitlyOpened,
-    // The document is neither the initial about:blank document nor the
-    // synchronously committed about:blank document.
-    kNotInitialOrSynchronousAboutBlank
+  enum class EmptyDocumentStatus {
+    kOnlyEmpty,
+    kOnlyEmptyButExplicitlyOpened,
+    kNonEmpty
   };
-  InitialEmptyDocumentStatus initial_empty_document_status_ =
-      InitialEmptyDocumentStatus::kInitialOrSynchronousAboutBlank;
+  EmptyDocumentStatus empty_document_status_ = EmptyDocumentStatus::kOnlyEmpty;
 
   WebScopedVirtualTimePauser virtual_time_pauser_;
 

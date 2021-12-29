@@ -12,7 +12,6 @@
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/typed_macros.h"
-#include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
@@ -24,35 +23,29 @@
 namespace blink {
 namespace scheduler {
 
-// Available scheduler tracing categories for use with `StateTracer` and
-// friends.
-enum class TracingCategory { kTopLevel, kDefault, kInfo, kDebug };
+// DISCLAIMER
+// Using these constants in TRACE_EVENTs is discouraged nor should you pass any
+// non-literal string as a category, unless familiar with tracing internals.
+// The constants are implemented as static members of a class to have an unique
+// address and not violate ODR.
+struct PLATFORM_EXPORT TracingCategoryName {
+  static constexpr const char kTopLevel[] = "toplevel";
+  static constexpr const char kDefault[] = "renderer.scheduler";
+  static constexpr const char kInfo[] =
+      TRACE_DISABLED_BY_DEFAULT("renderer.scheduler");
+  static constexpr const char kDebug[] =
+      TRACE_DISABLED_BY_DEFAULT("renderer.scheduler.debug");
+};
 
 namespace internal {
 
-constexpr const char* TracingCategoryToString(TracingCategory category) {
-  switch (category) {
-    case TracingCategory::kTopLevel:
-      return "toplevel";
-    case TracingCategory::kDefault:
-      return "renderer.scheduler";
-    case TracingCategory::kInfo:
-      return TRACE_DISABLED_BY_DEFAULT("renderer.scheduler");
-    case TracingCategory::kDebug:
-      return TRACE_DISABLED_BY_DEFAULT("renderer.scheduler.debug");
-  }
-  return nullptr;
-}
+PLATFORM_EXPORT void ValidateTracingCategory(const char* category);
 
 }  // namespace internal
 
 PLATFORM_EXPORT double TimeDeltaToMilliseconds(const base::TimeDelta& value);
 
 PLATFORM_EXPORT const char* YesNoStateToString(bool is_yes);
-
-PLATFORM_EXPORT
-perfetto::protos::pbzero::RendererMainThreadTaskExecution::TaskType
-TaskTypeToProto(TaskType task_type);
 
 class TraceableVariable;
 
@@ -97,22 +90,20 @@ class TraceableVariable {
 // of category. Hence, we need distinct version for each category in order to
 // prevent unintended leak of state.
 
-template <TracingCategory category>
+template <const char* category>
 class StateTracer {
   DISALLOW_NEW();
 
  public:
-  explicit StateTracer(const char* name) : name_(name), slice_is_open_(false) {}
-
+  explicit StateTracer(const char* name) : name_(name), slice_is_open_(false) {
+    internal::ValidateTracingCategory(category);
+  }
   StateTracer(const StateTracer&) = delete;
   StateTracer& operator=(const StateTracer&) = delete;
 
   ~StateTracer() {
-    if (slice_is_open_) {
-      TRACE_EVENT_NESTABLE_ASYNC_END0(
-          internal::TracingCategoryToString(category), name_,
-          TRACE_ID_LOCAL(this));
-    }
+    if (slice_is_open_)
+      TRACE_EVENT_NESTABLE_ASYNC_END0(category, name_, TRACE_ID_LOCAL(this));
   }
 
   // String will be copied before leaving this function.
@@ -127,30 +118,25 @@ class StateTracer {
  protected:
   bool is_enabled() const {
     bool result = false;
-    TRACE_EVENT_CATEGORY_GROUP_ENABLED(
-        internal::TracingCategoryToString(category), &result);  // Cached.
+    TRACE_EVENT_CATEGORY_GROUP_ENABLED(category, &result);  // Cached.
     return result;
   }
 
  private:
   void TraceImpl(const char* state, bool need_copy) {
     if (slice_is_open_) {
-      TRACE_EVENT_NESTABLE_ASYNC_END0(
-          internal::TracingCategoryToString(category), name_,
-          TRACE_ID_LOCAL(this));
+      TRACE_EVENT_NESTABLE_ASYNC_END0(category, name_, TRACE_ID_LOCAL(this));
       slice_is_open_ = false;
     }
     if (!state || !is_enabled())
       return;
 
     if (need_copy) {
-      TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
-          internal::TracingCategoryToString(category), name_,
-          TRACE_ID_LOCAL(this), "state", TRACE_STR_COPY(state));
+      TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(category, name_, TRACE_ID_LOCAL(this),
+                                        "state", TRACE_STR_COPY(state));
     } else {
-      TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
-          internal::TracingCategoryToString(category), name_,
-          TRACE_ID_LOCAL(this), "state", state);
+      TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(category, name_, TRACE_ID_LOCAL(this),
+                                        "state", state);
     }
     slice_is_open_ = true;
   }
@@ -164,7 +150,7 @@ class StateTracer {
 
 // TODO(kraynov): Rename to something less generic and reflecting
 // the enum nature of such variables.
-template <typename T, TracingCategory category>
+template <typename T, const char* category>
 class TraceableState : public TraceableVariable, private StateTracer<category> {
  public:
   // Converter must return compile-time defined const strings because tracing
@@ -239,34 +225,35 @@ class TraceableState : public TraceableVariable, private StateTracer<category> {
   T state_;
 };
 
-template <TracingCategory category, typename TypedValue>
+template <const char* category, typename TypedValue>
 class ProtoStateTracer {
   DISALLOW_NEW();
 
  public:
   explicit ProtoStateTracer(const char* name)
-      : name_(name), slice_is_open_(false) {}
+      : name_(name), slice_is_open_(false) {
+    internal::ValidateTracingCategory(category);
+  }
 
   ProtoStateTracer(const ProtoStateTracer&) = delete;
   ProtoStateTracer& operator=(const ProtoStateTracer&) = delete;
 
   ~ProtoStateTracer() {
     if (slice_is_open_) {
-      TRACE_EVENT_END(internal::TracingCategoryToString(category), track());
+      TRACE_EVENT_END(category, track());
     }
   }
 
   void TraceProto(TypedValue* value) {
     const auto trace_track = track();
     if (slice_is_open_) {
-      TRACE_EVENT_END(internal::TracingCategoryToString(category), trace_track);
+      TRACE_EVENT_END(category, trace_track);
       slice_is_open_ = false;
     }
     if (!is_enabled())
       return;
 
-    TRACE_EVENT_BEGIN(internal::TracingCategoryToString(category),
-                      perfetto::StaticString{name_}, trace_track,
+    TRACE_EVENT_BEGIN(category, perfetto::StaticString{name_}, trace_track,
                       [value](perfetto::EventContext ctx) {
                         value->AsProtozeroInto(ctx.event());
                       });
@@ -277,8 +264,7 @@ class ProtoStateTracer {
  protected:
   bool is_enabled() const {
     bool result = false;
-    TRACE_EVENT_CATEGORY_GROUP_ENABLED(
-        internal::TracingCategoryToString(category), &result);  // Cached.
+    TRACE_EVENT_CATEGORY_GROUP_ENABLED(category, &result);  // Cached.
     return result;
   }
 
@@ -298,7 +284,7 @@ template <typename T>
 using InitializeProtoFuncPtr =
     void (*)(perfetto::protos::pbzero::TrackEvent* event, T e);
 
-template <typename T, TracingCategory category>
+template <typename T, const char* category>
 class TraceableObjectState
     : public TraceableVariable,
       public ProtoStateTracer<category, TraceableObjectState<T, category>> {
@@ -351,8 +337,7 @@ class TraceableObjectState
 
   bool is_enabled() const {
     bool result = false;
-    TRACE_EVENT_CATEGORY_GROUP_ENABLED(
-        internal::TracingCategoryToString(category), &result);  // Cached.
+    TRACE_EVENT_CATEGORY_GROUP_ENABLED(category, &result);  // Cached.
     return result;
   }
 
@@ -360,7 +345,7 @@ class TraceableObjectState
   InitializeProtoFuncPtr<T> proto_init_func_;
 };
 
-template <typename T, TracingCategory category>
+template <typename T, const char* category>
 class TraceableCounter : public TraceableVariable {
  public:
   using ConverterFuncPtr = double (*)(const T&);
@@ -373,6 +358,7 @@ class TraceableCounter : public TraceableVariable {
         name_(name),
         converter_(converter),
         value_(initial_value) {
+    internal::ValidateTracingCategory(category);
     Trace();
   }
 
@@ -414,8 +400,7 @@ class TraceableCounter : public TraceableVariable {
   void OnTraceLogEnabled() final { Trace(); }
 
   void Trace() const {
-    TRACE_COUNTER_ID1(internal::TracingCategoryToString(category), name_, this,
-                      converter_(value_));
+    TRACE_COUNTER_ID1(category, name_, this, converter_(value_));
   }
 
  private:
@@ -427,54 +412,54 @@ class TraceableCounter : public TraceableVariable {
 
 // Add operators when it's needed.
 
-template <typename T, TracingCategory category>
+template <typename T, const char* category>
 constexpr T operator-(const TraceableCounter<T, category>& counter) {
   return -counter.value();
 }
 
-template <typename T, TracingCategory category>
+template <typename T, const char* category>
 constexpr T operator/(const TraceableCounter<T, category>& lhs, const T& rhs) {
   return lhs.value() / rhs;
 }
 
-template <typename T, TracingCategory category>
+template <typename T, const char* category>
 constexpr bool operator>(const TraceableCounter<T, category>& lhs,
                          const T& rhs) {
   return lhs.value() > rhs;
 }
 
-template <typename T, TracingCategory category>
+template <typename T, const char* category>
 constexpr bool operator<(const TraceableCounter<T, category>& lhs,
                          const T& rhs) {
   return lhs.value() < rhs;
 }
 
-template <typename T, TracingCategory category>
+template <typename T, const char* category>
 constexpr bool operator!=(const TraceableCounter<T, category>& lhs,
                           const T& rhs) {
   return lhs.value() != rhs;
 }
 
-template <typename T, TracingCategory category>
+template <typename T, const char* category>
 constexpr T operator++(TraceableCounter<T, category>& counter) {
   counter = counter.value() + 1;
   return counter.value();
 }
 
-template <typename T, TracingCategory category>
+template <typename T, const char* category>
 constexpr T operator--(TraceableCounter<T, category>& counter) {
   counter = counter.value() - 1;
   return counter.value();
 }
 
-template <typename T, TracingCategory category>
+template <typename T, const char* category>
 constexpr T operator++(TraceableCounter<T, category>& counter, int) {
   T value = counter.value();
   counter = value + 1;
   return value;
 }
 
-template <typename T, TracingCategory category>
+template <typename T, const char* category>
 constexpr T operator--(TraceableCounter<T, category>& counter, int) {
   T value = counter.value();
   counter = value - 1;

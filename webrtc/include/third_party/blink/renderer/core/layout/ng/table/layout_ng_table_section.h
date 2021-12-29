@@ -26,10 +26,7 @@ class CORE_EXPORT LayoutNGTableSection : public LayoutNGBlock,
 
   // LayoutBlock methods start.
 
-  void UpdateBlockLayout(bool relayout_children) override {
-    NOT_DESTROYED();
-    NOTREACHED();
-  }
+  void UpdateBlockLayout(bool relayout_children) override { NOTREACHED(); }
 
   const char* GetName() const override {
     NOT_DESTROYED();
@@ -78,6 +75,12 @@ class CORE_EXPORT LayoutNGTableSection : public LayoutNGBlock,
 
   // LayoutNGTableSectionInterface methods start.
 
+  const LayoutTableSection* ToLayoutTableSection() const final {
+    NOT_DESTROYED();
+    DCHECK(false);
+    return nullptr;
+  }
+
   const LayoutNGTableSectionInterface* ToLayoutNGTableSectionInterface()
       const final {
     NOT_DESTROYED();
@@ -90,6 +93,11 @@ class CORE_EXPORT LayoutNGTableSection : public LayoutNGBlock,
   }
 
   const LayoutObject* ToLayoutObject() const final {
+    NOT_DESTROYED();
+    return this;
+  }
+
+  LayoutObject* ToMutableLayoutObject() final {
     NOT_DESTROYED();
     return this;
   }

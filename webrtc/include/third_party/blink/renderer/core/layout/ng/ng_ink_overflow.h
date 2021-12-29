@@ -125,7 +125,7 @@ class CORE_EXPORT NGInkOverflow {
                              const NGTextFragmentPaintInfo& text_info,
                              const ComputedStyle& style,
                              const Font& scaled_font,
-                             const gfx::RectF& rect,
+                             const FloatRect& rect,
                              float scaling_factor,
                              float length_adjust_scale,
                              const AffineTransform& transform,

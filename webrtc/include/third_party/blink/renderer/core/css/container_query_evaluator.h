@@ -9,24 +9,19 @@
 #include "third_party/blink/renderer/core/css/media_query_evaluator.h"
 #include "third_party/blink/renderer/core/layout/geometry/axis.h"
 #include "third_party/blink/renderer/core/layout/geometry/physical_size.h"
-#include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 
 namespace blink {
 
-class ComputedStyle;
 class ContainerQuery;
-class Document;
 class Element;
-class MatchResult;
 class StyleRecalcContext;
-class ContainerSelector;
 
 class CORE_EXPORT ContainerQueryEvaluator final
     : public GarbageCollected<ContainerQueryEvaluator> {
  public:
   static Element* FindContainer(const StyleRecalcContext& context,
-                                const ContainerSelector&);
+                                const AtomicString& container_name);
 
   // Creates an evaluator with no containment, hence all queries evaluated
   // against it will fail.
@@ -37,12 +32,18 @@ class CORE_EXPORT ContainerQueryEvaluator final
   double Height() const;
   void SetReferencedByUnit() { referenced_by_unit_ = true; }
 
+  bool Eval(const ContainerQuery&) const;
+
   // Add a dependent query to this evaluator. During calls to ContainerChanged,
   // all dependent queries are checked to see if the new size/axis information
   // causes a change in the evaluation result.
   void Add(const ContainerQuery&, bool result);
 
-  bool EvalAndAdd(const ContainerQuery& query, MatchResult& match_result);
+  bool EvalAndAdd(const ContainerQuery& query) {
+    bool result = Eval(query);
+    Add(query, result);
+    return result;
+  }
 
   enum class Change {
     // The update has no effect on the evaluation of queries associated with
@@ -62,27 +63,14 @@ class CORE_EXPORT ContainerQueryEvaluator final
   //
   // Dependent queries are cleared when kUnnamed/kNamed is returned (and left
   // unchanged otherwise).
-  Change ContainerChanged(Document&,
-                          const ComputedStyle&,
-                          PhysicalSize,
-                          PhysicalAxes contained_axes);
-
-  void MarkFontDirtyIfNeeded(const ComputedStyle& old_style,
-                             const ComputedStyle& new_style);
+  Change ContainerChanged(PhysicalSize, PhysicalAxes contained_axes);
 
   void Trace(Visitor*) const;
 
  private:
-  friend class ContainerQueryEvaluatorTest;
-
-  void SetData(Document&,
-               const ComputedStyle&,
-               PhysicalSize,
-               PhysicalAxes contained_axes);
+  void SetData(PhysicalSize, PhysicalAxes contained_axes);
   void ClearResults();
   Change ComputeChange() const;
-  bool Eval(const ContainerQuery&) const;
-  bool Eval(const ContainerQuery&, MediaQueryEvaluator::Results) const;
 
   // TODO(crbug.com/1145970): Don't lean on MediaQueryEvaluator.
   Member<MediaQueryEvaluator> media_query_evaluator_;
@@ -90,8 +78,6 @@ class CORE_EXPORT ContainerQueryEvaluator final
   PhysicalAxes contained_axes_;
   HeapHashMap<Member<const ContainerQuery>, bool> results_;
   bool referenced_by_unit_ = false;
-  bool depends_on_font_ = false;
-  bool font_dirty_ = false;
 };
 
 }  // namespace blink

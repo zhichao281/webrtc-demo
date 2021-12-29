@@ -49,9 +49,6 @@
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/skia/include/core/SkClipOp.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
-#include "ui/gfx/geometry/rect_f.h"
-#include "ui/gfx/geometry/skia_conversions.h"
-#include "ui/gfx/geometry/vector2d_f.h"
 
 class SkPath;
 class SkRRect;
@@ -63,6 +60,7 @@ class PaintPreviewTracker;
 
 namespace blink {
 
+class FloatRect;
 class FloatRoundedRect;
 class KURL;
 class PaintController;
@@ -73,34 +71,20 @@ struct TextRunPaintInfo;
 struct ImageTilingInfo {
   // The part of the Image (the |image| argument to the method) to tile. It's in
   // the space of the image.
-  gfx::RectF image_rect;
+  FloatRect image_rect;
 
   // Scale factor from image space to destination space. Will include
   // image-resolution information.
-  gfx::Vector2dF scale{1.0f, 1.0f};
+  FloatSize scale{1.0f, 1.0f};
 
   // Origin of the full image in destination space.
-  gfx::PointF phase;
+  FloatPoint phase;
 
   // Additional spacing between tiles in destination space.
-  gfx::SizeF spacing;
+  FloatSize spacing;
 };
 
 struct ImageDrawOptions {
-  ImageDrawOptions() = default;
-  explicit ImageDrawOptions(DarkModeFilter* dark_mode_filter,
-                            SkSamplingOptions& sampling_options,
-                            RespectImageOrientationEnum respect_orientation,
-                            Image::ImageClampingMode clamping_mode,
-                            Image::ImageDecodingMode decode_mode,
-                            bool apply_dark_mode)
-      : dark_mode_filter(dark_mode_filter),
-        sampling_options(sampling_options),
-        respect_orientation(respect_orientation),
-        clamping_mode(clamping_mode),
-        decode_mode(decode_mode),
-        apply_dark_mode(apply_dark_mode) {}
-  DarkModeFilter* dark_mode_filter = nullptr;
   SkSamplingOptions sampling_options;
   RespectImageOrientationEnum respect_orientation = kRespectImageOrientation;
   Image::ImageClampingMode clamping_mode = Image::kClampImageToSourceRect;
@@ -235,13 +219,13 @@ class PLATFORM_EXPORT GraphicsContext {
 
   // DrawRect() fills and always strokes using a 1-pixel stroke inset from
   // the rect borders (of the pre-set stroke color).
-  void DrawRect(const gfx::Rect&, const AutoDarkMode& auto_dark_mode);
+  void DrawRect(const IntRect&, const AutoDarkMode& auto_dark_mode);
 
   // DrawLine() only operates on horizontal or vertical lines and uses the
   // current stroke settings. For dotted or dashed stroke, the line need to be
   // top-to-down or left-to-right to get correct interval of dots/dashes.
-  void DrawLine(const gfx::Point&,
-                const gfx::Point&,
+  void DrawLine(const IntPoint&,
+                const IntPoint&,
                 const AutoDarkMode& auto_dark_mode,
                 bool is_text_line = false,
                 const PaintFlags* flags = nullptr);
@@ -260,16 +244,16 @@ class PLATFORM_EXPORT GraphicsContext {
                   const int length = 0,
                   const int dash_thickness = 0);
 
-  void FillEllipse(const gfx::RectF&, const AutoDarkMode& auto_dark_mode);
-  void StrokeEllipse(const gfx::RectF&, const AutoDarkMode& auto_dark_mode);
+  void FillEllipse(const FloatRect&, const AutoDarkMode& auto_dark_mode);
+  void StrokeEllipse(const FloatRect&, const AutoDarkMode& auto_dark_mode);
 
-  void FillRect(const gfx::Rect&, const AutoDarkMode& auto_dark_mode);
-  void FillRect(const gfx::Rect&,
+  void FillRect(const IntRect&, const AutoDarkMode& auto_dark_mode);
+  void FillRect(const IntRect&,
                 const Color&,
                 const AutoDarkMode& auto_dark_mode,
                 SkBlendMode = SkBlendMode::kSrcOver);
-  void FillRect(const gfx::RectF&, const AutoDarkMode& auto_dark_mode);
-  void FillRect(const gfx::RectF&,
+  void FillRect(const FloatRect&, const AutoDarkMode& auto_dark_mode);
+  void FillRect(const FloatRect&,
                 const Color&,
                 const AutoDarkMode& auto_dark_mode,
                 SkBlendMode = SkBlendMode::kSrcOver);
@@ -280,44 +264,44 @@ class PLATFORM_EXPORT GraphicsContext {
                   const FloatRoundedRect&,
                   const Color&,
                   const AutoDarkMode& auto_dark_mode);
-  void FillRectWithRoundedHole(const gfx::RectF&,
+  void FillRectWithRoundedHole(const FloatRect&,
                                const FloatRoundedRect& rounded_hole_rect,
                                const Color&,
                                const AutoDarkMode& auto_dark_mode);
 
-  void StrokeRect(const gfx::RectF&,
+  void StrokeRect(const FloatRect&,
                   float line_width,
                   const AutoDarkMode& auto_dark_mode);
 
   void DrawRecord(sk_sp<const PaintRecord>);
   void CompositeRecord(sk_sp<PaintRecord>,
-                       const gfx::RectF& dest,
-                       const gfx::RectF& src,
+                       const FloatRect& dest,
+                       const FloatRect& src,
                        SkBlendMode);
 
   void DrawImage(Image*,
                  Image::ImageDecodingMode,
                  const AutoDarkMode& auto_dark_mode,
-                 const gfx::RectF& dest_rect,
-                 const gfx::RectF* src_rect = nullptr,
+                 const FloatRect& dest_rect,
+                 const FloatRect* src_rect = nullptr,
                  SkBlendMode = SkBlendMode::kSrcOver,
                  RespectImageOrientationEnum = kRespectImageOrientation);
   void DrawImageRRect(Image*,
                       Image::ImageDecodingMode,
                       const AutoDarkMode& auto_dark_mode,
                       const FloatRoundedRect& dest,
-                      const gfx::RectF& src_rect,
+                      const FloatRect& src_rect,
                       SkBlendMode = SkBlendMode::kSrcOver,
                       RespectImageOrientationEnum = kRespectImageOrientation);
   void DrawImageTiled(Image* image,
-                      const gfx::RectF& dest_rect,
+                      const FloatRect& dest_rect,
                       const ImageTilingInfo& tiling_info,
                       const AutoDarkMode& auto_dark_mode,
                       SkBlendMode = SkBlendMode::kSrcOver,
                       RespectImageOrientationEnum = kRespectImageOrientation);
 
   // These methods write to the canvas.
-  // Also drawLine(const gfx::Point& point1, const gfx::Point& point2) and
+  // Also drawLine(const IntPoint& point1, const IntPoint& point2) and
   // fillRoundedRect().
   void DrawOval(const SkRect&,
                 const PaintFlags&,
@@ -332,16 +316,16 @@ class PLATFORM_EXPORT GraphicsContext {
                  const PaintFlags&,
                  const AutoDarkMode& auto_dark_mode);
 
-  void Clip(const gfx::Rect& rect) { ClipRect(gfx::RectToSkRect(rect)); }
-  void Clip(const gfx::RectF& rect) { ClipRect(gfx::RectFToSkRect(rect)); }
+  void Clip(const IntRect& rect) { ClipRect(rect); }
+  void Clip(const FloatRect& rect) { ClipRect(rect); }
   void ClipRoundedRect(const FloatRoundedRect&,
                        SkClipOp = SkClipOp::kIntersect,
                        AntiAliasingMode = kAntiAliased);
-  void ClipOut(const gfx::Rect& rect) {
-    ClipRect(gfx::RectToSkRect(rect), kNotAntiAliased, SkClipOp::kDifference);
+  void ClipOut(const IntRect& rect) {
+    ClipRect(rect, kNotAntiAliased, SkClipOp::kDifference);
   }
-  void ClipOut(const gfx::RectF& rect) {
-    ClipRect(gfx::RectFToSkRect(rect), kNotAntiAliased, SkClipOp::kDifference);
+  void ClipOut(const FloatRect& rect) {
+    ClipRect(rect, kNotAntiAliased, SkClipOp::kDifference);
   }
   void ClipOut(const Path&);
   void ClipOutRoundedRect(const FloatRoundedRect&);
@@ -354,12 +338,12 @@ class PLATFORM_EXPORT GraphicsContext {
 
   void DrawText(const Font&,
                 const TextRunPaintInfo&,
-                const gfx::PointF&,
+                const FloatPoint&,
                 DOMNodeId,
                 const AutoDarkMode& auto_dark_mode);
   void DrawText(const Font&,
                 const NGTextFragmentPaintInfo&,
-                const gfx::PointF&,
+                const FloatPoint&,
                 DOMNodeId,
                 const AutoDarkMode& auto_dark_mode);
 
@@ -367,7 +351,7 @@ class PLATFORM_EXPORT GraphicsContext {
   // if we can change that to use the four parameter version above.
   void DrawText(const Font&,
                 const TextRunPaintInfo&,
-                const gfx::PointF&,
+                const FloatPoint&,
                 const PaintFlags&,
                 DOMNodeId,
                 const AutoDarkMode& auto_dark_mode);
@@ -376,7 +360,7 @@ class PLATFORM_EXPORT GraphicsContext {
   // four parameter overload can be removed or if it can wrap this method.
   void DrawText(const Font&,
                 const NGTextFragmentPaintInfo&,
-                const gfx::PointF&,
+                const FloatPoint&,
                 const PaintFlags&,
                 DOMNodeId,
                 const AutoDarkMode& auto_dark_mode);
@@ -384,30 +368,30 @@ class PLATFORM_EXPORT GraphicsContext {
   void DrawEmphasisMarks(const Font&,
                          const TextRunPaintInfo&,
                          const AtomicString& mark,
-                         const gfx::PointF&,
+                         const FloatPoint&,
                          const AutoDarkMode& auto_dark_mode);
   void DrawEmphasisMarks(const Font&,
                          const NGTextFragmentPaintInfo&,
                          const AtomicString& mark,
-                         const gfx::PointF&,
+                         const FloatPoint&,
                          const AutoDarkMode& auto_dark_mode);
 
   void DrawBidiText(
       const Font&,
       const TextRunPaintInfo&,
-      const gfx::PointF&,
+      const FloatPoint&,
       const AutoDarkMode& auto_dark_mode,
       Font::CustomFontNotReadyAction = Font::kDoNotPaintIfFontNotReady);
   void DrawHighlightForText(const Font&,
                             const TextRun&,
-                            const gfx::PointF&,
+                            const FloatPoint&,
                             int h,
                             const Color& background_color,
                             const AutoDarkMode& auto_dark_mode,
                             int from = 0,
                             int to = -1);
 
-  void DrawLineForText(const gfx::PointF&,
+  void DrawLineForText(const FloatPoint&,
                        float width,
                        const AutoDarkMode& auto_dark_mode,
                        const PaintFlags* flags = nullptr);
@@ -417,7 +401,7 @@ class PLATFORM_EXPORT GraphicsContext {
   // (i.e. endLayer()).
   void BeginLayer(float opacity = 1.0f,
                   SkBlendMode = SkBlendMode::kSrcOver,
-                  const gfx::RectF* = nullptr,
+                  const FloatRect* = nullptr,
                   ColorFilter = kColorFilterNone,
                   sk_sp<PaintFilter> = nullptr);
   void EndLayer();
@@ -425,7 +409,7 @@ class PLATFORM_EXPORT GraphicsContext {
   // Instead of being dispatched to the active canvas, draw commands following
   // beginRecording() are stored in a display list that can be replayed at a
   // later time. Pass in the bounding rectangle for the content in the list.
-  void BeginRecording(const gfx::RectF&);
+  void BeginRecording(const FloatRect&);
 
   // Returns a record with any recorded draw commands since the prerequisite
   // call to beginRecording().  The record is guaranteed to be non-null (but
@@ -463,33 +447,33 @@ class PLATFORM_EXPORT GraphicsContext {
   // ---------- End transformation methods -----------------
 
   PaintFlags::FilterQuality ComputeFilterQuality(Image*,
-                                                 const gfx::RectF& dest,
-                                                 const gfx::RectF& src) const;
+                                                 const FloatRect& dest,
+                                                 const FloatRect& src) const;
 
   SkSamplingOptions ComputeSamplingOptions(Image* image,
-                                           const gfx::RectF& dest,
-                                           const gfx::RectF& src) const {
+                                           const FloatRect& dest,
+                                           const FloatRect& src) const {
     return PaintFlags::FilterQualityToSkSamplingOptions(
         ComputeFilterQuality(image, dest, src));
   }
 
   // Sets target URL of a clickable area.
-  void SetURLForRect(const KURL&, const gfx::Rect&);
+  void SetURLForRect(const KURL&, const IntRect&);
 
   // Sets the destination of a clickable area of a URL fragment (in a URL
   // pointing to the same web page). When the area is clicked, the page should
   // be scrolled to the location set by setURLDestinationLocation() for the
   // destination whose name is |name|.
-  void SetURLFragmentForRect(const String& name, const gfx::Rect&);
+  void SetURLFragmentForRect(const String& name, const IntRect&);
 
   // Sets location of a URL destination (a.k.a. anchor) in the page.
-  void SetURLDestinationLocation(const String& name, const gfx::Point&);
+  void SetURLDestinationLocation(const String& name, const IntPoint&);
 
-  static void AdjustLineToPixelBoundaries(gfx::PointF& p1,
-                                          gfx::PointF& p2,
+  static void AdjustLineToPixelBoundaries(FloatPoint& p1,
+                                          FloatPoint& p2,
                                           float stroke_width);
 
-  static Path GetPathForTextLine(const gfx::PointF&,
+  static Path GetPathForTextLine(const FloatPoint&,
                                  float width,
                                  float stroke_thickness,
                                  StrokeStyle);
@@ -518,7 +502,7 @@ class PLATFORM_EXPORT GraphicsContext {
   template <typename TextPaintInfo>
   void DrawTextInternal(const Font&,
                         const TextPaintInfo&,
-                        const gfx::PointF&,
+                        const FloatPoint&,
                         DOMNodeId,
                         const AutoDarkMode& auto_dark_mode);
 
@@ -526,7 +510,7 @@ class PLATFORM_EXPORT GraphicsContext {
   void DrawEmphasisMarksInternal(const Font&,
                                  const TextPaintInfo&,
                                  const AtomicString& mark,
-                                 const gfx::PointF&,
+                                 const FloatPoint&,
                                  const AutoDarkMode& auto_dark_mode);
 
   template <typename DrawTextFunc>

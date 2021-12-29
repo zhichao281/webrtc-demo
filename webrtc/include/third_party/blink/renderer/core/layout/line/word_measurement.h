@@ -43,7 +43,7 @@ class WordMeasurement {
   int start_offset;
   int end_offset;
   HashSet<const SimpleFontData*> fallback_fonts;
-  gfx::RectF glyph_bounds;
+  FloatRect glyph_bounds;
 };
 
 }  // namespace blink

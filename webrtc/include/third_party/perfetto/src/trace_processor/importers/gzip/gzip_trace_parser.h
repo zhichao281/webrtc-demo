@@ -32,7 +32,7 @@ class GzipTraceParser : public ChunkedTraceReader {
   ~GzipTraceParser() override;
 
   // ChunkedTraceReader implementation
-  util::Status Parse(TraceBlobView) override;
+  util::Status Parse(std::unique_ptr<uint8_t[]>, size_t) override;
   void NotifyEndOfFile() override;
 
   util::Status ParseUnowned(const uint8_t*, size_t);

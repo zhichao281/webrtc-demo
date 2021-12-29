@@ -28,15 +28,12 @@
 #include "base/gtest_prod_util.h"
 #include "third_party/blink/renderer/core/html/html_document.h"
 
-namespace gfx {
-class Size;
-}
-
 namespace blink {
 
 class HTMLDivElement;
 class HTMLImageElement;
 class ImageResourceContent;
+class IntSize;
 
 class CORE_EXPORT ImageDocument final : public HTMLDocument {
  public:
@@ -45,7 +42,7 @@ class CORE_EXPORT ImageDocument final : public HTMLDocument {
   ImageResourceContent* CachedImage();
 
   HTMLImageElement* ImageElement() const { return image_element_.Get(); }
-  gfx::Size ImageSize() const;
+  IntSize ImageSize() const;
 
   void CreateDocumentStructure(ImageResourceContent*);
   void WindowSizeChanged();

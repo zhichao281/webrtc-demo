@@ -75,7 +75,7 @@ class LayoutSVGContainer : public LayoutSVGModelObject {
     return "LayoutSVGContainer";
   }
 
-  gfx::RectF ObjectBoundingBox() const final {
+  FloatRect ObjectBoundingBox() const final {
     NOT_DESTROYED();
     return content_.ObjectBoundingBox();
   }
@@ -89,10 +89,7 @@ class LayoutSVGContainer : public LayoutSVGModelObject {
     NOT_DESTROYED();
     return &content_.Children();
   }
-  SVGContentContainer& Content() {
-    NOT_DESTROYED();
-    return content_;
-  }
+  SVGContentContainer& Content() { return content_; }
 
   bool IsOfType(LayoutObjectType type) const override {
     NOT_DESTROYED();
@@ -105,7 +102,7 @@ class LayoutSVGContainer : public LayoutSVGModelObject {
                 LayoutObject* before_child = nullptr) final;
   void RemoveChild(LayoutObject*) final;
 
-  gfx::RectF StrokeBoundingBox() const final {
+  FloatRect StrokeBoundingBox() const final {
     NOT_DESTROYED();
     return content_.StrokeBoundingBox();
   }

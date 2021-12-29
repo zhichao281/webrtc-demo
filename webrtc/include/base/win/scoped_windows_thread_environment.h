@@ -5,6 +5,8 @@
 #ifndef BASE_WIN_SCOPED_WINDOWS_THREAD_ENVIRONMENT_H_
 #define BASE_WIN_SCOPED_WINDOWS_THREAD_ENVIRONMENT_H_
 
+#include "base/macros.h"
+
 namespace base {
 namespace win {
 

@@ -52,6 +52,7 @@
 #include <memory>
 
 #include "base/check_op.h"
+#include "base/macros.h"
 #include "base/memory/ptr_util.h"
 #include "base/threading/thread_local_internal.h"
 #include "base/threading/thread_local_storage.h"

@@ -13,13 +13,9 @@
 #include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/deque.h"
 
-namespace gfx {
-class Rect;
-class RectF;
-}  // namespace gfx
-
 namespace blink {
 
+class IntRect;
 class LocalFrameView;
 class PropertyTreeStateOrAlias;
 class TextRecord;
@@ -44,9 +40,9 @@ class CORE_EXPORT TextElementTiming final
            element->FastHasAttribute(html_names::kElementtimingAttr);
   }
 
-  static gfx::RectF ComputeIntersectionRect(
+  static FloatRect ComputeIntersectionRect(
       const LayoutObject&,
-      const gfx::Rect& aggregated_visual_rect,
+      const IntRect& aggregated_visual_rect,
       const PropertyTreeStateOrAlias&,
       const LocalFrameView*);
 

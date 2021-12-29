@@ -6,7 +6,7 @@
 //
 //  Operating System:
 //    OS_AIX / OS_ANDROID / OS_ASMJS / OS_FREEBSD / OS_FUCHSIA / OS_IOS /
-//    OS_LINUX / OS_MAC / OS_NACL / OS_NETBSD / OS_OPENBSD /
+//    OS_LINUX / OS_MAC / OS_NACL (SFI or NONSFI) / OS_NETBSD / OS_OPENBSD /
 //    OS_QNX / OS_SOLARIS / OS_WIN
 //  Operating System family:
 //    OS_APPLE: IOS or MAC
@@ -40,7 +40,14 @@
 #if defined(__native_client__)
 // __native_client__ must be first, so that other OS_ defines are not set.
 #define OS_NACL 1
+// OS_NACL comes in two sandboxing technology flavors, SFI or Non-SFI.
+// PNaCl toolchain defines __native_client_nonsfi__ macro in Non-SFI build
+// mode, while it does not in SFI build mode.
+#if defined(__native_client_nonsfi__)
+#define OS_NACL_NONSFI
+#else
 #define OS_NACL_SFI
+#endif
 #elif defined(ANDROID)
 #define OS_ANDROID 1
 #elif defined(__APPLE__)
@@ -60,7 +67,7 @@
 #define OS_LINUX 1
 #endif  // !defined(OS_CHROMEOS)
 // Include a system header to pull in features.h for glibc/uclibc macros.
-#include <assert.h>
+#include <unistd.h>
 #if defined(__GLIBC__) && !defined(__UCLIBC__)
 // We really are using glibc, not uClibc pretending to be glibc.
 #define LIBC_GLIBC 1
@@ -83,8 +90,6 @@
 #define OS_AIX 1
 #elif defined(__asmjs__) || defined(__wasm__)
 #define OS_ASMJS 1
-#elif defined(__MVS__)
-#define OS_ZOS 1
 #else
 #error Please add support for your platform in build/build_config.h
 #endif
@@ -107,7 +112,7 @@
     defined(OS_FREEBSD) || defined(OS_IOS) || defined(OS_LINUX) ||  \
     defined(OS_CHROMEOS) || defined(OS_MAC) || defined(OS_NACL) ||  \
     defined(OS_NETBSD) || defined(OS_OPENBSD) || defined(OS_QNX) || \
-    defined(OS_SOLARIS) || defined(OS_ZOS)
+    defined(OS_SOLARIS)
 #define OS_POSIX 1
 #endif
 

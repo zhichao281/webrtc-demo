@@ -37,14 +37,14 @@ struct NGInlineNodeData;
 template <typename Base>
 class LayoutNGBlockFlowMixin : public LayoutNGMixin<Base> {
  public:
-  explicit LayoutNGBlockFlowMixin(ContainerNode*);
+  explicit LayoutNGBlockFlowMixin(Element* element);
   ~LayoutNGBlockFlowMixin() override;
 
   NGInlineNodeData* TakeNGInlineNodeData() final;
   NGInlineNodeData* GetNGInlineNodeData() const final;
   void ResetNGInlineNodeData() final;
   void ClearNGInlineNodeData() final;
-  bool HasNGInlineNodeData() const final;
+  bool HasNGInlineNodeData() const final { return ng_inline_node_data_; }
 
   LayoutUnit FirstLineBoxBaseline() const final;
   LayoutUnit InlineBlockBaseline(LineDirectionMode) const final;
@@ -58,12 +58,12 @@ class LayoutNGBlockFlowMixin : public LayoutNGMixin<Base> {
 
   void Trace(Visitor*) const override;
 
+  using LayoutNGMixin<Base>::CurrentFragment;
+
  protected:
   void StyleDidChange(StyleDifference, const ComputedStyle* old_style) override;
 
-#if DCHECK_IS_ON()
   void AddLayoutOverflowFromChildren() final;
-#endif
 
   void AddOutlineRects(Vector<PhysicalRect>&,
                        const PhysicalOffset& additional_offset,
@@ -79,6 +79,9 @@ class LayoutNGBlockFlowMixin : public LayoutNGMixin<Base> {
   Member<NGInlineNodeData> ng_inline_node_data_;
 
   friend class NGBaseLayoutAlgorithmTest;
+
+ private:
+  void AddScrollingOverflowFromChildren();
 };
 
 }  // namespace blink

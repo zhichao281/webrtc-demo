@@ -50,9 +50,9 @@ class ColorCorrectionTestUtils {
   static bool ConvertPixelsToColorSpaceAndPixelFormatForTest(
       void* src_data,
       size_t num_elements,
-      PredefinedColorSpace src_color_space,
+      CanvasColorSpace src_color_space,
       ImageDataStorageFormat src_storage_format,
-      PredefinedColorSpace dst_color_space,
+      CanvasColorSpace dst_color_space,
       CanvasPixelFormat dst_canvas_pixel_format,
       std::unique_ptr<uint8_t[]>& converted_pixels,
       PixelFormat pixel_format_for_f16_canvas);

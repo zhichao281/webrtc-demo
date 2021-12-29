@@ -6,8 +6,8 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_NG_GRID_NG_GRID_PLACEMENT_H_
 
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/layout/ng/grid/ng_grid_data.h"
-#include "third_party/blink/renderer/core/layout/ng/grid/ng_grid_item.h"
+#include "third_party/blink/renderer/core/layout/ng/grid/ng_grid_layout_algorithm.h"
+#include "third_party/blink/renderer/core/layout/ng/grid/ng_grid_properties.h"
 #include "third_party/blink/renderer/core/layout/ng/grid/ng_grid_track_collection.h"
 #include "third_party/blink/renderer/platform/wtf/doubly_linked_list.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
@@ -26,19 +26,11 @@ class CORE_EXPORT NGGridPlacement {
                   const wtf_size_t column_auto_repetitions,
                   const wtf_size_t row_auto_repetitions,
                   const wtf_size_t column_start_offset = 0,
-                  const wtf_size_t row_start_offset = 0,
-                  const bool has_grid_parent = false);
+                  const wtf_size_t row_start_offset = 0);
 
-  NGGridPlacement(const ComputedStyle& grid_style,
-                  const NGGridPlacementData& placement_data)
-      : NGGridPlacement(grid_style,
-                        placement_data.column_auto_repetitions,
-                        placement_data.row_auto_repetitions,
-                        placement_data.column_start_offset,
-                        placement_data.row_start_offset) {}
-
-  void SetPlacementData(const NGGridPlacementData& placement_data);
-  NGGridPlacementData RunAutoPlacementAlgorithm(const GridItems& grid_items);
+  NGGridPlacementProperties RunAutoPlacementAlgorithm(
+      const GridItems& grid_items) const;
+  void SetPlacementProperties(const NGGridPlacementProperties& properties);
 
   // Helper function to resolve start and end lines of out of flow items.
   void ResolveOutOfFlowItemGridLines(
@@ -143,30 +135,32 @@ class CORE_EXPORT NGGridPlacement {
 
   using PositionVector = Vector<GridArea*, 16>;
 
-  NGGridPlacementData BundlePlacementData(
-      Vector<GridArea>&& resolved_positions) const;
-
   // Place non auto-positioned elements from |grid_items|; returns true if any
   // item needs to resolve an automatic position. Otherwise, false.
   bool PlaceNonAutoGridItems(const GridItems& grid_items,
-                             Vector<GridArea>* resolved_positions,
                              PositionVector* positions_locked_to_major_axis,
                              PositionVector* positions_not_locked_to_major_axis,
-                             PlacedGridItemsList* placed_items);
+                             PlacedGridItemsList* placed_items,
+                             NGGridPlacementProperties* properties) const;
   // Place elements from |grid_items| that have a definite position on the major
   // axis but need auto-placement on the minor axis.
   void PlaceGridItemsLockedToMajorAxis(
       const PositionVector& positions_locked_to_major_axis,
-      PlacedGridItemsList* placed_items);
+      PlacedGridItemsList* placed_items,
+      NGGridPlacementProperties* properties) const;
   // Place an item that has a definite position on the minor axis but need
   // auto-placement on the major axis.
-  void PlaceAutoMajorAxisGridItem(GridArea* position,
-                                  PlacedGridItemsList* placed_items,
-                                  AutoPlacementCursor* placement_cursor) const;
+  void PlaceAutoMajorAxisGridItem(
+      GridArea* position,
+      PlacedGridItemsList* placed_items,
+      AutoPlacementCursor* placement_cursor,
+      const NGGridPlacementProperties& properties) const;
   // Place an item that needs auto-placement on both the major and minor axis.
-  void PlaceAutoBothAxisGridItem(GridArea* position,
-                                 PlacedGridItemsList* placed_items,
-                                 AutoPlacementCursor* placement_cursor) const;
+  void PlaceAutoBothAxisGridItem(
+      GridArea* position,
+      PlacedGridItemsList* placed_items,
+      AutoPlacementCursor* placement_cursor,
+      const NGGridPlacementProperties& properties) const;
   // Update the list of placed grid items and auto-placement cursor using the
   // resolved position of the specified grid item.
   void PlaceGridItemAtCursor(const GridArea& position,
@@ -185,7 +179,6 @@ class CORE_EXPORT NGGridPlacement {
   const wtf_size_t row_auto_repeat_track_count_;
   const wtf_size_t column_auto_repetitions_;
   const wtf_size_t row_auto_repetitions_;
-  const bool has_grid_parent_;
 
   wtf_size_t minor_max_end_line_;
   wtf_size_t column_start_offset_;

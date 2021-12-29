@@ -20,7 +20,6 @@ extern const char kEnableCrashReporter[];
 extern const char kEnableFeatures[];
 extern const char kEnableLowEndDeviceMode[];
 extern const char kEnableBackgroundThreadPool[];
-extern const char kFieldTrialHandle[];
 extern const char kForceFieldTrials[];
 extern const char kFullMemoryCrashReport[];
 extern const char kLogBestEffortTasks[];

@@ -26,20 +26,20 @@ class DeviceSensorEntry : public GarbageCollected<DeviceSensorEntry>,
                           public device::mojom::blink::SensorClient {
  public:
   // The sensor state is an automaton with allowed transitions as follows:
-  // kNotInitialized -> kInitializing
-  // kInitializing -> kActive
-  // kInitializing -> kShouldSuspend
-  // kActive -> kSuspended
-  // kShouldSuspend -> kInitializing
-  // kShouldSuspend -> kSuspended
-  // kSuspended -> kActive
-  // { kInitializing, kActive, kShouldSuspend, kSuspended } -> kNotInitialized
+  // NOT_INITIALIZED -> INITIALIZING
+  // INITIALIZING -> ACTIVE
+  // INITIALIZING -> SHOULD_SUSPEND
+  // ACTIVE -> SUSPENDED
+  // SHOULD_SUSPEND -> INITIALIZING
+  // SHOULD_SUSPEND -> SUSPENDED
+  // SUSPENDED -> ACTIVE
+  // { INITIALIZING, ACTIVE, SHOULD_SUSPEND, SUSPENDED } -> NOT_INITIALIZED
   enum class State {
-    kNotInitialized,
-    kInitializing,
-    kActive,
-    kShouldSuspend,
-    kSuspended
+    NOT_INITIALIZED,
+    INITIALIZING,
+    ACTIVE,
+    SHOULD_SUSPEND,
+    SUSPENDED
   };
 
   DeviceSensorEntry(DeviceSensorEventPump* pump,
@@ -73,7 +73,7 @@ class DeviceSensorEntry : public GarbageCollected<DeviceSensorEntry>,
 
   Member<DeviceSensorEventPump> event_pump_;
 
-  State state_ = State::kNotInitialized;
+  State state_ = State::NOT_INITIALIZED;
 
   HeapMojoRemote<device::mojom::blink::Sensor> sensor_remote_;
   HeapMojoReceiver<device::mojom::blink::SensorClient, DeviceSensorEntry>

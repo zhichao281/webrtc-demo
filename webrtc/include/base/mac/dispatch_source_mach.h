@@ -9,6 +9,7 @@
 
 #include "base/base_export.h"
 #include "base/mac/scoped_dispatch_object.h"
+#include "base/macros.h"
 
 namespace base {
 

@@ -25,14 +25,11 @@
 #include "third_party/blink/renderer/core/svg/svg_unit_types.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 
-namespace gfx {
-class RectF;
-}
-
 namespace blink {
 
 class Filter;
 class FilterEffect;
+class FloatRect;
 class SVGAnimatedLength;
 class SVGAnimatedString;
 class SVGFilterBuilder;
@@ -44,7 +41,7 @@ class SVGFilterPrimitiveStandardAttributes : public SVGElement {
  public:
   void SetStandardAttributes(FilterEffect*,
                              SVGUnitTypes::SVGUnitType,
-                             const gfx::RectF& reference_box) const;
+                             const FloatRect& reference_box) const;
 
   virtual FilterEffect* Build(SVGFilterBuilder*, Filter*) = 0;
   // Returns true, if the new value is different from the old one.

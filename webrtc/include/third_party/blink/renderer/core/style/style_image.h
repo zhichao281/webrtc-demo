@@ -29,13 +29,10 @@
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 
-namespace gfx {
-class SizeF;
-}
-
 namespace blink {
 
 class CSSValue;
+class FloatSize;
 class Image;
 class ImageResourceContent;
 class SVGImage;
@@ -81,7 +78,7 @@ class CORE_EXPORT StyleImage : public GarbageCollected<StyleImage> {
   virtual bool IsAccessAllowed(String& failing_url) const = 0;
 
   // Determine the concrete object size of this <image>, scaled by multiplier,
-  // using the specified default object size. Return value as a gfx::SizeF
+  // using the specified default object size. Return value as a FloatSize
   // because we want integer sizes to remain integers when zoomed and then
   // unzoomed. That is, (size * multiplier) / multiplier == size.
   //
@@ -97,9 +94,9 @@ class CORE_EXPORT StyleImage : public GarbageCollected<StyleImage> {
   //
   // The size will respect the image orientation if requested and if the image
   // supports it.
-  virtual gfx::SizeF ImageSize(float multiplier,
-                               const gfx::SizeF& default_object_size,
-                               RespectImageOrientationEnum) const = 0;
+  virtual FloatSize ImageSize(float multiplier,
+                              const FloatSize& default_object_size,
+                              RespectImageOrientationEnum) const = 0;
 
   // The <image> has intrinsic dimensions.
   //
@@ -120,11 +117,10 @@ class CORE_EXPORT StyleImage : public GarbageCollected<StyleImage> {
   // Note that the |target_size| is in the effective zoom level of the
   // computed style, i.e if the style has an effective zoom level of 1.0 the
   // |target_size| is not zoomed.
-  virtual scoped_refptr<Image> GetImage(
-      const ImageResourceObserver&,
-      const Document&,
-      const ComputedStyle&,
-      const gfx::SizeF& target_size) const = 0;
+  virtual scoped_refptr<Image> GetImage(const ImageResourceObserver&,
+                                        const Document&,
+                                        const ComputedStyle&,
+                                        const FloatSize& target_size) const = 0;
 
   // Opaque handle representing the underlying value of this <image>.
   virtual WrappedImagePtr Data() const = 0;
@@ -182,10 +178,10 @@ class CORE_EXPORT StyleImage : public GarbageCollected<StyleImage> {
 
   virtual bool IsEqual(const StyleImage&) const = 0;
 
-  gfx::SizeF ApplyZoom(const gfx::SizeF&, float multiplier) const;
-  gfx::SizeF ImageSizeForSVGImage(SVGImage*,
-                                  float multiplier,
-                                  const gfx::SizeF& default_object_size) const;
+  FloatSize ApplyZoom(const FloatSize&, float multiplier) const;
+  FloatSize ImageSizeForSVGImage(SVGImage*,
+                                 float multiplier,
+                                 const FloatSize& default_object_size) const;
 };
 
 }  // namespace blink

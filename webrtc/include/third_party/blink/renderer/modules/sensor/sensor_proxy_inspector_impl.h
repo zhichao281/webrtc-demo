@@ -7,6 +7,8 @@
 
 #include "third_party/blink/renderer/modules/sensor/sensor_proxy.h"
 
+#include "base/macros.h"
+
 namespace blink {
 
 class SensorProxyInspectorImpl final : public SensorProxy {

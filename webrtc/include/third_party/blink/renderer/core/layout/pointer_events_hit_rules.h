@@ -31,9 +31,9 @@ class PointerEventsHitRules {
 
  public:
   enum EHitTesting {
-    kSvgImageHitTesting,
-    kSvgGeometryHitTesting,
-    kSvgTextHitTesting
+    SVG_IMAGE_HITTESTING,
+    SVG_GEOMETRY_HITTESTING,
+    SVG_TEXT_HITTESTING
   };
 
   PointerEventsHitRules(EHitTesting, const HitTestRequest&, EPointerEvents);

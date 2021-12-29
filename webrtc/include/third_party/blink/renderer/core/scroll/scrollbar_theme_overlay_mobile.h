@@ -14,9 +14,7 @@ class CORE_EXPORT ScrollbarThemeOverlayMobile : public ScrollbarThemeOverlay {
  public:
   static ScrollbarThemeOverlayMobile& GetInstance();
 
-  void PaintThumb(GraphicsContext&,
-                  const Scrollbar&,
-                  const gfx::Rect&) override;
+  void PaintThumb(GraphicsContext&, const Scrollbar&, const IntRect&) override;
   bool AllowsHitTest() const override { return false; }
   bool IsSolidColor() const override { return true; }
   bool UsesNinePatchThumbResource() const override { return false; }
@@ -28,7 +26,7 @@ class CORE_EXPORT ScrollbarThemeOverlayMobile : public ScrollbarThemeOverlay {
                               int scrollbar_margin_thin,
                               Color);
 
-  ScrollbarPart HitTest(const Scrollbar&, const gfx::Point&) override {
+  ScrollbarPart HitTest(const Scrollbar&, const IntPoint&) override {
     NOTREACHED();
     return kNoPart;
   }

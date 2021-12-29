@@ -14,6 +14,7 @@
 
 #include "base/base_export.h"
 #include "base/containers/span.h"
+#include "base/macros.h"
 #include "base/strings/string_piece.h"
 
 namespace base {

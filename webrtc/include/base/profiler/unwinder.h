@@ -17,14 +17,14 @@ namespace base {
 // The result of attempting to unwind stack frames.
 enum class UnwindResult {
   // The end of the stack was reached successfully.
-  kCompleted,
+  COMPLETED,
 
   // The walk reached a frame that it doesn't know how to unwind, but might be
   // unwindable by the other native/aux unwinder.
-  kUnrecognizedFrame,
+  UNRECOGNIZED_FRAME,
 
   // The walk was aborted and is not resumable.
-  kAborted,
+  ABORTED,
 };
 
 // Unwinder provides an interface for stack frame unwinder implementations for

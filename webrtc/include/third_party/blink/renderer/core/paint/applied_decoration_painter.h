@@ -20,8 +20,9 @@ class AppliedDecorationPainter final {
 
  public:
   AppliedDecorationPainter(GraphicsContext& context,
-                           const TextDecorationInfo& decoration_info)
-      : context_(context), decoration_info_(decoration_info) {}
+                           const TextDecorationInfo& decoration_info,
+                           TextDecoration line)
+      : context_(context), decoration_info_(decoration_info), line_(line) {}
 
   void Paint(const PaintFlags* flags = nullptr);
 
@@ -30,6 +31,7 @@ class AppliedDecorationPainter final {
 
   GraphicsContext& context_;
   const TextDecorationInfo& decoration_info_;
+  TextDecoration line_;
 };
 
 }  // namespace blink

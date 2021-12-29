@@ -10,8 +10,9 @@
 
 #include "base/android/jni_android.h"
 #include "base/base_export.h"
-#include "base/callback_forward.h"
+#include "base/macros.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/singleton.h"
 
 namespace base {
 namespace android {

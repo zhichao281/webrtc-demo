@@ -17,10 +17,9 @@
 #include "third_party/blink/renderer/core/imagebitmap/image_bitmap_source.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
+#include "third_party/blink/renderer/platform/geometry/int_size.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_dispatcher.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "third_party/blink/renderer/platform/heap/prefinalizer.h"
-#include "ui/gfx/geometry/size.h"
 
 namespace blink {
 
@@ -45,7 +44,7 @@ class CORE_EXPORT OffscreenCanvas final
                                  unsigned width,
                                  unsigned height);
 
-  OffscreenCanvas(ExecutionContext*, const gfx::Size&);
+  OffscreenCanvas(ExecutionContext*, const IntSize&);
   ~OffscreenCanvas() override;
   void Dispose();
 
@@ -68,8 +67,8 @@ class CORE_EXPORT OffscreenCanvas final
                               const ImageEncodeOptions* options,
                               ExceptionState& exception_state);
 
-  const gfx::Size& Size() const override { return size_; }
-  void SetSize(const gfx::Size&);
+  const IntSize& Size() const override { return size_; }
+  void SetSize(const IntSize&);
   void RecordTransfer();
 
   void SetPlaceholderCanvasId(DOMNodeId canvas_id);
@@ -105,9 +104,6 @@ class CORE_EXPORT OffscreenCanvas final
   void AllowHighPerformancePowerPreference() {
     allow_high_performance_power_preference_ = true;
   }
-
-  DEFINE_ATTRIBUTE_EVENT_LISTENER(contextlost, kContextlost)
-  DEFINE_ATTRIBUTE_EVENT_LISTENER(contextrestored, kContextrestored)
 
   // CanvasRenderingContextHost implementation.
   void PreFinalizeFrame() override {}
@@ -150,21 +146,21 @@ class CORE_EXPORT OffscreenCanvas final
   }
 
   // ImageBitmapSource implementation
-  gfx::Size BitmapSourceSize() const final;
+  IntSize BitmapSourceSize() const final;
   ScriptPromise CreateImageBitmap(ScriptState*,
-                                  absl::optional<gfx::Rect>,
+                                  absl::optional<IntRect>,
                                   const ImageBitmapOptions*,
                                   ExceptionState&) final;
 
   // CanvasImageSource implementation
   scoped_refptr<Image> GetSourceImageForCanvas(
       SourceImageStatus*,
-      const gfx::SizeF&,
+      const FloatSize&,
       const AlphaDisposition alpha_disposition = kPremultiplyAlpha) final;
   bool WouldTaintOrigin() const final { return !origin_clean_; }
-  gfx::SizeF ElementSize(const gfx::SizeF& default_object_size,
-                         const RespectImageOrientationEnum) const final {
-    return gfx::SizeF(width(), height());
+  FloatSize ElementSize(const FloatSize& default_object_size,
+                        const RespectImageOrientationEnum) const final {
+    return FloatSize(width(), height());
   }
   bool IsOpaque() const final;
   bool IsAccelerated() const final;
@@ -243,8 +239,7 @@ class CORE_EXPORT OffscreenCanvas final
 
   DOMNodeId placeholder_canvas_id_ = kInvalidDOMNodeId;
 
-  gfx::Size size_;
-  bool disposing_ = false;
+  IntSize size_;
   bool is_neutered_ = false;
   bool origin_clean_ = true;
   bool disable_reading_from_canvas_ = false;

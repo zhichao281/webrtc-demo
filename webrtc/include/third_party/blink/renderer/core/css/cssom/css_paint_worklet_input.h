@@ -11,6 +11,7 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/cssom/paint_worklet_input.h"
 #include "third_party/blink/renderer/core/css/cssom/paint_worklet_style_property_map.h"
+#include "third_party/blink/renderer/platform/geometry/float_size.h"
 #include "third_party/blink/renderer/platform/graphics/compositor_element_id.h"
 
 namespace blink {
@@ -38,7 +39,7 @@ class CORE_EXPORT CSSPaintWorkletInput : public PaintWorkletInput {
  public:
   CSSPaintWorkletInput(
       const String& name,
-      const gfx::SizeF& container_size,
+      const FloatSize& container_size,
       float effective_zoom,
       float device_scale_factor,
       int worklet_id,

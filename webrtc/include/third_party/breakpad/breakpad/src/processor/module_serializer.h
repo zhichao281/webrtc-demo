@@ -99,7 +99,6 @@ class ModuleSerializer {
   typedef BasicSourceLineResolver::Line Line;
   typedef BasicSourceLineResolver::Function Function;
   typedef BasicSourceLineResolver::PublicSymbol PublicSymbol;
-  typedef BasicSourceLineResolver::InlineOrigin InlineOrigin;
 
   // Internal implementation for ConvertOneModule and ConvertAllModules methods.
   bool SerializeModuleAndLoadIntoFastResolver(
@@ -121,7 +120,6 @@ class ModuleSerializer {
                               linked_ptr<WindowsFrameInfo> > wfi_serializer_;
   RangeMapSerializer<MemAddr, string> cfi_init_rules_serializer_;
   StdMapSerializer<MemAddr, string> cfi_delta_rules_serializer_;
-  StdMapSerializer<int, linked_ptr<InlineOrigin>> inline_origin_serializer_;
 };
 
 }  // namespace google_breakpad

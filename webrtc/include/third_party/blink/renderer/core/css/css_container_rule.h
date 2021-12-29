@@ -11,7 +11,6 @@
 namespace blink {
 
 class StyleRuleContainer;
-class ContainerQuery;
 
 class CSSContainerRule final : public CSSConditionRule {
   DEFINE_WRAPPERTYPEINFO();
@@ -20,14 +19,26 @@ class CSSContainerRule final : public CSSConditionRule {
   CSSContainerRule(StyleRuleContainer*, CSSStyleSheet*);
   ~CSSContainerRule() override;
 
+  void Reattach(StyleRuleBase*) override;
   String cssText() const override;
 
-  const AtomicString& Name() const;
-  void SetConditionText(const ExecutionContext*, String);
+  void Trace(Visitor*) const override;
 
  private:
+  // TODO(crbug.com/1214810): Don't lean on MediaList.
+  friend class InspectorCSSAgent;
+  friend class InspectorDOMAgent;
+  friend class InspectorStyleSheet;
+
   CSSRule::Type GetType() const override { return kContainerRule; }
-  const class ContainerQuery& ContainerQuery() const;
+
+  scoped_refptr<MediaQuerySet> ContainerQueries() const;
+
+  MediaList* container() const;
+
+  const AtomicString& Name() const;
+
+  mutable Member<MediaList> media_cssom_wrapper_;
 };
 
 template <>

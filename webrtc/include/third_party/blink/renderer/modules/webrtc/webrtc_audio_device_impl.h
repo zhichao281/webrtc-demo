@@ -11,6 +11,7 @@
 #include <memory>
 #include <string>
 
+#include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/threading/thread_checker.h"
 #include "base/unguessable_token.h"
@@ -53,6 +54,9 @@ class MODULES_EXPORT WebRtcAudioDeviceImpl
       public blink::WebRtcAudioRendererSource,
       public blink::WebRtcPlayoutDataSource {
  public:
+  // The maximum volume value WebRtc uses.
+  static const int kMaxVolumeLevel = 255;
+
   // Instances of this object are created on the main render thread.
   WebRtcAudioDeviceImpl();
 
@@ -88,6 +92,14 @@ class MODULES_EXPORT WebRtcAudioDeviceImpl
   int32_t StopRecording() override;
   bool Recording() const override;
 
+  // Called on the AudioInputDevice worker thread.
+  int32_t SetMicrophoneVolume(uint32_t volume) override;
+
+  // TODO(henrika): sort out calling thread once we start using this API.
+  int32_t MicrophoneVolume(uint32_t* volume) const override;
+
+  int32_t MaxMicrophoneVolume(uint32_t* max_volume) const override;
+  int32_t MinMicrophoneVolume(uint32_t* min_volume) const override;
   int32_t PlayoutDelay(uint16_t* delay_ms) const override;
 
  public:

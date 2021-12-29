@@ -169,7 +169,6 @@ public:
     inline const FormattedStringBuilder& getStringRef() const {
         return fString;
     }
-    void resetString();
 
     /**
      * Adds additional metadata used for span fields.

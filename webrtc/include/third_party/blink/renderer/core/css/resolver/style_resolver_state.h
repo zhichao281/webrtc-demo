@@ -160,8 +160,6 @@ class CORE_EXPORT StyleResolverState {
   // reference to the passed value.
   const CSSValue& ResolveLightDarkPair(const CSSValue&);
 
-  bool IsForHighlight() const { return is_for_highlight_; }
-
   bool CanCacheBaseStyle() const { return can_cache_base_style_; }
 
   bool HadNoMatchedProperties() const { return had_no_matched_properties_; }

@@ -15,7 +15,7 @@ namespace blink {
 enum class ImageSerializationTag : uint32_t {
   kEndTag = 0,
   // followed by a SerializedColorSpace enum.
-  kPredefinedColorSpaceTag = 1,
+  kCanvasColorSpaceTag = 1,
   // followed by a SerializedPixelFormat enum, used only for ImageBitmap.
   kCanvasPixelFormatTag = 2,
   // followed by a SerializedImageDataStorageFormat enum, used only for
@@ -31,7 +31,7 @@ enum class ImageSerializationTag : uint32_t {
   kLast = kCanvasOpacityModeTag,
 };
 
-// This enumeration specifies the values used to serialize PredefinedColorSpace.
+// This enumeration specifies the values used to serialize CanvasColorSpace.
 enum class SerializedColorSpace : uint32_t {
   // Legacy sRGB color space is deprecated as of M65. Objects in legacy color
   // space will be serialized as sRGB since the legacy behavior is now merged
@@ -41,10 +41,7 @@ enum class SerializedColorSpace : uint32_t {
   kSRGB = 1,
   kRec2020 = 2,
   kP3 = 3,
-  kRec2100HLG = 4,
-  kRec2100PQ = 5,
-  kSRGBLinear = 6,
-  kLast = kSRGBLinear,
+  kLast = kP3,
 };
 
 // This enumeration specifies the values used to serialize CanvasPixelFormat.
@@ -77,11 +74,11 @@ enum class SerializedOpacityMode : uint32_t {
 
 class SerializedImageDataSettings {
  public:
-  SerializedImageDataSettings(PredefinedColorSpace, ImageDataStorageFormat);
+  SerializedImageDataSettings(CanvasColorSpace, ImageDataStorageFormat);
   SerializedImageDataSettings(SerializedColorSpace,
                               SerializedImageDataStorageFormat);
 
-  PredefinedColorSpace GetColorSpace() const;
+  CanvasColorSpace GetColorSpace() const;
   ImageDataStorageFormat GetStorageFormat() const;
   ImageDataSettings* GetImageDataSettings() const;
 

@@ -18,7 +18,7 @@ class LocalDOMWindow;
 class ScriptPromise;
 class ScriptPromiseResolver;
 class ScriptState;
-class ScreenDetails;
+class Screens;
 
 // Supplements LocalDOMWindow with a Screens interface.
 // https://github.com/webscreens/window-placement
@@ -31,30 +31,30 @@ class WindowScreens final : public GarbageCollected<WindowScreens>,
   explicit WindowScreens(LocalDOMWindow* window);
 
   // Web-exposed interface:
-  static ScriptPromise getScreenDetails(ScriptState* script_state,
-                                        LocalDOMWindow& window,
-                                        ExceptionState& exception_state);
+  static ScriptPromise getScreens(ScriptState* script_state,
+                                  LocalDOMWindow& window,
+                                  ExceptionState& exception_state);
 
   // ExecutionContextLifecycleObserver:
   void ContextDestroyed() override;
 
   void Trace(Visitor* visitor) const override;
 
-  ScreenDetails* screen_details() { return screen_details_; }
+  Screens* screens() { return screens_; }
 
  private:
   // Returns the supplement, creating one as needed.
   static WindowScreens* From(LocalDOMWindow* window);
 
   // Requests permission to resolve the returned Screens interface promise.
-  ScriptPromise GetScreenDetails(ScriptState* script_state,
-                                 ExceptionState& exception_state);
+  ScriptPromise GetScreens(ScriptState* script_state,
+                           ExceptionState& exception_state);
 
   // Handles the permission request result, to reject or resolve the promise.
   void OnPermissionRequestComplete(ScriptPromiseResolver* resolver,
                                    mojom::blink::PermissionStatus status);
 
-  Member<ScreenDetails> screen_details_;
+  Member<Screens> screens_;
   HeapMojoRemote<mojom::blink::PermissionService> permission_service_;
 };
 

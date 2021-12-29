@@ -7,12 +7,9 @@
 
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
-namespace gfx {
-class Rect;
-}
-
 namespace blink {
 
+class IntRect;
 class LayoutFrameSet;
 struct PaintInfo;
 struct PhysicalOffset;
@@ -29,8 +26,8 @@ class FrameSetPainter {
  private:
   void PaintBorders(const PaintInfo&, const PhysicalOffset& paint_offset);
   void PaintChildren(const PaintInfo&);
-  void PaintRowBorder(const PaintInfo&, const gfx::Rect&);
-  void PaintColumnBorder(const PaintInfo&, const gfx::Rect&);
+  void PaintRowBorder(const PaintInfo&, const IntRect&);
+  void PaintColumnBorder(const PaintInfo&, const IntRect&);
 
   const LayoutFrameSet& layout_frame_set_;
 };

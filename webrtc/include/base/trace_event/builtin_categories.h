@@ -7,6 +7,7 @@
 
 #include "base/base_export.h"
 #include "base/cxx17_backports.h"
+#include "base/macros.h"
 #include "base/trace_event/common/trace_event_common.h"
 #include "base/tracing_buildflags.h"
 #include "build/build_config.h"
@@ -44,6 +45,7 @@
   X("blink.resource")                                                    \
   X("blink.user_timing")                                                 \
   X("blink.worker")                                                      \
+  X("blink_gc")                                                          \
   X("blink_style")                                                       \
   X("Blob")                                                              \
   X("browser")                                                           \
@@ -51,7 +53,6 @@
   X("CacheStorage")                                                      \
   X("Calculators")                                                       \
   X("CameraStream")                                                      \
-  X("cppgc")                                                             \
   X("camera")                                                            \
   X("cast_app")                                                          \
   X("cast_perf_test")                                                    \
@@ -137,18 +138,17 @@
   X("renderer_host")                                                     \
   X("renderer.scheduler")                                                \
   X("RLZ")                                                               \
-  X("ServiceWorker")                                                     \
-  X("SiteEngagement")                                                    \
   X("safe_browsing")                                                     \
-  X("scheduler")                                                         \
   X("screenlock_monitor")                                                \
   X("segmentation_platform")                                             \
   X("sequence_manager")                                                  \
   X("service_manager")                                                   \
+  X("ServiceWorker")                                                     \
   X("sharing")                                                           \
   X("shell")                                                             \
   X("shortcut_viewer")                                                   \
   X("shutdown")                                                          \
+  X("SiteEngagement")                                                    \
   X("skia")                                                              \
   X("sql")                                                               \
   X("stadia_media")                                                      \
@@ -157,6 +157,7 @@
   X("sync")                                                              \
   X("system_apps")                                                       \
   X("test_gpu")                                                          \
+  X("thread_pool")                                                       \
   X("toplevel")                                                          \
   X("toplevel.flow")                                                     \
   X("ui")                                                                \
@@ -184,6 +185,7 @@
   X(TRACE_DISABLED_BY_DEFAULT("blink.debug.layout"))                     \
   X(TRACE_DISABLED_BY_DEFAULT("blink.debug.layout.trees"))               \
   X(TRACE_DISABLED_BY_DEFAULT("blink.feature_usage"))                    \
+  X(TRACE_DISABLED_BY_DEFAULT("blink_gc"))                               \
   X(TRACE_DISABLED_BY_DEFAULT("blink.image_decoding"))                   \
   X(TRACE_DISABLED_BY_DEFAULT("blink.invalidation"))                     \
   X(TRACE_DISABLED_BY_DEFAULT("cc"))                                     \
@@ -196,7 +198,6 @@
   X(TRACE_DISABLED_BY_DEFAULT("cc.debug.scheduler.now"))                 \
   X(TRACE_DISABLED_BY_DEFAULT("content.verbose"))                        \
   X(TRACE_DISABLED_BY_DEFAULT("cpu_profiler"))                           \
-  X(TRACE_DISABLED_BY_DEFAULT("cppgc"))                                  \
   X(TRACE_DISABLED_BY_DEFAULT("cpu_profiler.debug"))                     \
   X(TRACE_DISABLED_BY_DEFAULT("devtools.screenshot"))                    \
   X(TRACE_DISABLED_BY_DEFAULT("devtools.timeline"))                      \
@@ -405,10 +406,6 @@ static_assert(!StrEqConstexpr("abc", "ab"), "strings should not be equal");
 // TODO(skyostil): Remove after migrating to the Perfetto client API.
 class BASE_EXPORT BuiltinCategories {
  public:
-  BuiltinCategories() = delete;
-  BuiltinCategories(const BuiltinCategories&) = delete;
-  BuiltinCategories& operator=(const BuiltinCategories&) = delete;
-
   // Returns a built-in category name at |index| in the registry.
   static constexpr const char* At(size_t index) {
     return kBuiltinCategories[index];
@@ -529,6 +526,8 @@ class BASE_EXPORT BuiltinCategories {
     return IsStringInArray(category, kBuiltinCategories,
                            base::size(kBuiltinCategories));
   }
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(BuiltinCategories);
 };
 
 }  // namespace trace_event

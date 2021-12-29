@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "base/macros.h"
 #include "third_party/blink/renderer/core/css/css_syntax_definition.h"
 #include "third_party/blink/renderer/core/workers/worklet.h"
 #include "third_party/blink/renderer/modules/csspaint/document_paint_definition.h"
@@ -42,7 +43,7 @@ class MODULES_EXPORT PaintWorklet : public Worklet,
   // The |container_size| is without subpixel snapping.
   scoped_refptr<Image> Paint(const String& name,
                              const ImageResourceObserver&,
-                             const gfx::SizeF& container_size,
+                             const FloatSize& container_size,
                              const CSSStyleValueVector*,
                              float device_scale_factor);
 

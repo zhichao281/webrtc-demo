@@ -7,7 +7,7 @@
 
 #include "base/sequence_checker.h"
 #include "third_party/blink/renderer/core/fileapi/blob.h"
-#include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/heap/heap.h"
 
 namespace blink {
 

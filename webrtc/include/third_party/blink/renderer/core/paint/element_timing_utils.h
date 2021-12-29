@@ -5,13 +5,11 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_PAINT_ELEMENT_TIMING_UTILS_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_PAINT_ELEMENT_TIMING_UTILS_H_
 
-namespace gfx {
-class Rect;
-class RectF;
-}  // namespace gfx
+#include "third_party/blink/renderer/platform/geometry/float_rect.h"
 
 namespace blink {
 
+class IntRect;
 class LocalFrame;
 class PropertyTreeStateOrAlias;
 
@@ -21,9 +19,9 @@ class ElementTimingUtils {
  public:
   // Computes the part a rect in a local transform space that is visible in the
   // specified frame, and returns a result in DIPs.
-  static gfx::RectF ComputeIntersectionRect(LocalFrame*,
-                                            const gfx::Rect&,
-                                            const PropertyTreeStateOrAlias&);
+  static FloatRect ComputeIntersectionRect(LocalFrame*,
+                                           const IntRect&,
+                                           const PropertyTreeStateOrAlias&);
 };
 
 }  // namespace blink

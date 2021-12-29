@@ -11,6 +11,8 @@
 
 namespace blink {
 class HandwritingDrawingSegment;
+class HandwritingFeatureQuery;
+class HandwritingFeatureQueryResult;
 class HandwritingHints;
 class HandwritingPoint;
 class HandwritingPrediction;
@@ -48,6 +50,14 @@ struct MODULES_EXPORT
       const blink::HandwritingHints* input);
 };
 
+template <>
+struct MODULES_EXPORT
+    TypeConverter<handwriting::mojom::blink::HandwritingFeatureQueryPtr,
+                  blink::HandwritingFeatureQuery*> {
+  static handwriting::mojom::blink::HandwritingFeatureQueryPtr Convert(
+      const blink::HandwritingFeatureQuery* input);
+};
+
 // Converters from Mojo to IDL.
 
 template <>
@@ -64,6 +74,14 @@ struct MODULES_EXPORT
                   handwriting::mojom::blink::HandwritingStrokePtr> {
   static blink::HandwritingStroke* Convert(
       const handwriting::mojom::blink::HandwritingStrokePtr& input);
+};
+
+template <>
+struct MODULES_EXPORT
+    TypeConverter<blink::HandwritingFeatureQueryResult*,
+                  handwriting::mojom::blink::HandwritingFeatureQueryResultPtr> {
+  static blink::HandwritingFeatureQueryResult* Convert(
+      const handwriting::mojom::blink::HandwritingFeatureQueryResultPtr& input);
 };
 
 template <>

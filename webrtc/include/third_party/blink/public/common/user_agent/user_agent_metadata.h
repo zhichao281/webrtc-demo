@@ -18,17 +18,12 @@ namespace blink {
 struct BLINK_COMMON_EXPORT UserAgentBrandVersion {
   UserAgentBrandVersion() = default;
   UserAgentBrandVersion(const std::string& ua_brand,
-                        const std::string& ua_version);
+                        const std::string& ua_major_version);
 
   bool operator==(const UserAgentBrandVersion& a) const;
 
   std::string brand;
-  // Version type is either "full version" or "major version".
-  // For brands, `version` is populated with the major version for each brand.
-  // For the full version list, `version` is populated with the full version for
-  // each brand.
-  // https://wicg.github.io/ua-client-hints/#interface
-  std::string version;
+  std::string major_version;
 };
 
 using UserAgentBrandList = std::vector<UserAgentBrandVersion>;
@@ -36,25 +31,15 @@ using UserAgentBrandList = std::vector<UserAgentBrandVersion>;
 // Note: if changing this, see also
 // content/public/common/common_param_traits_macros.h
 struct BLINK_COMMON_EXPORT UserAgentMetadata {
- private:
-  // Common private function turning the brand list into a structured header
-  // comes up often enough and is just non-trivial enough that it's better to be
-  // in one place.
-  const std::string SerializeBrandVersionList(
-      const blink::UserAgentBrandList& ua_brand_version_list);
-
- public:
-  // Turning the brand list into a structured header with full version and major
-  // version.
-  const std::string SerializeBrandFullVersionList();
-  const std::string SerializeBrandMajorVersionList();
+  // Turning the brand list into a structured header comes up often enough and
+  // is just non-trivial enough that it's better to be in one place.
+  const std::string SerializeBrandVersionList();
 
   static absl::optional<UserAgentMetadata> Demarshal(
       const absl::optional<std::string>& encoded);
   static absl::optional<std::string> Marshal(
       const absl::optional<UserAgentMetadata>& ua_metadata);
   UserAgentBrandList brand_version_list;
-  UserAgentBrandList brand_full_version_list;
 
   std::string full_version;
   std::string platform;

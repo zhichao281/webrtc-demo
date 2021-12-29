@@ -148,7 +148,7 @@ class CORE_EXPORT LayoutInline : public LayoutBoxModelObject {
   LayoutUnit MarginTop() const final;
   LayoutUnit MarginBottom() const final;
 
-  gfx::RectF LocalBoundingBoxRectForAccessibility() const final;
+  FloatRect LocalBoundingBoxRectForAccessibility() const final;
 
   PhysicalRect PhysicalLinesBoundingBox() const;
   PhysicalRect PhysicalVisualOverflowRect() const final;
@@ -402,10 +402,10 @@ class CORE_EXPORT LayoutInline : public LayoutBoxModelObject {
 
   PositionWithAffinity PositionForPoint(const PhysicalOffset&) const override;
 
-  gfx::Rect BorderBoundingBox() const final {
+  IntRect BorderBoundingBox() const final {
     NOT_DESTROYED();
-    gfx::Rect bounding_box = ToEnclosingRect(PhysicalLinesBoundingBox());
-    return gfx::Rect(bounding_box.size());
+    IntRect bounding_box = EnclosingIntRect(PhysicalLinesBoundingBox());
+    return IntRect(0, 0, bounding_box.width(), bounding_box.height());
   }
 
   virtual InlineFlowBox* CreateInlineFlowBox();  // Subclassed by SVG and Ruby

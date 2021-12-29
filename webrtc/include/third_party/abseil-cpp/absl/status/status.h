@@ -469,9 +469,8 @@ class Status final {
 
   // Status::ok()
   //
-  // Returns `true` if `this->code()` == `absl::StatusCode::kOk`,
-  // indicating the absence of an error.
-  // Prefer checking for an OK status using this member function.
+  // Returns `true` if `this->ok()`. Prefer checking for an OK status using this
+  // member function.
   ABSL_MUST_USE_RESULT bool ok() const;
 
   // Status::code()

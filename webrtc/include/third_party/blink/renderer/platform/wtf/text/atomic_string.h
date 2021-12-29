@@ -81,7 +81,6 @@ class WTF_EXPORT AtomicString {
   // the StringImpl is not already atomic.
   explicit AtomicString(StringImpl* impl) : string_(Add(impl)) {}
   explicit AtomicString(const String& s) : string_(Add(s.Impl())) {}
-  explicit AtomicString(String&& s) : string_(Add(s.ReleaseImpl())) {}
 
   explicit operator bool() const { return !IsNull(); }
   operator const String&() const { return string_; }
@@ -173,7 +172,6 @@ class WTF_EXPORT AtomicString {
 
   // Returns a lowercase/uppercase version of the string.
   // These functions convert ASCII characters only.
-  static AtomicString LowerASCII(AtomicString source);
   AtomicString LowerASCII() const;
   AtomicString UpperASCII() const;
 
@@ -230,19 +228,11 @@ class WTF_EXPORT AtomicString {
 
   String string_;
 
-  ALWAYS_INLINE static scoped_refptr<StringImpl> Add(
-      scoped_refptr<StringImpl>&& r) {
-    if (!r || r->IsAtomic())
-      return std::move(r);
-    return AddSlowCase(std::move(r));
-  }
-
   ALWAYS_INLINE static scoped_refptr<StringImpl> Add(StringImpl* r) {
     if (!r || r->IsAtomic())
       return r;
     return AddSlowCase(r);
   }
-  static scoped_refptr<StringImpl> AddSlowCase(scoped_refptr<StringImpl>&&);
   static scoped_refptr<StringImpl> AddSlowCase(StringImpl*);
 #if defined(OS_MAC)
   static scoped_refptr<StringImpl> Add(CFStringRef);

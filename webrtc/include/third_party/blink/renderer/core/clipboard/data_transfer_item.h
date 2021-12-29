@@ -46,7 +46,7 @@ class File;
 class ScriptState;
 
 namespace probe {
-class AsyncTaskContext;
+class AsyncTaskId;
 }
 
 class CORE_EXPORT DataTransferItem final : public ScriptWrappable {
@@ -72,7 +72,7 @@ class CORE_EXPORT DataTransferItem final : public ScriptWrappable {
   void RunGetAsStringTask(ExecutionContext*,
                           V8FunctionStringCallback*,
                           const String& data,
-                          std::unique_ptr<probe::AsyncTaskContext>);
+                          std::unique_ptr<probe::AsyncTaskId>);
 
   Member<DataTransfer> data_transfer_;
   Member<DataObjectItem> item_;

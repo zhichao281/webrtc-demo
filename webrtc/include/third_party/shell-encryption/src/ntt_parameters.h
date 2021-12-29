@@ -24,7 +24,6 @@
 #include "constants.h"
 #include "status_macros.h"
 #include "statusor.h"
-#include "third_party/shell-encryption/base/shell_encryption_export.h"
 
 namespace rlwe {
 namespace internal {
@@ -95,7 +94,7 @@ rlwe::StatusOr<std::vector<ModularInt>> NttPsis(
 // Creates a vector containing the indices necessary to perform the NTT bit
 // reversal operation. Index i of the returned vector contains an integer with
 // the rightmost log_n bits of i reversed.
-SHELL_ENCRYPTION_EXPORT std::vector<unsigned int> BitrevArray(unsigned int log_n);
+std::vector<unsigned int> BitrevArray(unsigned int log_n);
 
 // Helper function: Perform the bit-reversal operation in-place on coeffs_.
 template <typename ModularInt>

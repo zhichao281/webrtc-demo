@@ -5,8 +5,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_TEXT_NUMBER_PARSING_OPTIONS_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_TEXT_NUMBER_PARSING_OPTIONS_H_
 
-#include <ostream>
-
 #include "base/check_op.h"
 
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"

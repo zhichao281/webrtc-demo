@@ -11,14 +11,11 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 
-namespace gfx {
-class Rect;
-}
-
 namespace blink {
 
 class LocalFrame;
 enum class FrameDetachType;
+class IntRect;
 
 class CORE_EXPORT FrameClient : public GarbageCollected<FrameClient> {
  public:
@@ -29,7 +26,7 @@ class CORE_EXPORT FrameClient : public GarbageCollected<FrameClient> {
   virtual unsigned BackForwardLength() = 0;
 
   virtual void OnMainFrameIntersectionChanged(
-      const gfx::Rect& intersection_rect) {}
+      const IntRect& intersection_rect) {}
 
   virtual ~FrameClient() = default;
 

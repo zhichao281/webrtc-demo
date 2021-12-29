@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "base/macros.h"
 #include "base/process/launch.h"
 #include "base/process/process.h"
 #include "build/build_config.h"

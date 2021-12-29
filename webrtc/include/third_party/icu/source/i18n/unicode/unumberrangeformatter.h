@@ -193,10 +193,12 @@ typedef enum UNumberRangeIdentityResult {
      * @internal
      */
     UNUM_IDENTITY_RESULT_COUNT
-#endif  /* U_HIDE_INTERNAL_API */
+#endif
 
 } UNumberRangeIdentityResult;
 
+
+#ifndef U_HIDE_DRAFT_API
 
 struct UNumberRangeFormatter;
 /**
@@ -204,7 +206,7 @@ struct UNumberRangeFormatter;
  *
  * NOTE: This is a C-compatible API; C++ users should build against numberrangeformatter.h instead.
  *
- * @stable ICU 68
+ * @draft ICU 68
  */
 typedef struct UNumberRangeFormatter UNumberRangeFormatter;
 
@@ -215,7 +217,7 @@ struct UFormattedNumberRange;
  *
  * NOTE: This is a C-compatible API; C++ users should build against numberrangeformatter.h instead.
  *
- * @stable ICU 68
+ * @draft ICU 68
  */
 typedef struct UFormattedNumberRange UFormattedNumberRange;
 
@@ -239,7 +241,7 @@ typedef struct UFormattedNumberRange UFormattedNumberRange;
  * @param perror A parse error struct populated if an error occurs when parsing. Can be NULL.
  *               If no error occurs, perror->offset will be set to -1.
  * @param ec Set if an error occurs.
- * @stable ICU 68
+ * @draft ICU 68
  */
 U_CAPI UNumberRangeFormatter* U_EXPORT2
 unumrf_openForSkeletonWithCollapseAndIdentityFallback(
@@ -258,7 +260,7 @@ unumrf_openForSkeletonWithCollapseAndIdentityFallback(
  * passed to a format function.
  *
  * @param ec Set if an error occurs.
- * @stable ICU 68
+ * @draft ICU 68
  */
 U_CAPI UFormattedNumberRange* U_EXPORT2
 unumrf_openResult(UErrorCode* ec);
@@ -277,7 +279,7 @@ unumrf_openResult(UErrorCode* ec);
  * @param second The second (usually larger) number in the range.
  * @param uresult The object that will be mutated to store the result; see unumrf_openResult.
  * @param ec Set if an error occurs.
- * @stable ICU 68
+ * @draft ICU 68
  */
 U_CAPI void U_EXPORT2
 unumrf_formatDoubleRange(
@@ -305,7 +307,7 @@ unumrf_formatDoubleRange(
  * @param secondLen The length of the second decimal number string.
  * @param uresult The object that will be mutated to store the result; see unumrf_openResult.
  * @param ec Set if an error occurs.
- * @stable ICU 68
+ * @draft ICU 68
  */
 U_CAPI void U_EXPORT2
 unumrf_formatDecimalRange(
@@ -330,7 +332,7 @@ unumrf_formatDecimalRange(
  * @param uresult The object containing the formatted number range.
  * @param ec Set if an error occurs.
  * @return A UFormattedValue owned by the input object.
- * @stable ICU 68
+ * @draft ICU 68
  */
 U_CAPI const UFormattedValue* U_EXPORT2
 unumrf_resultAsValue(const UFormattedNumberRange* uresult, UErrorCode* ec);
@@ -344,7 +346,7 @@ unumrf_resultAsValue(const UFormattedNumberRange* uresult, UErrorCode* ec);
  * @param uresult The object containing the formatted number range.
  * @param ec Set if an error occurs.
  * @return The identity result; see UNumberRangeIdentityResult.
- * @stable ICU 68
+ * @draft ICU 68
  */
 U_CAPI UNumberRangeIdentityResult U_EXPORT2
 unumrf_resultGetIdentityResult(
@@ -369,7 +371,7 @@ unumrf_resultGetIdentityResult(
  *                       If U_BUFFER_OVERFLOW_ERROR: Returns number of chars for
  *                       preflighting.
  * @return Number of chars in the data.  Does not include a trailing NUL.
- * @stable ICU 68
+ * @draft ICU 68
  */
 U_CAPI int32_t U_EXPORT2
 unumrf_resultGetFirstDecimalNumber(
@@ -396,7 +398,7 @@ unumrf_resultGetFirstDecimalNumber(
  *                       If U_BUFFER_OVERFLOW_ERROR: Returns number of chars for
  *                       preflighting.
  * @return Number of chars in the data.  Does not include a trailing NUL.
- * @stable ICU 68
+ * @draft ICU 68
  */
 U_CAPI int32_t U_EXPORT2
 unumrf_resultGetSecondDecimalNumber(
@@ -410,7 +412,7 @@ unumrf_resultGetSecondDecimalNumber(
  * Releases the UNumberFormatter created by unumf_openForSkeletonAndLocale().
  *
  * @param uformatter An object created by unumf_openForSkeletonAndLocale().
- * @stable ICU 68
+ * @draft ICU 68
  */
 U_CAPI void U_EXPORT2
 unumrf_close(UNumberRangeFormatter* uformatter);
@@ -420,7 +422,7 @@ unumrf_close(UNumberRangeFormatter* uformatter);
  * Releases the UFormattedNumber created by unumf_openResult().
  *
  * @param uresult An object created by unumf_openResult().
- * @stable ICU 68
+ * @draft ICU 68
  */
 U_CAPI void U_EXPORT2
 unumrf_closeResult(UFormattedNumberRange* uresult);
@@ -443,7 +445,7 @@ U_NAMESPACE_BEGIN
  *
  * @see LocalPointerBase
  * @see LocalPointer
- * @stable ICU 68
+ * @draft ICU 68
  */
 U_DEFINE_LOCAL_OPEN_POINTER(LocalUNumberRangeFormatterPointer, UNumberRangeFormatter, unumrf_close);
 
@@ -460,12 +462,14 @@ U_DEFINE_LOCAL_OPEN_POINTER(LocalUNumberRangeFormatterPointer, UNumberRangeForma
  *
  * @see LocalPointerBase
  * @see LocalPointer
- * @stable ICU 68
+ * @draft ICU 68
  */
 U_DEFINE_LOCAL_OPEN_POINTER(LocalUFormattedNumberRangePointer, UFormattedNumberRange, unumrf_closeResult);
 
 U_NAMESPACE_END
 #endif // U_SHOW_CPLUSPLUS_API
+
+#endif // U_HIDE_DRAFT_API
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
 #endif //__UNUMBERRANGEFORMATTER_H__

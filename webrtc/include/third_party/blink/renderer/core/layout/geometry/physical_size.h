@@ -10,8 +10,6 @@
 #include "third_party/blink/renderer/platform/geometry/layout_size.h"
 #include "third_party/blink/renderer/platform/geometry/layout_unit.h"
 #include "third_party/blink/renderer/platform/text/writing_mode.h"
-#include "ui/gfx/geometry/size.h"
-#include "ui/gfx/geometry/size_f.h"
 
 namespace blink {
 
@@ -99,18 +97,17 @@ struct CORE_EXPORT PhysicalSize {
       : width(size.Width()), height(size.Height()) {}
   constexpr LayoutSize ToLayoutSize() const { return {width, height}; }
 
-  constexpr explicit operator gfx::SizeF() const { return {width, height}; }
-
-  static PhysicalSize FromSizeFRound(const gfx::SizeF& size) {
+  static PhysicalSize FromFloatSizeRound(const FloatSize& size) {
     return {LayoutUnit::FromFloatRound(size.width()),
             LayoutUnit::FromFloatRound(size.height())};
   }
-  static PhysicalSize FromSizeFFloor(const gfx::SizeF& size) {
+  static PhysicalSize FromFloatSizeFloor(const FloatSize& size) {
     return {LayoutUnit::FromFloatFloor(size.width()),
             LayoutUnit::FromFloatFloor(size.height())};
   }
+  constexpr explicit operator FloatSize() const { return {width, height}; }
 
-  explicit PhysicalSize(const gfx::Size& size)
+  explicit PhysicalSize(const IntSize& size)
       : width(size.width()), height(size.height()) {}
 
   String ToString() const;
@@ -126,13 +123,13 @@ inline PhysicalSize ToPhysicalSize(const LogicalSize& other, WritingMode mode) {
 
 // TODO(crbug.com/962299): These functions should upgraded to force correct
 // pixel snapping in a type-safe way.
-inline gfx::Size ToRoundedSize(const PhysicalSize& s) {
+inline IntSize RoundedIntSize(const PhysicalSize& s) {
   return {s.width.Round(), s.height.Round()};
 }
-inline gfx::Size ToFlooredSize(const PhysicalSize& s) {
+inline IntSize FlooredIntSize(const PhysicalSize& s) {
   return {s.width.Floor(), s.height.Floor()};
 }
-inline gfx::Size ToCeiledSize(const PhysicalSize& s) {
+inline IntSize CeiledIntSize(const PhysicalSize& s) {
   return {s.width.Ceil(), s.height.Ceil()};
 }
 

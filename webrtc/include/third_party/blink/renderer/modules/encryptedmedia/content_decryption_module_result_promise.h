@@ -54,9 +54,7 @@ class ContentDecryptionModuleResultPromise
 
  protected:
   // |interface_name| and |property_name| must have static life time.
-  ContentDecryptionModuleResultPromise(ScriptState*,
-                                       const MediaKeysConfig&,
-                                       EmeApiType api_type);
+  ContentDecryptionModuleResultPromise(ScriptState*, EmeApiType type);
 
   // Resolves the promise with |value|. Used by subclasses to resolve the
   // promise.
@@ -78,8 +76,7 @@ class ContentDecryptionModuleResultPromise
 
  private:
   Member<ScriptPromiseResolver> resolver_;
-  const MediaKeysConfig config_;
-  const EmeApiType api_type_;
+  const EmeApiType type_;
 };
 
 }  // namespace blink

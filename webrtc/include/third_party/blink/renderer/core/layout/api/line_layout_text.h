@@ -94,7 +94,7 @@ class LineLayoutText : public LineLayoutItem {
               LayoutUnit x_pos,
               TextDirection text_direction,
               HashSet<const SimpleFontData*>* fallback_fonts,
-              gfx::RectF* glyph_bounds,
+              FloatRect* glyph_bounds,
               float expansion = 0) const {
     return ToText()->Width(from, len, font, x_pos, text_direction,
                            fallback_fonts, glyph_bounds, expansion);
@@ -106,7 +106,7 @@ class LineLayoutText : public LineLayoutItem {
               TextDirection text_direction,
               bool first_line,
               HashSet<const SimpleFontData*>* fallback_fonts = nullptr,
-              gfx::RectF* glyph_bounds = nullptr,
+              FloatRect* glyph_bounds = nullptr,
               float expansion = 0) const {
     return ToText()->Width(from, len, x_pos, text_direction, first_line,
                            fallback_fonts, glyph_bounds, expansion);

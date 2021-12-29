@@ -14,7 +14,6 @@
 #include "third_party/blink/renderer/platform/graphics/paint/scroll_paint_property_node.h"
 #include "third_party/blink/renderer/platform/graphics/paint/transform_paint_property_node.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/clear_collection_scope.h"
-#include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
@@ -78,7 +77,7 @@ struct PaintPropertyTreeBuilderFragmentContext {
 
     // Similar to additional_offset_to_layout_shift_root_delta but for scroll
     // offsets.
-    gfx::Vector2dF scroll_offset_to_layout_shift_root_delta;
+    FloatSize scroll_offset_to_layout_shift_root_delta;
 
     // For paint invalidation optimization for subpixel movement under
     // composited layer. It's reset to zero if subpixel can't be propagated
@@ -112,7 +111,7 @@ struct PaintPropertyTreeBuilderFragmentContext {
     // the transform tree changes.
     const ScrollPaintPropertyNode* scroll = nullptr;
 
-    gfx::Vector2dF pending_scroll_anchor_adjustment;
+    FloatSize pending_scroll_anchor_adjustment;
 
     // Paint offset of the innermost fragmentainer minus accumulated offsets
     // that are baked in PaintOffsetTranslations since we entered the
@@ -177,7 +176,7 @@ struct PaintPropertyTreeBuilderFragmentContext {
 
   // The delta between the old and new accumulated offsets of 2d translation
   // transforms to the layout shift root.
-  gfx::Vector2dF translation_2d_to_layout_shift_root_delta;
+  FloatSize translation_2d_to_layout_shift_root_delta;
 };
 
 struct PaintPropertyTreeBuilderContext final {

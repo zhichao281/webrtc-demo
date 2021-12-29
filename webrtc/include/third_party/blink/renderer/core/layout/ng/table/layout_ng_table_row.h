@@ -30,10 +30,7 @@ class CORE_EXPORT LayoutNGTableRow : public LayoutNGBlock,
 
   // LayoutBlock methods start.
 
-  void UpdateBlockLayout(bool relayout_children) override {
-    NOT_DESTROYED();
-    NOTREACHED();
-  }
+  void UpdateBlockLayout(bool relayout_children) override { NOTREACHED(); }
 
   const char* GetName() const override {
     NOT_DESTROYED();
@@ -93,6 +90,11 @@ class CORE_EXPORT LayoutNGTableRow : public LayoutNGBlock,
   const LayoutObject* ToLayoutObject() const final {
     NOT_DESTROYED();
     return this;
+  }
+
+  const LayoutTableRow* ToLayoutTableRow() const final {
+    NOTREACHED();
+    return nullptr;
   }
 
   const LayoutNGTableRowInterface* ToLayoutNGTableRowInterface() const final {

@@ -51,9 +51,7 @@ class ScanLoop {
   ScanLoop(const ScanLoop&) = delete;
   ScanLoop& operator=(const ScanLoop&) = delete;
 
-  // Scan input range. Assumes the range is properly aligned. Please note that
-  // the function doesn't remask the input range and assumes MTE is disabled
-  // when function is called.
+  // Scan input range. Assumes the range is properly aligned.
   void Run(uintptr_t* begin, uintptr_t* end);
 
  private:
@@ -97,7 +95,7 @@ void ScanLoop<Derived>::RunUnvectorized(uintptr_t* begin, uintptr_t* end) {
   const uintptr_t base = derived().CageBase();
 #endif
   for (; begin < end; ++begin) {
-    const uintptr_t maybe_ptr = *begin;
+    const uintptr_t maybe_ptr = *(memory::RemaskPtr(begin));
 #if defined(PA_HAS_64_BITS_POINTERS)
     if (LIKELY((maybe_ptr & mask) != base))
       continue;
@@ -195,7 +193,7 @@ void ScanLoop<Derived>::RunNEON(uintptr_t* begin, uintptr_t* end) {
   uintptr_t* payload = begin;
   for (; payload < (end - kWordsInVector); payload += kWordsInVector) {
     const uint64x2_t maybe_ptrs =
-        vld1q_u64(reinterpret_cast<uint64_t*>(payload));
+        vld1q_u64(reinterpret_cast<uint64_t*>(memory::RemaskPtr(payload)));
     const uint64x2_t vand = vandq_u64(maybe_ptrs, cage_mask);
     const uint64x2_t vcmp = vceqq_u64(vand, vbase);
     const uint32_t max = vmaxvq_u32(vreinterpretq_u32_u64(vcmp));

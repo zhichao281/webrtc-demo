@@ -17,9 +17,8 @@ namespace blink {
 
 class AudioParam;
 
-class AudioParamMap final
-    : public ScriptWrappable,
-      public Maplike<String, IDLString, AudioParam*, AudioParam> {
+class AudioParamMap final : public ScriptWrappable,
+                            public Maplike<String, AudioParam*> {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
@@ -38,8 +37,9 @@ class AudioParamMap final
   }
 
  private:
-  PairIterable<String, IDLString, AudioParam*, AudioParam>::IterationSource*
-  StartIteration(ScriptState*, ExceptionState&) override;
+  PairIterable<String, AudioParam*>::IterationSource* StartIteration(
+      ScriptState*,
+      ExceptionState&) override;
   bool GetMapEntry(ScriptState*,
                    const String& key,
                    AudioParam*&,

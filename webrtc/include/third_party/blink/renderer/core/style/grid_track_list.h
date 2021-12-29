@@ -16,10 +16,9 @@ namespace blink {
 // Stores tracks related data by compressing repeated tracks into a single node.
 struct NGGridTrackRepeater {
   enum RepeatType {
-    kNoRepeat,
+    kNoAutoRepeat,
     kAutoFill,
     kAutoFit,
-    kInteger,
   };
   NGGridTrackRepeater(wtf_size_t repeat_index,
                       wtf_size_t repeat_size,
@@ -63,11 +62,13 @@ class CORE_EXPORT NGGridTrackList {
   wtf_size_t TotalTrackCount() const;
   // Returns the number of tracks in the auto repeater, or 0 if there is none.
   wtf_size_t AutoRepeatSize() const;
-  // Adds a repeater.
+
+  // Adds a non-auto repeater.
   bool AddRepeater(const Vector<GridTrackSize, 1>& repeater_track_sizes,
-                   NGGridTrackRepeater::RepeatType repeat_type =
-                       NGGridTrackRepeater::RepeatType::kNoRepeat,
-                   wtf_size_t repeat_count = 1u);
+                   wtf_size_t repeat_count);
+  // Adds an auto repeater.
+  bool AddAutoRepeater(const Vector<GridTrackSize, 1>& repeater_track_sizes,
+                       NGGridTrackRepeater::RepeatType repeat_type);
   // Returns true if this list contains an auto repeater.
   bool HasAutoRepeater() const;
 
@@ -80,6 +81,9 @@ class CORE_EXPORT NGGridTrackList {
   bool operator==(const NGGridTrackList& o) const;
 
  private:
+  bool AddRepeater(const Vector<GridTrackSize, 1>& repeater_track_sizes,
+                   NGGridTrackRepeater::RepeatType repeat_type,
+                   wtf_size_t repeat_count);
   // Returns the amount of tracks available before overflow.
   wtf_size_t AvailableTrackCount() const;
 

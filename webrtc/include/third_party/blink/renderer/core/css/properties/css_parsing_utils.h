@@ -47,12 +47,7 @@ enum class AllowTextValue { kAllow, kForbid };
 enum class AllowPathValue { kAllow, kForbid };
 enum class DefaultFill { kFill, kNoFill };
 enum class ParsingStyle { kLegacy, kNotLegacy };
-enum class TrackListType {
-  kGridAuto,
-  kGridTemplate,
-  kGridTemplateNoRepeat,
-  kGridTemplateSubgrid
-};
+enum class TrackListType { kGridTemplate, kGridTemplateNoRepeat, kGridAuto };
 enum class UnitlessQuirk { kAllow, kForbid };
 
 using ConsumeAnimationItemValue = CSSValue* (*)(CSSPropertyID,
@@ -70,12 +65,6 @@ bool ConsumeCommaIncludingWhitespace(CSSParserTokenRange&);
 bool ConsumeSlashIncludingWhitespace(CSSParserTokenRange&);
 // consumeFunction expects the range starts with a FunctionToken.
 CSSParserTokenRange ConsumeFunction(CSSParserTokenRange&);
-
-// https://drafts.csswg.org/css-syntax/#typedef-any-value
-//
-// Consumes component values until it reaches a token that is not allowed
-// for <any-value>.
-CORE_EXPORT bool ConsumeAnyValue(CSSParserTokenRange&);
 
 CSSPrimitiveValue* ConsumeInteger(
     CSSParserTokenRange&,
@@ -389,8 +378,7 @@ CSSValueList* ConsumeFontFamily(CSSParserTokenRange&);
 CSSValue* ConsumeGenericFamily(CSSParserTokenRange&);
 CSSValue* ConsumeFamilyName(CSSParserTokenRange&);
 String ConcatenateFamilyName(CSSParserTokenRange&);
-CSSIdentifierValue* ConsumeFontStretchKeywordOnly(CSSParserTokenRange&,
-                                                  const CSSParserContext&);
+CSSIdentifierValue* ConsumeFontStretchKeywordOnly(CSSParserTokenRange&);
 CSSValue* ConsumeFontStretch(CSSParserTokenRange&, const CSSParserContext&);
 CSSValue* ConsumeFontStyle(CSSParserTokenRange&, const CSSParserContext&);
 CSSValue* ConsumeFontWeight(CSSParserTokenRange&, const CSSParserContext&);
@@ -418,9 +406,9 @@ bool ConsumeGridItemPositionShorthand(bool important,
 bool ConsumeGridTemplateShorthand(bool important,
                                   CSSParserTokenRange&,
                                   const CSSParserContext&,
-                                  const CSSValue*& template_rows,
-                                  const CSSValue*& template_columns,
-                                  const CSSValue*& template_areas);
+                                  CSSValue*& template_rows,
+                                  CSSValue*& template_columns,
+                                  CSSValue*& template_areas);
 
 // The fragmentation spec says that page-break-(after|before|inside) are to be
 // treated as shorthands for their break-(after|before|inside) counterparts.
@@ -558,31 +546,6 @@ CSSValue* ConsumePositionLonghand(CSSParserTokenRange& range,
   }
   return ConsumeLengthOrPercent(range, context,
                                 CSSPrimitiveValue::ValueRange::kAll);
-}
-
-inline bool AtIdent(const CSSParserToken& token, const char* ident) {
-  return token.GetType() == kIdentToken &&
-         EqualIgnoringASCIICase(token.Value(), ident);
-}
-
-template <typename T>
-bool ConsumeIfIdent(T& range_or_stream, const char* ident) {
-  if (!AtIdent(range_or_stream.Peek(), ident))
-    return false;
-  range_or_stream.ConsumeIncludingWhitespace();
-  return true;
-}
-
-inline bool AtDelimiter(const CSSParserToken& token, UChar c) {
-  return token.GetType() == kDelimiterToken && token.Delimiter() == c;
-}
-
-template <typename T>
-bool ConsumeIfDelimiter(T& range_or_stream, UChar c) {
-  if (!AtDelimiter(range_or_stream.Peek(), c))
-    return false;
-  range_or_stream.ConsumeIncludingWhitespace();
-  return true;
 }
 
 }  // namespace css_parsing_utils

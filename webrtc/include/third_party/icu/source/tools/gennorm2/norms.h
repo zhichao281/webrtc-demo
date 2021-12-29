@@ -97,7 +97,7 @@ struct Norm {
      * Set after most processing is done.
      *
      * Corresponds to the rows in the chart on
-     * https://icu.unicode.org/design/normalization/custom
+     * http://site.icu-project.org/design/normalization/custom
      * in numerical (but reverse visual) order.
      *
      * YES_NO means composition quick check=yes, decomposition QC=no -- etc.

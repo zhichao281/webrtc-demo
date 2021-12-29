@@ -5,10 +5,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LOADER_WEB_BUNDLE_SCRIPT_WEB_BUNDLE_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LOADER_WEB_BUNDLE_SCRIPT_WEB_BUNDLE_H_
 
-#include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/loader/web_bundle/script_web_bundle_rule.h"
-#include "third_party/blink/renderer/core/script/script_element_base.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
@@ -32,12 +30,10 @@ class CORE_EXPORT ScriptWebBundle final
     : public GarbageCollected<ScriptWebBundle>,
       public SubresourceWebBundle {
  public:
-  static ScriptWebBundle* CreateOrReuseInline(ScriptElementBase&,
+  static ScriptWebBundle* CreateOrReuseInline(Document& element_document,
                                               const String& inline_text);
 
-  ScriptWebBundle(ScriptElementBase& element,
-                  Document& element_document,
-                  const ScriptWebBundleRule& rule);
+  ScriptWebBundle(Document& element_document, const ScriptWebBundleRule& rule);
 
   void Trace(Visitor* visitor) const override;
 
@@ -46,27 +42,23 @@ class CORE_EXPORT ScriptWebBundle final
   String GetCacheIdentifier() const override;
   const KURL& GetBundleUrl() const override;
   const base::UnguessableToken& WebBundleToken() const override;
-  void NotifyLoadingFinished() override;
+  void NotifyLoaded() override;
   void OnWebBundleError(const String& message) const override;
   bool IsScriptWebBundle() const override;
   bool WillBeReleased() const override;
-  network::mojom::CredentialsMode GetCredentialsMode() const override;
 
   void CreateBundleLoaderAndRegister();
   void ReleaseBundleLoaderAndUnregister();
 
   void WillReleaseBundleLoaderAndUnregister();
-  void ReusedWith(ScriptElementBase& element, ScriptWebBundleRule rule);
+  void CancelRelease() { will_be_released_ = false; }
+
+  void SetRule(ScriptWebBundleRule rule) { rule_ = std::move(rule); }
+
   class ReleaseResourceTask;
 
  private:
   bool will_be_released_ = false;
-  // We store both |element_| and |element_document_| here,
-  // because we need |element_| for dispatching load/error events
-  // and creating/releasing WebBundleLoader we want to be extra
-  // careful that we're dealing with the correct document, so
-  // we explicitly capture it at the time of PrepareScript().
-  WeakMember<ScriptElementBase> element_;
   WeakMember<Document> element_document_;
   ScriptWebBundleRule rule_;
   Member<WebBundleLoader> bundle_loader_;

@@ -47,7 +47,6 @@
 #include "third_party/blink/renderer/core/execution_context/security_context.h"
 #include "third_party/blink/renderer/core/frame/dom_timer_coordinator.h"
 #include "third_party/blink/renderer/core/frame/web_feature_forward.h"
-#include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/heap_observer_set.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/loader/fetch/console_logger.h"
@@ -240,9 +239,7 @@ class CORE_EXPORT ExecutionContext : public Supplementable<ExecutionContext>,
 
   virtual void RemoveURLFromMemoryCache(const KURL&);
 
-  virtual void SetIsInBackForwardCache(bool);
-  bool is_in_back_forward_cache() const { return is_in_back_forward_cache_; }
-
+  void SetIsInBackForwardCache(bool);
   void SetLifecycleState(mojom::FrameLifecycleState);
   void NotifyContextDestroyed();
 

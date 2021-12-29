@@ -90,8 +90,8 @@ class MockRTCPeerConnectionHandlerPlatform : public RTCPeerConnectionHandler {
                   const MediaConstraints&,
                   WebLocalFrame*,
                   ExceptionState&) override;
-  void Close() override;
-  void CloseAndUnregister() override;
+  void Stop() override;
+  void StopAndUnregister() override;
 
   Vector<std::unique_ptr<RTCRtpTransceiverPlatform>> CreateOffer(
       RTCSessionDescriptionRequest*,

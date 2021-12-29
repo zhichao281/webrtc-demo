@@ -60,6 +60,18 @@ struct HarfBuzzRunGlyphData {
   float advance;
 };
 
+// |GlyphOffset| is a simple wrapper of |FloatSize| to allocate |GlyphOffset|
+// with |new GlyphOffset[size]| because of |FloatSize| is declared with
+// |DISALLOW_NEW()|.
+class ShapeResult::GlyphOffset final : public FloatSize {
+  USING_FAST_MALLOC(GlyphOffset);
+
+ public:
+  using FloatSize::FloatSize;
+
+  explicit GlyphOffset(const FloatSize& other) : FloatSize(other) {}
+};
+
 struct ShapeResult::RunInfo : public RefCounted<ShapeResult::RunInfo> {
   USING_FAST_MALLOC(RunInfo);
 
@@ -71,6 +83,7 @@ struct ShapeResult::RunInfo : public RefCounted<ShapeResult::RunInfo> {
                                        unsigned start_index,
                                        unsigned num_glyphs,
                                        unsigned num_characters) {
+    CHECK_GT(num_glyphs, 0u);
     CHECK_GT(num_characters, 0u);
     return base::AdoptRef(new RunInfo(font, dir, canvas_rotation, script,
                                       start_index, num_glyphs, num_characters));
@@ -366,7 +379,7 @@ struct ShapeResult::RunInfo : public RefCounted<ShapeResult::RunInfo> {
       DCHECK_NE(delta, 0.0f);
       if (!storage_)
         AllocateStorage();
-      storage_[index].set_y(storage_[index].y() + delta);
+      storage_[index].set_height(storage_[index].height() + delta);
     }
 
     void AddWidthAt(unsigned index, float delta) {
@@ -374,13 +387,13 @@ struct ShapeResult::RunInfo : public RefCounted<ShapeResult::RunInfo> {
       DCHECK_NE(delta, 0.0f);
       if (!storage_)
         AllocateStorage();
-      storage_[index].set_x(storage_[index].x() + delta);
+      storage_[index].set_width(storage_[index].width() + delta);
     }
 
     void SetAt(unsigned index, GlyphOffset offset) {
       DCHECK_LT(index, size());
       if (!storage_) {
-        if (offset.IsZero())
+        if (offset.width() == 0 && offset.height() == 0)
           return;
         AllocateStorage();
       }

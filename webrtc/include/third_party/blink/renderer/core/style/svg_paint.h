@@ -38,7 +38,13 @@ namespace blink {
 
 class StyleSVGResource;
 
-enum class SVGPaintType { kColor, kNone, kUriNone, kUriColor, kUri };
+enum SVGPaintType {
+  SVG_PAINTTYPE_COLOR,
+  SVG_PAINTTYPE_NONE,
+  SVG_PAINTTYPE_URI_NONE,
+  SVG_PAINTTYPE_URI_COLOR,
+  SVG_PAINTTYPE_URI
+};
 
 struct SVGPaint {
   CORE_EXPORT SVGPaint();
@@ -50,15 +56,15 @@ struct SVGPaint {
   CORE_EXPORT bool operator==(const SVGPaint&) const;
   bool operator!=(const SVGPaint& other) const { return !(*this == other); }
 
-  bool IsNone() const { return type == SVGPaintType::kNone; }
-  bool IsColor() const { return type == SVGPaintType::kColor; }
+  bool IsNone() const { return type == SVG_PAINTTYPE_NONE; }
+  bool IsColor() const { return type == SVG_PAINTTYPE_COLOR; }
   // Used by CSSPropertyEquality::PropertiesEqual.
   bool EqualTypeOrColor(const SVGPaint& other) const {
     return type == other.type &&
-           (type != SVGPaintType::kColor || color == other.color);
+           (type != SVG_PAINTTYPE_COLOR || color == other.color);
   }
-  bool HasColor() const { return IsColor() || type == SVGPaintType::kUriColor; }
-  bool HasUrl() const { return type >= SVGPaintType::kUriNone; }
+  bool HasColor() const { return IsColor() || type == SVG_PAINTTYPE_URI_COLOR; }
+  bool HasUrl() const { return type >= SVG_PAINTTYPE_URI_NONE; }
   bool HasCurrentColor() const { return HasColor() && color.IsCurrentColor(); }
   StyleSVGResource* Resource() const { return resource.get(); }
 
@@ -67,7 +73,7 @@ struct SVGPaint {
 
   scoped_refptr<StyleSVGResource> resource;
   StyleColor color;
-  SVGPaintType type{SVGPaintType::kNone};
+  SVGPaintType type{SVG_PAINTTYPE_NONE};
 };
 
 }  // namespace blink

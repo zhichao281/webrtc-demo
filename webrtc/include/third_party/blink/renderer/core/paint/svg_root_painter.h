@@ -7,13 +7,10 @@
 
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
-namespace gfx {
-class Rect;
-}
-
 namespace blink {
 
 class AffineTransform;
+class IntRect;
 class LayoutSVGRoot;
 struct PaintInfo;
 struct PhysicalOffset;
@@ -35,7 +32,7 @@ class SVGRootPainter {
       const PhysicalOffset& paint_offset) const;
 
  private:
-  gfx::Rect PixelSnappedSize(const PhysicalOffset& paint_offset) const;
+  IntRect PixelSnappedSize(const PhysicalOffset& paint_offset) const;
 
   const LayoutSVGRoot& layout_svg_root_;
 };

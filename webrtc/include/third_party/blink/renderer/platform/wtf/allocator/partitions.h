@@ -69,6 +69,11 @@ class WTF_EXPORT Partitions {
     return buffer_root_;
   }
 
+  ALWAYS_INLINE static base::ThreadUnsafePartitionRoot* LayoutPartition() {
+    DCHECK(initialized_);
+    return layout_root_;
+  }
+
   ALWAYS_INLINE static size_t ComputeAllocationSize(size_t count, size_t size) {
     base::CheckedNumeric<size_t> total = count;
     total *= size;
@@ -98,19 +103,23 @@ class WTF_EXPORT Partitions {
   static void HandleOutOfMemory(size_t size);
 
  private:
+#if !BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
   ALWAYS_INLINE static base::ThreadSafePartitionRoot* FastMallocPartition() {
     DCHECK(initialized_);
     return fast_malloc_root_;
   }
+#endif  // !BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 
   static bool InitializeOnce();
 
   static bool initialized_;
-  static bool scan_is_enabled_;
   // See Allocator.md for a description of these partitions.
+#if !BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
   static base::ThreadSafePartitionRoot* fast_malloc_root_;
+#endif
   static base::ThreadSafePartitionRoot* array_buffer_root_;
   static base::ThreadSafePartitionRoot* buffer_root_;
+  static base::ThreadUnsafePartitionRoot* layout_root_;
 };
 
 }  // namespace WTF

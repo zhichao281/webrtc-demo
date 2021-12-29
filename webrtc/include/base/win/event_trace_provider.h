@@ -18,6 +18,7 @@
 #include <limits>
 
 #include "base/base_export.h"
+#include "base/macros.h"
 
 namespace base {
 namespace win {

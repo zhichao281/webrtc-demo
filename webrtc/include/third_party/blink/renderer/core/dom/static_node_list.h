@@ -30,7 +30,6 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_DOM_STATIC_NODE_LIST_H_
 
 #include "third_party/blink/renderer/core/dom/node_list.h"
-#include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {

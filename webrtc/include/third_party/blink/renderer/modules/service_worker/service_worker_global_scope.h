@@ -50,6 +50,7 @@
 #include "third_party/blink/renderer/modules/service_worker/service_worker_installed_scripts_manager.h"
 #include "third_party/blink/renderer/platform/heap/disallow_new_wrapper.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
+#include "third_party/blink/renderer/platform/heap/heap_allocator.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_associated_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver_set.h"
@@ -486,9 +487,6 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
   void SetIdleDelay(base::TimeDelta delay) override;
   void AddMessageToConsole(mojom::blink::ConsoleMessageLevel,
                            const String& message) override;
-  void ExecuteScriptForTest(const String& script,
-                            bool wants_result,
-                            ExecuteScriptForTestCallback callback) override;
 
   void NoteNewFetchEvent(const mojom::blink::FetchAPIRequest& request);
   void NoteRespondedToFetchEvent(const KURL& request_url, bool range_request);

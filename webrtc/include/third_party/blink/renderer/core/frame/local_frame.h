@@ -67,7 +67,6 @@
 #include "third_party/blink/renderer/core/frame/frame.h"
 #include "third_party/blink/renderer/core/frame/frame_types.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
-#include "third_party/blink/renderer/core/loader/back_forward_cache_loader_helper_impl.h"
 #include "third_party/blink/renderer/core/loader/frame_loader.h"
 #include "third_party/blink/renderer/platform/graphics/touch_action.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
@@ -89,8 +88,6 @@ class SingleThreadTaskRunner;
 namespace gfx {
 class Point;
 class Range;
-class Size;
-class SizeF;
 }  // namespace gfx
 
 namespace blink {
@@ -105,6 +102,7 @@ class Editor;
 class Element;
 class EventHandler;
 class EventHandlerRegistry;
+class FloatSize;
 class FrameConsole;
 class FrameOverlay;
 class FrameSelection;
@@ -116,13 +114,13 @@ class CoreProbeSink;
 class IdlenessDetector;
 class InspectorTaskRunner;
 class InterfaceRegistry;
+class IntSize;
 class LayoutView;
 class LocalDOMWindow;
 class LocalWindowProxy;
 class LocalFrameClient;
 class LocalFrameMojoHandler;
 class BackgroundColorPaintImageGenerator;
-class BoxShadowPaintImageGenerator;
 class ClipPathPaintImageGenerator;
 class Node;
 class NodeTraversal;
@@ -154,11 +152,9 @@ extern template class CORE_EXTERN_TEMPLATE_EXPORT Supplement<LocalFrame>;
 // needs to call a function that is exposed as a Mojo method, the function
 // implementation should be in LocalFrame, and LocalFrameMojoHandler should
 // delegate to LocalFrame's implementation.
-class CORE_EXPORT LocalFrame final
-    : public Frame,
-      public FrameScheduler::Delegate,
-      public BackForwardCacheLoaderHelperImpl::Delegate,
-      public Supplementable<LocalFrame> {
+class CORE_EXPORT LocalFrame final : public Frame,
+                                     public FrameScheduler::Delegate,
+                                     public Supplementable<LocalFrame> {
  public:
   // Returns the LocalFrame instance for the given |frame_token|.
   static LocalFrame* FromFrameToken(const LocalFrameToken& frame_token);
@@ -188,7 +184,7 @@ class CORE_EXPORT LocalFrame final
   // this LocalFrame has no corresponding RenderFrameHost.
   void Init(Frame* opener, std::unique_ptr<PolicyContainer> policy_container);
   void SetView(LocalFrameView*);
-  void CreateView(const gfx::Size&, const Color&);
+  void CreateView(const IntSize&, const Color&);
 
   // Frame overrides:
   ~LocalFrame() override;
@@ -215,10 +211,18 @@ class CORE_EXPORT LocalFrame final
   void DidFocus() override;
   bool IsAdSubframe() const override;
 
-  // BackForwardCacheLoaderHelperImpl::Delegate:
-  void EvictFromBackForwardCache(
-      mojom::blink::RendererEvictionReason reason) override;
-  void DidBufferLoadWhileInBackForwardCache(size_t num_bytes) override;
+  // Triggers eviction of this frame by notifying the browser side.
+  void EvictFromBackForwardCache(mojom::blink::RendererEvictionReason reason);
+  // Called when a network request buffered an additional `num_bytes` while the
+  // frame is in back-forward cache. Updates the total amount of bytes buffered
+  // for back-forward cache in the frame and in the process. Note that
+  // `num_bytes` is the amount of additional bytes that are newly buffered, on
+  // top of any previously buffered bytes for this frame.
+  void DidBufferLoadWhileInBackForwardCache(size_t num_bytes);
+  // Returns true if the total amount of bytes buffered while in back-forward
+  // cache in the whole renderer process is still under the per-process limit,
+  // false otherwise.
+  bool CanContinueBufferingWhileInBackForwardCache();
 
   void DidChangeThemeColor(bool update_theme_color_cache);
   void DidChangeBackgroundColor(SkColor background_color, bool color_adjust);
@@ -256,7 +260,6 @@ class CORE_EXPORT LocalFrame final
   SpellChecker& GetSpellChecker() const;
   FrameConsole& Console() const;
   BackgroundColorPaintImageGenerator* GetBackgroundColorPaintImageGenerator();
-  BoxShadowPaintImageGenerator* GetBoxShadowPaintImageGenerator();
   ClipPathPaintImageGenerator* GetClipPathPaintImageGenerator();
 
   // A local root is the root of a connected subtree that contains only
@@ -316,8 +319,8 @@ class CORE_EXPORT LocalFrame final
   // The frame content will fit to the page size with specified shrink ratio.
   // If this frame doesn't need to fit into a page size, default values are
   // used.
-  void StartPrinting(const gfx::SizeF& page_size = gfx::SizeF(),
-                     const gfx::SizeF& original_page_size = gfx::SizeF(),
+  void StartPrinting(const FloatSize& page_size = FloatSize(),
+                     const FloatSize& original_page_size = FloatSize(),
                      float maximum_shrink_ratio = 0);
 
   void EndPrinting();
@@ -335,8 +338,8 @@ class CORE_EXPORT LocalFrame final
   void EnsureSaveScrollOffset(Node&);
   void RestoreScrollOffsets();
 
-  gfx::SizeF ResizePageRectsKeepingRatio(const gfx::SizeF& original_size,
-                                         const gfx::SizeF& expected_size) const;
+  FloatSize ResizePageRectsKeepingRatio(const FloatSize& original_size,
+                                        const FloatSize& expected_size) const;
 
   bool InViewSourceMode() const;
   void SetInViewSourceMode(bool = true);
@@ -453,18 +456,18 @@ class CORE_EXPORT LocalFrame final
   void SetViewportIntersectionFromParent(
       const mojom::blink::ViewportIntersectionState& intersection_state);
 
-  gfx::Size GetMainFrameViewportSize() const override;
-  gfx::Point GetMainFrameScrollOffset() const override;
+  IntSize GetMainFrameViewportSize() const override;
+  IntPoint GetMainFrameScrollOffset() const override;
 
   void SetOpener(Frame* opener) override;
 
   // See viewport_intersection_state.mojom for more info on these
   // methods.
-  gfx::Rect RemoteViewportIntersection() const {
-    return intersection_state_.viewport_intersection;
+  IntRect RemoteViewportIntersection() const {
+    return IntRect(intersection_state_.viewport_intersection);
   }
-  gfx::Rect RemoteMainFrameIntersection() const {
-    return intersection_state_.main_frame_intersection;
+  IntRect RemoteMainFrameIntersection() const {
+    return IntRect(intersection_state_.main_frame_intersection);
   }
   gfx::Transform RemoteMainFrameTransform() const {
     return intersection_state_.main_frame_transform;
@@ -612,9 +615,9 @@ class CORE_EXPORT LocalFrame final
   void SetPrescientNetworkingForTesting(
       std::unique_ptr<WebPrescientNetworking> prescient_networking);
 
-  void CopyImageAtViewportPoint(const gfx::Point& viewport_point);
+  void CopyImageAtViewportPoint(const IntPoint& viewport_point);
   void MediaPlayerActionAtViewportPoint(
-      const gfx::Point& viewport_position,
+      const IntPoint& viewport_position,
       const blink::mojom::blink::MediaPlayerActionType type,
       bool enable);
 
@@ -676,8 +679,8 @@ class CORE_EXPORT LocalFrame final
   LocalFrameToken GetLocalFrameToken() const;
 
   TextFragmentHandler* GetTextFragmentHandler() const {
-    // |text_fragment_handler_| is always set on the main frame and created
-    // lazily for child frames.
+    // |text_fragment_handler_| is always set on the main frame, and null
+    // otherwise.
     return text_fragment_handler_;
   }
 
@@ -711,10 +714,6 @@ class CORE_EXPORT LocalFrame final
 
   void CreateTextFragmentHandler();
 
-  // Invokes on first paint, this method could be invoked multiple times, refer
-  // to FrameFirstPaint.
-  void OnFirstPaint(bool text_painted, bool image_painted);
-
 #if defined(OS_MAC)
   void ResetTextInputHostForTesting();
   void RebindTextInputHostForTesting();
@@ -743,6 +742,8 @@ class CORE_EXPORT LocalFrame final
   void EnableNavigation() { --navigation_disable_count_; }
   void DisableNavigation() { ++navigation_disable_count_; }
 
+  void PropagateInertToChildFrames();
+
   // Internal implementation for starting and ending paint preview capture.
   // `capturing` is true when capture starts and false when it ends.
   void SetInvalidationForCapture(bool capturing);
@@ -752,15 +753,15 @@ class CORE_EXPORT LocalFrame final
   // |page_size|, |original_page_size|, and |maximum_shrink_ratio| are only
   // meaningful when we should use printing layout for this frame.
   void SetPrinting(bool printing,
-                   const gfx::SizeF& page_size,
-                   const gfx::SizeF& original_page_size,
+                   const FloatSize& page_size,
+                   const FloatSize& original_page_size,
                    float maximum_shrink_ratio);
 
   // FrameScheduler::Delegate overrides:
   ukm::UkmRecorder* GetUkmRecorder() override;
   ukm::SourceId GetUkmSourceId() override;
   void UpdateTaskTime(base::TimeDelta time) override;
-  void UpdateBackForwardCacheDisablingFeatures(uint64_t features_mask) override;
+  void UpdateActiveSchedulerTrackedFeatures(uint64_t features_mask) override;
   const base::UnguessableToken& GetAgentClusterId() const override;
 
   // Activates the user activation states of this frame and all its ancestors.
@@ -781,7 +782,7 @@ class CORE_EXPORT LocalFrame final
   void SetContextPaused(bool);
 
   HitTestResult HitTestResultForVisualViewportPos(
-      const gfx::Point& pos_in_viewport);
+      const IntPoint& pos_in_viewport);
 
   bool ShouldThrottleDownload();
 
@@ -849,6 +850,11 @@ class CORE_EXPORT LocalFrame final
   float page_zoom_factor_;
   float text_zoom_factor_;
 
+  // The total bytes buffered by all network requests in this frame while frozen
+  // due to back-forward cache. This number gets reset when the frame gets out
+  // of the back-forward cache.
+  size_t total_bytes_buffered_while_in_back_forward_cache_ = 0;
+
   Member<CoreProbeSink> probe_sink_;
   scoped_refptr<InspectorTaskRunner> inspector_task_runner_;
   Member<PerformanceMonitor> performance_monitor_;
@@ -904,13 +910,6 @@ class CORE_EXPORT LocalFrame final
   Member<BackgroundColorPaintImageGenerator>
       background_color_paint_image_generator_;
 
-  // TODO(crbug.com/1264553) : use a map from property id to
-  // NativePaintImageGenerator, then we could avoid needing to switch on the
-  // property in compositor_animations.cc
-  // Access to box shadow paint image
-  // generator. Initialized per local root and reused among sub frames.
-  Member<BoxShadowPaintImageGenerator> box_shadow_paint_image_generator_;
-
   // Access to clip-path paint image generator. Initialized per local root and
   // reused among sub frames.
   Member<ClipPathPaintImageGenerator> clip_path_paint_image_generator_;
@@ -918,8 +917,7 @@ class CORE_EXPORT LocalFrame final
   using SavedScrollOffsets = HeapHashMap<Member<Node>, ScrollOffset>;
   Member<SavedScrollOffsets> saved_scroll_offsets_;
 
-  // Always non-null for the main frame and created lazily for child frames;
-  // null otherwise.
+  // Always non-null for the main frame; null otherwise.
   Member<TextFragmentHandler> text_fragment_handler_;
 
   // Manages a transient affordance for this frame to enter fullscreen.
@@ -947,9 +945,6 @@ class CORE_EXPORT LocalFrame final
   bool is_subframe_created_by_ad_script_ = false;
 
   bool evict_cached_session_storage_on_freeze_or_unload_ = false;
-
-  // Indicate if the current document's color scheme was notified.
-  bool notified_color_scheme_ = false;
 };
 
 inline FrameLoader& LocalFrame::Loader() const {

@@ -531,6 +531,10 @@ inline NGLineBoxStrut ComputeLineBorders(
 
 CORE_EXPORT NGBoxStrut ComputeBordersForTest(const ComputedStyle& style);
 
+CORE_EXPORT NGBoxStrut ComputeIntrinsicPadding(const NGConstraintSpace&,
+                                               const ComputedStyle&,
+                                               const NGBoxStrut& scrollbar);
+
 CORE_EXPORT NGBoxStrut ComputePadding(const NGConstraintSpace&,
                                       const ComputedStyle&);
 

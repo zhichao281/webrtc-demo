@@ -7,7 +7,6 @@
 
 #include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/native_value_traits_impl.h"
-#include "third_party/blink/renderer/bindings/core/v8/observable_array.h"
 #include "third_party/blink/renderer/bindings/core/v8/to_v8_traits.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
@@ -30,8 +29,7 @@ namespace bindings {
 //
 //   let observable_array_exotic_object = new Proxy(target, handler);
 // where
-//   target = v8::Array that has a private property to the V8 wrapper of Blink
-//       implementation of observable array backing list object.
+//   target = observable_array_backing_list_object
 //   handler = v8::Object that has a set of trap functions implemented in
 //       ObservableArrayExoticObjectHandler.
 //
@@ -54,10 +52,10 @@ class ObservableArrayExoticObjectHandler {
       const v8::FunctionCallbackInfo<v8::Value>& info) {
     v8::Isolate* isolate = info.GetIsolate();
     v8::Local<v8::Context> current_context = isolate->GetCurrentContext();
-    v8::Local<v8::Array> v8_target = info[0].As<v8::Array>();
+    v8::Local<v8::Object> v8_target = info[0].As<v8::Object>();
     v8::Local<v8::Value> v8_property = info[1];
     v8::Local<v8::Value> v8_desc_obj = info[2];
-    BackingListWrappable& backing_list = ToWrappableUnsafe(isolate, v8_target);
+    BackingListWrappable& backing_list = ToWrappableUnsafe(v8_target);
     ExceptionState exception_state(
         isolate, ExceptionContext::Context::kNamedPropertyDefine,
         backing_list.ObservableArrayNameInIDL());
@@ -139,9 +137,9 @@ class ObservableArrayExoticObjectHandler {
       const v8::FunctionCallbackInfo<v8::Value>& info) {
     v8::Isolate* isolate = info.GetIsolate();
     v8::Local<v8::Context> current_context = isolate->GetCurrentContext();
-    v8::Local<v8::Array> v8_target = info[0].As<v8::Array>();
+    v8::Local<v8::Object> v8_target = info[0].As<v8::Object>();
     v8::Local<v8::Value> v8_property = info[1];
-    BackingListWrappable& backing_list = ToWrappableUnsafe(isolate, v8_target);
+    BackingListWrappable& backing_list = ToWrappableUnsafe(v8_target);
 
     if (v8_property->IsString()) {
       v8::Local<v8::Uint32> v8_index;
@@ -181,9 +179,9 @@ class ObservableArrayExoticObjectHandler {
   static void TrapGet(const v8::FunctionCallbackInfo<v8::Value>& info) {
     v8::Isolate* isolate = info.GetIsolate();
     v8::Local<v8::Context> current_context = isolate->GetCurrentContext();
-    v8::Local<v8::Array> v8_target = info[0].As<v8::Array>();
+    v8::Local<v8::Object> v8_target = info[0].As<v8::Object>();
     v8::Local<v8::Value> v8_property = info[1];
-    BackingListWrappable& backing_list = ToWrappableUnsafe(isolate, v8_target);
+    BackingListWrappable& backing_list = ToWrappableUnsafe(v8_target);
 
     if (v8_property->IsString()) {
       v8::Local<v8::Uint32> v8_index;
@@ -221,9 +219,9 @@ class ObservableArrayExoticObjectHandler {
       const v8::FunctionCallbackInfo<v8::Value>& info) {
     v8::Isolate* isolate = info.GetIsolate();
     v8::Local<v8::Context> current_context = isolate->GetCurrentContext();
-    v8::Local<v8::Array> v8_target = info[0].As<v8::Array>();
+    v8::Local<v8::Object> v8_target = info[0].As<v8::Object>();
     v8::Local<v8::Value> v8_property = info[1];
-    BackingListWrappable& backing_list = ToWrappableUnsafe(isolate, v8_target);
+    BackingListWrappable& backing_list = ToWrappableUnsafe(v8_target);
 
     if (v8_property->IsString()) {
       v8::Local<v8::Uint32> v8_index;
@@ -271,9 +269,9 @@ class ObservableArrayExoticObjectHandler {
   static void TrapHas(const v8::FunctionCallbackInfo<v8::Value>& info) {
     v8::Isolate* isolate = info.GetIsolate();
     v8::Local<v8::Context> current_context = isolate->GetCurrentContext();
-    v8::Local<v8::Array> v8_target = info[0].As<v8::Array>();
+    v8::Local<v8::Object> v8_target = info[0].As<v8::Object>();
     v8::Local<v8::Value> v8_property = info[1];
-    BackingListWrappable& backing_list = ToWrappableUnsafe(isolate, v8_target);
+    BackingListWrappable& backing_list = ToWrappableUnsafe(v8_target);
 
     if (v8_property->IsString()) {
       v8::Local<v8::Uint32> v8_index;
@@ -300,8 +298,8 @@ class ObservableArrayExoticObjectHandler {
   static void TrapOwnKeys(const v8::FunctionCallbackInfo<v8::Value>& info) {
     v8::Isolate* isolate = info.GetIsolate();
     v8::Local<v8::Context> current_context = isolate->GetCurrentContext();
-    v8::Local<v8::Array> v8_target = info[0].As<v8::Array>();
-    BackingListWrappable& backing_list = ToWrappableUnsafe(isolate, v8_target);
+    v8::Local<v8::Object> v8_target = info[0].As<v8::Object>();
+    BackingListWrappable& backing_list = ToWrappableUnsafe(v8_target);
 
     // 2. Let length be handler.[[BackingList]]'s size.
     // 3. Let keys be an empty list.
@@ -309,16 +307,14 @@ class ObservableArrayExoticObjectHandler {
     // 5. While i < length :
     // 5.1. Append !ToString(i) to keys.
     // 5.2. Set i to i + 1.
-    Vector<String> keys_vector(backing_list.size());
+    WTF::Vector<uint32_t> keys_vector(backing_list.size());
     for (uint32_t index = 0; index < backing_list.size(); ++index)
-      keys_vector.push_back(String::Number(index));
-    v8::Local<v8::Value> own_keys_as_value;
+      keys_vector.push_back(index);
+    v8::Local<v8::Array> own_keys;
     if (!ToV8Traits<IDLSequence<IDLString>>::ToV8(
              ScriptState::From(current_context), keys_vector)
-             .ToLocal(&own_keys_as_value)) {
+             .ToLocal(&own_keys))
       return;
-    }
-    v8::Local<v8::Array> own_keys = own_keys_as_value.As<v8::Array>();
 
     // 6. Extend keys with ! O.[[OwnPropertyKeys]]().
     uint32_t own_keys_index = backing_list.size();
@@ -357,10 +353,10 @@ class ObservableArrayExoticObjectHandler {
   static void TrapSet(const v8::FunctionCallbackInfo<v8::Value>& info) {
     v8::Isolate* isolate = info.GetIsolate();
     v8::Local<v8::Context> current_context = isolate->GetCurrentContext();
-    v8::Local<v8::Array> v8_target = info[0].As<v8::Array>();
+    v8::Local<v8::Object> v8_target = info[0].As<v8::Object>();
     v8::Local<v8::Value> v8_property = info[1];
     v8::Local<v8::Value> v8_value = info[2];
-    BackingListWrappable& backing_list = ToWrappableUnsafe(isolate, v8_target);
+    BackingListWrappable& backing_list = ToWrappableUnsafe(v8_target);
 
     if (v8_property->IsString()) {
       v8::Local<v8::Uint32> v8_index;
@@ -394,49 +390,9 @@ class ObservableArrayExoticObjectHandler {
     V8SetReturnValue(info, is_set);
   }
 
-  // https://webidl.spec.whatwg.org/#dfn-attribute-setter
-  // step 4.5.10. If attribute’s type is an observable array type with type
-  //   argument T:
-  static void PerformAttributeSet(ScriptState* script_state,
-                                  BackingListWrappable& backing_list,
-                                  v8::Local<v8::Value> v8_value,
-                                  ExceptionState& exception_state) {
-    v8::Isolate* isolate = script_state->GetIsolate();
-    // step 4.5.10.1. Let newValues be the result of converting V to an IDL
-    //   value of type sequence<T>.
-    auto&& blink_value =
-        NativeValueTraits<IDLSequence<ElementIdlType>>::NativeValue(
-            isolate, v8_value, exception_state);
-    if (exception_state.HadException())
-      return;
-    // step 4.5.10.3. Set the length of oa.[[ProxyHandler]] to 0.
-    if (!DoSetTheLength(isolate, script_state->GetContext(), backing_list, 0,
-                        exception_state)) {
-      return;
-    }
-    // step 4.5.10.4. Let i be 0.
-    // step 4.5.10.5. While i < newValues’s size:
-    for (typename BackingListWrappable::size_type i = 0; i < blink_value.size();
-         ++i) {
-      // step 4.5.10.5.1. Perform the algorithm steps given by
-      //   oa.[[ProxyHandler]].[[SetAlgorithm]], given newValues[i] and i.
-      if (!RunSetAlgorithm(script_state, backing_list, i, blink_value[i],
-                           exception_state)) {
-        return;
-      }
-      // step 4.5.10.5.2. Append newValues[i] to
-      //   oa.[[ProxyHandler]].[[BackingList]].
-      backing_list.push_back(std::move(blink_value[i]));
-    }
-  }
-
  private:
-  static BackingListWrappable& ToWrappableUnsafe(v8::Isolate* isolate,
-                                                 v8::Local<v8::Array> target) {
-    bindings::ObservableArrayBase* base =
-        bindings::ObservableArrayExoticObjectImpl::
-            ProxyTargetToObservableArrayBase(isolate, target);
-    return *static_cast<BackingListWrappable*>(base);
+  static BackingListWrappable& ToWrappableUnsafe(v8::Local<v8::Object> target) {
+    return *ToScriptWrappable(target)->ToImpl<BackingListWrappable>();
   }
 
   // https://webidl.spec.whatwg.org/#observable-array-exotic-object-set-the-length
@@ -445,33 +401,26 @@ class ObservableArrayExoticObjectHandler {
                              BackingListWrappable& backing_list,
                              v8::Local<v8::Value> v8_length,
                              ExceptionState& exception_state) {
-    v8::TryCatch try_catch(isolate);
-    v8::Local<v8::Uint32> v8_length_uint32;
-    if (!v8_length->ToUint32(current_context).ToLocal(&v8_length_uint32)) {
-      exception_state.RethrowV8Exception(try_catch.Exception());
-      return false;
+    uint32_t length;
+    {
+      v8::TryCatch try_catch(isolate);
+      v8::Local<v8::Uint32> v8_length_uint32;
+      if (!v8_length->ToUint32(current_context).ToLocal(&v8_length_uint32)) {
+        exception_state.RethrowV8Exception(try_catch.Exception());
+        return false;
+      }
+      v8::Local<v8::Number> v8_length_number;
+      if (!v8_length->ToNumber(current_context).ToLocal(&v8_length_number)) {
+        exception_state.RethrowV8Exception(try_catch.Exception());
+        return false;
+      }
+      if (v8_length_uint32->Value() != v8_length_number->Value()) {
+        exception_state.ThrowRangeError("The provided length is invalid.");
+        return false;
+      }
+      length = v8_length_uint32->Value();
     }
-    v8::Local<v8::Number> v8_length_number;
-    if (!v8_length->ToNumber(current_context).ToLocal(&v8_length_number)) {
-      exception_state.RethrowV8Exception(try_catch.Exception());
-      return false;
-    }
-    if (v8_length_uint32->Value() != v8_length_number->Value()) {
-      exception_state.ThrowRangeError("The provided length is invalid.");
-      return false;
-    }
-    uint32_t length = v8_length_uint32->Value();
 
-    return DoSetTheLength(isolate, current_context, backing_list, length,
-                          exception_state);
-  }
-
-  // https://webidl.spec.whatwg.org/#observable-array-exotic-object-set-the-length
-  static bool DoSetTheLength(v8::Isolate* isolate,
-                             v8::Local<v8::Context> current_context,
-                             BackingListWrappable& backing_list,
-                             uint32_t length,
-                             ExceptionState& exception_state) {
     if (backing_list.size() < length)
       return false;
 
@@ -504,10 +453,6 @@ class ObservableArrayExoticObjectHandler {
     if (backing_list.size() < index)
       return false;
 
-    // The return type of NativeValueTraits<T>::NativeValue may be different
-    // from BackingListWrappable::value_type.  Convert the type here only once,
-    // and use the same value when running RunSetAlgorithm and when storing the
-    // value into the backing list.
     typename BackingListWrappable::value_type blink_value =
         NativeValueTraits<ElementIdlType>::NativeValue(isolate, v8_value,
                                                        exception_state);

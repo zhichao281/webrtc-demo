@@ -42,7 +42,6 @@
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/core/frame/embedded_content_view.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "third_party/blink/renderer/platform/heap/prefinalizer.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
@@ -56,6 +55,7 @@ class Event;
 class GestureEvent;
 class HTMLFrameOwnerElement;
 class HTMLPlugInElement;
+class IntRect;
 class KeyboardEvent;
 class LocalFrameView;
 class MouseEvent;
@@ -92,7 +92,7 @@ class CORE_EXPORT WebPluginContainerImpl final
   void Paint(GraphicsContext&,
              const GlobalPaintFlags,
              const CullRect&,
-             const gfx::Vector2d& paint_offset) const override;
+             const IntSize& paint_offset = IntSize()) const override;
   void UpdateGeometry() override;
   void Show() override;
   void Hide() override;
@@ -184,7 +184,7 @@ class CORE_EXPORT WebPluginContainerImpl final
   // method. Here we call Dispose() which does the correct virtual dispatch.
   void PreFinalize() { Dispose(); }
   void Dispose() override;
-  void SetFrameRect(const gfx::Rect&) override;
+  void SetFrameRect(const IntRect&) override;
   void PropagateFrameRects() override { ReportGeometry(); }
 
   void MaybeLostMouseLock();
@@ -200,9 +200,9 @@ class CORE_EXPORT WebPluginContainerImpl final
   // without also clipping to the screen), in local space of the plugin.
   void ComputeClipRectsForPlugin(
       const HTMLFrameOwnerElement* plugin_owner_element,
-      gfx::Rect& window_rect,
-      gfx::Rect& clipped_local_rect,
-      gfx::Rect& unclipped_int_local_rect) const;
+      IntRect& window_rect,
+      IntRect& clipped_local_rect,
+      IntRect& unclipped_int_local_rect) const;
 
   WebTouchEvent TransformTouchEvent(const WebInputEvent&);
   WebCoalescedInputEvent TransformCoalescedTouchEvent(
@@ -222,9 +222,9 @@ class CORE_EXPORT WebPluginContainerImpl final
 
   void FocusPlugin();
 
-  void CalculateGeometry(gfx::Rect& window_rect,
-                         gfx::Rect& clip_rect,
-                         gfx::Rect& unobscured_rect);
+  void CalculateGeometry(IntRect& window_rect,
+                         IntRect& clip_rect,
+                         IntRect& unobscured_rect);
 
   friend class WebPluginContainerTest;
   class MouseLockLostListener;

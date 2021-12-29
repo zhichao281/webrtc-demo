@@ -49,10 +49,7 @@ class ScriptState;
 
 class CORE_EXPORT FormData final
     : public ScriptWrappable,
-      public PairIterable<String,
-                          IDLString,
-                          Member<V8FormDataEntryValue>,
-                          V8FormDataEntryValue> {
+      public PairIterable<String, Member<V8FormDataEntryValue>> {
   DEFINE_WRAPPERTYPEINFO();
 
  public:

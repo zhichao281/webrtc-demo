@@ -46,8 +46,6 @@ class MODULES_EXPORT NFCProxy final : public GarbageCollected<NFCProxy>,
             device::mojom::blink::NDEFWriteOptionsPtr,
             device::mojom::blink::NFC::PushCallback);
   void CancelPush();
-  void MakeReadOnly(device::mojom::blink::NFC::MakeReadOnlyCallback);
-  void CancelMakeReadOnly();
 
  private:
   // Implementation of device::mojom::blink::NFCClient.

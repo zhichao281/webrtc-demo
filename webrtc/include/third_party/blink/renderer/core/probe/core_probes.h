@@ -61,7 +61,7 @@ class InspectorIssue;
 
 namespace probe {
 
-class AsyncTaskContext;
+class AsyncTaskId;
 
 class CORE_EXPORT ProbeBase {
   STACK_ALLOCATED();
@@ -99,8 +99,8 @@ class CORE_EXPORT AsyncTask {
   //   enabled: Whether the task is asynchronous. If false, the task is not
   //     reported to the debugger and AdTracker.
   //   ad_tracking_type: Whether this is reported to the AdTracker.
-  AsyncTask(ExecutionContext* execution_context,
-            AsyncTaskContext* async_context,
+  AsyncTask(ExecutionContext* context,
+            AsyncTaskId* task,
             const char* step = nullptr,
             bool enabled = true,
             AdTrackingType ad_tracking_type = AdTrackingType::kReport);
@@ -108,8 +108,9 @@ class CORE_EXPORT AsyncTask {
 
  private:
   ThreadDebugger* debugger_;
-  AsyncTaskContext* task_context_;
+  AsyncTaskId* task_;
   bool recurring_;
+  bool tracing_ = false;
 
   // This persistent is safe since the class is STACK_ALLOCATED.
   Persistent<AdTracker> ad_tracker_;
@@ -145,6 +146,16 @@ inline CoreProbeSink* ToCoreProbeSink(EventTarget* event_target) {
                       : nullptr;
 }
 
+CORE_EXPORT void AsyncTaskScheduled(ExecutionContext*,
+                                    const StringView& name,
+                                    AsyncTaskId*);
+CORE_EXPORT void AsyncTaskScheduledBreakable(ExecutionContext*,
+                                             const char* name,
+                                             AsyncTaskId*);
+CORE_EXPORT void AsyncTaskCanceled(ExecutionContext*, AsyncTaskId*);
+CORE_EXPORT void AsyncTaskCanceledBreakable(ExecutionContext*,
+                                            const char* name,
+                                            AsyncTaskId*);
 CORE_EXPORT void AllAsyncTasksCanceled(ExecutionContext*);
 
 }  // namespace probe

@@ -26,10 +26,11 @@
 
 #include "third_party/blink/renderer/core/svg/svg_path_consumer.h"
 #include "third_party/blink/renderer/core/svg/svg_path_data.h"
-#include "ui/gfx/geometry/point_f.h"
+#include "third_party/blink/renderer/platform/geometry/float_point.h"
 
 namespace blink {
 
+class FloatSize;
 class Path;
 
 class SVGPathBuilder final : public SVGPathConsumer {
@@ -40,27 +41,26 @@ class SVGPathBuilder final : public SVGPathConsumer {
 
  private:
   void EmitClose();
-  void EmitMoveTo(const gfx::PointF&);
-  void EmitLineTo(const gfx::PointF&);
-  void EmitQuadTo(const gfx::PointF&, const gfx::PointF&);
-  void EmitSmoothQuadTo(const gfx::PointF&);
-  void EmitCubicTo(const gfx::PointF&, const gfx::PointF&, const gfx::PointF&);
-  void EmitSmoothCubicTo(const gfx::PointF&, const gfx::PointF&);
-  void EmitArcTo(const gfx::PointF&,
-                 float radius_x,
-                 float radius_y,
-                 float rotate,
+  void EmitMoveTo(const FloatPoint&);
+  void EmitLineTo(const FloatPoint&);
+  void EmitQuadTo(const FloatPoint&, const FloatPoint&);
+  void EmitSmoothQuadTo(const FloatPoint&);
+  void EmitCubicTo(const FloatPoint&, const FloatPoint&, const FloatPoint&);
+  void EmitSmoothCubicTo(const FloatPoint&, const FloatPoint&);
+  void EmitArcTo(const FloatPoint&,
+                 const FloatSize&,
+                 float,
                  bool large_arc,
                  bool sweep);
 
-  gfx::PointF SmoothControl(bool is_smooth) const;
+  FloatPoint SmoothControl(bool is_smooth) const;
 
   Path& path_;
 
   SVGPathSegType last_command_;
-  gfx::PointF subpath_point_;
-  gfx::PointF current_point_;
-  gfx::PointF last_control_point_;
+  FloatPoint subpath_point_;
+  FloatPoint current_point_;
+  FloatPoint last_control_point_;
 };
 
 }  // namespace blink

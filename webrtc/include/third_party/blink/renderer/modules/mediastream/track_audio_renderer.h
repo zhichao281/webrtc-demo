@@ -10,6 +10,7 @@
 #include <memory>
 
 #include "base/callback.h"
+#include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/synchronization/lock.h"
 #include "base/task/single_thread_task_runner.h"

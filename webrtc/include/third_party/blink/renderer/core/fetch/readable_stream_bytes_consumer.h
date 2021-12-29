@@ -43,8 +43,8 @@ class CORE_EXPORT ReadableStreamBytesConsumer final : public BytesConsumer {
   void Trace(Visitor*) const override;
 
  private:
-  class Fulfilled;
-  class Rejected;
+  class OnFulfilled;
+  class OnRejected;
 
   void OnRead(DOMUint8Array*);
   void OnReadDone();

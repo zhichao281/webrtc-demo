@@ -9,6 +9,7 @@
 #include <wrl/client.h>
 
 #include "base/base_export.h"
+#include "base/macros.h"
 #include "base/threading/thread_checker.h"
 #include "base/win/com_init_balancer.h"
 #include "base/win/scoped_windows_thread_environment.h"

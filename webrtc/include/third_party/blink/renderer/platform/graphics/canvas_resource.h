@@ -14,13 +14,12 @@
 #include "gpu/command_buffer/common/sync_token.h"
 #include "gpu/ipc/common/mailbox.mojom-blink.h"
 #include "skia/buildflags.h"
-#include "third_party/blink/renderer/platform/graphics/graphics_types.h"
+#include "third_party/blink/renderer/platform/geometry/int_size.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_resource_params.h"
 #include "third_party/blink/renderer/platform/graphics/web_graphics_context_3d_provider_wrapper.h"
 #include "third_party/blink/renderer/platform/scheduler/public/thread.h"
 #include "third_party/blink/renderer/platform/wtf/thread_safe_ref_counted.h"
 #include "third_party/skia/include/gpu/GrBackendSurface.h"
-#include "ui/gfx/buffer_types.h"
-#include "ui/gfx/geometry/size.h"
 
 #include <dawn/webgpu_cpp.h>
 
@@ -29,7 +28,6 @@
 
 namespace gfx {
 
-class ColorSpace;
 class GpuMemoryBuffer;
 
 }  // namespace gfx
@@ -93,7 +91,7 @@ class PLATFORM_EXPORT CanvasResource
   virtual bool NeedsReadLockFences() const { return false; }
 
   // The bounds for this resource.
-  virtual gfx::Size Size() const = 0;
+  virtual IntSize Size() const = 0;
 
   // The mailbox which can be used to reference this resource in GPU commands.
   // The sync mode indicates how the sync token for the resource should be
@@ -241,7 +239,7 @@ class PLATFORM_EXPORT CanvasResourceSharedBitmap final : public CanvasResource {
   bool SupportsAcceleratedCompositing() const final { return false; }
   bool NeedsReadLockFences() const final { return false; }
   void Abandon() final;
-  gfx::Size Size() const final;
+  IntSize Size() const final;
   void TakeSkImage(sk_sp<SkImage> image) final;
   scoped_refptr<StaticBitmapImage> Bitmap() final;
   bool OriginClean() const final { return is_origin_clean_; }
@@ -259,7 +257,7 @@ class PLATFORM_EXPORT CanvasResourceSharedBitmap final : public CanvasResource {
 
   viz::SharedBitmapId shared_bitmap_id_;
   base::WritableSharedMemoryMapping shared_mapping_;
-  gfx::Size size_;
+  IntSize size_;
   bool is_origin_clean_ = true;
 };
 
@@ -300,7 +298,7 @@ class PLATFORM_EXPORT CanvasResourceRasterSharedImage final
   bool IsAccelerated() const final { return is_accelerated_; }
   bool SupportsAcceleratedCompositing() const override { return true; }
   bool IsValid() const final;
-  gfx::Size Size() const final { return size_; }
+  IntSize Size() const final { return size_; }
   scoped_refptr<StaticBitmapImage> Bitmap() final;
   void Transfer() final;
 
@@ -414,7 +412,7 @@ class PLATFORM_EXPORT CanvasResourceRasterSharedImage final
   std::unique_ptr<gfx::GpuMemoryBuffer> gpu_memory_buffer_;
 
   // Accessed on any thread.
-  const gfx::Size size_;
+  const IntSize size_;
   const bool is_origin_top_left_;
   const bool is_accelerated_;
   const bool is_overlay_candidate_;
@@ -442,7 +440,7 @@ class PLATFORM_EXPORT CanvasResourceSkiaDawnSharedImage final
   bool IsAccelerated() const final { return true; }
   bool SupportsAcceleratedCompositing() const override { return true; }
   bool IsValid() const final;
-  gfx::Size Size() const final { return size_; }
+  IntSize Size() const final { return size_; }
   const gpu::Mailbox& GetOrCreateGpuMailbox(MailboxSyncMode) override;
   scoped_refptr<StaticBitmapImage> Bitmap() final;
   void Transfer() final;
@@ -544,7 +542,7 @@ class PLATFORM_EXPORT CanvasResourceSkiaDawnSharedImage final
   std::unique_ptr<gfx::GpuMemoryBuffer> gpu_memory_buffer_;
 
   // Accessed on any thread.
-  const gfx::Size size_;
+  const IntSize size_;
   const scoped_refptr<base::SingleThreadTaskRunner> owning_thread_task_runner_;
 
   OwningThreadData owning_thread_data_;
@@ -580,7 +578,7 @@ class PLATFORM_EXPORT ExternalCanvasResource final : public CanvasResource {
   bool OriginClean() const final { return is_origin_clean_; }
   void SetOriginClean(bool value) final { is_origin_clean_ = value; }
   void Abandon() final;
-  gfx::Size Size() const final { return size_; }
+  IntSize Size() const final { return size_; }
   void TakeSkImage(sk_sp<SkImage> image) final;
   void NotifyResourceLost() override { resource_is_lost_ = true; }
 
@@ -609,7 +607,7 @@ class PLATFORM_EXPORT ExternalCanvasResource final : public CanvasResource {
 
   const base::WeakPtr<WebGraphicsContext3DProviderWrapper>
       context_provider_wrapper_;
-  const gfx::Size size_;
+  const IntSize size_;
   const gpu::Mailbox mailbox_;
   const GLenum texture_target_;
   viz::ReleaseCallback release_callback_;
@@ -637,7 +635,7 @@ class PLATFORM_EXPORT CanvasResourceSwapChain final : public CanvasResource {
   bool OriginClean() const final { return is_origin_clean_; }
   void SetOriginClean(bool value) final { is_origin_clean_ = value; }
   void Abandon() final;
-  gfx::Size Size() const final { return size_; }
+  IntSize Size() const final { return size_; }
   void TakeSkImage(sk_sp<SkImage> image) final;
   void NotifyResourceLost() override {
     // Used for single buffering mode which doesn't need to care about sync
@@ -669,7 +667,7 @@ class PLATFORM_EXPORT CanvasResourceSwapChain final : public CanvasResource {
 
   const base::WeakPtr<WebGraphicsContext3DProviderWrapper>
       context_provider_wrapper_;
-  const gfx::Size size_;
+  const IntSize size_;
   gpu::Mailbox front_buffer_mailbox_;
   gpu::Mailbox back_buffer_mailbox_;
   GLuint back_buffer_texture_id_ = 0u;

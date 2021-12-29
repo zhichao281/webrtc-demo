@@ -55,10 +55,10 @@ class StylePendingImage final : public StyleImage {
                              bool allow_visited_style) const override;
 
   bool IsAccessAllowed(String&) const override { return true; }
-  gfx::SizeF ImageSize(float,
-                       const gfx::SizeF&,
-                       RespectImageOrientationEnum) const override {
-    return gfx::SizeF();
+  FloatSize ImageSize(float,
+                      const FloatSize&,
+                      RespectImageOrientationEnum) const override {
+    return FloatSize();
   }
   bool HasIntrinsicSize() const override { return true; }
   void AddClient(ImageResourceObserver*) override {}
@@ -66,7 +66,7 @@ class StylePendingImage final : public StyleImage {
   scoped_refptr<Image> GetImage(const ImageResourceObserver&,
                                 const Document&,
                                 const ComputedStyle&,
-                                const gfx::SizeF& target_size) const override {
+                                const FloatSize& target_size) const override {
     NOTREACHED();
     return nullptr;
   }

@@ -28,9 +28,7 @@ class TestLauncherTracer {
   ~TestLauncherTracer();
 
   // Records an event corresponding to test process execution.
-  // Return the sequence num of the process executed. The sequence num is also
-  // used as part of the event name been recorded.
-  int RecordProcessExecution(TimeTicks start_time, TimeDelta duration);
+  void RecordProcessExecution(TimeTicks start_time, TimeDelta duration);
 
   // Dumps trace data as JSON. Returns true on success.
   bool Dump(const FilePath& path) WARN_UNUSED_RESULT;

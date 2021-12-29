@@ -53,7 +53,7 @@ class CORE_EXPORT SelectionController final
 
   bool HandleMousePressEvent(const MouseEventWithHitTestResults&);
   void HandleMouseDraggedEvent(const MouseEventWithHitTestResults&,
-                               const gfx::Point&,
+                               const IntPoint&,
                                const PhysicalOffset&,
                                const PhysicalOffset&);
   bool HandleMouseReleaseEvent(const MouseEventWithHitTestResults&,

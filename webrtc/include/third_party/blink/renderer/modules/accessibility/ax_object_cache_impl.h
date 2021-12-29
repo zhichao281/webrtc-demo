@@ -34,6 +34,7 @@
 
 #include "base/dcheck_is_on.h"
 #include "base/gtest_prod_util.h"
+#include "base/macros.h"
 #include "third_party/blink/public/mojom/permissions/permission.mojom-blink.h"
 #include "third_party/blink/public/mojom/permissions/permission_status.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/permissions/permission_status.mojom-blink.h"
@@ -43,7 +44,6 @@
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
 #include "third_party/blink/renderer/modules/accessibility/ax_object.h"
-#include "third_party/blink/renderer/modules/accessibility/inspector_accessibility_agent.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
@@ -81,12 +81,6 @@ class MODULES_EXPORT AXObjectCacheImpl
 
   const ui::AXMode& GetAXMode() override;
   void SetAXMode(const ui::AXMode&) override;
-
-  // When the accessibility tree view is open in DevTools, we listen for changes
-  // to the tree by registering an InspectorAccessibilityAgent here and notify
-  // the agent when AXEvents are fired or nodes are marked dirty.
-  void AddInspectorAgent(InspectorAccessibilityAgent*);
-  void RemoveInspectorAgent(InspectorAccessibilityAgent*);
 
   void Dispose() override;
 
@@ -198,9 +192,12 @@ class MODULES_EXPORT AXObjectCacheImpl
   const AtomicString& ComputedRoleForNode(Node*) override;
   String ComputedNameForNode(Node*) override;
 
-  void OnTouchAccessibilityHover(const gfx::Point&) override;
+  void OnTouchAccessibilityHover(const IntPoint&) override;
 
-  AXObject* ObjectFromAXID(AXID id) const override;
+  AXObject* ObjectFromAXID(AXID id) const {
+    auto it = objects_.find(id);
+    return it != objects_.end() ? it->value : nullptr;
+  }
   AXObject* Root();
 
   // Used for objects without backing DOM nodes, layout objects, etc.
@@ -216,6 +213,7 @@ class MODULES_EXPORT AXObjectCacheImpl
   AXObject* GetOrCreate(AbstractInlineTextBox*, AXObject* parent_if_known);
 
   AXID GetAXID(Node*) override;
+  Element* GetElementFromAXID(AXID) override;
 
   AXObject* Get(AccessibleNode*);
   AXObject* Get(AbstractInlineTextBox*);
@@ -349,7 +347,6 @@ class MODULES_EXPORT AXObjectCacheImpl
   static bool IsRelevantPseudoElement(const Node& node);
   static bool IsRelevantPseudoElementDescendant(
       const LayoutObject& layout_object);
-  static bool IsRelevantSlotElement(const HTMLSlotElement& slot);
 
 #if DCHECK_IS_ON()
   bool HasBeenDisposed() { return has_been_disposed_; }
@@ -395,8 +392,6 @@ class MODULES_EXPORT AXObjectCacheImpl
   void Remove(AXID);
 
  private:
-  HeapHashSet<WeakMember<InspectorAccessibilityAgent>> agents_;
-
   struct AXEventParams final : public GarbageCollected<AXEventParams> {
     AXEventParams(AXObject* target,
                   ax::mojom::blink::Event event_type,

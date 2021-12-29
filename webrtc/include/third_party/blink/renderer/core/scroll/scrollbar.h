@@ -36,14 +36,11 @@
 #include "third_party/blink/renderer/platform/timer.h"
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
 
-namespace gfx {
-class Rect;
-}
-
 namespace blink {
 
 class Element;
 class GraphicsContext;
+class IntRect;
 class ScrollableArea;
 class ScrollbarTheme;
 class WebGestureEvent;
@@ -71,18 +68,18 @@ class CORE_EXPORT Scrollbar : public GarbageCollected<Scrollbar>,
   int Y() const { return frame_rect_.y(); }
   int Width() const { return frame_rect_.width(); }
   int Height() const { return frame_rect_.height(); }
-  gfx::Size Size() const { return frame_rect_.size(); }
-  gfx::Point Location() const { return frame_rect_.origin(); }
+  IntSize Size() const { return frame_rect_.size(); }
+  IntPoint Location() const { return frame_rect_.origin(); }
 
-  void SetFrameRect(const gfx::Rect&);
-  const gfx::Rect& FrameRect() const { return frame_rect_; }
+  void SetFrameRect(const IntRect&);
+  const IntRect& FrameRect() const { return frame_rect_; }
 
   ScrollbarOverlayColorTheme GetScrollbarOverlayColorTheme() const;
   bool HasTickmarks() const;
-  Vector<gfx::Rect> GetTickmarks() const;
+  Vector<IntRect> GetTickmarks() const;
   bool IsScrollableAreaActive() const;
 
-  gfx::Point ConvertFromRootFrame(const gfx::Point&) const;
+  IntPoint ConvertFromRootFrame(const IntPoint&) const;
 
   virtual bool IsCustomScrollbar() const { return false; }
   ScrollbarOrientation Orientation() const { return orientation_; }
@@ -119,7 +116,7 @@ class CORE_EXPORT Scrollbar : public GarbageCollected<Scrollbar>,
   void SetProportion(int visible_size, int total_size);
   void SetPressedPos(int p) { pressed_pos_ = p; }
 
-  void Paint(GraphicsContext&, const gfx::Vector2d& paint_offset) const;
+  void Paint(GraphicsContext&, const IntPoint& paint_offset) const;
 
   virtual bool IsSolidColor() const;
 
@@ -153,8 +150,8 @@ class CORE_EXPORT Scrollbar : public GarbageCollected<Scrollbar>,
 
   ScrollbarTheme& GetTheme() const { return theme_; }
 
-  gfx::Rect ConvertToContainingEmbeddedContentView(const gfx::Rect&) const;
-  gfx::Point ConvertFromContainingEmbeddedContentView(const gfx::Point&) const;
+  IntRect ConvertToContainingEmbeddedContentView(const IntRect&) const;
+  IntPoint ConvertFromContainingEmbeddedContentView(const IntPoint&) const;
 
   void MoveThumb(int pos, bool dragging_document = false);
 
@@ -264,7 +261,7 @@ class CORE_EXPORT Scrollbar : public GarbageCollected<Scrollbar>,
   // additional state is necessary.
   bool scrollbar_manipulation_in_progress_on_cc_thread_;
 
-  gfx::Rect frame_rect_;
+  IntRect frame_rect_;
   Member<Element> style_source_;
 
   // Tracks scroll delta that has been injected into the compositor thread as a

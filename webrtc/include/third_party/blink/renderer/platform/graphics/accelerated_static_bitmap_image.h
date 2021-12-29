@@ -73,8 +73,8 @@ class PLATFORM_EXPORT AcceleratedStaticBitmapImage final
 
   void Draw(cc::PaintCanvas*,
             const cc::PaintFlags&,
-            const gfx::RectF& dst_rect,
-            const gfx::RectF& src_rect,
+            const FloatRect& dst_rect,
+            const FloatRect& src_rect,
             const ImageDrawOptions&) override;
 
   bool IsValid() const final;
@@ -89,8 +89,8 @@ class PLATFORM_EXPORT AcceleratedStaticBitmapImage final
                      GLint dest_level,
                      bool unpack_premultiply_alpha,
                      bool unpack_flip_y,
-                     const gfx::Point& dest_point,
-                     const gfx::Rect& source_sub_rectangle) override;
+                     const IntPoint& dest_point,
+                     const IntRect& source_sub_rectangle) override;
 
   bool CopyToResourceProvider(
       CanvasResourceProvider* resource_provider) override;
@@ -145,7 +145,7 @@ class PLATFORM_EXPORT AcceleratedStaticBitmapImage final
   void CreateImageFromMailboxIfNeeded();
   void InitializeTextureBacking(GLuint shared_image_texture_id);
 
-  gfx::Size SizeInternal() const override;
+  IntSize SizeInternal() const override;
 
   const gpu::Mailbox mailbox_;
   const SkImageInfo sk_image_info_;

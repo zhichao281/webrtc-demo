@@ -435,12 +435,6 @@ class DataSource : public DataSourceBase {
                                             &static_state_);
   }
 
-  // Updates the data source descriptor.
-  static void UpdateDescriptor(const DataSourceDescriptor& descriptor) {
-    auto* tracing_impl = internal::TracingMuxer::Get();
-    tracing_impl->UpdateDataSourceDescriptor(descriptor, &static_state_);
-  }
-
  private:
   // Traits for customizing the behavior of a specific trace point.
   struct DefaultTracePointTraits {

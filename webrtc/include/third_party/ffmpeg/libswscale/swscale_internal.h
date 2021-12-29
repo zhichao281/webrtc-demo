@@ -21,8 +21,6 @@
 #ifndef SWSCALE_SWSCALE_INTERNAL_H
 #define SWSCALE_SWSCALE_INTERNAL_H
 
-#include <stdatomic.h>
-
 #include "config.h"
 #include "version.h"
 
@@ -303,16 +301,14 @@ typedef struct SwsContext {
      */
     const AVClass *av_class;
 
-    struct SwsContext *parent;
-
     AVSliceThread      *slicethread;
     struct SwsContext **slice_ctx;
     int                *slice_err;
     int              nb_slice_ctx;
 
     // values passed to current sws_receive_slice() call
-    int dst_slice_start;
-    int dst_slice_height;
+    unsigned int dst_slice_start;
+    unsigned int dst_slice_height;
 
     /**
      * Note that src, dst, srcStride, dstStride will be copied in the
@@ -674,8 +670,6 @@ typedef struct SwsContext {
     unsigned int xyz_scratch_allocated;
 
     unsigned int dst_slice_align;
-    atomic_int   stride_unaligned_warned;
-    atomic_int   data_unaligned_warned;
 } SwsContext;
 //FIXME check init (where 0)
 

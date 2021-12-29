@@ -6,6 +6,7 @@
 #define BASE_TIMER_LAP_TIMER_H_
 
 #include "base/base_export.h"
+#include "base/macros.h"
 #include "base/sequence_checker.h"
 #include "base/time/time.h"
 

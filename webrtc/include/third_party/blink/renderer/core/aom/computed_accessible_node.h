@@ -23,7 +23,6 @@ class ScriptState;
 class ComputedAccessibleNodePromiseResolver final
     : public GarbageCollected<ComputedAccessibleNodePromiseResolver> {
  public:
-  ComputedAccessibleNodePromiseResolver(ScriptState*, Document&, AXID);
   ComputedAccessibleNodePromiseResolver(ScriptState*, Element&);
   ~ComputedAccessibleNodePromiseResolver() {}
 
@@ -37,13 +36,9 @@ class ComputedAccessibleNodePromiseResolver final
   class RequestAnimationFrameCallback;
 
   int continue_callback_request_id_ = 0;
-
-  // Backed by either element_ or ax_id_.
   Member<Element> element_;
-  AXID ax_id_;
-
   Member<ScriptPromiseResolver> resolver_;
-  bool resolve_with_node_ = false;
+  bool resolve_with_node_;
   std::unique_ptr<AXContext> ax_context_;
 };
 
@@ -52,7 +47,7 @@ class ComputedAccessibleNode : public ScriptWrappable {
 
  public:
   ComputedAccessibleNode(AXID, Document*);
-  ~ComputedAccessibleNode() override;
+  ~ComputedAccessibleNode() override = default;
 
   void Trace(Visitor*) const override;
 
@@ -100,7 +95,6 @@ class ComputedAccessibleNode : public ScriptWrappable {
   ScriptPromise ensureUpToDate(ScriptState*);
 
  private:
-  Document* GetDocument() const;
   WebComputedAXTree* GetTree() const;
   absl::optional<bool> GetBoolAttribute(WebAOMBoolAttribute) const;
   absl::optional<int32_t> GetIntAttribute(WebAOMIntAttribute) const;
@@ -110,6 +104,7 @@ class ComputedAccessibleNode : public ScriptWrappable {
   AXID ax_id_;
 
   // This tree is owned by the RenderFrame.
+  Member<Document> document_;
   std::unique_ptr<AXContext> ax_context_;
 };
 

@@ -22,10 +22,9 @@
 
 #include "third_party/blink/renderer/core/svg/svg_length.h"
 #include "third_party/blink/renderer/core/svg/svg_preserve_aspect_ratio.h"
-#include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
+#include "third_party/blink/renderer/platform/heap/heap.h"
 #include "third_party/blink/renderer/platform/transforms/affine_transform.h"
-#include "ui/gfx/geometry/rect_f.h"
 
 namespace blink {
 
@@ -60,7 +59,7 @@ class PatternAttributes final {
   SVGLength* Y() const { return y_.Get(); }
   SVGLength* Width() const { return width_.Get(); }
   SVGLength* Height() const { return height_.Get(); }
-  gfx::RectF ViewBox() const { return view_box_; }
+  FloatRect ViewBox() const { return view_box_; }
   SVGPreserveAspectRatio* PreserveAspectRatio() const {
     return preserve_aspect_ratio_.Get();
   }
@@ -93,7 +92,7 @@ class PatternAttributes final {
     height_set_ = true;
   }
 
-  void SetViewBox(const gfx::RectF& value) {
+  void SetViewBox(const FloatRect& value) {
     view_box_ = value;
     view_box_set_ = true;
   }
@@ -149,7 +148,7 @@ class PatternAttributes final {
   Member<SVGLength> y_;
   Member<SVGLength> width_;
   Member<SVGLength> height_;
-  gfx::RectF view_box_;
+  FloatRect view_box_;
   Member<SVGPreserveAspectRatio> preserve_aspect_ratio_;
   SVGUnitTypes::SVGUnitType pattern_units_;
   SVGUnitTypes::SVGUnitType pattern_content_units_;

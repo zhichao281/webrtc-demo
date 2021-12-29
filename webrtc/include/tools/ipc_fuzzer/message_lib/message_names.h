@@ -10,6 +10,7 @@
 #include <string>
 #include <unordered_map>
 #include "base/check.h"
+#include "base/macros.h"
 
 namespace ipc_fuzzer {
 

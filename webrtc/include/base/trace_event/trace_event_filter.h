@@ -6,6 +6,7 @@
 #define BASE_TRACE_EVENT_TRACE_EVENT_FILTER_H_
 
 #include "base/base_export.h"
+#include "base/macros.h"
 
 namespace base {
 namespace trace_event {

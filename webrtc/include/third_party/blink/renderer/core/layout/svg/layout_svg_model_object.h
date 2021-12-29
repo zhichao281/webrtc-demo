@@ -50,14 +50,14 @@ class LayoutSVGModelObject : public LayoutObject {
   PhysicalRect VisualRectInDocument(
       VisualRectFlags = kDefaultVisualRectFlags) const override;
 
-  gfx::RectF VisualRectInLocalSVGCoordinates() const override {
+  FloatRect VisualRectInLocalSVGCoordinates() const override {
     NOT_DESTROYED();
     return StrokeBoundingBox();
   }
 
   void AbsoluteQuads(Vector<FloatQuad>&,
                      MapCoordinatesFlags mode = 0) const override;
-  gfx::RectF LocalBoundingBoxRectForAccessibility() const final;
+  FloatRect LocalBoundingBoxRectForAccessibility() const final;
 
   void MapLocalToAncestor(const LayoutBoxModelObject* ancestor,
                           TransformState&,

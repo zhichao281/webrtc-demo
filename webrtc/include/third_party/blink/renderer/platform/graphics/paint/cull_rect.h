@@ -5,21 +5,18 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_PAINT_CULL_RECT_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_PAINT_CULL_RECT_H_
 
-#include <limits>
-
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/platform/geometry/layout_rect.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "ui/gfx/geometry/rect.h"
 
-namespace gfx {
-class RectF;
-}
+#include <limits>
 
 namespace blink {
 
 class AffineTransform;
+class FloatRect;
 class LayoutRect;
 class LayoutUnit;
 class PropertyTreeState;
@@ -32,12 +29,16 @@ class PLATFORM_EXPORT CullRect {
   CullRect() = default;
   explicit CullRect(const gfx::Rect& rect) : rect_(rect) {}
 
-  static CullRect Infinite() { return CullRect(LayoutRect::InfiniteIntRect()); }
+  static CullRect Infinite() {
+    return CullRect(ToGfxRect(LayoutRect::InfiniteIntRect()));
+  }
 
-  bool IsInfinite() const { return rect_ == LayoutRect::InfiniteIntRect(); }
+  bool IsInfinite() const {
+    return rect_ == ToGfxRect(LayoutRect::InfiniteIntRect());
+  }
 
   bool Intersects(const gfx::Rect&) const;
-  bool IntersectsTransformed(const AffineTransform&, const gfx::RectF&) const;
+  bool IntersectsTransformed(const AffineTransform&, const FloatRect&) const;
   bool IntersectsHorizontalRange(LayoutUnit lo, LayoutUnit hi) const;
   bool IntersectsVerticalRange(LayoutUnit lo, LayoutUnit hi) const;
 

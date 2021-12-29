@@ -17,9 +17,9 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/viz/public/mojom/compositing/compositor_frame_sink.mojom-blink.h"
 #include "third_party/blink/public/mojom/frame_sinks/embedded_frame_sink.mojom-blink.h"
+#include "third_party/blink/renderer/platform/geometry/int_size.h"
 #include "third_party/blink/renderer/platform/graphics/resource_id_traits.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
-#include "ui/gfx/geometry/size.h"
 
 namespace blink {
 
@@ -49,7 +49,7 @@ class PLATFORM_EXPORT CanvasResourceDispatcher
                            uint32_t client_id,
                            uint32_t sink_id,
                            int placeholder_canvas_id,
-                           const gfx::Size&);
+                           const IntSize&);
 
   ~CanvasResourceDispatcher() override;
   void SetNeedsBeginFrame(bool);
@@ -72,7 +72,7 @@ class PLATFORM_EXPORT CanvasResourceDispatcher
   }
   bool HasTooManyPendingFrames() const;
 
-  void Reshape(const gfx::Size&);
+  void Reshape(const IntSize&);
 
   // viz::mojom::blink::CompositorFrameSinkClient implementation.
   void DidReceiveCompositorFrameAck(
@@ -110,7 +110,7 @@ class PLATFORM_EXPORT CanvasResourceDispatcher
   viz::ParentLocalSurfaceIdAllocator parent_local_surface_id_allocator_;
   const viz::FrameSinkId frame_sink_id_;
 
-  gfx::Size size_;
+  IntSize size_;
   bool change_size_for_next_commit_;
   bool suspend_animation_ = false;
   bool needs_begin_frame_ = false;
@@ -118,7 +118,7 @@ class PLATFORM_EXPORT CanvasResourceDispatcher
 
   void SetNeedsBeginFrameInternal();
 
-  bool VerifyImageSize(const gfx::Size&);
+  bool VerifyImageSize(const IntSize);
   void PostImageToPlaceholderIfNotBlocked(scoped_refptr<CanvasResource>,
                                           viz::ResourceId resource_id);
   // virtual for testing

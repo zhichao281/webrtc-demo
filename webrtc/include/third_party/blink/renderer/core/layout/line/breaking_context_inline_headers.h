@@ -449,8 +449,8 @@ inline LayoutUnit BorderPaddingMarginEnd(LineLayoutInline child) {
 }
 
 enum CollapsibleWhiteSpace {
-  kIgnoreCollapsibleWhiteSpace,
-  kUseCollapsibleWhiteSpace
+  IgnoreCollapsibleWhiteSpace,
+  UseCollapsibleWhiteSpace
 };
 
 inline bool ShouldAddBorderPaddingMargin(LineLayoutItem child,
@@ -463,7 +463,7 @@ inline bool ShouldAddBorderPaddingMargin(LineLayoutItem child,
     // collapsible whitespace if they haven't already been added to the line's
     // width, such as when adding end-BPM when about to place a float after a
     // linebox.
-    if (white_space == kUseCollapsibleWhiteSpace &&
+    if (white_space == UseCollapsibleWhiteSpace &&
         LineLayoutText(child).IsAllCollapsibleWhitespace())
       return true;
     if (!LineLayoutText(child).TextLength())
@@ -477,7 +477,7 @@ inline LayoutUnit InlineLogicalWidthFromAncestorsIfNeeded(
     LineLayoutItem child,
     bool start = true,
     bool end = true,
-    CollapsibleWhiteSpace white_space = kIgnoreCollapsibleWhiteSpace) {
+    CollapsibleWhiteSpace white_space = IgnoreCollapsibleWhiteSpace) {
   unsigned line_depth = 1;
   LayoutUnit extra_width;
   LineLayoutItem parent = child.Parent();
@@ -561,7 +561,7 @@ inline void BreakingContext::HandleFloat() {
     // inline ancestors has been applied to the end of the previous inline box.
     float width_from_ancestors =
         InlineLogicalWidthFromAncestorsIfNeeded(float_box, false, true,
-                                                kUseCollapsibleWhiteSpace)
+                                                UseCollapsibleWhiteSpace)
             .ToFloat();
     width_.AddUncommittedWidth(width_from_ancestors);
     if (width_.FitsOnLine(
@@ -750,7 +750,7 @@ ALWAYS_INLINE float TextWidth(
     float x_pos,
     bool collapse_white_space,
     HashSet<const SimpleFontData*>* fallback_fonts = nullptr,
-    gfx::RectF* glyph_bounds = nullptr) {
+    FloatRect* glyph_bounds = nullptr) {
   if ((!from && len == text.TextLength()) || text.StyleRef().HasTextCombine()) {
     return text.Width(from, len, font, LayoutUnit(x_pos),
                       text.StyleRef().Direction(), fallback_fonts,
@@ -917,7 +917,7 @@ ALWAYS_INLINE bool BreakingContext::RewindToMidWordBreak(
                                      word_measurement);
   }
 
-  gfx::RectF rect = font.SelectionRectForText(run, gfx::PointF(), 0, 0, len);
+  FloatRect rect = font.SelectionRectForText(run, FloatPoint(), 0, 0, len);
   return RewindToMidWordBreak(word_measurement, end, rect.width());
 }
 

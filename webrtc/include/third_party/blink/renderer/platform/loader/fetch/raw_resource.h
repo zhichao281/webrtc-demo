@@ -220,10 +220,9 @@ class PLATFORM_EXPORT RawResourceClientStateChecker final {
     kDataReceived,
     kDataDownloaded,
     kDidDownloadToBlob,
-    kNotifyFinished,
-    kDetached,
+    kNotifyFinished
   };
-  State state_ = kNotAddedAsClient;
+  State state_;
 };
 
 }  // namespace blink

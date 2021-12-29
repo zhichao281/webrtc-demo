@@ -42,6 +42,7 @@ namespace blink {
 class LayoutQuote;
 class LocalFrameView;
 class NamedPagesMapper;
+class PaintLayerCompositor;
 class ViewFragmentationContext;
 
 // LayoutView is the root of the layout tree and the Document's LayoutObject.
@@ -60,13 +61,17 @@ class ViewFragmentationContext;
 // Because there is one LayoutView per rooted layout tree (or Frame), this class
 // is used to add members shared by this tree (e.g. m_layoutState or
 // m_layoutQuoteHead).
-class CORE_EXPORT LayoutView : public LayoutBlockFlow {
+class CORE_EXPORT LayoutView final : public LayoutBlockFlow {
  public:
-  explicit LayoutView(ContainerNode* document);
+  explicit LayoutView(Document*);
   ~LayoutView() override;
   void Trace(Visitor*) const override;
 
   void WillBeDestroyed() override;
+
+  // Called when the Document is shutdown, to have the compositor clean up
+  // during frame detach, while pointers remain valid.
+  void CleanUpCompositor();
 
   // hitTest() will update layout, style and compositing first while
   // hitTestNoLifecycleUpdate() does not.
@@ -113,7 +118,7 @@ class CORE_EXPORT LayoutView : public LayoutBlockFlow {
   // - checks for null LocalFrameView
   // - Replaces logical height with PageLogicalHeight() if using printing layout
   // - scrollbar exclusion is compatible with root layer scrolling
-  gfx::Size GetLayoutSize(IncludeScrollbarsInRect = kExcludeScrollbars) const;
+  IntSize GetLayoutSize(IncludeScrollbarsInRect = kExcludeScrollbars) const;
 
   int ViewHeight(
       IncludeScrollbarsInRect scrollbar_inclusion = kExcludeScrollbars) const {
@@ -224,6 +229,8 @@ class CORE_EXPORT LayoutView : public LayoutBlockFlow {
     return named_pages_mapper_.get();
   }
 
+  PaintLayerCompositor* Compositor();
+
   PhysicalRect DocumentRect() const;
 
   IntervalArena* GetIntervalArena();
@@ -286,7 +293,7 @@ class CORE_EXPORT LayoutView : public LayoutBlockFlow {
 
   // Returns the viewport size in (CSS pixels) that vh and vw units are
   // calculated from.
-  gfx::SizeF ViewportSizeForViewportUnits() const;
+  FloatSize ViewportSizeForViewportUnits() const;
 
   void PushLayoutState(LayoutState& layout_state) {
     NOT_DESTROYED();
@@ -311,10 +318,10 @@ class CORE_EXPORT LayoutView : public LayoutBlockFlow {
 
   // Returns the coordinates of find-in-page scrollbar tickmarks.  These come
   // from DocumentMarkerController.
-  Vector<gfx::Rect> GetTickmarks() const;
+  Vector<IntRect> GetTickmarks() const;
   bool HasTickmarks() const;
 
-  RecalcLayoutOverflowResult RecalcLayoutOverflow() override;
+  RecalcLayoutOverflowResult RecalcLayoutOverflow() final;
 
   // The visible background area, in the local coordinates. The view background
   // will be painted in this rect. It's also the positioning area of fixed-
@@ -342,17 +349,11 @@ class CORE_EXPORT LayoutView : public LayoutBlockFlow {
                           TransformState&,
                           MapCoordinatesFlags) const override;
 
-  static bool ShouldUsePrintingLayout(const Document&);
-  bool ShouldUsePrintingLayout() const {
-    NOT_DESTROYED();
-    return ShouldUsePrintingLayout(GetDocument());
-  }
+  bool ShouldUsePrintingLayout() const;
 
   void MapLocalToAncestor(const LayoutBoxModelObject* ancestor,
                           TransformState&,
                           MapCoordinatesFlags) const override;
-
-  LogicalSize InitialContainingBlockSize() const;
 
  private:
   bool CanHaveChildren() const override;
@@ -391,6 +392,7 @@ class CORE_EXPORT LayoutView : public LayoutBlockFlow {
 
   Member<ViewFragmentationContext> fragmentation_context_;
   std::unique_ptr<NamedPagesMapper> named_pages_mapper_;
+  Member<PaintLayerCompositor> compositor_;
   scoped_refptr<IntervalArena> interval_arena_;
 
   Member<LayoutQuote> layout_quote_head_;

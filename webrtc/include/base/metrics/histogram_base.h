@@ -15,6 +15,7 @@
 
 #include "base/atomicops.h"
 #include "base/base_export.h"
+#include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "base/time/time.h"
 #include "base/values.h"

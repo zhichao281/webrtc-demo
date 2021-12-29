@@ -43,7 +43,7 @@ inline v8::Local<v8::Value> ToV8(ScriptWrappable* impl,
     return wrapper;
 
   ScriptState* script_state =
-      ScriptState::From(creation_context->GetCreationContextChecked());
+      ScriptState::From(creation_context->CreationContext());
   wrapper = impl->Wrap(script_state).ToLocalChecked();
   DCHECK(!wrapper.IsEmpty());
   return wrapper;
@@ -57,7 +57,7 @@ inline v8::Local<v8::Value> ToV8(const bindings::DictionaryBase* dictionary,
   if (UNLIKELY(!dictionary))
     return v8::Null(isolate);
   ScriptState* script_state =
-      ScriptState::From(creation_context->GetCreationContextChecked());
+      ScriptState::From(creation_context->CreationContext());
   return dictionary->ToV8Value(script_state).ToLocalChecked();
 }
 
@@ -71,8 +71,7 @@ inline v8::Local<v8::Value> ToV8(CallbackFunctionBase* callback,
   // it's in the same world.
   DCHECK(!callback ||
          (&callback->GetWorld() ==
-          &ScriptState::From(creation_context->GetCreationContextChecked())
-               ->World()));
+          &ScriptState::From(creation_context->CreationContext())->World()));
   return callback ? callback->CallbackObject().As<v8::Value>()
                   : v8::Null(isolate).As<v8::Value>();
 }
@@ -87,8 +86,7 @@ inline v8::Local<v8::Value> ToV8(CallbackInterfaceBase* callback,
   // it's in the same world.
   DCHECK(!callback ||
          (&callback->GetWorld() ==
-          &ScriptState::From(creation_context->GetCreationContextChecked())
-               ->World()));
+          &ScriptState::From(creation_context->CreationContext())->World()));
   return callback ? callback->CallbackObject().As<v8::Value>()
                   : v8::Null(isolate).As<v8::Value>();
 }
@@ -106,8 +104,7 @@ inline v8::Local<v8::Value> ToV8(const bindings::UnionBase* union_value,
                                  v8::Local<v8::Object> creation_context,
                                  v8::Isolate* isolate) {
   return union_value
-      ->ToV8Value(
-          ScriptState::From(creation_context->GetCreationContextChecked()))
+      ->ToV8Value(ScriptState::From(creation_context->CreationContext()))
       .ToLocalChecked();
 }
 
@@ -268,8 +265,7 @@ inline v8::Local<v8::Value> ToV8(const Vector<std::pair<String, T>>& value,
                                  v8::Isolate* isolate) {
   v8::Local<v8::Object> object;
   {
-    v8::Context::Scope context_scope(
-        creation_context->GetCreationContextChecked());
+    v8::Context::Scope context_scope(creation_context->CreationContext());
     object = v8::Object::New(isolate);
   }
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
@@ -295,8 +291,7 @@ inline v8::Local<v8::Value> ToV8(const HeapVector<std::pair<String, T>>& value,
                                  v8::Isolate* isolate) {
   v8::Local<v8::Object> object;
   {
-    v8::Context::Scope context_scope(
-        creation_context->GetCreationContextChecked());
+    v8::Context::Scope context_scope(creation_context->CreationContext());
     object = v8::Object::New(isolate);
   }
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
@@ -325,8 +320,7 @@ inline v8::Local<v8::Array> ToV8SequenceInternal(
                            RuntimeCallStats::CounterId::kToV8SequenceInternal);
   v8::Local<v8::Array> array;
   {
-    v8::Context::Scope context_scope(
-        creation_context->GetCreationContextChecked());
+    v8::Context::Scope context_scope(creation_context->CreationContext());
     array = v8::Array::New(isolate, SafeCast<int>(sequence.size()));
   }
   v8::Local<v8::Context> context = isolate->GetCurrentContext();

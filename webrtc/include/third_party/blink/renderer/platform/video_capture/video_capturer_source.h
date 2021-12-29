@@ -11,20 +11,12 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/time/time.h"
-#include "base/token.h"
-#include "media/capture/mojom/video_capture_types.mojom-blink.h"
 #include "media/capture/video/video_capture_feedback.h"
 #include "media/capture/video_capture_types.h"
 #include "third_party/blink/public/common/media/video_capture.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 
 namespace blink {
-
-enum class RunState {
-  kRunning = 0,
-  kStopped,
-  kSystemPermissionsError,
-};
 
 // VideoCapturerSource is an interface representing the source for captured
 // video.  An implementation will periodically call the frame callback with new
@@ -33,7 +25,7 @@ class PLATFORM_EXPORT VideoCapturerSource {
  public:
   virtual ~VideoCapturerSource();
 
-  using RunningCallback = base::RepeatingCallback<void(RunState)>;
+  using RunningCallback = base::RepeatingCallback<void(bool)>;
 
   // Returns formats that are preferred and can currently be used. May be empty
   // if no formats are available or known.

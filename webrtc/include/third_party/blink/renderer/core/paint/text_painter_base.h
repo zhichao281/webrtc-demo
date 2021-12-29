@@ -65,7 +65,7 @@ class CORE_EXPORT TextPainterBase {
 
   void PaintDecorationUnderOrOverLine(GraphicsContext&,
                                       TextDecorationInfo&,
-                                      TextDecorationLine line,
+                                      TextDecoration line,
                                       const PaintFlags* flags = nullptr);
 
   static Color TextColorForWhiteBackground(Color);

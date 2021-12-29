@@ -19,7 +19,8 @@ class OnRequestCanvasDrawListener : public AutoCanvasDrawListener {
   explicit OnRequestCanvasDrawListener(std::unique_ptr<CanvasCaptureHandler>);
   ~OnRequestCanvasDrawListener() override;
 
-  NewFrameCallback GetNewFrameCallback() final;
+  void SendNewFrame(scoped_refptr<StaticBitmapImage>,
+                    base::WeakPtr<WebGraphicsContext3DProviderWrapper>) final;
 
   void Trace(Visitor*) const override;
 };

@@ -26,23 +26,23 @@ class CORE_EXPORT ImageElementBase : public CanvasImageSource,
   // base for both elements.
   static Image::ImageDecodingMode ParseImageDecodingMode(const AtomicString&);
 
-  gfx::Size BitmapSourceSize() const override;
+  IntSize BitmapSourceSize() const override;
   ScriptPromise CreateImageBitmap(ScriptState*,
-                                  absl::optional<gfx::Rect>,
+                                  absl::optional<IntRect>,
                                   const ImageBitmapOptions*,
                                   ExceptionState&) override;
 
   scoped_refptr<Image> GetSourceImageForCanvas(
       SourceImageStatus*,
-      const gfx::SizeF&,
+      const FloatSize&,
       const AlphaDisposition alpha_disposition = kPremultiplyAlpha) override;
 
   bool WouldTaintOrigin() const override;
 
-  gfx::SizeF ElementSize(const gfx::SizeF& default_object_size,
-                         const RespectImageOrientationEnum) const override;
-  gfx::SizeF DefaultDestinationSize(
-      const gfx::SizeF& default_object_size,
+  FloatSize ElementSize(const FloatSize& default_object_size,
+                        const RespectImageOrientationEnum) const override;
+  FloatSize DefaultDestinationSize(
+      const FloatSize& default_object_size,
       const RespectImageOrientationEnum) const override;
 
   bool IsAccelerated() const override;

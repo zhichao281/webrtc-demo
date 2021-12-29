@@ -28,13 +28,14 @@ class MockFunctionScope {
   v8::Local<v8::Function> ExpectNoCall();
 
  private:
-  class MockFunction : public NewScriptFunction::Callable {
+  class MockFunction : public ScriptFunction {
    public:
-    MockFunction();
+    explicit MockFunction(ScriptState*);
     // TODO(http://crbug.com/1159794): add other convenience methods that allow
     // the test case to capture non-String values.
     MockFunction(ScriptState*, String* captor);
-    MOCK_METHOD2(Call, ScriptValue(ScriptState*, ScriptValue));
+    v8::Local<v8::Function> Bind();
+    MOCK_METHOD1(Call, ScriptValue(ScriptValue));
   };
 
   ScriptState* script_state_;

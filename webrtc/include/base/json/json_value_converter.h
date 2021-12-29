@@ -14,6 +14,7 @@
 
 #include "base/base_export.h"
 #include "base/logging.h"
+#include "base/macros.h"
 #include "base/memory/ptr_util.h"
 #include "base/strings/string_piece.h"
 #include "base/values.h"

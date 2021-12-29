@@ -31,15 +31,6 @@
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/text/text_stream.h"
 
-namespace gfx {
-class Point;
-class PointF;
-class Rect;
-class RectF;
-class Size;
-class SizeF;
-}  // namespace gfx
-
 namespace blink {
 
 class Color;
@@ -48,7 +39,6 @@ class Element;
 class LocalFrame;
 class LayoutBlockFlow;
 class LayoutObject;
-class LayoutPoint;
 
 enum LayoutAsTextBehaviorFlags {
   kLayoutAsTextBehaviorNormal = 0,
@@ -56,21 +46,23 @@ enum LayoutAsTextBehaviorFlags {
   kLayoutAsTextShowAllLayers = 1 << 0,
   // Annotate the layer lists.
   kLayoutAsTextShowLayerNesting = 1 << 1,
+  // Show which layers are composited.
+  kLayoutAsTextShowCompositedLayers = 1 << 2,
   // Show layer and layoutObject addresses.
-  kLayoutAsTextShowAddresses = 1 << 2,
+  kLayoutAsTextShowAddresses = 1 << 3,
   // Show id and class attributes
-  kLayoutAsTextShowIDAndClass = 1 << 3,
+  kLayoutAsTextShowIDAndClass = 1 << 4,
   // Dump the tree in printing mode.
-  kLayoutAsTextPrintingMode = 1 << 4,
+  kLayoutAsTextPrintingMode = 1 << 5,
   // Don't update layout, to make it safe to call ShowLayerTree() from the
   // debugger inside layout or painting code.
-  kLayoutAsTextDontUpdateLayout = 1 << 5,
+  kLayoutAsTextDontUpdateLayout = 1 << 6,
   // Print the various 'needs layout' bits on layoutObjects.
-  kLayoutAsTextShowLayoutState = 1 << 6,
+  kLayoutAsTextShowLayoutState = 1 << 7,
   // Dump the line trees for each LayoutBlockFlow.
-  kLayoutAsTextShowLineTrees = 1 << 7,
+  kLayoutAsTextShowLineTrees = 1 << 8,
   // Print paint properties associated with layers and layout objects.
-  kLayoutAsTextShowPaintProperties = 1 << 8,
+  kLayoutAsTextShowPaintProperties = 1 << 9,
 };
 typedef unsigned LayoutAsTextBehavior;
 
@@ -109,20 +101,14 @@ class LayoutTreeAsText {
                                int indent = 0);
 };
 
-// Helper function shared with SVGLayoutTreeAsText (so they are not exported).
+// Helper function shared with SVGLayoutTreeAsText
 String QuoteAndEscapeNonPrintables(const String&);
-WTF::TextStream& operator<<(WTF::TextStream&, const Color&);
-WTF::TextStream& operator<<(WTF::TextStream& ts, const LayoutPoint&);
-WTF::TextStream& operator<<(WTF::TextStream&, const gfx::Point&);
-WTF::TextStream& operator<<(WTF::TextStream&, const gfx::Size&);
-WTF::TextStream& operator<<(WTF::TextStream&, const gfx::Rect&);
-WTF::TextStream& operator<<(WTF::TextStream&, const gfx::SizeF&);
-WTF::TextStream& operator<<(WTF::TextStream&, const gfx::PointF&);
-WTF::TextStream& operator<<(WTF::TextStream&, const gfx::RectF&);
 
 CORE_EXPORT String CounterValueForElement(Element*);
 
 CORE_EXPORT String MarkerTextForListItem(Element*);
+
+WTF::TextStream& operator<<(WTF::TextStream&, const Color&);
 
 }  // namespace blink
 

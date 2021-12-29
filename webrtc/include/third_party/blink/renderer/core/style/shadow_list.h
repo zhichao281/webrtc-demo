@@ -38,11 +38,9 @@
 #include "third_party/blink/renderer/platform/wtf/ref_counted.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
-namespace gfx {
-class RectF;
-}
-
 namespace blink {
+
+class FloatRect;
 
 typedef Vector<ShadowData, 1> ShadowDataVector;
 
@@ -64,7 +62,7 @@ class ShadowList : public RefCounted<ShadowList> {
   // source (i.e. no outsets will be negative).
   FloatRectOutsets RectOutsetsIncludingOriginal() const;
 
-  void AdjustRectForShadow(gfx::RectF&) const;
+  void AdjustRectForShadow(FloatRect&) const;
 
  private:
   ShadowList(ShadowDataVector& shadows) {

@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "base/macros.h"
 #include "third_party/hunspell/google/bdict.h"
 
 namespace hunspell {

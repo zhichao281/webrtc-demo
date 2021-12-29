@@ -6,7 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_CANVAS_CANVAS2D_BASE_RENDERING_CONTEXT_2D_H_
 
 #include "base/bind.h"
-#include "cc/paint/record_paint_canvas.h"
+#include "base/macros.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/core/geometry/dom_matrix.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h"
@@ -19,7 +19,6 @@
 #include "third_party/blink/renderer/modules/canvas/canvas2d/identifiability_study_helper.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/graphics/image_orientation.h"
-#include "ui/gfx/geometry/skia_conversions.h"
 
 namespace blink {
 
@@ -99,14 +98,54 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasPath {
   void ResetInternal();  // Called from within blink
 
   void scale(double sx, double sy);
+  void scale(double sx, double sy, double sz);
   void rotate(double angle_in_radians);
+  void rotate3d(double rx, double ry, double rz);
+  void rotateAxis(double axisX,
+                  double axisY,
+                  double axisZ,
+                  double angle_in_radians);
   void translate(double tx, double ty);
+  void translate(double tx, double ty, double tz);
+  void perspective(double length);
   void transform(double m11,
                  double m12,
                  double m21,
                  double m22,
                  double dx,
                  double dy);
+  void transform(double m11,
+                 double m12,
+                 double m13,
+                 double m14,
+                 double m21,
+                 double m22,
+                 double m23,
+                 double m24,
+                 double m31,
+                 double m32,
+                 double m33,
+                 double m34,
+                 double m41,
+                 double m42,
+                 double m43,
+                 double m44);
+  void setTransform(double m11,
+                    double m12,
+                    double m13,
+                    double m14,
+                    double m21,
+                    double m22,
+                    double m23,
+                    double m24,
+                    double m31,
+                    double m32,
+                    double m33,
+                    double m34,
+                    double m41,
+                    double m42,
+                    double m43,
+                    double m44);
   void setTransform(double m11,
                     double m12,
                     double m21,
@@ -144,17 +183,20 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasPath {
   void fillRect(double x, double y, double width, double height);
   void strokeRect(double x, double y, double width, double height);
 
-  void drawImage(const V8CanvasImageSource* image_source,
+  void drawImage(ScriptState* script_state,
+                 const V8CanvasImageSource* image_source,
                  double x,
                  double y,
                  ExceptionState& exception_state);
-  void drawImage(const V8CanvasImageSource* image_source,
+  void drawImage(ScriptState* script_state,
+                 const V8CanvasImageSource* image_source,
                  double x,
                  double y,
                  double width,
                  double height,
                  ExceptionState& exception_state);
-  void drawImage(const V8CanvasImageSource* image_source,
+  void drawImage(ScriptState* script_state,
+                 const V8CanvasImageSource* image_source,
                  double sx,
                  double sy,
                  double sw,
@@ -164,7 +206,8 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasPath {
                  double dw,
                  double dh,
                  ExceptionState& exception_state);
-  void drawImage(CanvasImageSource*,
+  void drawImage(ScriptState*,
+                 CanvasImageSource*,
                  double sx,
                  double sy,
                  double sw,
@@ -189,10 +232,12 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasPath {
   CanvasGradient* createConicGradient(double startAngle,
                                       double centerX,
                                       double centerY);
-  CanvasPattern* createPattern(const V8CanvasImageSource* image_source,
+  CanvasPattern* createPattern(ScriptState* script_state,
+                               const V8CanvasImageSource* image_source,
                                const String& repetition_type,
                                ExceptionState& exception_state);
-  CanvasPattern* createPattern(CanvasImageSource*,
+  CanvasPattern* createPattern(ScriptState*,
+                               CanvasImageSource*,
                                const String& repetition_type,
                                ExceptionState&);
 
@@ -265,8 +310,6 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasPath {
     return nullptr;
   }
 
-  ExecutionContext* GetTopExecutionContext() const override = 0;
-
   void ValidateStateStack() const {
 #if DCHECK_IS_ON()
     ValidateStateStackWithCanvas(GetPaintCanvas());
@@ -293,8 +336,8 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasPath {
   String textBaseline() const;
   void setTextBaseline(const String&);
 
-  String letterSpacing() const;
-  String wordSpacing() const;
+  double letterSpacing() const;
+  double wordSpacing() const;
   String textRendering() const;
 
   String fontKerning() const;
@@ -334,31 +377,25 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasPath {
   enum class OverdrawOp {
     // Must remain in sync with CanvasOverdrawOp defined in
     // tools/metrics/histograms/enums.xml
-    //
-    // Note: Several enum values are now obsolete because the use cases they
-    // covered were removed because they had low incidence rates in real-world
-    // web content.
-
     kNone = 0,  // Not used in histogram
 
     kTotal = 1,  // Counts total number of overdraw optimization hits.
 
     // Ops. These are mutually exclusive for a given overdraw hit.
     kClearRect = 2,
-    // kFillRect = 3,  // Removed due to low incidence
-    // kPutImageData = 4,  // Removed due to low incidence
+    kFillRect = 3,
+    kPutImageData = 4,
     kDrawImage = 5,
     kContextReset = 6,
-    // kClearForSrcBlendMode = 7,  // Removed due to low incidence
+    kClearForSrcBlendMode = 7,
 
     // Modifiers
+    kHasOpaqueShader = 8,
     kHasTransform = 9,
-    // kSourceOverBlendMode = 10,  // Removed due to low incidence
-    // kClearBlendMode = 11,  // Removed due to low incidence
-    kHasClip = 12,
-    kHasClipAndTransform = 13,
+    kSourceOverBlendMode = 10,
+    kClearBlendMode = 11,
 
-    kMaxValue = kHasClipAndTransform,
+    kMaxValue = kClearBlendMode,
   };
 
   struct UsageCounters {
@@ -402,8 +439,8 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasPath {
     return *state_stack_.back();
   }
 
-  bool ComputeDirtyRect(const gfx::RectF& local_bounds, SkIRect*);
-  bool ComputeDirtyRect(const gfx::RectF& local_bounds,
+  bool ComputeDirtyRect(const FloatRect& local_bounds, SkIRect*);
+  bool ComputeDirtyRect(const FloatRect& local_bounds,
                         const SkIRect& transformed_clip_bounds,
                         SkIRect*);
 
@@ -417,13 +454,13 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasPath {
             CanvasRenderingContext2DState::ImageType,
             CanvasPerformanceMonitor::DrawType);
 
-  void InflateStrokeRect(gfx::RectF&) const;
+  void InflateStrokeRect(FloatRect&) const;
 
   void UnwindStateStack();
 
-  // Return the default color space to be used for calls to GetImageData or
-  // CreateImageData.
-  virtual PredefinedColorSpace GetDefaultImageDataColorSpace() const = 0;
+  // The implementations of this will query the CanvasColorParams from the
+  // CanvasRenderingContext.
+  virtual CanvasColorParams GetCanvas2DColorParams() const = 0;
 
   virtual bool WritePixels(const SkImageInfo& orig_info,
                            const void* pixels,
@@ -438,10 +475,16 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasPath {
     return nullptr;
   }
 
+  enum DrawType {
+    kClipFill,  // Fill that is already known to cover the current clip
+    kUntransformedUnclippedFill
+  };
+
   void CheckOverdraw(const SkRect&,
                      const PaintFlags*,
                      CanvasRenderingContext2DState::ImageType,
-                     BaseRenderingContext2D::OverdrawOp overdraw_op);
+                     BaseRenderingContext2D::OverdrawOp overdraw_op,
+                     BaseRenderingContext2D::DrawType draw_type);
 
   HeapVector<Member<CanvasRenderingContext2DState>> state_stack_;
   // Counts how many states have been pushed with BeginLayer.
@@ -487,7 +530,9 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasPath {
   virtual void DisableAcceleration() {}
 
   virtual bool IsPaint2D() const { return false; }
-  void WillOverwriteCanvas(OverdrawOp);
+  void WillOverwriteCanvas(OverdrawOp,
+                           SkBlendMode,
+                           bool has_opaque_shader = false);
   virtual void WillOverwriteCanvas() = 0;
 
   bool context_restorable_{true};
@@ -500,7 +545,7 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasPath {
   // EndLayer.
   void PopAndRestore();
 
-  bool ShouldDrawImageAntialiased(const gfx::RectF& dest_rect) const;
+  bool ShouldDrawImageAntialiased(const FloatRect& dest_rect) const;
 
   void SetTransform(const TransformationMatrix&);
 
@@ -539,8 +584,8 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasPath {
   void DrawImageInternal(cc::PaintCanvas*,
                          CanvasImageSource*,
                          Image*,
-                         const gfx::RectF& src_rect,
-                         const gfx::RectF& dst_rect,
+                         const FloatRect& src_rect,
+                         const FloatRect& dst_rect,
                          const SkSamplingOptions&,
                          const PaintFlags*);
   void ClipInternal(const Path&,
@@ -568,21 +613,19 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasPath {
   void AdjustRectForCanvas(T& x, T& y, T& width, T& height);
 
   void ClearCanvasForSrcCompositeOp();
-  bool RectContainsTransformedRect(const gfx::RectF&, const SkIRect&) const;
+  bool RectContainsTransformedRect(const FloatRect&, const SkIRect&) const;
   // Sets the origin to be tainted by the content of the canvas, such
   // as a cross-origin image. This is as opposed to some other reason
   // such as tainting from a filter applied to the canvas.
   void SetOriginTaintedByContent();
 
   void PutByteArray(const SkPixmap& source,
-                    const gfx::Rect& source_rect,
-                    const gfx::Vector2d& dest_offset);
+                    const IntRect& source_rect,
+                    const IntPoint& dest_point);
   virtual bool IsCanvas2DBufferValid() const {
     NOTREACHED();
     return false;
   }
-
-  virtual void FlushCanvas() = 0;
 
   // Only call if identifiability_study_helper_.ShouldUpdateBuilder() returns
   // true.
@@ -599,7 +642,8 @@ ALWAYS_INLINE void BaseRenderingContext2D::CheckOverdraw(
     const SkRect& rect,
     const PaintFlags* flags,
     CanvasRenderingContext2DState::ImageType image_type,
-    BaseRenderingContext2D::OverdrawOp overdraw_op) {
+    BaseRenderingContext2D::OverdrawOp overdraw_op,
+    BaseRenderingContext2D::DrawType draw_type) {
   // Note on performance: because this method is inlined, all conditional
   // branches on arguments that are static at the call site can be optimized-out
   // by the compiler.
@@ -610,31 +654,70 @@ ALWAYS_INLINE void BaseRenderingContext2D::CheckOverdraw(
   if (UNLIKELY(!c))
     return;
 
-  if (overdraw_op == OverdrawOp::kDrawImage) {  // static branch
-    if (UNLIKELY(flags->getBlendMode() != SkBlendMode::kSrcOver) ||
-        UNLIKELY(flags->getLooper()) || UNLIKELY(flags->getImageFilter()) ||
-        UNLIKELY(flags->getMaskFilter()) ||
-        UNLIKELY(flags->getAlpha() < 0xFF) ||
-        UNLIKELY(image_type == CanvasRenderingContext2DState::kNonOpaqueImage))
-      return;
-  }
-
-  if (overdraw_op == OverdrawOp::kClearRect ||
-      overdraw_op == OverdrawOp::kDrawImage) {  // static branch
+  SkRect device_rect;
+  if (draw_type == kUntransformedUnclippedFill) {  // static branch
+    device_rect = rect;
+  } else {
     if (UNLIKELY(GetState().HasComplexClip()))
       return;
 
     SkIRect sk_i_bounds;
     if (UNLIKELY(!c->getDeviceClipBounds(&sk_i_bounds)))
       return;
-    SkRect device_rect = SkRect::Make(sk_i_bounds);
-    const SkImageInfo& image_info = c->imageInfo();
-    if (LIKELY(!device_rect.contains(
-            SkRect::MakeWH(image_info.width(), image_info.height()))))
-      return;
+    device_rect = SkRect::Make(sk_i_bounds);
   }
 
-  WillOverwriteCanvas(overdraw_op);
+  const SkImageInfo& image_info = c->imageInfo();
+  if (LIKELY(!device_rect.contains(
+          SkRect::MakeWH(image_info.width(), image_info.height()))))
+    return;
+
+  if (overdraw_op == OverdrawOp::kFillRect ||
+      overdraw_op == OverdrawOp::kDrawImage) {  // static branch
+    unsigned alpha = 0xFF;
+    if (UNLIKELY(flags->getLooper()) || UNLIKELY(flags->getImageFilter()) ||
+        UNLIKELY(flags->getMaskFilter()))
+      return;
+
+    SkBlendMode mode = flags->getBlendMode();
+    bool is_source_over = mode == SkBlendMode::kSrcOver;
+    if (UNLIKELY(!is_source_over) && LIKELY(mode != SkBlendMode::kSrc) &&
+        LIKELY(mode != SkBlendMode::kClear))
+      return;  // The code below only knows how to handle Src, SrcOver, and
+               // Clear
+
+    alpha = flags->getAlpha();
+
+    if (overdraw_op == OverdrawOp::kFillRect &&  // static term
+        LIKELY(image_type == CanvasRenderingContext2DState::kNoImage) &&
+        LIKELY(is_source_over)) {
+      if (UNLIKELY(flags->HasShader())) {
+        if (flags->ShaderIsOpaque() && alpha == 0xFF) {
+          WillOverwriteCanvas(overdraw_op, mode, /*has_opaque_shader=*/true);
+        }
+        return;
+      }
+    }
+
+    if (LIKELY(is_source_over)) {
+      // With source over, we need to certify that alpha == 0xFF for all pixels
+      if (image_type == CanvasRenderingContext2DState::kNonOpaqueImage)
+        return;
+      if (UNLIKELY(alpha < 0xFF))
+        return;
+    }
+  }
+
+  SkBlendMode blend_mode =
+      (overdraw_op == OverdrawOp::kClearForSrcBlendMode ||
+       overdraw_op == OverdrawOp::kPutImageData)
+          ?
+          // Note: The kSrc composite op does not have an associated histogram
+          // bucket in the overdraw histogram. This is intentional sice it would
+          // be redundant with kClearForSrcBlendMode and kPutImageData
+          SkBlendMode::kSrc
+          : flags->getBlendMode();
+  WillOverwriteCanvas(overdraw_op, blend_mode);
 }
 
 template <BaseRenderingContext2D::OverdrawOp CurrentOverdrawOp,
@@ -662,8 +745,7 @@ void BaseRenderingContext2D::DrawInternal(
     draw_func(GetPaintCanvasForDraw(clip_bounds, draw_type), flags);
   } else {
     SkIRect dirty_rect;
-    if (ComputeDirtyRect(gfx::SkRectToRectF(bounds), clip_bounds,
-                         &dirty_rect)) {
+    if (ComputeDirtyRect(bounds, clip_bounds, &dirty_rect)) {
       const PaintFlags* flags =
           state.GetFlags(paint_type, kDrawShadowAndForeground, image_type);
       if (paint_type != CanvasRenderingContext2DState::kStrokePaintType &&
@@ -671,17 +753,12 @@ void BaseRenderingContext2D::DrawInternal(
         // Because CurrentOverdrawOp is a template argument the following branch
         // is optimized-out at compile time.
         if (CurrentOverdrawOp != OverdrawOp::kNone) {
-          CheckOverdraw(bounds, flags, image_type, CurrentOverdrawOp);
+          CheckOverdraw(bounds, flags, image_type, CurrentOverdrawOp,
+                        kClipFill);
         }
       }
       draw_func(GetPaintCanvasForDraw(dirty_rect, draw_type), flags);
     }
-  }
-  if (UNLIKELY(GetPaintCanvas()->NeedsFlush())) {
-    // This happens if draw_func called flush() on the PaintCanvas. The flush
-    // cannot be performed inside the scope of draw_func because it would break
-    // the logic of CompositedDraw.
-    FlushCanvas();
   }
 }
 
@@ -723,20 +800,6 @@ void BaseRenderingContext2D::CompositedDraw(
     cc::PaintCanvas* c,
     CanvasRenderingContext2DState::PaintType paint_type,
     CanvasRenderingContext2DState::ImageType image_type) {
-  // Due to the complexity of composited draw operations, we need to grant an
-  // exception to allow multi-pass rendereing, and state finalization
-  // operations to proceed between the time when a flush is requested by
-  // draw_func and when the flush request is fulfilled in DrawInternal. We
-  // cannot fulfill flush request in the middle of a composited draw because
-  // it would break the rendering behavior.
-  // It is safe to cast 'c' to RecordPaintCanvas below because we know that
-  // CanvasResourceProvider always creates PaintCanvases of that type.
-  // TODO(junov): We could pass 'c' as a RecordingPaintCanvas in order to
-  // eliminate the static_cast.  This would require changing a lot of plumbing
-  // and fixing virtual methods that have non-virtual overloads.
-  cc::RecordPaintCanvas::DisableFlushCheckScope disable_flush_check_scope(
-      static_cast<cc::RecordPaintCanvas*>(c));
-
   sk_sp<PaintFilter> canvas_filter = StateGetFilter();
   const CanvasRenderingContext2DState& state = GetState();
   DCHECK(IsFullCanvasCompositeMode(state.GlobalComposite()) || canvas_filter ||
@@ -840,21 +903,21 @@ ALWAYS_INLINE bool BaseRenderingContext2D::StateHasFilter() {
 }
 
 ALWAYS_INLINE bool BaseRenderingContext2D::ComputeDirtyRect(
-    const gfx::RectF& local_rect,
+    const FloatRect& local_rect,
     const SkIRect& transformed_clip_bounds,
     SkIRect* dirty_rect) {
   DCHECK(dirty_rect);
   const CanvasRenderingContext2DState& state = GetState();
-  gfx::RectF canvas_rect = state.GetTransform().MapRect(local_rect);
+  FloatRect canvas_rect = state.GetTransform().MapRect(local_rect);
 
   if (UNLIKELY(AlphaChannel(state.ShadowColor()))) {
-    gfx::RectF shadow_rect(canvas_rect);
+    FloatRect shadow_rect(canvas_rect);
     shadow_rect.Offset(state.ShadowOffset());
     shadow_rect.Outset(ClampTo<float>(state.ShadowBlur()));
     canvas_rect.Union(shadow_rect);
   }
 
-  gfx::RectFToSkRect(canvas_rect).roundOut(dirty_rect);
+  static_cast<SkRect>(canvas_rect).roundOut(dirty_rect);
   if (UNLIKELY(!dirty_rect->intersect(transformed_clip_bounds)))
     return false;
 

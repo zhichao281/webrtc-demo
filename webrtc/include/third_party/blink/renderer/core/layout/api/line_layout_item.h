@@ -7,7 +7,6 @@
 
 #include "base/dcheck_is_on.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
-#include "third_party/blink/renderer/platform/heap/persistent.h"
 
 namespace blink {
 
@@ -18,6 +17,9 @@ class HitTestLocation;
 class LineLayoutBox;
 class LineLayoutAPIShim;
 
+static LayoutObject* const kHashTableDeletedValue =
+    reinterpret_cast<LayoutObject*>(-1);
+
 class LineLayoutItem {
   DISALLOW_NEW();
 
@@ -25,10 +27,8 @@ class LineLayoutItem {
   explicit LineLayoutItem(LayoutObject* layout_object)
       : layout_object_(layout_object) {}
 
-  explicit LineLayoutItem(WTF::HashTableDeletedValueType) {
-    WTF::HashTraits<decltype(layout_object_)>::ConstructDeletedValue(
-        layout_object_, false);
-  }
+  explicit LineLayoutItem(WTF::HashTableDeletedValueType)
+      : layout_object_(kHashTableDeletedValue) {}
 
   LineLayoutItem(std::nullptr_t) : layout_object_(nullptr) {}
 
@@ -266,8 +266,7 @@ class LineLayoutItem {
   }
 
   bool IsHashTableDeletedValue() const {
-    return WTF::HashTraits<decltype(layout_object_)>::IsDeletedValue(
-        layout_object_);
+    return layout_object_ == kHashTableDeletedValue;
   }
 
   void SetShouldDoFullPaintInvalidation() {

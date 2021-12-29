@@ -7,8 +7,8 @@
 
 #include <memory>
 
+#include "base/stl_util.h"
 #include "cc/paint/paint_flags.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/platform/graphics/dark_mode_settings.h"
 #include "third_party/blink/renderer/platform/graphics/dark_mode_types.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
@@ -30,9 +30,10 @@ class PLATFORM_EXPORT DarkModeFilter {
   explicit DarkModeFilter(const DarkModeSettings& settings);
   ~DarkModeFilter();
 
-  enum class ElementRole { kForeground, kListSymbol, kBackground, kSVG };
-
-  DarkModeImagePolicy GetDarkModeImagePolicy() const;
+  // TODO(gilmanmh): Add a role for shadows. In general, we don't want to
+  // invert shadows, but we may need to do some other kind of processing for
+  // them.
+  enum class ElementRole { kText, kListSymbol, kBackground, kSVG };
 
   SkColor InvertColorIfNeeded(SkColor color, ElementRole element_role);
   absl::optional<cc::PaintFlags> ApplyToFlagsIfNeeded(
@@ -48,24 +49,23 @@ class PLATFORM_EXPORT DarkModeFilter {
   // DarkModeResult::kNotClassified - Dark mode filter should be applied and to
   // get the color filter ApplyToImage() should be called. This API is
   // thread-safe.
-  bool ImageShouldHaveFilterAppliedBasedOnSizes(const SkIRect& src,
-                                                const SkIRect& dst) const;
+  DarkModeResult AnalyzeShouldApplyToImage(const SkIRect& src,
+                                           const SkIRect& dst) const;
 
   // Returns dark mode color filter based on the classification done on
   // |pixmap|. The image cannot be classified if pixmap is empty or |src| is
   // empty or |src| is larger than pixmap bounds. Before calling this function
-  // ImageShouldHaveFilterAppliedBasedOnSizes() must be called for early out or
-  // deciding appropriate function call. This function should be called only if
-  // image policy is set to DarkModeImagePolicy::kFilterSmart. This API is
+  // AnalyzeShouldApplyToImage() must be called for early out or deciding
+  // appropriate function call. This function should be called only if image
+  // policy is set to DarkModeImagePolicy::kFilterSmart. This API is
   // thread-safe.
   sk_sp<SkColorFilter> ApplyToImage(const SkPixmap& pixmap,
                                     const SkIRect& src) const;
 
   // Returns dark mode color filter for images. Before calling this function
-  // ImageShouldHaveFilterAppliedBasedOnSizes() must be called for early out or
-  // deciding appropriate function call. This function should be called only if
-  // image policy is set to DarkModeImagePolicy::kFilterAll. This API is
-  // thread-safe.
+  // AnalyzeShouldApplyToImage() must be called for early out or deciding
+  // appropriate function call. This function should be called only if image
+  // policy is set to DarkModeImagePolicy::kFilterAll. This API is thread-safe.
   sk_sp<SkColorFilter> GetImageFilter() const;
 
  private:

@@ -28,8 +28,6 @@
 namespace perfetto {
 namespace base {
 
-enum class WatchdogCrashReason;  // Defined in watchdog.h.
-
 struct ProcStat {
   unsigned long int utime = 0l;
   unsigned long int stime = 0l;
@@ -46,7 +44,6 @@ class Watchdog {
   struct TimerData {
     TimeMillis deadline{};  // Absolute deadline, CLOCK_MONOTONIC.
     int thread_id = 0;      // The tid we'll send a SIGABRT to on expiry.
-    WatchdogCrashReason crash_reason{};  // Becomes a crash key.
 
     TimerData() = default;
     TimerData(TimeMillis d, int t) : deadline(d), thread_id(t) {}
@@ -68,7 +65,7 @@ class Watchdog {
    private:
     friend class Watchdog;
 
-    explicit Timer(Watchdog*, uint32_t ms, WatchdogCrashReason);
+    explicit Timer(Watchdog*, uint32_t ms);
     Timer(const Timer&) = delete;
     Timer& operator=(const Timer&) = delete;
 
@@ -83,9 +80,7 @@ class Watchdog {
 
   // Sets a timer which will crash the program in |ms| milliseconds if the
   // returned handle is not destroyed before this point.
-  // WatchdogCrashReason is used only to set a crash key in the case of a crash,
-  // to disambiguate different timer types.
-  Timer CreateFatalTimer(uint32_t ms, WatchdogCrashReason);
+  Timer CreateFatalTimer(uint32_t ms);
 
   // Starts the watchdog thread which monitors the memory and CPU usage
   // of the program.
@@ -160,7 +155,7 @@ class Watchdog {
   void AddFatalTimer(TimerData);
   void RemoveFatalTimer(TimerData);
   void RearmTimerFd_Locked();
-  void SerializeLogsAndKillThread(int tid, WatchdogCrashReason);
+  void SerializeLogsAndKillThread(int tid);
 
   // Computes the time interval spanned by a given ring buffer with respect
   // to |polling_interval_ms_|.

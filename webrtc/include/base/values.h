@@ -530,6 +530,8 @@ class BASE_EXPORT Value {
   // If the current object can be converted into the given type, the value is
   // returned through the `out_value` parameter and true is returned;
   // otherwise, false is returned and `out_value` is unchanged.
+  // DEPRECATED, use `GetIfBool()` instead.
+  bool GetAsBoolean(bool* out_value) const;
   // DEPRECATED, use `GetIfString()` instead.
   bool GetAsString(std::string* out_value) const;
   bool GetAsString(std::u16string* out_value) const;
@@ -645,6 +647,10 @@ class BASE_EXPORT DictionaryValue : public Value {
   // DEPRECATED, use `Value::FindKey(key)` instead.
   bool HasKey(StringPiece key) const;
 
+  // Clears any current contents of this dictionary.
+  // DEPRECATED, use `Value::DictClear()` instead.
+  void Clear();
+
   // Sets the Value associated with the given path starting from this object.
   // A path has the form "<key>" or "<key>.<key>.[...]", where "." indexes
   // into the next DictionaryValue down.  Obviously, "." can't be used
@@ -697,6 +703,9 @@ class BASE_EXPORT DictionaryValue : public Value {
   // and the return value will be true if the path is valid and the value at
   // the end of the path can be returned in the form specified.
   // `out_value` is optional and will only be set if non-NULL.
+  // DEPRECATED, use `Value::FindBoolKey(key)` or `Value::FindBoolPath(path)`
+  // instead.
+  bool GetBoolean(StringPiece path, bool* out_value) const;
   // DEPRECATED, use `Value::FindIntKey(key)` or `Value::FindIntPath(path)`
   // instead.
   bool GetInteger(StringPiece path, int* out_value) const;
@@ -786,6 +795,14 @@ class BASE_EXPORT ListValue : public Value {
   explicit ListValue(span<const Value> in_list);
   explicit ListValue(ListStorage&& in_list) noexcept;
 
+  // Sets the list item at the given index to be the Value specified by
+  // the value given.  If the index beyond the current end of the list, null
+  // Values will be used to pad out the list.
+  // Returns true if successful, or false if the index was negative or
+  // the value is a null pointer.
+  // DEPRECATED, use `GetList()::operator[] instead.
+  bool Set(size_t index, std::unique_ptr<Value> in_value);
+
   // Gets the Value at the given index.  Modifies `out_value` (and returns true)
   // only if the index falls within the current list range.
   // Note that the list always owns the Value passed out via `out_value`.
@@ -798,6 +815,11 @@ class BASE_EXPORT ListValue : public Value {
   // only if the index is valid and the Value at that index can be returned
   // in the specified form.
   // `out_value` is optional and will only be set if non-NULL.
+  // DEPRECATED, use `GetList()::operator[]::GetBool()` instead.
+  bool GetBoolean(size_t index, bool* out_value) const;
+  // DEPRECATED, use `GetList()::operator[]::GetString()` instead.
+  bool GetString(size_t index, std::string* out_value) const;
+  bool GetString(size_t index, std::u16string* out_value) const;
 
   bool GetDictionary(size_t index, const DictionaryValue** out_value) const;
   bool GetDictionary(size_t index, DictionaryValue** out_value);
@@ -863,9 +885,6 @@ class BASE_EXPORT ValueDeserializer {
   //  - Values 1000 and above mean an error in the metadata (i.e. context). The
   //    file could not be read, the network is down, etc.
   //  - Negative values are reserved.
-  //
-  // These values are persisted to logs. Entries should not be renumbered and
-  // numeric values should never be reused.
   enum ErrorCode {
     kErrorCodeNoError = 0,
     // kErrorCodeInvalidFormat is a generic error code for "the data is not in

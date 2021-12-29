@@ -15,27 +15,12 @@
 #ifndef CRASHPAD_UTIL_IOS_IOS_INTERMEDIATE_DUMP_READER_H_
 #define CRASHPAD_UTIL_IOS_IOS_INTERMEDIATE_DUMP_READER_H_
 
-#include "util/ios/ios_intermediate_dump_interface.h"
+#include "base/files/file_path.h"
+#include "util/file/file_reader.h"
 #include "util/ios/ios_intermediate_dump_map.h"
-#include "util/misc/initialization_state_dcheck.h"
 
 namespace crashpad {
 namespace internal {
-
-//! \brief The return value for IOSIntermediateDumpReader::Initialize.
-enum class IOSIntermediateDumpReaderInitializeResult : int {
-  //! \brief The intermediate dump was read successfully, initialization
-  //!     succeeded.
-  kSuccess,
-
-  //! \brief The intermediate dump could be loaded, but parsing was incomplete.
-  //!     An attempt to parse the RootMap should still be made, as there may
-  //!     still be valuable information to put into a minidump.
-  kIncomplete,
-
-  //! \brief The intermediate dump could not be loaded, initialization failed.
-  kFailure,
-};
 
 //! \brief Open and parse iOS intermediate dumps.
 class IOSIntermediateDumpReader {
@@ -46,29 +31,26 @@ class IOSIntermediateDumpReader {
   IOSIntermediateDumpReader& operator=(const IOSIntermediateDumpReader&) =
       delete;
 
-  //! \brief Open and parses \a dump_interface.
+  //! \brief Open and parses \a path, ignoring empty files.
   //!
   //! Will attempt to parse the binary file, similar to a JSON file, using the
   //! same format used by IOSIntermediateDumpWriter, resulting in an
   //! IOSIntermediateDumpMap
   //!
-  //! \param[in] dump_interface An interface corresponding to an intermediate
-  //!     dump file.
+  //! \param[in] path The intermediate dump to read.
   //!
   //! \return On success, returns `true`, otherwise returns `false`. Clients may
   //!     still attempt to parse RootMap, as partial minidumps may still be
   //!     usable.
-  IOSIntermediateDumpReaderInitializeResult Initialize(
-      const IOSIntermediateDumpInterface& dump_interface);
+  bool Initialize(const base::FilePath& path);
 
   //! \brief Returns an IOSIntermediateDumpMap corresponding to the root of the
   //!     intermediate dump.
-  const IOSIntermediateDumpMap* RootMap();
+  const IOSIntermediateDumpMap* RootMap() { return &minidump_; }
 
  private:
   bool Parse(FileReaderInterface* reader, FileOffset file_size);
-  IOSIntermediateDumpMap intermediate_dump_;
-  InitializationStateDcheck initialized_;
+  IOSIntermediateDumpMap minidump_;
 };
 
 }  // namespace internal

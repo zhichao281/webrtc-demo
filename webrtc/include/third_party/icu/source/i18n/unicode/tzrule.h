@@ -56,7 +56,7 @@ public:
      * @return  true if the given <code>TimeZoneRule</code> objects are semantically equal.
      * @stable ICU 3.8
      */
-    virtual bool operator==(const TimeZoneRule& that) const;
+    virtual UBool operator==(const TimeZoneRule& that) const;
 
     /**
      * Return true if the given <code>TimeZoneRule</code> objects are semantically unequal. Objects
@@ -65,7 +65,7 @@ public:
      * @return  true if the given <code>TimeZoneRule</code> objects are semantically unequal.
      * @stable ICU 3.8
      */
-    virtual bool operator!=(const TimeZoneRule& that) const;
+    virtual UBool operator!=(const TimeZoneRule& that) const;
 
     /**
      * Fills in "name" with the name of this time zone.
@@ -231,7 +231,7 @@ public:
      * @return    A copy of the object.
      * @stable ICU 3.8
      */
-    virtual InitialTimeZoneRule* clone() const override;
+    virtual InitialTimeZoneRule* clone() const;
 
     /**
      * Assignment operator.
@@ -247,7 +247,7 @@ public:
      * @return  true if the given <code>TimeZoneRule</code> objects are semantically equal.
      * @stable ICU 3.8
      */
-    virtual bool operator==(const TimeZoneRule& that) const override;
+    virtual UBool operator==(const TimeZoneRule& that) const;
 
     /**
      * Return true if the given <code>TimeZoneRule</code> objects are semantically unequal. Objects
@@ -256,7 +256,7 @@ public:
      * @return  true if the given <code>TimeZoneRule</code> objects are semantically unequal.
      * @stable ICU 3.8
      */
-    virtual bool operator!=(const TimeZoneRule& that) const override;
+    virtual UBool operator!=(const TimeZoneRule& that) const;
 
     /**
      * Gets the time when this rule takes effect in the given year.
@@ -280,7 +280,7 @@ public:
      * @return  true if the other <code>TimeZoneRule</code> is equivalent to this one.
      * @stable ICU 3.8
      */
-    virtual UBool isEquivalentTo(const TimeZoneRule& that) const override;
+    virtual UBool isEquivalentTo(const TimeZoneRule& that) const;
 
     /**
      * Gets the very first time when this rule takes effect.
@@ -293,7 +293,7 @@ public:
      *          "result" is unchanged.
      * @stable ICU 3.8
      */
-    virtual UBool getFirstStart(int32_t prevRawOffset, int32_t prevDSTSavings, UDate& result) const override;
+    virtual UBool getFirstStart(int32_t prevRawOffset, int32_t prevDSTSavings, UDate& result) const;
 
     /**
      * Gets the final time when this rule takes effect.
@@ -306,7 +306,7 @@ public:
      *          "result" is unchanged.
      * @stable ICU 3.8
      */
-    virtual UBool getFinalStart(int32_t prevRawOffset, int32_t prevDSTSavings, UDate& result) const override;
+    virtual UBool getFinalStart(int32_t prevRawOffset, int32_t prevDSTSavings, UDate& result) const;
 
     /**
      * Gets the first time when this rule takes effect after the specified time.
@@ -323,7 +323,7 @@ public:
      * @stable ICU 3.8
      */
     virtual UBool getNextStart(UDate base, int32_t prevRawOffset, int32_t prevDSTSavings,
-        UBool inclusive, UDate& result) const override;
+        UBool inclusive, UDate& result) const;
 
     /**
      * Gets the most recent time when this rule takes effect before the specified time.
@@ -340,7 +340,7 @@ public:
      * @stable ICU 3.8
      */
     virtual UBool getPreviousStart(UDate base, int32_t prevRawOffset, int32_t prevDSTSavings,
-        UBool inclusive, UDate& result) const override;
+        UBool inclusive, UDate& result) const;
 
 public:
     /**
@@ -367,7 +367,7 @@ public:
      *                  other classes have different class IDs.
      * @stable ICU 3.8
      */
-    virtual UClassID getDynamicClassID(void) const override;
+    virtual UClassID getDynamicClassID(void) const;
 };
 
 /**
@@ -442,7 +442,7 @@ public:
      * @return    A copy of the object.
      * @stable ICU 3.8
      */
-    virtual AnnualTimeZoneRule* clone() const override;
+    virtual AnnualTimeZoneRule* clone() const;
 
     /**
      * Assignment operator.
@@ -458,7 +458,7 @@ public:
      * @return  true if the given <code>TimeZoneRule</code> objects are semantically equal.
      * @stable ICU 3.8
      */
-    virtual bool operator==(const TimeZoneRule& that) const override;
+    virtual UBool operator==(const TimeZoneRule& that) const;
 
     /**
      * Return true if the given <code>TimeZoneRule</code> objects are semantically unequal. Objects
@@ -467,7 +467,7 @@ public:
      * @return  true if the given <code>TimeZoneRule</code> objects are semantically unequal.
      * @stable ICU 3.8
      */
-    virtual bool operator!=(const TimeZoneRule& that) const override;
+    virtual UBool operator!=(const TimeZoneRule& that) const;
 
     /**
      * Gets the start date/time rule used by this rule.
@@ -515,7 +515,7 @@ public:
      * @return  true if the other <code>TimeZoneRule</code> is equivalent to this one.
      * @stable ICU 3.8
      */
-    virtual UBool isEquivalentTo(const TimeZoneRule& that) const override;
+    virtual UBool isEquivalentTo(const TimeZoneRule& that) const;
 
     /**
      * Gets the very first time when this rule takes effect.
@@ -528,7 +528,7 @@ public:
      *          "result" is unchanged.
      * @stable ICU 3.8
      */
-    virtual UBool getFirstStart(int32_t prevRawOffset, int32_t prevDSTSavings, UDate& result) const override;
+    virtual UBool getFirstStart(int32_t prevRawOffset, int32_t prevDSTSavings, UDate& result) const;
 
     /**
      * Gets the final time when this rule takes effect.
@@ -541,7 +541,7 @@ public:
      *          "result" is unchanged.
      * @stable ICU 3.8
      */
-    virtual UBool getFinalStart(int32_t prevRawOffset, int32_t prevDSTSavings, UDate& result) const override;
+    virtual UBool getFinalStart(int32_t prevRawOffset, int32_t prevDSTSavings, UDate& result) const;
 
     /**
      * Gets the first time when this rule takes effect after the specified time.
@@ -558,7 +558,7 @@ public:
      * @stable ICU 3.8
      */
     virtual UBool getNextStart(UDate base, int32_t prevRawOffset, int32_t prevDSTSavings,
-        UBool inclusive, UDate& result) const override;
+        UBool inclusive, UDate& result) const;
 
     /**
      * Gets the most recent time when this rule takes effect before the specified time.
@@ -575,7 +575,7 @@ public:
      * @stable ICU 3.8
      */
     virtual UBool getPreviousStart(UDate base, int32_t prevRawOffset, int32_t prevDSTSavings,
-        UBool inclusive, UDate& result) const override;
+        UBool inclusive, UDate& result) const;
 
 
 private:
@@ -608,7 +608,7 @@ public:
      *                  other classes have different class IDs.
      * @stable ICU 3.8
      */
-    virtual UClassID getDynamicClassID(void) const override;
+    virtual UClassID getDynamicClassID(void) const;
 };
 
 /**
@@ -658,7 +658,7 @@ public:
      * @return    A copy of the object.
      * @stable ICU 3.8
      */
-    virtual TimeArrayTimeZoneRule* clone() const override;
+    virtual TimeArrayTimeZoneRule* clone() const;
 
     /**
      * Assignment operator.
@@ -674,7 +674,7 @@ public:
      * @return  true if the given <code>TimeZoneRule</code> objects are semantically equal.
      * @stable ICU 3.8
      */
-    virtual bool operator==(const TimeZoneRule& that) const override;
+    virtual UBool operator==(const TimeZoneRule& that) const;
 
     /**
      * Return true if the given <code>TimeZoneRule</code> objects are semantically unequal. Objects
@@ -683,7 +683,7 @@ public:
      * @return  true if the given <code>TimeZoneRule</code> objects are semantically unequal.
      * @stable ICU 3.8
      */
-    virtual bool operator!=(const TimeZoneRule& that) const override;
+    virtual UBool operator!=(const TimeZoneRule& that) const;
 
     /**
      * Gets the time type of the start times used by this rule.  The return value
@@ -721,7 +721,7 @@ public:
      * @return  true if the other <code>TimeZoneRule</code> is equivalent to this one.
      * @stable ICU 3.8
      */
-    virtual UBool isEquivalentTo(const TimeZoneRule& that) const override;
+    virtual UBool isEquivalentTo(const TimeZoneRule& that) const;
 
     /**
      * Gets the very first time when this rule takes effect.
@@ -734,7 +734,7 @@ public:
      *          "result" is unchanged.
      * @stable ICU 3.8
      */
-    virtual UBool getFirstStart(int32_t prevRawOffset, int32_t prevDSTSavings, UDate& result) const override;
+    virtual UBool getFirstStart(int32_t prevRawOffset, int32_t prevDSTSavings, UDate& result) const;
 
     /**
      * Gets the final time when this rule takes effect.
@@ -747,7 +747,7 @@ public:
      *          "result" is unchanged.
      * @stable ICU 3.8
      */
-    virtual UBool getFinalStart(int32_t prevRawOffset, int32_t prevDSTSavings, UDate& result) const override;
+    virtual UBool getFinalStart(int32_t prevRawOffset, int32_t prevDSTSavings, UDate& result) const;
 
     /**
      * Gets the first time when this rule takes effect after the specified time.
@@ -764,7 +764,7 @@ public:
      * @stable ICU 3.8
      */
     virtual UBool getNextStart(UDate base, int32_t prevRawOffset, int32_t prevDSTSavings,
-        UBool inclusive, UDate& result) const override;
+        UBool inclusive, UDate& result) const;
 
     /**
      * Gets the most recent time when this rule takes effect before the specified time.
@@ -781,7 +781,7 @@ public:
      * @stable ICU 3.8
      */
     virtual UBool getPreviousStart(UDate base, int32_t prevRawOffset, int32_t prevDSTSavings,
-        UBool inclusive, UDate& result) const override;
+        UBool inclusive, UDate& result) const;
 
 
 private:
@@ -819,7 +819,7 @@ public:
      *                  other classes have different class IDs.
      * @stable ICU 3.8
      */
-    virtual UClassID getDynamicClassID(void) const override;
+    virtual UClassID getDynamicClassID(void) const;
 };
 
 

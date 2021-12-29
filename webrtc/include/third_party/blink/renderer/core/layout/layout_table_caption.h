@@ -44,7 +44,7 @@ class LayoutTable;
 // positioning.
 class LayoutTableCaption : public LayoutBlockFlow {
  public:
-  explicit LayoutTableCaption(ContainerNode*);
+  explicit LayoutTableCaption(Element*);
   ~LayoutTableCaption() override;
   LayoutUnit ContainingBlockLogicalWidthForContent() const override;
 

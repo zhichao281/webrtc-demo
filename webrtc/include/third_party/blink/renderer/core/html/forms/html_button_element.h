@@ -46,7 +46,7 @@ class HTMLButtonElement final : public HTMLFormControlElement {
                          InputDeviceCapabilities*) override;
 
  private:
-  enum Type { kSubmit, kReset, kButton };
+  enum Type { SUBMIT, RESET, BUTTON };
 
   const AtomicString& FormControlType() const override;
 
@@ -82,8 +82,8 @@ class HTMLButtonElement final : public HTMLFormControlElement {
 
   int DefaultTabIndex() const override;
 
-  Type type_ = kSubmit;
-  bool is_activated_submit_ = false;
+  Type type_;
+  bool is_activated_submit_;
 };
 
 }  // namespace blink

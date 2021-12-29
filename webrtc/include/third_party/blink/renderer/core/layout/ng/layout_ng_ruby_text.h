@@ -22,10 +22,7 @@ class CORE_EXPORT LayoutNGRubyText final
   explicit LayoutNGRubyText(Element* element);
   ~LayoutNGRubyText() override;
 
-  const char* GetName() const override {
-    NOT_DESTROYED();
-    return "LayoutNGRubyText";
-  }
+  const char* GetName() const override { return "LayoutNGRubyText"; }
   void UpdateBlockLayout(bool relayout_children) override;
 };
 

@@ -9,6 +9,8 @@
 
 #include <stddef.h>
 
+#include "base/macros.h"
+
 namespace base {
 namespace win {
 

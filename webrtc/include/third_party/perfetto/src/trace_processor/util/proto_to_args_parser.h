@@ -136,8 +136,7 @@ class ProtoToArgsParser {
   base::Status ParseMessage(const protozero::ConstBytes& cb,
                             const std::string& type,
                             const std::vector<uint16_t>* allowed_fields,
-                            Delegate& delegate,
-                            int* unknown_extensions = nullptr);
+                            Delegate& delegate);
 
   // This class is responsible for resetting the current key prefix to the old
   // value when deleted or reset.
@@ -238,8 +237,7 @@ class ProtoToArgsParser {
   base::Status ParseField(const FieldDescriptor& field_descriptor,
                           int repeated_field_number,
                           protozero::Field field,
-                          Delegate& delegate,
-                          int* unknown_extensions);
+                          Delegate& delegate);
 
   base::Optional<base::Status> MaybeApplyOverrideForField(
       const protozero::Field&,
@@ -257,8 +255,7 @@ class ProtoToArgsParser {
                                     const protozero::ConstBytes& cb,
                                     const std::string& type,
                                     const std::vector<uint16_t>* fields,
-                                    Delegate& delegate,
-                                    int* unknown_extensions);
+                                    Delegate& delegate);
 
   base::Status ParseSimpleField(const FieldDescriptor& desciptor,
                                 const protozero::Field& field,

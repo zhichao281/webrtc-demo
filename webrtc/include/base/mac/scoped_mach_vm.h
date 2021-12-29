@@ -13,6 +13,7 @@
 
 #include "base/base_export.h"
 #include "base/check_op.h"
+#include "base/macros.h"
 
 // Use ScopedMachVM to supervise ownership of pages in the current process
 // through the Mach VM subsystem. Pages allocated with vm_allocate can be

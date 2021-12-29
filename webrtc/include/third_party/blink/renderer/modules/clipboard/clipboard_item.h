@@ -6,6 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_CLIPBOARD_CLIPBOARD_ITEM_H_
 
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/renderer/core/fileapi/blob.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 
@@ -19,19 +20,17 @@ class ClipboardItem final : public ScriptWrappable {
 
  public:
   static ClipboardItem* Create(
-      const HeapVector<std::pair<String, ScriptPromise>>& items,
+      const HeapVector<std::pair<String, Member<Blob>>>& items,
       const ClipboardItemOptions* options,
       ExceptionState& exception_state);
 
   explicit ClipboardItem(
-      const HeapVector<std::pair<String, ScriptPromise>>& items,
+      const HeapVector<std::pair<String, Member<Blob>>>& items,
       const ClipboardItemOptions* options);
   Vector<String> types() const;
-  ScriptPromise getType(ScriptState* script_state,
-                        const String& type,
-                        ExceptionState& exception_state) const;
+  ScriptPromise getType(ScriptState* script_state, const String& type) const;
 
-  const HeapVector<std::pair<String, ScriptPromise>>& GetItems() const {
+  const HeapVector<std::pair<String, Member<Blob>>>& GetItems() const {
     return items_;
   }
 
@@ -41,7 +40,7 @@ class ClipboardItem final : public ScriptWrappable {
   void Trace(Visitor*) const override;
 
  private:
-  HeapVector<std::pair<String, ScriptPromise>> items_;
+  HeapVector<std::pair<String, Member<Blob>>> items_;
   Vector<String> custom_format_items_;
 };
 

@@ -33,6 +33,7 @@
 
 #include <memory>
 #include "base/callback_forward.h"
+#include "base/macros.h"
 #include "third_party/blink/public/mojom/devtools/console_message.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/source_location.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
@@ -48,7 +49,7 @@ class KURL;
 class MODULES_EXPORT WebSocketChannel
     : public GarbageCollected<WebSocketChannel> {
  public:
-  enum class SendResult { kSentSynchronously, kCallbackWillBeCalled };
+  enum class SendResult { SENT_SYNCHRONOUSLY, CALLBACK_WILL_BE_CALLED };
 
   WebSocketChannel() = default;
 

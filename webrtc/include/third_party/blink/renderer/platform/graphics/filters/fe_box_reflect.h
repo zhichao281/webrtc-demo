@@ -22,7 +22,7 @@ class PLATFORM_EXPORT FEBoxReflect final : public FilterEffect {
                                           int indentation) const final;
 
  private:
-  gfx::RectF MapEffect(const gfx::RectF&) const final;
+  FloatRect MapEffect(const FloatRect&) const final;
 
   sk_sp<PaintFilter> CreateImageFilter() final;
 

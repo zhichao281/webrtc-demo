@@ -22,13 +22,12 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/platform/geometry/float_point.h"
+#include "third_party/blink/renderer/platform/geometry/int_point.h"
+#include "third_party/blink/renderer/platform/geometry/int_rect.h"
 #include "third_party/blink/renderer/platform/geometry/layout_size.h"
-#include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
-#include "ui/gfx/geometry/point.h"
-#include "ui/gfx/geometry/point_f.h"
-#include "ui/gfx/geometry/rect.h"
 
 namespace blink {
 
@@ -36,14 +35,14 @@ class Node;
 class LocalFrame;
 
 bool FindBestClickableCandidate(Node*& target_node,
-                                gfx::Point& target_point,
-                                const gfx::Point& touch_hotspot,
-                                const gfx::Rect& touch_area,
+                                IntPoint& target_point,
+                                const IntPoint& touch_hotspot,
+                                const IntRect& touch_area,
                                 const HeapVector<Member<Node>>&);
 bool FindBestContextMenuCandidate(Node*& target_node,
-                                  gfx::Point& target_point,
-                                  const gfx::Point& touch_hotspot,
-                                  const gfx::Rect& touch_area,
+                                  IntPoint& target_point,
+                                  const IntPoint& touch_hotspot,
+                                  const IntRect& touch_area,
                                   const HeapVector<Member<Node>>&);
 
 // Applies an upper bound to the touch area as the adjustment rect. The
@@ -54,7 +53,7 @@ GetHitTestRectForAdjustment(LocalFrame& frame, const LayoutSize& touch_area);
 
 struct TouchAdjustmentResult {
   uint32_t unique_event_id;
-  gfx::PointF adjusted_point;
+  FloatPoint adjusted_point;
 };
 
 }  // namespace blink

@@ -15,25 +15,17 @@ class LayoutNGMathMLBlockFlow final : public LayoutNGBlockFlow {
  public:
   explicit LayoutNGMathMLBlockFlow(Element*);
 
-  const char* GetName() const final {
-    NOT_DESTROYED();
-    return "LayoutNGMathMLBlockFlow";
-  }
+  const char* GetName() const final { return "LayoutNGMathMLBlockFlow"; }
 
  private:
   bool IsOfType(LayoutObjectType) const final;
   bool IsChildAllowed(LayoutObject*, const ComputedStyle&) const final {
-    NOT_DESTROYED();
     return true;
   }
-  bool CreatesNewFormattingContext() const final {
-    NOT_DESTROYED();
-    return true;
-  }
+  bool CreatesNewFormattingContext() const final { return true; }
 
   PaginationBreakability GetPaginationBreakability(
       FragmentationEngine) const final {
-    NOT_DESTROYED();
     return kForbidBreaks;
   }
 };

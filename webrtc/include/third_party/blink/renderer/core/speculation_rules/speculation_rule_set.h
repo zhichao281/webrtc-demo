@@ -9,6 +9,7 @@
 #include "third_party/blink/renderer/core/speculation_rules/speculation_rule.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/heap/heap.h"
 
 namespace blink {
 
@@ -19,7 +20,7 @@ class SpeculationRule;
 // provides rules to identify URLs and corresponding conditions for speculation,
 // grouped by the action that is suggested.
 //
-// https://wicg.github.io/nav-speculation/speculation-rules.html#speculation-rule-set
+// https://jeremyroman.github.io/alternate-loading-modes/#speculation-rule-set
 class CORE_EXPORT SpeculationRuleSet final
     : public GarbageCollected<SpeculationRuleSet> {
  public:

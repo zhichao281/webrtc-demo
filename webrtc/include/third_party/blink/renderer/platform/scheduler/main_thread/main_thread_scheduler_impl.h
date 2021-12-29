@@ -37,6 +37,7 @@
 #include "third_party/blink/renderer/platform/scheduler/main_thread/main_thread_scheduler_helper.h"
 #include "third_party/blink/renderer/platform/scheduler/main_thread/main_thread_task_queue.h"
 #include "third_party/blink/renderer/platform/scheduler/main_thread/memory_purge_manager.h"
+#include "third_party/blink/renderer/platform/scheduler/main_thread/non_waking_time_domain.h"
 #include "third_party/blink/renderer/platform/scheduler/main_thread/page_scheduler_impl.h"
 #include "third_party/blink/renderer/platform/scheduler/main_thread/pending_user_input.h"
 #include "third_party/blink/renderer/platform/scheduler/main_thread/render_widget_signals.h"
@@ -263,9 +264,12 @@ class PLATFORM_EXPORT MainThreadSchedulerImpl
   // ThreadSchedulerImpl implementation:
   scoped_refptr<SingleThreadIdleTaskRunner> IdleTaskRunner() override;
   scoped_refptr<base::SingleThreadTaskRunner> ControlTaskRunner() override;
-  const base::TickClock* GetTickClock() const override;
-
-  base::TimeTicks NowTicks() const;
+  void RegisterTimeDomain(
+      base::sequence_manager::TimeDomain* time_domain) override;
+  void UnregisterTimeDomain(
+      base::sequence_manager::TimeDomain* time_domain) override;
+  base::sequence_manager::TimeDomain* GetActiveTimeDomain() override;
+  const base::TickClock* GetTickClock() override;
 
   scoped_refptr<base::SingleThreadTaskRunner> VirtualTimeControlTaskRunner();
 
@@ -347,6 +351,12 @@ class PLATFORM_EXPORT MainThreadSchedulerImpl
                                base::TimeTicks time_remaining);
   bool PolicyNeedsUpdateForTesting();
 
+  const base::TickClock* tick_clock() const;
+
+  base::sequence_manager::TimeDomain* real_time_domain() const {
+    return helper_.real_time_domain();
+  }
+
   AutoAdvancingVirtualTimeDomain* GetVirtualTimeDomain();
 
   std::unique_ptr<CPUTimeBudgetPool> CreateCPUTimeBudgetPoolForTesting(
@@ -388,6 +398,11 @@ class PLATFORM_EXPORT MainThreadSchedulerImpl
   void SetPrioritizeCompositingAfterInput(
       bool prioritize_compositing_after_input);
 
+  // Allow places in the scheduler to do some work after the current task.
+  // The primary use case here is batching – to allow updates to be processed
+  // only once per task.
+  void ExecuteAfterCurrentTask(base::OnceClosure on_completion_task);
+
   base::WeakPtr<MainThreadSchedulerImpl> GetWeakPtr();
 
   base::sequence_manager::TaskQueue::QueuePriority compositor_priority() const {
@@ -408,9 +423,6 @@ class PLATFORM_EXPORT MainThreadSchedulerImpl
   }
 
  protected:
-  // ThreadSchedulerImpl implementation:
-  WTF::Vector<base::OnceClosure>& GetOnTaskCompletionCallbacks() override;
-
   scoped_refptr<MainThreadTaskQueue> ControlTaskQueue();
   scoped_refptr<MainThreadTaskQueue> DefaultTaskQueue();
   scoped_refptr<MainThreadTaskQueue> CompositorTaskQueue();
@@ -553,6 +565,8 @@ class PLATFORM_EXPORT MainThreadSchedulerImpl
     }
 
     bool IsQueueEnabled(MainThreadTaskQueue* task_queue) const;
+
+    TimeDomainType GetTimeDomainType() const;
 
     void WriteIntoTrace(perfetto::TracedValue context) const;
 
@@ -744,6 +758,10 @@ class PLATFORM_EXPORT MainThreadSchedulerImpl
 
   void ShutdownAllQueues();
 
+  // Dispatch the callbacks which requested to be executed after the current
+  // task.
+  void DispatchOnTaskCompletionCallbacks();
+
   bool AllPagesFrozen() const;
 
   // Indicates that scheduler has been shutdown.
@@ -803,6 +821,7 @@ class PLATFORM_EXPORT MainThreadSchedulerImpl
 
   // Note |virtual_time_domain_| is lazily created.
   std::unique_ptr<AutoAdvancingVirtualTimeDomain> virtual_time_domain_;
+  NonWakingTimeDomain non_waking_time_domain_;
 
   base::RepeatingClosure update_policy_closure_;
   DeadlineTaskRunner delayed_update_policy_runner_;
@@ -820,53 +839,53 @@ class PLATFORM_EXPORT MainThreadSchedulerImpl
     bool IsInNestedRunloop();
 
     IdleTimeEstimator idle_time_estimator;
-    TraceableState<UseCase, TracingCategory::kDefault> current_use_case;
+    TraceableState<UseCase, TracingCategoryName::kDefault> current_use_case;
     Policy current_policy;
     base::TimeTicks current_policy_expiration_time;
     base::TimeTicks estimated_next_frame_begin;
     base::TimeTicks current_task_start_time;
     base::TimeDelta compositor_frame_interval;
-    TraceableCounter<base::TimeDelta, TracingCategory::kDebug>
+    TraceableCounter<base::TimeDelta, TracingCategoryName::kDebug>
         longest_jank_free_task_duration;
-    TraceableCounter<int, TracingCategory::kInfo>
+    TraceableCounter<int, TracingCategoryName::kInfo>
         renderer_pause_count;  // Renderer is paused if non-zero.
 
     TraceableObjectState<RAILMode,
-                         TracingCategory::kTopLevel>
+                         TracingCategoryName::kTopLevel>
         rail_mode_for_tracing;  // Don't use except for tracing.
 
-    TraceableObjectState<bool, TracingCategory::kTopLevel> renderer_hidden;
+    TraceableState<bool, TracingCategoryName::kTopLevel> renderer_hidden;
     absl::optional<base::ScopedSampleMetadata> renderer_hidden_metadata;
-    TraceableObjectState<bool, TracingCategory::kTopLevel>
-        renderer_backgrounded;
-    TraceableState<bool, TracingCategory::kDefault>
+    TraceableState<bool, TracingCategoryName::kTopLevel> renderer_backgrounded;
+    TraceableState<bool, TracingCategoryName::kDefault>
         blocking_input_expected_soon;
-    TraceableState<bool, TracingCategory::kDebug>
+    TraceableState<bool, TracingCategoryName::kDebug>
         have_reported_blocking_intervention_in_current_policy;
-    TraceableState<bool, TracingCategory::kDebug>
+    TraceableState<bool, TracingCategoryName::kDebug>
         have_reported_blocking_intervention_since_navigation;
-    TraceableState<bool, TracingCategory::kDebug>
+    TraceableState<bool, TracingCategoryName::kDebug>
         has_visible_render_widget_with_touch_handler;
-    TraceableState<bool, TracingCategory::kDebug> in_idle_period_for_testing;
-    TraceableState<bool, TracingCategory::kInfo> use_virtual_time;
-    TraceableState<bool, TracingCategory::kTopLevel> is_audio_playing;
-    TraceableState<bool, TracingCategory::kDebug>
+    TraceableState<bool, TracingCategoryName::kDebug>
+        in_idle_period_for_testing;
+    TraceableState<bool, TracingCategoryName::kInfo> use_virtual_time;
+    TraceableState<bool, TracingCategoryName::kTopLevel> is_audio_playing;
+    TraceableState<bool, TracingCategoryName::kDebug>
         compositor_will_send_main_frame_not_expected;
-    TraceableState<bool, TracingCategory::kDebug> has_navigated;
-    TraceableState<bool, TracingCategory::kDebug> pause_timers_for_webview;
+    TraceableState<bool, TracingCategoryName::kDebug> has_navigated;
+    TraceableState<bool, TracingCategoryName::kDebug> pause_timers_for_webview;
     base::TimeTicks background_status_changed_at;
     HashSet<PageSchedulerImpl*> page_schedulers;  // Not owned.
     base::ObserverList<RAILModeObserver>::Unchecked
         rail_mode_observers;  // Not owned.
     MainThreadMetricsHelper metrics_helper;
-    TraceableState<WebRendererProcessType, TracingCategory::kTopLevel>
+    TraceableState<WebRendererProcessType, TracingCategoryName::kTopLevel>
         process_type;
     TraceableState<absl::optional<TaskDescriptionForTracing>,
-                   TracingCategory::kInfo>
+                   TracingCategoryName::kInfo>
         task_description_for_tracing;  // Don't use except for tracing.
     TraceableState<
         absl::optional<base::sequence_manager::TaskQueue::QueuePriority>,
-        TracingCategory::kInfo>
+        TracingCategoryName::kInfo>
         task_priority_for_tracing;  // Only used for tracing.
     base::Time initial_virtual_time;
     base::TimeTicks initial_virtual_time_ticks;
@@ -897,7 +916,7 @@ class PLATFORM_EXPORT MainThreadSchedulerImpl
     // High-priority for compositing events after input. This will cause
     // compositing events get a higher priority until the start of the next
     // animation frame.
-    TraceableState<bool, TracingCategory::kDefault>
+    TraceableState<bool, TracingCategoryName::kDefault>
         prioritize_compositing_after_input;
 
     // List of callbacks to execute after the current task.
@@ -909,7 +928,7 @@ class PLATFORM_EXPORT MainThreadSchedulerImpl
     // kNormalPriority and is updated via UpdateCompositorTaskQueuePriority().
     // After 100ms with nothing running from this queue, the compositor will
     // be set to kVeryHighPriority until a frame is run.
-    TraceableState<TaskQueue::QueuePriority, TracingCategory::kDefault>
+    TraceableState<TaskQueue::QueuePriority, TracingCategoryName::kDefault>
         compositor_priority;
     base::TimeTicks last_frame_time;
     bool should_prioritize_compositor_task_queue_after_delay;
@@ -928,21 +947,23 @@ class PLATFORM_EXPORT MainThreadSchedulerImpl
     base::TimeTicks last_idle_period_end_time;
     base::TimeTicks fling_compositor_escalation_deadline;
     UserModel user_model;
-    TraceableState<bool, TracingCategory::kInfo> awaiting_touch_start_response;
-    TraceableState<bool, TracingCategory::kInfo> in_idle_period;
-    TraceableState<bool, TracingCategory::kInfo>
+    TraceableState<bool, TracingCategoryName::kInfo>
+        awaiting_touch_start_response;
+    TraceableState<bool, TracingCategoryName::kInfo> in_idle_period;
+    TraceableState<bool, TracingCategoryName::kInfo>
         begin_main_frame_on_critical_path;
-    TraceableState<bool, TracingCategory::kInfo>
+    TraceableState<bool, TracingCategoryName::kInfo>
         last_gesture_was_compositor_driven;
-    TraceableState<bool, TracingCategory::kInfo> default_gesture_prevented;
-    TraceableState<bool, TracingCategory::kInfo> have_seen_a_blocking_gesture;
-    TraceableState<bool, TracingCategory::kInfo>
+    TraceableState<bool, TracingCategoryName::kInfo> default_gesture_prevented;
+    TraceableState<bool, TracingCategoryName::kInfo>
+        have_seen_a_blocking_gesture;
+    TraceableState<bool, TracingCategoryName::kInfo>
         waiting_for_any_main_frame_contentful_paint;
-    TraceableState<bool, TracingCategory::kInfo>
+    TraceableState<bool, TracingCategoryName::kInfo>
         waiting_for_any_main_frame_meaningful_paint;
-    TraceableState<bool, TracingCategory::kInfo>
+    TraceableState<bool, TracingCategoryName::kInfo>
         have_seen_input_since_navigation;
-    TraceableCounter<uint32_t, TracingCategory::kInfo>
+    TraceableCounter<uint32_t, TracingCategoryName::kInfo>
         begin_main_frame_scheduled_count;
   };
 

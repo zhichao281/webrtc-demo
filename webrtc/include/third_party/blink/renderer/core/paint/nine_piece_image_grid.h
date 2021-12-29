@@ -8,11 +8,11 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/geometry/box_sides.h"
 #include "third_party/blink/renderer/core/style/nine_piece_image.h"
-#include "third_party/blink/renderer/platform/heap/garbage_collected.h"
-#include "ui/gfx/geometry/rect.h"
-#include "ui/gfx/geometry/rect_f.h"
-#include "ui/gfx/geometry/size.h"
-#include "ui/gfx/geometry/size_f.h"
+#include "third_party/blink/renderer/platform/geometry/float_rect.h"
+#include "third_party/blink/renderer/platform/geometry/float_size.h"
+#include "third_party/blink/renderer/platform/geometry/int_rect.h"
+#include "third_party/blink/renderer/platform/geometry/int_size.h"
+#include "third_party/blink/renderer/platform/heap/heap.h"
 
 namespace blink {
 
@@ -63,10 +63,10 @@ class CORE_EXPORT NinePieceImageGrid {
 
  public:
   NinePieceImageGrid(const NinePieceImage&,
-                     const gfx::SizeF& image_size,
-                     const gfx::Vector2dF& slice_scale,
+                     FloatSize image_size,
+                     const FloatSize& slice_scale,
                      float zoom,
-                     const gfx::Rect& border_image_area,
+                     IntRect border_image_area,
                      const IntRectOutsets& border_widths,
                      PhysicalBoxSides sides_to_include = PhysicalBoxSides());
 
@@ -76,12 +76,12 @@ class CORE_EXPORT NinePieceImageGrid {
    public:
     bool is_drawable;
     bool is_corner_piece;
-    gfx::RectF destination;
-    gfx::RectF source;
+    FloatRect destination;
+    FloatRect source;
 
     // tileScale and tileRule are only useful for non-corners, i.e. edge and
     // center pieces.
-    gfx::Vector2dF tile_scale;
+    FloatSize tile_scale;
     struct {
       ENinePieceImageRule horizontal;
       ENinePieceImageRule vertical;
@@ -102,8 +102,8 @@ class CORE_EXPORT NinePieceImageGrid {
   void SetDrawInfoEdge(NinePieceDrawInfo&, NinePiece) const;
   void SetDrawInfoMiddle(NinePieceDrawInfo&) const;
 
-  gfx::Rect border_image_area_;
-  gfx::SizeF image_size_;
+  IntRect border_image_area_;
+  FloatSize image_size_;
   ENinePieceImageRule horizontal_tile_rule_;
   ENinePieceImageRule vertical_tile_rule_;
   bool fill_;

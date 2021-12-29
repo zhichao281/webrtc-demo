@@ -8,7 +8,6 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "third_party/blink/public/mojom/file_system_access/file_system_access_directory_handle.mojom-blink.h"
 #include "third_party/blink/renderer/modules/file_system_access/file_system_handle.h"
-#include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 
 namespace blink {
@@ -27,9 +26,9 @@ class FileSystemDirectoryHandle final : public FileSystemHandle {
       mojo::PendingRemote<mojom::blink::FileSystemAccessDirectoryHandle>);
 
   // FileSystemDirectoryHandle IDL interface:
-  FileSystemDirectoryIterator* entries(ExceptionState&);
-  FileSystemDirectoryIterator* keys(ExceptionState&);
-  FileSystemDirectoryIterator* values(ExceptionState&);
+  FileSystemDirectoryIterator* entries();
+  FileSystemDirectoryIterator* keys();
+  FileSystemDirectoryIterator* values();
 
   bool isDirectory() const override { return true; }
 
@@ -39,6 +38,7 @@ class FileSystemDirectoryHandle final : public FileSystemHandle {
   ScriptPromise getDirectoryHandle(ScriptState*,
                                    const String& name,
                                    const FileSystemGetDirectoryOptions*);
+  ScriptValue getEntries(ScriptState*);
   ScriptPromise removeEntry(ScriptState*,
                             const String& name,
                             const FileSystemRemoveOptions*);

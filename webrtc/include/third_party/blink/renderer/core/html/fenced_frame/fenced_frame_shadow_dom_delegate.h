@@ -24,9 +24,6 @@ class CORE_EXPORT FencedFrameShadowDOMDelegate
 
   void DidGetInserted() override;
   void Navigate(const KURL&) override;
-
- private:
-  void AddUserAgentShadowContent(ShadowRoot&);
 };
 
 }  // namespace blink

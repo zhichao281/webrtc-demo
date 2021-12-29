@@ -31,9 +31,6 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_WORKERS_DEDICATED_WORKER_THREAD_H_
 
 #include <memory>
-
-#include "services/metrics/public/cpp/ukm_source_id.h"
-#include "third_party/blink/public/mojom/frame/back_forward_cache_controller.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/worker/dedicated_worker_host.mojom-blink-forward.h"
 #include "third_party/blink/renderer/core/workers/worker_thread.h"
 
@@ -44,13 +41,10 @@ struct GlobalScopeCreationParams;
 
 class CORE_EXPORT DedicatedWorkerThread : public WorkerThread {
  public:
-  DedicatedWorkerThread(
-      ExecutionContext* parent_execution_context,
-      DedicatedWorkerObjectProxy&,
-      mojo::PendingRemote<mojom::blink::DedicatedWorkerHost>
-          dedicated_worker_host,
-      mojo::PendingRemote<mojom::blink::BackForwardCacheControllerHost>
-          back_forward_cache_controller_host);
+  DedicatedWorkerThread(ExecutionContext* parent_execution_context,
+                        DedicatedWorkerObjectProxy&,
+                        mojo::PendingRemote<mojom::blink::DedicatedWorkerHost>
+                            dedicated_worker_host);
   ~DedicatedWorkerThread() override;
 
   WorkerBackingThread& GetWorkerBackingThread() override {
@@ -78,8 +72,6 @@ class CORE_EXPORT DedicatedWorkerThread : public WorkerThread {
   // Passed to DedicatedWorkerGlobalScope on global scope creation.
   mojo::PendingRemote<mojom::blink::DedicatedWorkerHost>
       pending_dedicated_worker_host_;
-  mojo::PendingRemote<mojom::blink::BackForwardCacheControllerHost>
-      pending_back_forward_cache_controller_host_;
 };
 
 }  // namespace blink

@@ -16,7 +16,6 @@ namespace blink {
 
 class CullRect;
 class ComputedStyle;
-class FragmentData;
 class GraphicsContext;
 struct PhysicalOffset;
 
@@ -55,10 +54,6 @@ class CORE_EXPORT PaintLayerPainter {
   // Returns true if the painted output of this PaintLayer and its children is
   // invisible and therefore can't impact painted output.
   static bool PaintedOutputInvisible(const ComputedStyle&);
-
-  // Returns the contents visual overflow rect in the coordinate space of the
-  // contents.
-  static PhysicalRect ContentsVisualRect(const FragmentData&, const LayoutBox&);
 
   // For CullRectUpdate.
   bool ShouldUseInfiniteCullRect();

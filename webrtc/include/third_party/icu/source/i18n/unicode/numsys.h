@@ -192,7 +192,7 @@ public:
      *
      * @stable ICU 4.2
      */
-    virtual UClassID getDynamicClassID() const override;
+    virtual UClassID getDynamicClassID() const;
 
 
 private:

@@ -13,9 +13,8 @@
 
 namespace blink {
 
-class KeyboardLayoutMap final
-    : public ScriptWrappable,
-      public Maplike<String, IDLString, String, IDLString> {
+class KeyboardLayoutMap final : public ScriptWrappable,
+                                public Maplike<String, String> {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
@@ -32,8 +31,9 @@ class KeyboardLayoutMap final
 
  private:
   // Maplike implementation.
-  PairIterable<String, IDLString, String, IDLString>::IterationSource*
-  StartIteration(ScriptState*, ExceptionState&) override;
+  PairIterable<String, String>::IterationSource* StartIteration(
+      ScriptState*,
+      ExceptionState&) override;
   bool GetMapEntry(ScriptState*,
                    const String& key,
                    String& value,

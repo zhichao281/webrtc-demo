@@ -22,7 +22,7 @@ class InlineTextBox;
 class LayoutObject;
 class LayoutTextCombine;
 class StyleableMarker;
-class DocumentMarker;
+class TextMarkerBase;
 struct PhysicalOffset;
 struct PhysicalRect;
 
@@ -57,12 +57,12 @@ class InlineTextBoxPainter {
                            bool grammar);
   void PaintTextMarkerForeground(const PaintInfo&,
                                  const PhysicalOffset& box_origin,
-                                 const DocumentMarker&,
+                                 const TextMarkerBase&,
                                  const ComputedStyle&,
                                  const Font&);
   void PaintTextMarkerBackground(const PaintInfo&,
                                  const PhysicalOffset& box_origin,
-                                 const DocumentMarker&,
+                                 const TextMarkerBase&,
                                  const ComputedStyle&,
                                  const Font&);
 

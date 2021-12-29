@@ -43,14 +43,14 @@ class MODULES_EXPORT CanvasGradient final : public ScriptWrappable {
 
  public:
   // Linear Gradient
-  CanvasGradient(const gfx::PointF& p0, const gfx::PointF& p1);
+  CanvasGradient(const FloatPoint& p0, const FloatPoint& p1);
   // Radial Gradient
-  CanvasGradient(const gfx::PointF& p0,
+  CanvasGradient(const FloatPoint& p0,
                  float r0,
-                 const gfx::PointF& p1,
+                 const FloatPoint& p1,
                  float r1);
   // Conic Gradient
-  CanvasGradient(float startAngle, const gfx::PointF& center);
+  CanvasGradient(float startAngle, const FloatPoint& center);
 
   Gradient* GetGradient() const { return gradient_.get(); }
 

@@ -24,12 +24,11 @@
 
 #include "perfetto/base/compiler.h"
 #include "perfetto/protozero/proto_decoder.h"
-#include "perfetto/trace_processor/ref_counted.h"
-#include "perfetto/trace_processor/trace_blob_view.h"
 #include "src/trace_processor/importers/proto/stack_profile_tracker.h"
 #include "src/trace_processor/storage/trace_storage.h"
 #include "src/trace_processor/types/trace_processor_context.h"
 #include "src/trace_processor/util/interned_message_view.h"
+#include "src/trace_processor/util/trace_blob_view.h"
 
 #include "protos/perfetto/trace/trace_packet_defaults.pbzero.h"
 #include "protos/perfetto/trace/track_event/track_event.pbzero.h"
@@ -44,7 +43,7 @@ using InternedFieldMap =
 
 class PacketSequenceState;
 
-class PacketSequenceStateGeneration : public RefCounted {
+class PacketSequenceStateGeneration {
  public:
   // Returns |nullptr| if the message with the given |iid| was not found (also
   // records a stat in this case).
@@ -119,7 +118,7 @@ class PacketSequenceStateGeneration : public RefCounted {
 
 class PacketSequenceState {
  public:
-  explicit PacketSequenceState(TraceProcessorContext* context)
+  PacketSequenceState(TraceProcessorContext* context)
       : context_(context), sequence_stack_profile_tracker_(context) {
     current_generation_.reset(
         new PacketSequenceStateGeneration(this, generation_index_++));
@@ -198,7 +197,7 @@ class PacketSequenceState {
   }
 
   // Returns a ref-counted ptr to the current generation.
-  RefPtr<PacketSequenceStateGeneration> current_generation() const {
+  std::shared_ptr<PacketSequenceStateGeneration> current_generation() const {
     return current_generation_;
   }
 
@@ -243,7 +242,7 @@ class PacketSequenceState {
   int64_t track_event_thread_timestamp_ns_ = 0;
   int64_t track_event_thread_instruction_count_ = 0;
 
-  RefPtr<PacketSequenceStateGeneration> current_generation_;
+  std::shared_ptr<PacketSequenceStateGeneration> current_generation_;
   SequenceStackProfileTracker sequence_stack_profile_tracker_;
 };
 

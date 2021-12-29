@@ -73,7 +73,7 @@ class CORE_EXPORT ExternalPopupMenu final
 
  private:
   // PopupMenu methods:
-  void Show(ShowEventType type) override;
+  void Show() override;
   void Hide() override;
   void UpdateFromElement(UpdateReason) override;
   void DisconnectClient() override;

@@ -9,7 +9,6 @@
 #include "cc/raster/playback_image_provider.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_resource_host.h"
 #include "third_party/blink/renderer/platform/graphics/image_orientation.h"
 #include "third_party/blink/renderer/platform/graphics/memory_managed_paint_recorder.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_recorder.h"
@@ -90,9 +89,9 @@ class PLATFORM_EXPORT CanvasResourceProvider
   // long-running RasterCHROMIUM calls that monopolize the main thread
   // of the GPU process.  By flushing periodically, we allow the rasterization
   // of canvas contents to be interleaved with other compositing and UI work.
-  static constexpr size_t kMaxRecordedOpBytes = 4 * 1024 * 1024;
+  static constexpr size_t kMaxRecordedOpBytes = 1024 * 1024;
   // The same value as is used in content::WebGraphicsConext3DProviderImpl.
-  static constexpr uint64_t kDefaultMaxPinnedImageBytes = 64 * 1024 * 1024;
+  static constexpr uint64_t kMaxPinnedImageBytes = 64 * 1024 * 1024;
 
   using RestoreMatrixClipStackCb =
       base::RepeatingCallback<void(cc::PaintCanvas*)>;
@@ -143,6 +142,27 @@ class PLATFORM_EXPORT CanvasResourceProvider
       base::WeakPtr<CanvasResourceDispatcher>,
       bool is_origin_top_left);
 
+  // TODO(https://crbug.com/1260558): Remove these functions once all callers
+  // are gone.
+  static std::unique_ptr<CanvasResourceProvider> CreateBitmapProvider(
+      const IntSize& size,
+      cc::PaintFlags::FilterQuality filter_quality,
+      const CanvasResourceParams& params,
+      ShouldInitialize initialize_provider);
+  static std::unique_ptr<CanvasResourceProvider> CreateSharedImageProvider(
+      const IntSize& size,
+      cc::PaintFlags::FilterQuality filter_quality,
+      const CanvasResourceParams& params,
+      ShouldInitialize initialize_provider,
+      base::WeakPtr<WebGraphicsContext3DProviderWrapper>,
+      RasterMode raster_mode,
+      bool is_origin_top_left,
+      uint32_t shared_image_usage_flags);
+  static std::unique_ptr<CanvasResourceProvider> CreateWebGPUImageProvider(
+      const IntSize& size,
+      const CanvasResourceParams& params,
+      bool is_origin_top_left);
+
   // Use Snapshot() for capturing a frame that is intended to be displayed via
   // the compositor. Cases that are destined to be transferred via a
   // TransferableResource should call ProduceCanvasResource() instead.
@@ -152,33 +172,21 @@ class PLATFORM_EXPORT CanvasResourceProvider
   virtual scoped_refptr<StaticBitmapImage> Snapshot(
       const ImageOrientation& = ImageOrientationEnum::kDefault) = 0;
 
-  void SetCanvasResourceHost(CanvasResourceHost* resource_host) {
-    resource_host_ = resource_host;
-  }
-
-  static void SetMaxPinnedImageBytesForTesting(size_t value) {
-    max_pinned_image_bytes_ = value;
-  }
-  static void ResetMaxPinnedImageBytesForTesting() {
-    max_pinned_image_bytes_ = kDefaultMaxPinnedImageBytes;
-  }
-
   // WebGraphicsContext3DProvider::DestructionObserver implementation.
   void OnContextDestroyed() override;
 
   cc::PaintCanvas* Canvas(bool needs_will_draw = false);
   void ReleaseLockedImages();
   // FlushCanvas and do not preserve recordings.
-  void FlushCanvas();
+  sk_sp<cc::PaintRecord> FlushCanvas();
   // FlushCanvas and preserve recordings.
-  sk_sp<cc::PaintRecord> FlushCanvasAndMaybePreserveRecording();
+  sk_sp<cc::PaintRecord> FlushCanvasAndPreserveRecording();
   const SkImageInfo& GetSkImageInfo() const { return info_; }
-  SkSurfaceProps GetSkSurfaceProps() const;
-  gfx::ColorSpace GetColorSpace() const;
+  CanvasResourceParams ColorParams() const;
   void SetFilterQuality(cc::PaintFlags::FilterQuality quality) {
     filter_quality_ = quality;
   }
-  gfx::Size Size() const;
+  IntSize Size() const;
   bool IsOriginTopLeft() const { return is_origin_top_left_; }
   virtual bool IsValid() const = 0;
   virtual bool IsAccelerated() const = 0;
@@ -253,7 +261,7 @@ class PLATFORM_EXPORT CanvasResourceProvider
 
   void SkipQueuedDrawCommands();
   void SetRestoreClipStackCallback(RestoreMatrixClipStackCb);
-  void RestoreBackBuffer(const cc::PaintImage&);
+  virtual void RestoreBackBuffer(const cc::PaintImage&);
 
   ResourceProviderType GetType() const { return type_; }
   bool HasRecordedDrawOps() const;
@@ -276,10 +284,6 @@ class PLATFORM_EXPORT CanvasResourceProvider
 
   void DidPinImage(size_t bytes) override;
 
-  bool IsPrinting() { return resource_host_ && resource_host_->IsPrinting(); }
-
-  void ClearFrame() { clear_frame_ = true; }
-
  protected:
   class CanvasImageProvider;
 
@@ -296,7 +300,6 @@ class PLATFORM_EXPORT CanvasResourceProvider
   cc::PaintFlags::FilterQuality FilterQuality() const {
     return filter_quality_;
   }
-
   scoped_refptr<StaticBitmapImage> SnapshotInternal(const ImageOrientation&);
   scoped_refptr<CanvasResource> GetImportedResource() const;
   sk_sp<cc::PaintRecord> FlushCanvasInternal(bool preserve_recording);
@@ -319,6 +322,7 @@ class PLATFORM_EXPORT CanvasResourceProvider
                        bool needs_clear,
                        gpu::Mailbox mailbox,
                        bool preserve_recording);
+  void RestoreBackBufferOOP(const cc::PaintImage&);
 
   CanvasImageProvider* GetOrCreateCanvasImageProvider();
   void TearDownSkSurface();
@@ -377,10 +381,8 @@ class PLATFORM_EXPORT CanvasResourceProvider
   WTF::Vector<scoped_refptr<CanvasResource>> canvas_resources_;
   bool resource_recycling_enabled_ = true;
   bool is_single_buffered_ = false;
-  bool oopr_uses_dmsaa_ = false;
 
-  // The maximum number of in-flight resources waiting to be used for
-  // recycling.
+  // The maximum number of in-flight resources waiting to be used for recycling.
   static constexpr int kMaxRecycledCanvasResources = 2;
   // The maximum number of draw ops executed on the canvas, after which the
   // underlying GrContext is flushed.
@@ -393,21 +395,12 @@ class PLATFORM_EXPORT CanvasResourceProvider
 
   RestoreMatrixClipStackCb restore_clip_stack_callback_;
 
-  CanvasResourceHost* resource_host_;
-
-  bool clear_frame_ = true;
-  static size_t max_pinned_image_bytes_;
-
   base::WeakPtrFactory<CanvasResourceProvider> weak_ptr_factory_{this};
 };
 
 ALWAYS_INLINE void CanvasResourceProvider::FlushIfRecordingLimitExceeded() {
-  // When printing we avoid flushing if it is still possible to print in
-  // vector mode.
-  if (IsPrinting() && clear_frame_)
-    return;
   if (recorder_ && ((recorder_->BytesUsed() > kMaxRecordedOpBytes) ||
-                    total_pinned_image_bytes_ > max_pinned_image_bytes_)) {
+                    total_pinned_image_bytes_ > kMaxPinnedImageBytes)) {
     FlushCanvas();
   }
 }

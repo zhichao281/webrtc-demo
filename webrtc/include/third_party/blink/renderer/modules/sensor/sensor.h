@@ -15,6 +15,7 @@
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/core/frame/platform_event_controller.h"
 #include "third_party/blink/renderer/modules/event_target_modules.h"
+#include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/modules/sensor/sensor_proxy.h"
 #include "third_party/blink/renderer/platform/bindings/exception_code.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
@@ -27,10 +28,10 @@ class DOMException;
 class ExceptionState;
 class ExecutionContext;
 
-class Sensor : public EventTargetWithInlineData,
-               public ActiveScriptWrappable<Sensor>,
-               public ExecutionContextLifecycleObserver,
-               public SensorProxy::Observer {
+class MODULES_EXPORT Sensor : public EventTargetWithInlineData,
+                              public ActiveScriptWrappable<Sensor>,
+                              public ExecutionContextLifecycleObserver,
+                              public SensorProxy::Observer {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
@@ -51,7 +52,7 @@ class Sensor : public EventTargetWithInlineData,
 
   // Getters
   bool activated() const;
-  bool hasReading() const;
+  virtual bool hasReading() const;
   absl::optional<DOMHighResTimeStamp> timestamp(ScriptState*) const;
 
   DEFINE_ATTRIBUTE_EVENT_LISTENER(error, kError)

@@ -79,7 +79,7 @@ class CrashKey {
     ScopedClear(const ScopedClear&) = delete;
     ScopedClear& operator=(const ScopedClear&) = delete;
     ScopedClear& operator=(ScopedClear&&) = delete;
-    ScopedClear(ScopedClear&& other) noexcept : key_(other.key_) {
+    ScopedClear(ScopedClear&& other) : key_(other.key_) {
       other.key_ = nullptr;
     }
 
@@ -100,23 +100,22 @@ class CrashKey {
   enum class Type : uint8_t { kUnset = 0, kInt, kStr };
 
   void Clear() {
-    int_value_.store(0, std::memory_order_relaxed);
-    type_.store(Type::kUnset, std::memory_order_relaxed);
+    int_value_ = 0;
+    type_ = Type::kUnset;
   }
 
   void Set(int64_t value) {
-    int_value_.store(value, std::memory_order_relaxed);
-    type_.store(Type::kInt, std::memory_order_relaxed);
+    int_value_ = value;
+    type_ = Type::kInt;
     if (PERFETTO_UNLIKELY(!registered_.load(std::memory_order_relaxed)))
       Register();
   }
 
   void Set(StringView sv) {
     size_t len = std::min(sv.size(), sizeof(str_value_) - 1);
-    for (size_t i = 0; i < len; ++i)
-      str_value_[i].store(sv.data()[i], std::memory_order_relaxed);
-    str_value_[len].store('\0', std::memory_order_relaxed);
-    type_.store(Type::kStr, std::memory_order_relaxed);
+    memcpy(str_value_, sv.data(), len);
+    str_value_[len] = '\0';
+    type_ = Type::kStr;
     if (PERFETTO_UNLIKELY(!registered_.load(std::memory_order_relaxed)))
       Register();
   }
@@ -131,20 +130,18 @@ class CrashKey {
     return ScopedClear(this);
   }
 
-  void Register();
-
-  int64_t int_value() const {
-    return int_value_.load(std::memory_order_relaxed);
-  }
+  int64_t int_value() const { return int_value_; }
   size_t ToString(char* dst, size_t len);
 
  private:
+  void Register();
+
   std::atomic<bool> registered_;
-  std::atomic<Type> type_;
+  Type type_;
   const char* const name_;
   union {
-    std::atomic<char> str_value_[kCrashKeyMaxStrSize];
-    std::atomic<int64_t> int_value_;
+    char str_value_[kCrashKeyMaxStrSize];
+    int64_t int_value_;
   };
 };
 

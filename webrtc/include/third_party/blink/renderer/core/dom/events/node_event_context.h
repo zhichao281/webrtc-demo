@@ -77,14 +77,6 @@ class CORE_EXPORT NodeEventContext {
 
 }  // namespace blink
 
-namespace WTF {
-
-template <>
-struct VectorTraits<blink::NodeEventContext>
-    : SimpleClassVectorTraits<blink::NodeEventContext> {
-  static constexpr bool kCanTraceConcurrently = true;
-};
-
-}  // namespace WTF
+WTF_ALLOW_MOVE_INIT_AND_COMPARE_WITH_MEM_FUNCTIONS(blink::NodeEventContext)
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_DOM_EVENTS_NODE_EVENT_CONTEXT_H_

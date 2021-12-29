@@ -72,8 +72,7 @@ class ExceptionSnapshotWin final : public ExceptionSnapshot {
   //!     an appropriate message logged.
   bool Initialize(ProcessReaderWin* process_reader,
                   DWORD thread_id,
-                  WinVMAddress exception_pointers,
-                  uint32_t* gather_indirectly_referenced_memory_cap);
+                  WinVMAddress exception_pointers);
 
   // ExceptionSnapshot:
 

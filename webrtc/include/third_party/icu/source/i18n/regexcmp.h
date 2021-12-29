@@ -209,7 +209,7 @@ private:
                                                      //   initially scanned.  Each new interval
                                                      //   encountered overwrites these values.
                                                      //   -1 for the upper interval value means none
-                                                     //   was specified (unlimited occurrences.)
+                                                     //   was specified (unlimited occurences.)
 
     int64_t                       fNameStartPos;     // Starting position of a \N{NAME} name in a
                                                      //   pattern, valid while remainder of name is
@@ -228,7 +228,7 @@ private:
                                                      //   in this string while being scanned.
 };
 
-// Constant values to be pushed onto fSetOpStack while scanning & evaluating [set expressions]
+// Constant values to be pushed onto fSetOpStack while scanning & evalueating [set expressions]
 //   The high 16 bits are the operator precedence, and the low 16 are a code for the operation itself.
 
 enum SetOperations {

@@ -13,6 +13,7 @@
 
 #include "base/base_export.h"
 #include "base/callback_forward.h"
+#include "base/macros.h"
 #include "base/win/windows_types.h"
 
 namespace base {

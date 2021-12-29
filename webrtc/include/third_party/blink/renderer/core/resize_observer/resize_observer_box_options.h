@@ -2,11 +2,10 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_RESIZE_OBSERVER_RESIZE_OBSERVER_BOX_OPTIONS_H_
 
 namespace blink {
-
 enum class ResizeObserverBoxOptions {
-  kBorderBox,
-  kContentBox,
-  kDevicePixelContentBox
+  BorderBox,
+  ContentBox,
+  DevicePixelContentBox
 };
 }
 

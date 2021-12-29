@@ -15,10 +15,7 @@ namespace blink {
 
 class CORE_EXPORT StylePropertyMapReadOnly
     : public ScriptWrappable,
-      public PairIterable<String,
-                          IDLString,
-                          CSSStyleValueVector,
-                          IDLSequence<CSSStyleValue>> {
+      public PairIterable<String, CSSStyleValueVector> {
   DEFINE_WRAPPERTYPEINFO();
 
  public:

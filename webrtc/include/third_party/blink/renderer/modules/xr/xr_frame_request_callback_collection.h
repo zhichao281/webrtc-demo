@@ -5,12 +5,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_XR_XR_FRAME_REQUEST_CALLBACK_COLLECTION_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_XR_XR_FRAME_REQUEST_CALLBACK_COLLECTION_H_
 
-#include <memory>
-
 #include "third_party/blink/renderer/platform/bindings/name_client.h"
-#include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
 
@@ -20,7 +16,7 @@ class XRFrame;
 class XRSession;
 
 namespace probe {
-class AsyncTaskContext;
+class AsyncTaskId;
 }
 
 class XRFrameRequestCallbackCollection final
@@ -55,7 +51,7 @@ class XRFrameRequestCallbackCollection final
   using CallbackFrameRequestMap =
       HeapHashMap<CallbackId, Member<V8XRFrameRequestCallback>>;
   using CallbackAsyncTaskMap =
-      HashMap<CallbackId, std::unique_ptr<probe::AsyncTaskContext>>;
+      HashMap<CallbackId, std::unique_ptr<probe::AsyncTaskId>>;
 
   CallbackFrameRequestMap callback_frame_requests_;
   CallbackAsyncTaskMap callback_async_tasks_;

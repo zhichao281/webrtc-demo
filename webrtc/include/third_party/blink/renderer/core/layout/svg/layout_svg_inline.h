@@ -47,9 +47,9 @@ class LayoutSVGInline : public LayoutInline {
 
   bool IsChildAllowed(LayoutObject*, const ComputedStyle&) const override;
 
-  gfx::RectF ObjectBoundingBox() const final;
-  gfx::RectF StrokeBoundingBox() const final;
-  gfx::RectF VisualRectInLocalSVGCoordinates() const final;
+  FloatRect ObjectBoundingBox() const final;
+  FloatRect StrokeBoundingBox() const final;
+  FloatRect VisualRectInLocalSVGCoordinates() const final;
 
   PhysicalRect VisualRectInDocument(
       VisualRectFlags = kDefaultVisualRectFlags) const final;
@@ -78,7 +78,7 @@ class LayoutSVGInline : public LayoutInline {
   bool IsObjectBoundingBoxValid() const;
 
   static void ObjectBoundingBoxForCursor(NGInlineCursor& cursor,
-                                         gfx::RectF& bounds);
+                                         FloatRect& bounds);
 };
 
 template <>

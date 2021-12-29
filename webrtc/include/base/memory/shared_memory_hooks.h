@@ -14,7 +14,7 @@
 namespace content {
 struct MainFunctionParams;
 }  // namespace content
-int CloudPrintServiceProcessMain(content::MainFunctionParams parameters);
+int CloudPrintServiceProcessMain(const content::MainFunctionParams& parameters);
 
 namespace mojo {
 
@@ -31,7 +31,7 @@ class SharedMemoryHooks {
  private:
   friend class SharedMemoryHooksTest;
   friend int ::CloudPrintServiceProcessMain(
-      content::MainFunctionParams parameters);
+      const content::MainFunctionParams& parameters);
   friend mojo::SharedMemoryUtils;
 
   // Allows shared memory region creation to be hooked. Useful for sandboxed

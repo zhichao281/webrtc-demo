@@ -22,7 +22,7 @@
 
 #include "third_party/blink/renderer/core/svg/gradient_attributes.h"
 #include "third_party/blink/renderer/core/svg/svg_length.h"
-#include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/heap/heap.h"
 
 namespace blink {
 struct RadialGradientAttributes final : GradientAttributes {

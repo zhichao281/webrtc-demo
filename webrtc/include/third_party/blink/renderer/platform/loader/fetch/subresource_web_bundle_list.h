@@ -5,7 +5,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_LOADER_FETCH_SUBRESOURCE_WEB_BUNDLE_LIST_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_LOADER_FETCH_SUBRESOURCE_WEB_BUNDLE_LIST_H_
 
-#include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
@@ -28,8 +27,7 @@ class PLATFORM_EXPORT SubresourceWebBundleList
   void Remove(SubresourceWebBundle& bundle);
   SubresourceWebBundle* GetMatchingBundle(const KURL& url) const;
   SubresourceWebBundle* FindSubresourceWebBundleWhichWillBeReleased(
-      const KURL& bundle_url,
-      network::mojom::CredentialsMode credentials_mode) const;
+      const KURL& bundle_url) const;
 
  private:
   HeapVector<Member<SubresourceWebBundle>> subresource_web_bundles_;

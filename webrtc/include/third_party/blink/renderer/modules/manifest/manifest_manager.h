@@ -6,6 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_MANIFEST_MANIFEST_MANAGER_H_
 
 #include "base/callback.h"
+#include "base/macros.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/manifest/manifest_manager.mojom-blink.h"
@@ -64,7 +65,7 @@ class MODULES_EXPORT ManifestManager
   void Trace(Visitor*) const override;
 
  private:
-  enum class ResolveState { kSuccess, kFailure };
+  enum ResolveState { ResolveStateSuccess, ResolveStateFailure };
 
   using InternalRequestManifestCallback =
       base::OnceCallback<void(const KURL&,

@@ -9,6 +9,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "tools/android/forwarder2/socket.h"

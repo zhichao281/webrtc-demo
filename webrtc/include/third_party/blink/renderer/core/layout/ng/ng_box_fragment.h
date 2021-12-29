@@ -32,11 +32,12 @@ class CORE_EXPORT NGBoxFragment final : public NGFragment {
     return PhysicalBoxFragment().Baseline();
   }
 
-  LayoutUnit FirstBaselineOrSynthesize(FontBaseline baseline_type) const {
+  LayoutUnit FirstBaselineOrSynthesize() const {
     if (auto first_baseline = FirstBaseline())
       return *first_baseline;
 
-    if (baseline_type == kAlphabeticBaseline)
+    // TODO(layout-dev): See |NGBoxFragment::BaselineOrSynthesize()|.
+    if (writing_direction_.GetWritingMode() == WritingMode::kHorizontalTb)
       return BlockSize();
 
     return BlockSize() / 2;
@@ -57,11 +58,14 @@ class CORE_EXPORT NGBoxFragment final : public NGFragment {
     return PhysicalBoxFragment().Baseline();
   }
 
-  LayoutUnit BaselineOrSynthesize(FontBaseline baseline_type) const {
+  LayoutUnit BaselineOrSynthesize() const {
     if (auto baseline = Baseline())
       return *baseline;
 
-    if (baseline_type == kAlphabeticBaseline)
+    // TODO(layout-dev): With a vertical writing-mode, and "text-orientation:
+    // sideways" we should also synthesize using the block-end border edge. We
+    // need to pass in the text-orientation (or just parent style) to do this.
+    if (writing_direction_.GetWritingMode() == WritingMode::kHorizontalTb)
       return BlockSize();
 
     return BlockSize() / 2;

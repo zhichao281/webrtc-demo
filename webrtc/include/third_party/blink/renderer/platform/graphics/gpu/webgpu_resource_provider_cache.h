@@ -8,15 +8,13 @@
 #include "base/threading/thread_checker.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "gpu/command_buffer/client/webgpu_interface.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/deque.h"
-#include "third_party/skia/include/core/SkImageInfo.h"
 
 namespace blink {
 
-class CanvasResourceProvider;
 class WebGPURecyclableResourceCache;
-class WebGraphicsContext3DProviderWrapper;
 
 struct ResourceCacheKey {
   ResourceCacheKey(const SkImageInfo& info, bool is_origin_top_left);
@@ -32,7 +30,7 @@ struct ResourceCacheKey {
 
 class PLATFORM_EXPORT RecyclableCanvasResource {
  public:
-  RecyclableCanvasResource(
+  explicit RecyclableCanvasResource(
       std::unique_ptr<CanvasResourceProvider> resource_provider,
       const ResourceCacheKey& cache_key,
       base::WeakPtr<WebGPURecyclableResourceCache> cache);
@@ -92,16 +90,17 @@ class PLATFORM_EXPORT WebGPURecyclableResourceCache {
   static constexpr int kTimerIdDeltaForDeletion =
       kCleanUpDelayInSeconds / kTimerDurationInSeconds;
 
-  struct PLATFORM_EXPORT Resource {
-    Resource(std::unique_ptr<CanvasResourceProvider> resource_provider,
-             unsigned int timer_id,
-             int resource_size);
-    Resource(Resource&& that) noexcept;
-    ~Resource();
+  struct Resource {
+    explicit Resource(std::unique_ptr<CanvasResourceProvider> resource_provider,
+                      unsigned int timer_id,
+                      int resource_size)
+        : resource_provider_(std::move(resource_provider)),
+          timer_id_(timer_id),
+          resource_size_(resource_size) {}
 
     std::unique_ptr<CanvasResourceProvider> resource_provider_;
-    unsigned int timer_id_;
-    int resource_size_;
+    unsigned int timer_id_ = 0;
+    int resource_size_ = 0;
   };
 
   using DequeResourceProvider = WTF::Deque<Resource>;

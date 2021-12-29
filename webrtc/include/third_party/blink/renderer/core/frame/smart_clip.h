@@ -33,8 +33,8 @@
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/node.h"
+#include "third_party/blink/renderer/platform/geometry/int_rect.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "ui/gfx/geometry/rect.h"
 
 namespace blink {
 
@@ -46,14 +46,14 @@ class CORE_EXPORT SmartClipData {
  public:
   SmartClipData() = default;
 
-  SmartClipData(const gfx::Rect& rect, const String& string)
+  SmartClipData(const IntRect& rect, const String& string)
       : rect_in_viewport_(rect), string_(string) {}
 
-  const gfx::Rect& RectInViewport() const { return rect_in_viewport_; }
+  const IntRect& RectInViewport() const { return rect_in_viewport_; }
   const String& ClipData() const { return string_; }
 
  private:
-  gfx::Rect rect_in_viewport_;
+  IntRect rect_in_viewport_;
   String string_;
 };
 
@@ -68,17 +68,17 @@ class CORE_EXPORT SmartClip {
  public:
   explicit SmartClip(LocalFrame*);
 
-  SmartClipData DataForRect(const gfx::Rect&);
+  SmartClipData DataForRect(const IntRect&);
 
  private:
   float PageScaleFactor();
 
   Node* MinNodeContainsNodes(Node* min_node, Node* new_node);
-  Node* FindBestOverlappingNode(Node*, const gfx::Rect& crop_rect_in_viewport);
+  Node* FindBestOverlappingNode(Node*, const IntRect& crop_rect_in_viewport);
   bool ShouldSkipBackgroundImage(Node*);
   void CollectOverlappingChildNodes(
       Node* parent_node,
-      const gfx::Rect& crop_rect_in_viewport,
+      const IntRect& crop_rect_in_viewport,
       HeapVector<Member<Node>>& overlapping_node_info_table);
   String ExtractTextFromNode(Node*);
 

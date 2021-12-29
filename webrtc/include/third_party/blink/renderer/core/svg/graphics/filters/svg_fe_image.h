@@ -55,7 +55,7 @@ class FEImage final : public FilterEffect {
     return kFilterEffectTypeImage;
   }
 
-  gfx::RectF MapInputs(const gfx::RectF&) const override;
+  FloatRect MapInputs(const FloatRect&) const override;
 
   sk_sp<PaintFilter> CreateImageFilter() override;
   sk_sp<PaintFilter> CreateImageFilterForLayoutObject(const LayoutObject&);

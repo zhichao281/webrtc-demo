@@ -88,11 +88,10 @@ class MockPaintCanvas : public cc::PaintCanvas {
                     const SkSamplingOptions&,
                     const PaintFlags* flags,
                     SkCanvas::SrcRectConstraint constraint));
-  MOCK_METHOD4(drawSkottie,
+  MOCK_METHOD3(drawSkottie,
                void(scoped_refptr<cc::SkottieWrapper> skottie,
                     const SkRect& dst,
-                    float t,
-                    cc::SkottieFrameDataMap images));
+                    float t));
   MOCK_METHOD4(drawBitmap,
                void(const SkBitmap& bitmap,
                     SkScalar left,
@@ -120,7 +119,6 @@ class MockPaintCanvas : public cc::PaintCanvas {
                     sk_sp<SkData> data));
   MOCK_METHOD0(GetPrintingMetafile, printing::MetafileSkia*());
   MOCK_METHOD1(SetPrintingMetafile, void(printing::MetafileSkia*));
-  MOCK_CONST_METHOD0(NeedsFlush, bool());
 };
 
 }  // namespace blink

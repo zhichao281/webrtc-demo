@@ -40,7 +40,7 @@ class CORE_EXPORT ResizeViewportAnchor final
     ResizeViewportAnchor* anchor_;
   };
 
-  void ResizeFrameView(const gfx::Size&);
+  void ResizeFrameView(const IntSize&);
 
   void Trace(Visitor* visitor) const { visitor->Trace(page_); }
 

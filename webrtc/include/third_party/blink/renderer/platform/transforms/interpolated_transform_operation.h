@@ -55,7 +55,7 @@ class PLATFORM_EXPORT InterpolatedTransformOperation final
 
   bool operator==(const TransformOperation&) const override;
   void Apply(TransformationMatrix&,
-             const gfx::SizeF& border_box_size) const override;
+             const FloatSize& border_box_size) const override;
 
   scoped_refptr<TransformOperation> Accumulate(
       const TransformOperation&) override {

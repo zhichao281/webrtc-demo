@@ -8,6 +8,7 @@
 #include "base/types/pass_key.h"
 #include "third_party/blink/public/web/modules/autofill/web_form_element_observer.h"
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/platform/heap/heap_allocator.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
 #include "third_party/blink/renderer/platform/heap/self_keep_alive.h"
 
@@ -38,7 +39,7 @@ class CORE_EXPORT WebFormElementObserverImpl final
   Member<ObserverCallback> mutation_callback_;
 
   // WebFormElementObserverImpl must remain alive until Disconnect() is called.
-  SelfKeepAlive<WebFormElementObserverImpl> self_keep_alive_{this};
+  SelfKeepAlive<WebFormElementObserverImpl> self_keep_alive_;
 };
 
 }  // namespace blink

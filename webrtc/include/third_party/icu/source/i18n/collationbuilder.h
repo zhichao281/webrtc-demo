@@ -57,7 +57,7 @@ private:
 
     /** Implements CollationRuleParser::Sink. */
     virtual void addReset(int32_t strength, const UnicodeString &str,
-                          const char *&errorReason, UErrorCode &errorCode) override;
+                          const char *&errorReason, UErrorCode &errorCode);
     /**
      * Returns the secondary or tertiary weight preceding the current node's weight.
      * node=nodes[index].
@@ -70,7 +70,7 @@ private:
     /** Implements CollationRuleParser::Sink. */
     virtual void addRelation(int32_t strength, const UnicodeString &prefix,
                              const UnicodeString &str, const UnicodeString &extension,
-                             const char *&errorReason, UErrorCode &errorCode) override;
+                             const char *&errorReason, UErrorCode &errorCode);
 
     /**
      * Picks one of the current CEs and finds or inserts a node in the graph
@@ -115,11 +115,11 @@ private:
 
     /** Implements CollationRuleParser::Sink. */
     virtual void suppressContractions(const UnicodeSet &set, const char *&parserErrorReason,
-                                      UErrorCode &errorCode) override;
+                                      UErrorCode &errorCode);
 
     /** Implements CollationRuleParser::Sink. */
     virtual void optimize(const UnicodeSet &set, const char *&parserErrorReason,
-                          UErrorCode &errorCode) override;
+                          UErrorCode &errorCode);
 
     /**
      * Adds the mapping and its canonical closure.

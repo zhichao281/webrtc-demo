@@ -6,10 +6,9 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_FRAME_FRAME_VIEW_AUTO_SIZE_INFO_H_
 
 #include "base/memory/scoped_refptr.h"
-#include "third_party/blink/renderer/platform/heap/garbage_collected.h"
-#include "third_party/blink/renderer/platform/heap/member.h"
+#include "third_party/blink/renderer/platform/geometry/int_size.h"
+#include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
-#include "ui/gfx/geometry/size.h"
 
 namespace blink {
 
@@ -22,8 +21,7 @@ class FrameViewAutoSizeInfo final
   FrameViewAutoSizeInfo(const FrameViewAutoSizeInfo&) = delete;
   FrameViewAutoSizeInfo& operator=(const FrameViewAutoSizeInfo&) = delete;
 
-  void ConfigureAutoSizeMode(const gfx::Size& min_size,
-                             const gfx::Size& max_size);
+  void ConfigureAutoSizeMode(const IntSize& min_size, const IntSize& max_size);
   // Returns true if the LocalFrameView was resized.
   bool AutoSizeIfNeeded();
   void Clear();
@@ -34,9 +32,9 @@ class FrameViewAutoSizeInfo final
   Member<LocalFrameView> frame_view_;
 
   // The lower bound on the size when autosizing.
-  gfx::Size min_auto_size_;
+  IntSize min_auto_size_;
   // The upper bound on the size when autosizing.
-  gfx::Size max_auto_size_;
+  IntSize max_auto_size_;
 
   bool in_auto_size_;
   // True if autosize has been run since m_shouldAutoSize was set.

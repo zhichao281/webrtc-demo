@@ -285,8 +285,7 @@ void V8SetReturnValue(const CallbackInfo& info,
                                                wrappable))
     return;
   V8ReturnValue::SetWrapper(
-      info, wrappable,
-      V8ReturnValue::CreationContext(info)->GetCreationContextChecked());
+      info, wrappable, V8ReturnValue::CreationContext(info)->CreationContext());
 }
 
 template <typename CallbackInfo>
@@ -299,8 +298,7 @@ void V8SetReturnValue(const CallbackInfo& info,
                                                wrappable))
     return;
   V8ReturnValue::SetWrapper(
-      info, wrappable,
-      V8ReturnValue::CreationContext(info)->GetCreationContextChecked());
+      info, wrappable, V8ReturnValue::CreationContext(info)->CreationContext());
 }
 
 template <typename CallbackInfo>
@@ -316,8 +314,7 @@ void V8SetReturnValue(const CallbackInfo& info,
     return;
   }
   V8ReturnValue::SetWrapper(
-      info, wrappable,
-      V8ReturnValue::CreationContext(info)->GetCreationContextChecked());
+      info, wrappable, V8ReturnValue::CreationContext(info)->CreationContext());
 }
 
 template <typename CallbackInfo>
@@ -331,8 +328,7 @@ void V8SetReturnValue(const CallbackInfo& info,
     return;
   }
   V8ReturnValue::SetWrapper(
-      info, wrappable,
-      V8ReturnValue::CreationContext(info)->GetCreationContextChecked());
+      info, wrappable, V8ReturnValue::CreationContext(info)->CreationContext());
 }
 
 template <typename CallbackInfo>

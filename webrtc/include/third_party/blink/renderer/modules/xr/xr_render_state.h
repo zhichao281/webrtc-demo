@@ -8,7 +8,6 @@
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "third_party/blink/renderer/platform/heap/member.h"
 
 namespace blink {
 
@@ -20,7 +19,7 @@ class XRRenderState : public ScriptWrappable {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  explicit XRRenderState(bool immersive);
+  XRRenderState(bool immersive);
   ~XRRenderState() override = default;
 
   // Near and far depths are used when computing projection matrices for the

@@ -15,7 +15,6 @@
 #ifndef THIRD_PARTY_PRIVATE_MEMBERSHIP_SRC_MEMBERSHIP_RESPONSE_MAP_H_
 #define THIRD_PARTY_PRIVATE_MEMBERSHIP_SRC_MEMBERSHIP_RESPONSE_MAP_H_
 
-#include "third_party/private_membership/base/private_membership_export.h"
 #include "third_party/private_membership/src/private_membership.pb.h"
 #include "third_party/private_membership/src/private_membership_rlwe.pb.h"
 #include "absl/container/flat_hash_map.h"
@@ -23,7 +22,7 @@
 namespace private_membership {
 namespace rlwe {
 
-class PRIVATE_MEMBERSHIP_EXPORT MembershipResponseMap {
+class MembershipResponseMap {
  public:
   MembershipResponseMap() = default;
 

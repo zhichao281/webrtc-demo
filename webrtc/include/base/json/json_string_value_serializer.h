@@ -9,8 +9,7 @@
 #include <string>
 
 #include "base/base_export.h"
-#include "base/json/json_reader.h"
-#include "base/memory/raw_ptr.h"
+#include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "base/values.h"
 
@@ -43,7 +42,7 @@ class BASE_EXPORT JSONStringValueSerializer : public base::ValueSerializer {
   bool SerializeInternal(const base::Value& root, bool omit_binary_values);
 
   // Owned by the caller of the constructor.
-  raw_ptr<std::string> json_string_;
+  std::string* json_string_;
   bool pretty_print_;  // If true, serialization will span multiple lines.
 };
 
@@ -52,9 +51,8 @@ class BASE_EXPORT JSONStringValueDeserializer : public base::ValueDeserializer {
   // This retains a reference to the contents of |json_string|, so the data
   // must outlive the JSONStringValueDeserializer. |options| is a bitmask of
   // JSONParserOptions.
-  explicit JSONStringValueDeserializer(
-      const base::StringPiece& json_string,
-      int options = base::JSON_PARSE_CHROMIUM_EXTENSIONS);
+  explicit JSONStringValueDeserializer(const base::StringPiece& json_string,
+                                       int options = 0);
 
   JSONStringValueDeserializer(const JSONStringValueDeserializer&) = delete;
   JSONStringValueDeserializer& operator=(const JSONStringValueDeserializer&) =
@@ -62,14 +60,12 @@ class BASE_EXPORT JSONStringValueDeserializer : public base::ValueDeserializer {
 
   ~JSONStringValueDeserializer() override;
 
-  // Attempts to deserialize |json_string_| into a structure of Value objects.
-  // If the return value is null, then
-  // (1) |error_code| will be filled with an integer error code
-  //     (base::ValueDeserializer::kErrorCodeInvalidFormat) if a non-null
-  //     |error_code| was given.
-  // (2) |error_message| will be filled with a formatted error message,
-  //     including the location of the error (if appropriate), if a non-null
-  //     |error_message| was given.
+  // Attempt to deserialize the data structure encoded in the string passed
+  // in to the constructor into a structure of Value objects.  If the return
+  // value is null, and if |error_code| is non-null, |error_code| will
+  // contain an integer error code (a JsonParseError in this case).
+  // If |error_message| is non-null, it will be filled in with a formatted
+  // error message including the location of the error if appropriate.
   // The caller takes ownership of the returned value.
   std::unique_ptr<base::Value> Deserialize(int* error_code,
                                            std::string* error_message) override;

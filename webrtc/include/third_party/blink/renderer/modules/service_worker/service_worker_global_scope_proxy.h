@@ -33,6 +33,7 @@
 
 #include <memory>
 
+#include "base/macros.h"
 #include "base/threading/thread_checker.h"
 #include "third_party/blink/public/mojom/service_worker/controller_service_worker.mojom-blink.h"
 #include "third_party/blink/public/mojom/service_worker/dispatch_fetch_event_params.mojom-blink.h"
@@ -133,8 +134,7 @@ class ServiceWorkerGlobalScopeProxy final : public WebServiceWorkerContextProxy,
   void SetupNavigationPreload(
       int fetch_event_id,
       const KURL& url,
-      mojo::PendingReceiver<network::mojom::blink::URLLoaderClient>
-          preload_url_loader_client_receiver);
+      mojom::blink::FetchEventPreloadHandlePtr preload_handle);
   void RequestTermination(WTF::CrossThreadOnceFunction<void(bool)> callback);
 
   // Detaches this proxy object entirely from the outside world, clearing out

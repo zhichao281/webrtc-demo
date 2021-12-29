@@ -24,10 +24,7 @@ class CORE_EXPORT LayoutNGRubyAsBlock
   explicit LayoutNGRubyAsBlock(Element*);
   ~LayoutNGRubyAsBlock() override;
 
-  const char* GetName() const override {
-    NOT_DESTROYED();
-    return "LayoutNGRubyAsBlock";
-  }
+  const char* GetName() const override { return "LayoutNGRubyAsBlock"; }
   void UpdateBlockLayout(bool relayout_children) override;
 };
 

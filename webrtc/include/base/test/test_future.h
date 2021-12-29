@@ -15,13 +15,26 @@
 #include "base/run_loop.h"
 #include "base/sequence_checker.h"
 #include "base/test/bind.h"
-#include "base/test/test_future_internal.h"
 #include "base/thread_annotations.h"
 #include "base/threading/sequenced_task_runner_handle.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 namespace test {
+
+namespace internal {
+
+// Helper to only implement a method if the future holds a single value
+template <typename Tuple>
+using EnableIfSingleValue =
+    std::enable_if_t<(std::tuple_size<Tuple>::value <= 1), bool>;
+
+// Helper to only implement a method if the future holds multiple values
+template <typename Tuple>
+using EnableIfMultiValue =
+    std::enable_if_t<(std::tuple_size<Tuple>::value > 1), bool>;
+
+}  // namespace internal
 
 // Helper class to test code that returns its result(s) asynchronously through a
 // callback:
@@ -135,7 +148,7 @@ class TestFuture {
   //
   // Example usage:
   //
-  //   TestFuture<int, std::string> future;
+  //   TestFutureTuple<int, std::string> future;
   //   int first = future.Get<0>();
   //   std::string second = future.Get<1>();
   //
@@ -178,9 +191,7 @@ class TestFuture {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
     DCHECK(!values_.has_value())
-        << "The value of a TestFuture can only be set once. If you need to "
-           "handle an ordered stream of result values, use "
-           "|base::test::RepeatingTestFuture|.";
+        << "The value of a TestFuture can only be set once.";
 
     values_ = std::make_tuple(std::forward<Types>(values)...);
     run_loop_.Quit();
@@ -194,7 +205,7 @@ class TestFuture {
   //
   // Will DCHECK if a timeout happens.
   template <typename U = T, internal::EnableIfSingleValue<U> = true>
-  const FirstType& WARN_UNUSED_RESULT Get() {
+  const FirstType& Get() WARN_UNUSED_RESULT {
     return std::get<0>(GetTuple());
   }
 
@@ -202,7 +213,7 @@ class TestFuture {
   //
   // Will DCHECK if a timeout happens.
   template <typename U = T, internal::EnableIfSingleValue<U> = true>
-  FirstType WARN_UNUSED_RESULT Take() {
+  FirstType Take() WARN_UNUSED_RESULT {
     return std::get<0>(TakeTuple());
   }
 
@@ -214,7 +225,7 @@ class TestFuture {
   //
   // Will DCHECK if a timeout happens.
   template <typename U = T, internal::EnableIfMultiValue<U> = true>
-  const std::tuple<Types...>& WARN_UNUSED_RESULT Get() {
+  const std::tuple<Types...>& Get() WARN_UNUSED_RESULT {
     return GetTuple();
   }
 
@@ -222,7 +233,7 @@ class TestFuture {
   //
   // Will DCHECK if a timeout happens.
   template <typename U = T, internal::EnableIfMultiValue<U> = true>
-  std::tuple<Types...> WARN_UNUSED_RESULT Take() {
+  std::tuple<Types...> Take() WARN_UNUSED_RESULT {
     return TakeTuple();
   }
 

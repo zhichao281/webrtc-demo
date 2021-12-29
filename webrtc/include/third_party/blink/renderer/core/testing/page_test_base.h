@@ -62,7 +62,7 @@ class PageTestBase : public testing::Test, public ScopedMockOverlayScrollbars {
 
   using FrameSettingOverrideFunction = void (*)(Settings&);
 
-  void SetUp(gfx::Size);
+  void SetUp(IntSize);
   void SetupPageWithClients(ChromeClient* = nullptr,
                             LocalFrameClient* = nullptr,
                             FrameSettingOverrideFunction = nullptr);

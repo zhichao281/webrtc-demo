@@ -86,7 +86,7 @@ class LayoutRubyAsInline final : public LayoutInline {
 // <ruby> when used as 'display:block' or 'display:inline-block'
 class LayoutRubyAsBlock : public LayoutBlockFlow {
  public:
-  LayoutRubyAsBlock(ContainerNode*);
+  LayoutRubyAsBlock(Element*);
   ~LayoutRubyAsBlock() override;
 
   void AddChild(LayoutObject* child,

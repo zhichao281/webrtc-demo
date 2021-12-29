@@ -14,6 +14,7 @@
 
 #include <vector>
 
+#include "base/macros.h"
 #include "base/threading/scoped_blocking_call.h"
 
 namespace base {

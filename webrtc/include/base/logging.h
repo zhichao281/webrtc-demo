@@ -18,7 +18,6 @@
 #include "base/dcheck_is_on.h"
 #include "base/scoped_clear_last_error.h"
 #include "base/strings/string_piece_forward.h"
-#include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)

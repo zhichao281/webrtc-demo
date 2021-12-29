@@ -7,16 +7,14 @@
 
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_table_backing.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector_backing.h"
-#include "third_party/blink/renderer/platform/heap/garbage_collected.h"
-#include "third_party/blink/renderer/platform/heap/thread_state_storage.h"
+#include "third_party/blink/renderer/platform/heap/heap.h"
+#include "third_party/blink/renderer/platform/heap/thread_state.h"
 #include "third_party/blink/renderer/platform/heap/visitor.h"
 #include "third_party/blink/renderer/platform/heap/write_barrier.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "v8/include/cppgc/explicit-management.h"
 #include "v8/include/cppgc/heap-consistency.h"
-#include "v8/include/cppgc/trace-trait.h"
-#include "v8/include/cppgc/visitor.h"
 
 namespace blink {
 
@@ -26,8 +24,6 @@ class PLATFORM_EXPORT HeapAllocator {
  public:
   using HeapConsistency = cppgc::subtle::HeapConsistency;
   using LivenessBroker = blink::LivenessBroker;
-  using TraceCallback = cppgc::TraceCallback;
-  using WeakCallback = cppgc::WeakCallback;
 
   static constexpr bool kIsGarbageCollected = true;
 
@@ -60,7 +56,7 @@ class PLATFORM_EXPORT HeapAllocator {
       return;
 
     HeapVectorBacking<T>::FromArray(array)->Free(
-        ThreadStateStorageFor<ThreadingTrait<T>::kAffinity>::GetState()
+        ThreadStateFor<ThreadingTrait<T>::kAffinity>::GetState()
             ->heap_handle());
   }
 
@@ -96,7 +92,7 @@ class PLATFORM_EXPORT HeapAllocator {
       return;
 
     HeapHashTableBacking<HashTable>::FromArray(array)->Free(
-        ThreadStateStorageFor<ThreadingTrait<
+        ThreadStateFor<ThreadingTrait<
             HeapHashTableBacking<HashTable>>::kAffinity>::GetState()
             ->heap_handle());
   }
@@ -109,24 +105,23 @@ class PLATFORM_EXPORT HeapAllocator {
 
   static bool IsAllocationAllowed() {
     return cppgc::subtle::DisallowGarbageCollectionScope::
-        IsGarbageCollectionAllowed(
-            ThreadStateStorage::Current()->heap_handle());
+        IsGarbageCollectionAllowed(ThreadState::Current()->heap_handle());
   }
 
   static bool IsIncrementalMarking() {
-    auto& heap_handle = ThreadStateStorage::Current()->heap_handle();
+    auto& heap_handle = ThreadState::Current()->heap_handle();
     return cppgc::subtle::HeapState::IsMarking(heap_handle) &&
            !cppgc::subtle::HeapState::IsInAtomicPause(heap_handle);
   }
 
   static void EnterGCForbiddenScope() {
     cppgc::subtle::NoGarbageCollectionScope::Enter(
-        ThreadStateStorage::Current()->heap_handle());
+        ThreadState::Current()->cpp_heap().GetHeapHandle());
   }
 
   static void LeaveGCForbiddenScope() {
     cppgc::subtle::NoGarbageCollectionScope::Leave(
-        ThreadStateStorage::Current()->heap_handle());
+        ThreadState::Current()->cpp_heap().GetHeapHandle());
   }
 
   template <typename Traits>
@@ -157,7 +152,7 @@ class PLATFORM_EXPORT HeapAllocator {
     // garbage collected type but may be kept inline.
     switch (HeapConsistency::GetWriteBarrierType(
         slot_in_backing, params, []() -> cppgc::HeapHandle& {
-          return ThreadStateStorageFor<ThreadingTrait<T>::kAffinity>::GetState()
+          return ThreadStateFor<ThreadingTrait<T>::kAffinity>::GetState()
               ->heap_handle();
         })) {
       case HeapConsistency::WriteBarrierType::kMarking:
@@ -182,7 +177,7 @@ class PLATFORM_EXPORT HeapAllocator {
     // garbage collected type but may be kept inline.
     switch (HeapConsistency::GetWriteBarrierType(
         first_element, params, []() -> cppgc::HeapHandle& {
-          return ThreadStateStorageFor<ThreadingTrait<T>::kAffinity>::GetState()
+          return ThreadStateFor<ThreadingTrait<T>::kAffinity>::GetState()
               ->heap_handle();
         })) {
       case HeapConsistency::WriteBarrierType::kMarking:

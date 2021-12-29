@@ -7,6 +7,8 @@
 
 #include <mach/message.h>
 
+#include "base/macros.h"
+
 namespace base {
 
 // Calls mach_msg_destroy on the specified message when the object goes out

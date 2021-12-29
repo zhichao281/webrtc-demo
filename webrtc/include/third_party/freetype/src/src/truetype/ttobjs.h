@@ -282,8 +282,6 @@ FT_BEGIN_HEADER
 
     TT_Size_Metrics    ttmetrics;
 
-    FT_Byte*           widthp;          /* glyph widths from the hdmx table */
-
     FT_ULong           strike_index;      /* 0xFFFFFFFF to indicate invalid */
 
 #ifdef TT_USE_BYTECODE_INTERPRETER

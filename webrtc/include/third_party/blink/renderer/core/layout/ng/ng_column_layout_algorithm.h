@@ -26,7 +26,8 @@ class CORE_EXPORT NGColumnLayoutAlgorithm
 
   scoped_refptr<const NGLayoutResult> Layout() override;
 
-  MinMaxSizesResult ComputeMinMaxSizes(const MinMaxSizesFloatInput&) override;
+  MinMaxSizesResult ComputeMinMaxSizes(
+      const MinMaxSizesFloatInput&) const override;
 
  private:
   MinMaxSizesResult ComputeSpannersMinMaxSizes(

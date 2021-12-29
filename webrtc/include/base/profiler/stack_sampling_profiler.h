@@ -10,6 +10,7 @@
 
 #include "base/base_export.h"
 #include "base/callback.h"
+#include "base/macros.h"
 #include "base/profiler/profile_builder.h"
 #include "base/profiler/sampling_profiler_thread_token.h"
 #include "base/synchronization/waitable_event.h"

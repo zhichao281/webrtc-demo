@@ -61,26 +61,28 @@ BasicSourceLineResolver::Function : public SourceLineResolverBase::Function {
            MemAddr function_address,
            MemAddr code_size,
            int set_parameter_size,
-           bool is_mutiple)
-      : Base(function_name,
-             function_address,
-             code_size,
-             set_parameter_size,
-             is_mutiple),
-        inlines(true),
-        last_added_inline_nest_level(0) {}
-
+           bool is_mutiple) : Base(function_name,
+                                   function_address,
+                                   code_size,
+                                   set_parameter_size,
+                                   is_mutiple),
+                              inlines(),
+                              lines(),
+                              last_added_inline_nest_level(0) { }
   // Append inline into corresponding RangeMap.
   // This function assumes it's called in the order of reading INLINE records.
   bool AppendInline(linked_ptr<Inline> in);
 
-  ContainedRangeMap<MemAddr, linked_ptr<Inline>> inlines;
+  RangeMap<MemAddr, linked_ptr<Inline>> inlines;
   RangeMap<MemAddr, linked_ptr<Line>> lines;
 
  private:
   typedef SourceLineResolverBase::Function Base;
 
-  // The last added inline_nest_level from INLINE record.
+  // A map from inline_nest_level to most recently added Inline* at that level.
+  std::map<int, linked_ptr<Inline>> recent_inlines;
+
+  // The last added inline_nest_level in recent_inlines.
   int last_added_inline_nest_level;
 };
 
@@ -106,17 +108,15 @@ class BasicSourceLineResolver::Module : public SourceLineResolverBase::Module {
   // with the result.
   virtual void LookupAddress(
       StackFrame* frame,
-      std::deque<std::unique_ptr<StackFrame>>* inlined_frame) const;
+      std::vector<std::unique_ptr<StackFrame>>* inlined_frame) const;
 
-  // Construct inlined frames for |frame| and store them in |inline_frames|.
-  // |frame|'s source line and source file name may be updated if an inlined
-  // frame is found inside |frame|. As a result, the innermost inlined frame
-  // will be the first one in |inline_frames|.
-  virtual void ConstructInlineFrames(
+  // Construct inlined frame for frame and return inlined function call site
+  // source line. If failed to construct inlined frame, return -1.
+  virtual int ConstructInlineFrames(
       StackFrame* frame,
       MemAddr address,
-      const ContainedRangeMap<uint64_t, linked_ptr<Inline>>& inline_map,
-      std::deque<std::unique_ptr<StackFrame>>* inline_frames) const;
+      const RangeMap<uint64_t, linked_ptr<Inline>>& inlines,
+      std::vector<std::unique_ptr<StackFrame>>* inline_frames) const;
 
   // If Windows stack walking information is available covering ADDRESS,
   // return a WindowsFrameInfo structure describing it. If the information

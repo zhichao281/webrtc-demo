@@ -66,17 +66,17 @@ class LayoutSVGForeignObject final : public LayoutSVGBlock {
 
   void UpdateLayout() override;
 
-  gfx::RectF ObjectBoundingBox() const override {
+  FloatRect ObjectBoundingBox() const override {
     NOT_DESTROYED();
     return viewport_;
   }
-  gfx::RectF StrokeBoundingBox() const override {
+  FloatRect StrokeBoundingBox() const override {
     NOT_DESTROYED();
     return VisualRectInLocalSVGCoordinates();
   }
-  gfx::RectF VisualRectInLocalSVGCoordinates() const override {
+  FloatRect VisualRectInLocalSVGCoordinates() const override {
     NOT_DESTROYED();
-    return gfx::RectF(FrameRect());
+    return FloatRect(FrameRect());
   }
   bool IsObjectBoundingBoxValid() const {
     NOT_DESTROYED();
@@ -121,7 +121,7 @@ class LayoutSVGForeignObject final : public LayoutSVGBlock {
 
   // The resolved viewport in the regular SVG coordinate space (after any
   // 'transform' has been applied but without zoom-adjustment).
-  gfx::RectF viewport_;
+  FloatRect viewport_;
 };
 
 template <>

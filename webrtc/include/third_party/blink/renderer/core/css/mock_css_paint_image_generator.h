@@ -8,7 +8,6 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/core/css/css_paint_image_generator.h"
-#include "third_party/blink/renderer/platform/graphics/image.h"
 
 using testing::ReturnRef;
 
@@ -29,7 +28,7 @@ class MockCSSPaintImageGenerator : public CSSPaintImageGenerator {
 
   MOCK_METHOD4(Paint,
                scoped_refptr<Image>(const ImageResourceObserver&,
-                                    const gfx::SizeF& container_size,
+                                    const FloatSize& container_size,
                                     const CSSStyleValueVector*,
                                     float device_scale_factor));
   MOCK_CONST_METHOD0(NativeInvalidationProperties, Vector<CSSPropertyID>&());

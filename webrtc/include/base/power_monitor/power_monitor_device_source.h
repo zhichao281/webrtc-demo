@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/base_export.h"
+#include "base/macros.h"
 #include "base/power_monitor/power_monitor_source.h"
 #include "base/power_monitor/power_observer.h"
 #include "build/build_config.h"
@@ -16,10 +17,7 @@
 
 #if defined(OS_WIN)
 #include <windows.h>
-
-#include "base/power_monitor/speed_limit_observer_win.h"
-#include "base/threading/sequence_bound.h"
-#endif  // OS_WIN
+#endif  // !OS_WIN
 
 #if defined(OS_MAC)
 #include <IOKit/IOTypes.h>
@@ -27,7 +25,7 @@
 #include "base/mac/scoped_cftyperef.h"
 #include "base/mac/scoped_ionotificationportref.h"
 #include "base/power_monitor/thermal_state_observer_mac.h"
-#endif  // OS_MAC
+#endif
 
 #if defined(OS_IOS)
 #include <objc/runtime.h>
@@ -87,10 +85,10 @@ class BASE_EXPORT PowerMonitorDeviceSource : public PowerMonitorSource {
   };
 #endif  // OS_WIN
 
-#if defined(OS_APPLE) || defined(OS_WIN)
+#if defined(OS_APPLE)
   void PlatformInit();
   void PlatformDestroy();
-#endif  // OS_APPLE || OS_WIN
+#endif  // OS_APPLE
 
 #if defined(OS_MAC)
   // Callback from IORegisterForSystemPower(). |refcon| is the |this| pointer.
@@ -109,15 +107,10 @@ class BASE_EXPORT PowerMonitorDeviceSource : public PowerMonitorSource {
   int GetRemainingBatteryCapacity() override;
 #endif  // defined(OS_ANDROID)
 
-#if defined(OS_WIN)
-  // PowerMonitorSource:
-  int GetInitialSpeedLimit() override;
-#endif  // OS_WIN
-
 #if defined(OS_MAC)
   // PowerMonitorSource:
   PowerThermalObserver::DeviceThermalState GetCurrentThermalState() override;
-  int GetInitialSpeedLimit() override;
+  int GetCurrentSpeedLimit() override;
 
   // Reference to the system IOPMrootDomain port.
   io_connect_t power_manager_port_ = IO_OBJECT_NULL;
@@ -142,10 +135,6 @@ class BASE_EXPORT PowerMonitorDeviceSource : public PowerMonitorSource {
 
 #if defined(OS_WIN)
   PowerMessageWindow power_message_window_;
-  // |speed_limit_observer_| is owned by the main/UI thread but the
-  // SpeedLimitObserverWin is bound to a different sequence.
-  std::unique_ptr<base::SequenceBound<SpeedLimitObserverWin>>
-      speed_limit_observer_;
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)

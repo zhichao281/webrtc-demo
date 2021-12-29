@@ -46,9 +46,10 @@ class PLATFORM_EXPORT CdmSessionAdapter
   CdmSessionAdapter(const CdmSessionAdapter&) = delete;
   CdmSessionAdapter& operator=(const CdmSessionAdapter&) = delete;
 
-  // Creates the CDM for |cdm_config| using |cdm_factory| and returns the result
+  // Creates the CDM for |key_system| using |cdm_factory| and returns the result
   // via |result|.
   void CreateCdm(media::CdmFactory* cdm_factory,
+                 const std::string& key_system,
                  const media::CdmConfig& cdm_config,
                  WebCdmCreatedCB web_cdm_created_cb);
 
@@ -129,7 +130,8 @@ class PLATFORM_EXPORT CdmSessionAdapter
   ~CdmSessionAdapter();
 
   // Callback for CreateCdm().
-  void OnCdmCreated(const media::CdmConfig& cdm_config,
+  void OnCdmCreated(const std::string& key_system,
+                    const media::CdmConfig& cdm_config,
                     base::TimeTicks start_time,
                     const scoped_refptr<media::ContentDecryptionModule>& cdm,
                     const std::string& error_message);
@@ -154,6 +156,7 @@ class PLATFORM_EXPORT CdmSessionAdapter
 
   SessionMap sessions_;
 
+  std::string key_system_;
   std::string key_system_uma_prefix_;
 
   // media::CdmConfig used in creation of cdm_.

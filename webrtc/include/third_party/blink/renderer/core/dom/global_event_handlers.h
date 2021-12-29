@@ -53,8 +53,6 @@ class GlobalEventHandlers {
   DEFINE_STATIC_ATTRIBUTE_EVENT_LISTENER(click, kClick)
   DEFINE_STATIC_ATTRIBUTE_EVENT_LISTENER(close, kClose)
   DEFINE_STATIC_ATTRIBUTE_EVENT_LISTENER(contextmenu, kContextmenu)
-  DEFINE_STATIC_ATTRIBUTE_EVENT_LISTENER(contextlost, kContextlost)
-  DEFINE_STATIC_ATTRIBUTE_EVENT_LISTENER(contextrestored, kContextrestored)
   DEFINE_STATIC_ATTRIBUTE_EVENT_LISTENER(cuechange, kCuechange)
   DEFINE_STATIC_ATTRIBUTE_EVENT_LISTENER(dblclick, kDblclick)
   DEFINE_STATIC_ATTRIBUTE_EVENT_LISTENER(drag, kDrag)
@@ -109,8 +107,6 @@ class GlobalEventHandlers {
   DEFINE_STATIC_ATTRIBUTE_EVENT_LISTENER(resize, kResize)
   DEFINE_STATIC_ATTRIBUTE_EVENT_LISTENER(scroll, kScroll)
   DEFINE_STATIC_ATTRIBUTE_EVENT_LISTENER(scrollend, kScrollend)
-  DEFINE_STATIC_ATTRIBUTE_EVENT_LISTENER(securitypolicyviolation,
-                                         kSecuritypolicyviolation)
   DEFINE_STATIC_ATTRIBUTE_EVENT_LISTENER(seeked, kSeeked)
   DEFINE_STATIC_ATTRIBUTE_EVENT_LISTENER(seeking, kSeeking)
   DEFINE_STATIC_ATTRIBUTE_EVENT_LISTENER(select, kSelect)

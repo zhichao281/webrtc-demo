@@ -19,6 +19,7 @@
 #include "media/base/routing_token_callback.h"
 #include "media/mojo/mojom/media_metrics_provider.mojom.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
+#include "third_party/blink/public/platform/media/power_status_helper.h"
 #include "third_party/blink/public/platform/web_common.h"
 #include "third_party/blink/public/platform/web_media_player.h"
 #include "third_party/blink/public/platform/web_video_frame_submitter.h"
@@ -82,7 +83,8 @@ class BLINK_PLATFORM_EXPORT WebMediaPlayerParams {
       bool is_background_suspend_enabled,
       bool is_background_video_play_enabled,
       bool is_background_video_track_optimization_supported,
-      std::unique_ptr<media::Demuxer> demuxer_override);
+      std::unique_ptr<media::Demuxer> demuxer_override,
+      std::unique_ptr<PowerStatusHelper> power_status_helper);
 
   WebMediaPlayerParams(const WebMediaPlayerParams&) = delete;
   WebMediaPlayerParams& operator=(const WebMediaPlayerParams&) = delete;
@@ -170,6 +172,10 @@ class BLINK_PLATFORM_EXPORT WebMediaPlayerParams {
 
   std::unique_ptr<media::Demuxer> TakeDemuxerOverride();
 
+  std::unique_ptr<PowerStatusHelper> TakePowerStatusHelper() {
+    return std::move(power_status_helper_);
+  }
+
  private:
   DeferLoadCB defer_load_cb_;
   scoped_refptr<media::SwitchableAudioRendererSink> audio_renderer_sink_;
@@ -201,6 +207,8 @@ class BLINK_PLATFORM_EXPORT WebMediaPlayerParams {
 
   // Optional custom demuxer to use instead of the standard demuxers.
   std::unique_ptr<media::Demuxer> demuxer_override_;
+
+  std::unique_ptr<PowerStatusHelper> power_status_helper_;
 };
 
 }  // namespace blink

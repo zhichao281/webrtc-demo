@@ -12,22 +12,20 @@
 #include "base/dcheck_is_on.h"
 #include "base/memory/ptr_util.h"
 #include "cc/input/layer_selection_bound.h"
-#include "cc/paint/element_id.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/blink/renderer/platform/geometry/int_rect.h"
 #include "third_party/blink/renderer/platform/geometry/layout_point.h"
 #include "third_party/blink/renderer/platform/graphics/paint/display_item.h"
 #include "third_party/blink/renderer/platform/graphics/paint/display_item_list.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_artifact.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_chunk.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_chunker.h"
-#include "third_party/blink/renderer/platform/graphics/paint/region_capture_data.h"
-#include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
-#include "ui/gfx/geometry/rect.h"
 
 namespace blink {
 
@@ -143,14 +141,15 @@ class PLATFORM_EXPORT PaintController {
   }
   void EnsureChunk();
 
+  void SetShouldComputeContentsOpaque(bool should_compute) {
+    DCHECK(!RuntimeEnabledFeatures::CompositeAfterPaintEnabled());
+    paint_chunker_.SetShouldComputeContentsOpaque(should_compute);
+  }
+
   void RecordHitTestData(const DisplayItemClient&,
                          const gfx::Rect&,
                          TouchAction,
                          bool);
-
-  void RecordRegionCaptureData(const DisplayItemClient& client,
-                               const RegionCaptureCropId& crop_id,
-                               const gfx::Rect& rect);
 
   void RecordScrollHitTestData(
       const DisplayItemClient&,
@@ -160,6 +159,10 @@ class PLATFORM_EXPORT PaintController {
 
   void RecordSelection(absl::optional<PaintedSelectionBound> start,
                        absl::optional<PaintedSelectionBound> end);
+
+  void SetPossibleBackgroundColor(const DisplayItemClient&,
+                                  Color,
+                                  uint64_t area);
 
   wtf_size_t NumNewChunks() const {
     return new_paint_artifact_->PaintChunks().size();
@@ -411,8 +414,8 @@ class PLATFORM_EXPORT PaintController {
   // CommitNewDisplayItems().
   scoped_refptr<PaintArtifact> new_paint_artifact_;
   PaintChunker paint_chunker_;
-  WeakPersistent<HeapVector<Member<const DisplayItemClient>>>
-      clients_to_validate_ = nullptr;
+  Persistent<HeapVector<Member<const DisplayItemClient>>> clients_to_validate_ =
+      nullptr;
 
   bool cache_is_all_invalid_ = true;
   bool committed_ = false;

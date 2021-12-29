@@ -7,7 +7,6 @@
 
 #include "base/check_op.h"
 #include "base/dcheck_is_on.h"
-#include "base/memory/scoped_refptr.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_component.h"
@@ -15,7 +14,6 @@
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/blink/renderer/platform/wtf/thread_safe_ref_counted.h"
 #include "third_party/webrtc/api/media_stream_interface.h"
-#include "third_party/webrtc_overrides/metronome_provider.h"
 
 namespace base {
 class SingleThreadTaskRunner;
@@ -107,8 +105,7 @@ class MODULES_EXPORT RemoteVideoTrackAdapter
   // Called on the signaling thread.
   RemoteVideoTrackAdapter(
       const scoped_refptr<base::SingleThreadTaskRunner>& main_thread,
-      webrtc::VideoTrackInterface* webrtc_track,
-      scoped_refptr<MetronomeProvider> metronome_provider);
+      webrtc::VideoTrackInterface* webrtc_track);
 
  protected:
   ~RemoteVideoTrackAdapter() override;
@@ -116,8 +113,6 @@ class MODULES_EXPORT RemoteVideoTrackAdapter
  private:
   void InitializeWebVideoTrack(std::unique_ptr<TrackObserver> observer,
                                bool enabled);
-
-  const scoped_refptr<MetronomeProvider> metronome_provider_;
 };
 
 // RemoteAudioTrackAdapter is responsible for listening on state

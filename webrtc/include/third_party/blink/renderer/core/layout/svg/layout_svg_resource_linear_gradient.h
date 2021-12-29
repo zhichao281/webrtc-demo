@@ -57,8 +57,8 @@ class LayoutSVGResourceLinearGradient final : public LayoutSVGResourceGradient {
   void CollectGradientAttributes() override;
   scoped_refptr<Gradient> BuildGradient() const override;
 
-  gfx::PointF StartPoint(const LinearGradientAttributes&) const;
-  gfx::PointF EndPoint(const LinearGradientAttributes&) const;
+  FloatPoint StartPoint(const LinearGradientAttributes&) const;
+  FloatPoint EndPoint(const LinearGradientAttributes&) const;
 
  private:
   Member<LinearGradientAttributesWrapper> attributes_wrapper_;

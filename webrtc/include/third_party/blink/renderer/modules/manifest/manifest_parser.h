@@ -7,7 +7,7 @@
 
 #include <stdint.h>
 
-#include "base/types/strong_alias.h"
+#include "base/macros.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom-blink.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
@@ -28,7 +28,7 @@ class FeatureContext;
 
 // ManifestParser handles the logic of parsing the Web Manifest from a string.
 // It implements:
-// https://w3c.github.io/manifest/#processing
+// http://w3c.github.io/manifest/#dfn-steps-for-processing-a-manifest
 // Takes a |FeatureContext| to check origin trial statuses with.
 class MODULES_EXPORT ManifestParser {
  public:
@@ -43,8 +43,8 @@ class MODULES_EXPORT ManifestParser {
   ~ManifestParser();
 
   // Parse the Manifest from a string using following:
-  // https://w3c.github.io/manifest/#processing
-  bool Parse();
+  // http://w3c.github.io/manifest/#dfn-steps-for-processing-a-manifest
+  void Parse();
 
   const mojom::blink::ManifestPtr& manifest() const;
   bool failed() const;
@@ -53,7 +53,7 @@ class MODULES_EXPORT ManifestParser {
 
  private:
   // Used to indicate whether to strip whitespace when parsing a string.
-  using Trim = base::StrongAlias<class TrimTag, bool>;
+  enum TrimType { Trim, NoTrim };
 
   // Indicate restrictions to be placed on the parsed URL with respect to the
   // document URL or manifest scope.
@@ -76,7 +76,7 @@ class MODULES_EXPORT ManifestParser {
   // Returns the parsed string if any, a null optional if the parsing failed.
   absl::optional<String> ParseString(const JSONObject* object,
                                      const String& key,
-                                     Trim trim);
+                                     TrimType trim);
 
   // Helper function to parse strings present in a member that itself is
   // a dictionary like 'shortcut' as defined in:
@@ -89,7 +89,7 @@ class MODULES_EXPORT ManifestParser {
                                               const String& member_name,
                                               const String& key,
                                               bool required,
-                                              Trim trim);
+                                              TrimType trim);
 
   // Helper function to parse colors present on a given |dictionary| in a given
   // field identified by its |key|. Returns a null optional if the value is not
@@ -315,7 +315,7 @@ class MODULES_EXPORT ManifestParser {
       const JSONObject* object);
 
   // Parses the 'file_handlers' field of a Manifest, as defined in:
-  // https://github.com/WICG/file-handling/blob/main/explainer.md
+  // https://github.com/WICG/file-handling/blob/master/explainer.md
   // Returns the parsed list of FileHandlers. The returned FileHandlers are
   // empty if the field didn't exist, parsing failed, or the input list was
   // empty.
@@ -323,20 +323,20 @@ class MODULES_EXPORT ManifestParser {
       const JSONObject* object);
 
   // Parses a FileHandler from an entry in the 'file_handlers' list, as
-  // defined in: https://github.com/WICG/file-handling/blob/main/explainer.md.
+  // defined in: https://github.com/WICG/file-handling/blob/master/explainer.md.
   // Returns |absl::nullopt| if the FileHandler was invalid, or a
   // FileHandler, if parsing succeeded.
   absl::optional<mojom::blink::ManifestFileHandlerPtr> ParseFileHandler(
       const JSONObject* file_handler_entry);
 
   // Parses the 'accept' field of a FileHandler, as defined in:
-  // https://github.com/WICG/file-handling/blob/main/explainer.md.
+  // https://github.com/WICG/file-handling/blob/master/explainer.md.
   // Returns the parsed accept map. Invalid accept entries are ignored.
   HashMap<String, Vector<String>> ParseFileHandlerAccept(
       const JSONObject* accept);
 
   // Parses an extension in the 'accept' field of a FileHandler, as defined in:
-  // https://github.com/WICG/file-handling/blob/main/explainer.md. Returns
+  // https://github.com/WICG/file-handling/blob/master/explainer.md. Returns
   // whether the parsing was successful and, if so, populates |output| with the
   // parsed extension.
   bool ParseFileHandlerAcceptExtension(const JSONValue* extension,
@@ -430,12 +430,6 @@ class MODULES_EXPORT ManifestParser {
   // Returns true iff the field could be parsed as the boolean true.
   bool ParseIsolatedStorage(const JSONObject* object);
 
-  // Parses the 'permissions_policy' field of the manifest.
-  Vector<mojom::blink::ManifestPermissionsPolicyDeclarationPtr>
-  ParseIsolatedAppPermissions(const JSONObject* object);
-  Vector<String> ParseOriginAllowlist(const JSONArray* allowlist,
-                                      const String& feature);
-
   // Parses the 'launch_handler' field of the manifest as defined in:
   // https://github.com/WICG/sw-launch/blob/main/launch_handler.md
   // Returns default values if parsing fails.
@@ -443,21 +437,9 @@ class MODULES_EXPORT ManifestParser {
       const JSONObject* object);
 
   // Parses the 'translations' field of the manifest as defined in:
-  // https://github.com/WICG/manifest-incubations/blob/gh-pages/translations-explainer.md
+  // https://github.com/w3c/manifest/issues/676#issuecomment-810628993
   // Returns empty map if parsing fails.
   HashMap<String, mojom::blink::ManifestTranslationItemPtr> ParseTranslations(
-      const JSONObject* object);
-
-  // Parses individual preferences from the 'user_preferences' field.
-  // Returns nullptr if not present or parsing failed.
-  mojom::blink::ManifestUserPreferenceOverridesPtr ParsePreferenceOverrides(
-      const JSONObject* object,
-      const String& preference);
-
-  // Parse the 'user_preferences' field of the manifest as defined in:
-  // https://github.com/w3c/manifest/issues/975#issuecomment-960222756
-  // Returns nullptr if parsing fails.
-  mojom::blink::ManifestUserPreferencesPtr ParseUserPreferences(
       const JSONObject* object);
 
   void AddErrorInfo(const String& error_msg,

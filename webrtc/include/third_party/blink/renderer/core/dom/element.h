@@ -27,7 +27,7 @@
 
 #include "base/dcheck_is_on.h"
 #include "base/gtest_prod_util.h"
-#include "base/types/pass_key.h"
+#include "base/guid.h"
 #include "third_party/blink/public/common/input/pointer_id.h"
 #include "third_party/blink/public/common/metrics/document_update_reason.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_typedefs.h"
@@ -41,20 +41,16 @@
 #include "third_party/blink/renderer/core/dom/element_data.h"
 #include "third_party/blink/renderer/core/dom/events/simulated_click_options.h"
 #include "third_party/blink/renderer/core/dom/names_map.h"
+#include "third_party/blink/renderer/core/dom/region_capture_crop_id.h"
 #include "third_party/blink/renderer/core/dom/whitespace_attacher.h"
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/trustedtypes/trusted_types_util.h"
+#include "third_party/blink/renderer/platform/geometry/float_rect.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "third_party/blink/renderer/platform/region_capture_crop_id.h"
 #include "third_party/blink/renderer/platform/text/text_direction.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string_table.h"
-#include "ui/gfx/geometry/rect_f.h"
-
-namespace gfx {
-class Vector2dF;
-}
 
 namespace blink {
 
@@ -80,9 +76,9 @@ class ElementIntersectionObserverData;
 class ElementRareData;
 class ExceptionState;
 class FloatQuad;
+class FloatSize;
 class FocusOptions;
 class GetInnerHTMLOptions;
-class HTMLFieldSetElement;
 class HTMLTemplateElement;
 class Image;
 class InputDeviceCapabilities;
@@ -93,7 +89,6 @@ class PointerLockOptions;
 class PseudoElement;
 class ResizeObservation;
 class ResizeObserver;
-class ResizeObserverSize;
 class ScrollIntoViewOptions;
 class ScrollToOptions;
 class ShadowRoot;
@@ -112,7 +107,7 @@ enum class DocumentUpdateReason;
 
 struct FocusParams;
 
-using ScrollOffset = gfx::Vector2dF;
+using ScrollOffset = FloatSize;
 
 enum SpellcheckAttributeState {
   kSpellcheckAttributeTrue,
@@ -127,8 +122,11 @@ enum class ElementFlags {
   kContainsFullScreenElement = 1 << 3,
   kIsInTopLayer = 1 << 4,
   kContainsPersistentVideo = 1 << 5,
-
-  kNumberOfElementFlags = 6,  // Size of bitfield used to store the flags.
+  kDidAttachInternals = 1 << 6,
+  kShouldForceLegacyLayoutForChild = 1 << 7,
+  kStyleShouldForceLegacyLayout = 1 << 8,
+  kHasUndoStack = 1 << 9,
+  kNumberOfElementFlags = 10,  // Size of bitfield used to store the flags.
 };
 
 enum class ShadowRootType;
@@ -225,7 +223,7 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   bool FastAttributeLookupAllowed(const QualifiedName&) const;
 #endif
 
-#if DUMP_NODE_STATISTICS
+#ifdef DUMP_NODE_STATISTICS
   bool HasNamedNodeMap() const;
 #endif
   bool hasAttributes() const;
@@ -245,17 +243,17 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
                                      const AtomicString& local_name) const;
 
   void setAttribute(AtomicString name,
-                    String value,
+                    AtomicString value,
                     ExceptionState& exception_state = ASSERT_NO_EXCEPTION) {
     WTF::AtomicStringTable::WeakResult weak_lowercase_name =
         WeakLowercaseIfNecessary(name);
-    SetAttributeHinted(std::move(name), weak_lowercase_name, std::move(value),
+    SetAttributeHinted(std::move(name), weak_lowercase_name, value,
                        exception_state);
   }
 
   // Trusted Types variant for explicit setAttribute() use.
   void setAttribute(AtomicString name,
-                    const V8TrustedType* trusted_string,
+                    const V8TrustedString* trusted_string,
                     ExceptionState& exception_state) {
     WTF::AtomicStringTable::WeakResult weak_lowercase_name =
         WeakLowercaseIfNecessary(name);
@@ -274,11 +272,7 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
                                  ExceptionState&);
   void setAttributeNS(const AtomicString& namespace_uri,
                       const AtomicString& qualified_name,
-                      String value,
-                      ExceptionState& exception_state);
-  void setAttributeNS(const AtomicString& namespace_uri,
-                      const AtomicString& qualified_name,
-                      const V8TrustedType* trusted_string,
+                      const V8TrustedString* trusted_string,
                       ExceptionState& exception_state);
 
   bool toggleAttribute(const AtomicString&, ExceptionState&);
@@ -294,7 +288,7 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   //   If element is in the HTML namespace and its node document is an HTML
   //   document, then set qualifiedName to qualifiedName in ASCII lowercase.
   //   https://dom.spec.whatwg.org/#concept-element-attributes-get-by-name
-  AtomicString LowercaseIfNecessary(AtomicString) const;
+  AtomicString LowercaseIfNecessary(const AtomicString&) const;
   WTF::AtomicStringTable::WeakResult WeakLowercaseIfNecessary(
       const StringView&) const;
 
@@ -347,17 +341,17 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   void scrollTo(const ScrollToOptions*);
   LayoutBox* GetLayoutBoxForScrolling() const override;
 
-  gfx::Rect BoundsInViewport() const;
+  IntRect BoundsInViewport() const;
   // Returns an intersection rectangle of the bounds rectangle and the visual
   // viewport's rectangle in the visual viewport's coordinate space.
   // Applies ancestors' frames' clipping, but does not (yet) apply (overflow)
   // element clipping (crbug.com/889840).
-  gfx::Rect VisibleBoundsInVisualViewport() const;
-  Vector<gfx::Rect> OutlineRectsInVisualViewport(
+  IntRect VisibleBoundsInVisualViewport() const;
+  Vector<IntRect> OutlineRectsInVisualViewport(
       DocumentUpdateReason reason = DocumentUpdateReason::kUnknown) const;
 
   DOMRectList* getClientRects();
-  gfx::RectF GetBoundingClientRectNoLifecycleUpdate() const;
+  FloatRect GetBoundingClientRectNoLifecycleUpdate() const;
   DOMRect* getBoundingClientRect();
 
   const AtomicString& computedRole();
@@ -571,23 +565,20 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   void RebuildLayoutTree(WhitespaceAttacher&);
   void HandleSubtreeModifications();
   void PseudoStateChanged(CSSSelector::PseudoType);
-  void PseudoStateChangedForTesting(CSSSelector::PseudoType);
   void SetAnimationStyleChange(bool);
   void SetNeedsAnimationStyleRecalc();
 
   void SetNeedsCompositingUpdate();
 
-  // Assigns a crop-ID to the element. It's an error to try to call this
-  // if the element already has a crop-ID attached (even if attempting to
-  // set the same crop-ID again).
-  //
-  // Not all element types have a region capture crop-ID, however using it here
+  // Generates a unique crop ID and returns its base::GUID representation.
+  // Not all element types have a region capture crop id, however using it here
   // allows access to the element rare data struct. Currently, once an element
-  // is marked for region capture it cannot be unmarked.
-  void SetRegionCaptureCropId(std::unique_ptr<RegionCaptureCropId> crop_id);
+  // is marked for region capture it cannot be unmarked, and repeated calls to
+  // this API will return the same token.
+  base::GUID MarkWithRegionCaptureCropId();
 
-  // Returns a pointer to the crop-ID if one was set; nullptr otherwise.
-  const RegionCaptureCropId* GetRegionCaptureCropId() const;
+  // Returns nullptr if not marked for capture.
+  RegionCaptureCropId* GetRegionCaptureCropId() const;
 
   ShadowRoot* attachShadow(const ShadowRootInit*, ExceptionState&);
 
@@ -1001,7 +992,6 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   ContainerQueryData* GetContainerQueryData() const;
   void SetContainerQueryEvaluator(ContainerQueryEvaluator*);
   ContainerQueryEvaluator* GetContainerQueryEvaluator() const;
-  bool SkippedContainerStyleRecalc() const;
 
   virtual void SetActive(bool active);
   virtual void SetHovered(bool hovered);
@@ -1020,12 +1010,6 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   // For undo stack cleanup
   bool HasUndoStack() const;
   void SetHasUndoStack(bool);
-
-  // For font-related style invalidation.
-  void SetScrollbarPseudoElementStylesDependOnFontMetrics(bool);
-
-  void SaveIntrinsicSize(ResizeObserverSize* size);
-  const ResizeObserverSize* LastIntrinsicSize() const;
 
  protected:
   const ElementData* GetElementData() const { return element_data_.Get(); }
@@ -1113,14 +1097,8 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   void AdjustForceLegacyLayout(const ComputedStyle*,
                                bool* should_force_legacy_layout);
 
-  // Reattach layout tree for all children but not the element itself. This is
-  // only used for reattaching fieldset children when the fieldset is a query
-  // container for size container queries.
-  void ReattachLayoutTreeChildren(base::PassKey<HTMLFieldSetElement>);
-
  private:
   friend class AXObject;
-  struct AffectedByPseudoStateChange;
 
   void ScrollLayoutBoxBy(const ScrollToOptions*);
   void ScrollLayoutBoxTo(const ScrollToOptions*);
@@ -1194,40 +1172,12 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
     kAttachLayoutTree,
   };
 
-  void UpdateFirstLetterPseudoElement(StyleUpdatePhase,
-                                      const StyleRecalcContext&);
-
-  // Creates a StyleRecalcContext and invokes the method above. Only use this
-  // when there is no StyleRecalcContext available.
   void UpdateFirstLetterPseudoElement(StyleUpdatePhase);
 
   inline PseudoElement* CreatePseudoElementIfNeeded(PseudoId,
                                                     const StyleRecalcContext&);
   void AttachPseudoElement(PseudoId, AttachContext&);
   void DetachPseudoElement(PseudoId, bool performing_reattach);
-
-  void AttachPrecedingPseudoElements(AttachContext& context) {
-    AttachPseudoElement(kPseudoIdMarker, context);
-    AttachPseudoElement(kPseudoIdBefore, context);
-  }
-
-  void AttachSucceedingPseudoElements(AttachContext& context) {
-    AttachPseudoElement(kPseudoIdAfter, context);
-    AttachPseudoElement(kPseudoIdBackdrop, context);
-    UpdateFirstLetterPseudoElement(StyleUpdatePhase::kAttachLayoutTree);
-    AttachPseudoElement(kPseudoIdFirstLetter, context);
-  }
-
-  void DetachPrecedingPseudoElements(bool performing_reattach) {
-    DetachPseudoElement(kPseudoIdMarker, performing_reattach);
-    DetachPseudoElement(kPseudoIdBefore, performing_reattach);
-  }
-
-  void DetachSucceedingPseudoElements(bool performing_reattach) {
-    DetachPseudoElement(kPseudoIdAfter, performing_reattach);
-    DetachPseudoElement(kPseudoIdBackdrop, performing_reattach);
-    DetachPseudoElement(kPseudoIdFirstLetter, performing_reattach);
-  }
 
   ShadowRoot& CreateAndAttachShadowRoot(ShadowRootType);
 
@@ -1293,11 +1243,11 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
       WTF::AtomicStringTable::WeakResult hint) const;
   void SetAttributeHinted(AtomicString name,
                           WTF::AtomicStringTable::WeakResult hint,
-                          String value,
+                          const AtomicString& value,
                           ExceptionState& = ASSERT_NO_EXCEPTION);
   void SetAttributeHinted(AtomicString name,
                           WTF::AtomicStringTable::WeakResult hint,
-                          const V8TrustedType* trusted_string,
+                          const V8TrustedString* trusted_string,
                           ExceptionState& exception_state);
   std::pair<wtf_size_t, const QualifiedName> LookupAttributeQNameHinted(
       AtomicString name,
@@ -1406,9 +1356,6 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
       const QualifiedName& name);
 
   DisplayLockContext* GetDisplayLockContextFromRareData() const;
-
-  void PseudoStateChanged(CSSSelector::PseudoType pseudo,
-                          AffectedByPseudoStateChange&&);
 
   Member<ElementData> element_data_;
 };

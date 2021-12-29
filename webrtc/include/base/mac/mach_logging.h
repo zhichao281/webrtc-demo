@@ -9,6 +9,7 @@
 
 #include "base/base_export.h"
 #include "base/logging.h"
+#include "base/macros.h"
 #include "build/build_config.h"
 
 // Use the MACH_LOG family of macros along with a mach_error_t (kern_return_t)

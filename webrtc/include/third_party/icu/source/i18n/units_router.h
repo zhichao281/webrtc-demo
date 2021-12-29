@@ -109,7 +109,7 @@ namespace units {
  *
  * NOTE:
  *    the output units  and their limits will be extracted from the units preferences database by knowing
- *    the following:
+ *    the followings:
  *        - input unit
  *        - locale
  *        - usage

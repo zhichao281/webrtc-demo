@@ -65,9 +65,8 @@ class CORE_EXPORT ChromeClientImpl final : public ChromeClient {
   // ChromeClient methods:
   WebViewImpl* GetWebView() const override;
   void ChromeDestroyed() override;
-  void SetWindowRect(const gfx::Rect&, LocalFrame&) override;
-  gfx::Rect RootWindowRect(LocalFrame&) override;
-  void DidAccessInitialMainDocument() override;
+  void SetWindowRect(const IntRect&, LocalFrame&) override;
+  IntRect RootWindowRect(LocalFrame&) override;
   void FocusPage() override;
   void DidFocusPage() override;
   bool CanTakeFocus(mojom::blink::FocusType) override;
@@ -94,7 +93,7 @@ class CORE_EXPORT ChromeClientImpl final : public ChromeClient {
                              bool& consumed_user_gesture) override;
   void Show(const blink::LocalFrameToken& opener_frame_token,
             NavigationPolicy navigation_policy,
-            const gfx::Rect& initial_rect,
+            const IntRect& initial_rect,
             bool user_gesture) override;
   void DidOverscroll(const gfx::Vector2dF& overscroll_delta,
                      const gfx::Vector2dF& accumulated_overscroll,
@@ -136,15 +135,15 @@ class CORE_EXPORT ChromeClientImpl final : public ChromeClient {
   bool TabsToLinks() override;
   void InvalidateContainer() override;
   void ScheduleAnimation(const LocalFrameView*, base::TimeDelta delay) override;
-  gfx::Rect ViewportToScreen(const gfx::Rect&,
-                             const LocalFrameView*) const override;
+  IntRect ViewportToScreen(const IntRect&,
+                           const LocalFrameView*) const override;
   float WindowToViewportScalar(LocalFrame*, const float) const override;
   const display::ScreenInfo& GetScreenInfo(LocalFrame&) const override;
   const display::ScreenInfos& GetScreenInfos(LocalFrame&) const override;
   void OverrideVisibleRectForMainFrame(LocalFrame& frame,
-                                       gfx::Rect* paint_rect) const override;
+                                       IntRect* paint_rect) const override;
   float InputEventsScaleForEmulation() const override;
-  void ContentsSizeChanged(LocalFrame*, const gfx::Size&) const override;
+  void ContentsSizeChanged(LocalFrame*, const IntSize&) const override;
   bool DoubleTapToZoomEnabled() const override;
   void EnablePreferredSizeChangedMode() override;
   void ZoomToFindInPageRect(const gfx::Rect& rect_in_root_frame) override;
@@ -180,6 +179,9 @@ class CORE_EXPORT ChromeClientImpl final : public ChromeClient {
   void SetEventListenerProperties(LocalFrame*,
                                   cc::EventListenerClass,
                                   cc::EventListenerProperties) override;
+  cc::EventListenerProperties EventListenerProperties(
+      LocalFrame*,
+      cc::EventListenerClass) const override;
   // Informs client about the existence of handlers for scroll events so
   // appropriate scroll optimizations can be chosen.
   void SetHasScrollEventHandlers(LocalFrame*, bool has_event_handlers) override;
@@ -207,6 +209,9 @@ class CORE_EXPORT ChromeClientImpl final : public ChromeClient {
 
   void AnimateDoubleTapZoom(const gfx::Point& point,
                             const gfx::Rect& rect) override;
+
+  void ClearLayerSelection(LocalFrame*) override;
+  void UpdateLayerSelection(LocalFrame*, const cc::LayerSelection&) override;
 
   // ChromeClient methods:
   String AcceptLanguages() override;
@@ -263,7 +268,7 @@ class CORE_EXPORT ChromeClientImpl final : public ChromeClient {
   void OnMouseDown(Node&) override;
   void DidUpdateBrowserControls() const override;
 
-  gfx::Vector2dF ElasticOverscroll() const override;
+  FloatSize ElasticOverscroll() const override;
 
   void RegisterPopupOpeningObserver(PopupOpeningObserver*) override;
   void UnregisterPopupOpeningObserver(PopupOpeningObserver*) override;

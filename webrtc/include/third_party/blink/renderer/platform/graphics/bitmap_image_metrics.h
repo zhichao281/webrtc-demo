@@ -11,12 +11,9 @@
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 
-namespace gfx {
-class Size;
-}
-
 namespace blink {
 
+class IntSize;
 class UseCounter;
 
 class PLATFORM_EXPORT BitmapImageMetrics {
@@ -76,15 +73,13 @@ class PLATFORM_EXPORT BitmapImageMetrics {
   // |use_counter| may be a null pointer.
   static void CountDecodedImageType(const String& type,
                                     UseCounter* use_counter);
-  // Report the image compression density in 0.01 bits per pixel for an image
+  // Report the JPEG compression density in 0.01 bits per pixel for an image
   // with a smallest side (width or length) of |image_min_side| and total size
-  // in bytes |image_size_bytes|. Only certain image types and minimum image
-  // size are reported.
-  static void CountDecodedImageDensity(const String& type,
-                                       int image_min_side,
-                                       uint64_t density_centi_bpp,
-                                       size_t image_size_bytes);
-  static void CountJpegArea(const gfx::Size& size);
+  // in bytes |image_size_bytes|.
+  static void CountImageJpegDensity(int image_min_side,
+                                    uint64_t density_centi_bpp,
+                                    size_t image_size_bytes);
+  static void CountJpegArea(const IntSize& size);
   static void CountJpegColorSpace(JpegColorSpace color_space);
 };
 

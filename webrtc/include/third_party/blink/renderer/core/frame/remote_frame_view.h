@@ -11,9 +11,8 @@
 #include "third_party/blink/renderer/core/dom/document_lifecycle.h"
 #include "third_party/blink/renderer/core/frame/frame_view.h"
 #include "third_party/blink/renderer/core/layout/intrinsic_sizing_info.h"
-#include "third_party/blink/renderer/platform/heap/garbage_collected.h"
-#include "third_party/blink/renderer/platform/heap/member.h"
-#include "ui/gfx/geometry/rect.h"
+#include "third_party/blink/renderer/platform/geometry/int_rect.h"
+#include "third_party/blink/renderer/platform/heap/handle.h"
 
 namespace cc {
 class PaintCanvas;
@@ -42,12 +41,12 @@ class RemoteFrameView final : public GarbageCollected<RemoteFrameView>,
   }
 
   void Dispose() override;
-  void SetFrameRect(const gfx::Rect&) override;
+  void SetFrameRect(const IntRect&) override;
   void PropagateFrameRects() override;
   void Paint(GraphicsContext&,
              const GlobalPaintFlags,
              const CullRect&,
-             const gfx::Vector2d& paint_offset) const override;
+             const IntSize& paint_offset = IntSize()) const override;
   void UpdateGeometry() override;
   void Hide() override;
   void Show() override;
@@ -72,13 +71,13 @@ class RemoteFrameView final : public GarbageCollected<RemoteFrameView>,
   // and reduce the number of paint-ops generated. UpdateCompositingRect must be
   // called before the parent frame commits a compositor frame.
   void UpdateCompositingRect();
-  gfx::Rect GetCompositingRect() const { return compositing_rect_; }
+  IntRect GetCompositingRect() const { return compositing_rect_; }
 
   void UpdateCompositingScaleFactor();
   float GetCompositingScaleFactor() const { return compositing_scale_factor_; }
 
-  uint32_t Print(const gfx::Rect&, cc::PaintCanvas*) const;
-  uint32_t CapturePaintPreview(const gfx::Rect&, cc::PaintCanvas*) const;
+  uint32_t Print(const IntRect&, cc::PaintCanvas*) const;
+  uint32_t CapturePaintPreview(const IntRect&, cc::PaintCanvas*) const;
 
   void Trace(Visitor*) const override;
 
@@ -102,7 +101,7 @@ class RemoteFrameView final : public GarbageCollected<RemoteFrameView>,
   // details.
   Member<RemoteFrame> remote_frame_;
   mojom::blink::ViewportIntersectionState last_intersection_state_;
-  gfx::Rect compositing_rect_;
+  IntRect compositing_rect_;
   float compositing_scale_factor_ = 1.0f;
 
   IntrinsicSizingInfo intrinsic_sizing_info_;

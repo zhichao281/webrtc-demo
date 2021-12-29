@@ -27,10 +27,6 @@ namespace base {
 class UnguessableToken;
 }
 
-namespace gfx {
-class RectF;
-}
-
 namespace v8 {
 class Function;
 template <typename T>
@@ -52,6 +48,7 @@ class EncodedFormData;
 class Event;
 class ExecutionContext;
 class FloatQuad;
+class FloatRect;
 class Frame;
 class HitTestLocation;
 class HitTestRequest;
@@ -442,16 +439,16 @@ void Data(perfetto::TracedValue context,
 namespace inspector_paint_image_event {
 void Data(perfetto::TracedValue context,
           const LayoutImage&,
-          const gfx::RectF& src_rect,
-          const gfx::RectF& dest_rect);
+          const FloatRect& src_rect,
+          const FloatRect& dest_rect);
 void Data(perfetto::TracedValue context,
           const LayoutObject&,
           const StyleImage&);
 void Data(perfetto::TracedValue context,
           Node*,
           const StyleImage&,
-          const gfx::RectF& src_rect,
-          const gfx::RectF& dest_rect);
+          const FloatRect& src_rect,
+          const FloatRect& dest_rect);
 void Data(perfetto::TracedValue context,
           const LayoutObject*,
           const ImageResourceContent&);

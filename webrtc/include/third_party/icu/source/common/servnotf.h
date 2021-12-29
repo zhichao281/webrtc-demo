@@ -40,7 +40,7 @@ public:
 public:
     static UClassID U_EXPORT2 getStaticClassID();
 
-    virtual UClassID getDynamicClassID() const override;
+    virtual UClassID getDynamicClassID() const;
 
 public:
 #ifdef SERVICE_DEBUG

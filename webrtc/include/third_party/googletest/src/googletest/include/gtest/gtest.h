@@ -1123,9 +1123,6 @@ class TestEventListener {
   // Fired before the test starts.
   virtual void OnTestStart(const TestInfo& test_info) = 0;
 
-  // Fired when a test is disabled
-  virtual void OnTestDisabled(const TestInfo& /*test_info*/) {}
-
   // Fired after a failed assertion or a SUCCEED() invocation.
   // If you want to throw an exception from this function to skip to the next
   // TEST, it must be AssertionException defined above, or inherited from it.
@@ -1175,7 +1172,6 @@ class EmptyTestEventListener : public TestEventListener {
 #endif  //  GTEST_REMOVE_LEGACY_TEST_CASEAPI_
 
   void OnTestStart(const TestInfo& /*test_info*/) override {}
-  void OnTestDisabled(const TestInfo& /*test_info*/) override {}
   void OnTestPartResult(const TestPartResult& /*test_part_result*/) override {}
   void OnTestEnd(const TestInfo& /*test_info*/) override {}
   void OnTestSuiteEnd(const TestSuite& /*test_suite*/) override {}
@@ -2451,7 +2447,6 @@ GTEST_API_ std::string TempDir();
 // }
 // ...
 // int main(int argc, char** argv) {
-//   ::testing::InitGoogleTest(&argc, argv);
 //   std::vector<int> values_to_test = LoadValuesFromConfig();
 //   RegisterMyTests(values_to_test);
 //   ...

@@ -354,6 +354,8 @@ class Internals final : public ScriptWrappable {
   String layerTreeAsText(Document*, unsigned flags, ExceptionState&) const;
   String layerTreeAsText(Document*, ExceptionState&) const;
 
+  bool scrollsWithRespectTo(Element*, Element*, ExceptionState&);
+
   String scrollingStateTreeAsText(Document*) const;
   String mainThreadScrollingReasons(Document*, ExceptionState&) const;
   DOMRectList* nonFastScrollableRects(Document*, ExceptionState&) const;
@@ -425,7 +427,6 @@ class Internals final : public ScriptWrappable {
   CallbackFunctionTest* callbackFunctionTest() const;
 
   Vector<String> getReferencedFilePaths() const;
-  void disableReferencedFilePathsVerification() const;
 
   void startTrackingRepaints(Document*, ExceptionState&);
   void stopTrackingRepaints(Document*, ExceptionState&);

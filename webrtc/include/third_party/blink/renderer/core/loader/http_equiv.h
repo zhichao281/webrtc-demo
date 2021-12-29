@@ -47,6 +47,7 @@ class HttpEquiv {
       LocalDOMWindow*,
       const AtomicString& equiv,
       const AtomicString& content);
+  static void ProcessHttpEquivAcceptCH(Document&, const AtomicString& content);
 };
 
 }  // namespace blink

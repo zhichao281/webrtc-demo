@@ -23,7 +23,7 @@
 #include "base/callback.h"
 #include "base/gtest_prod_util.h"
 #include "base/lazy_instance.h"
-#include "base/memory/raw_ptr.h"
+#include "base/macros.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_base.h"
 #include "base/metrics/record_histogram_checker.h"
@@ -177,12 +177,11 @@ class BASE_EXPORT StatisticsRecorder {
   // This method must be called on the UI thread.
   static void ImportProvidedHistograms();
 
-  // Snapshots all histograms via |snapshot_manager|. |include_persistent|
-  // determines whether histograms held in persistent storage are
-  // snapshotted. |flags_to_set| is used to set flags for each histogram.
-  // |required_flags| is used to select which histograms to record. Only
-  // histograms with all required flags are selected. If all histograms should
-  // be recorded, use |Histogram::kNoFlags| as the required flag.
+  // Snapshots all histograms via |snapshot_manager|. |flags_to_set| is used to
+  // set flags for each histogram. |required_flags| is used to select
+  // histograms to be recorded. Only histograms that have all the flags
+  // specified by the argument will be chosen. If all histograms should be
+  // recorded, set it to |Histogram::kNoFlags|.
   static void PrepareDeltas(bool include_persistent,
                             HistogramBase::Flags flags_to_set,
                             HistogramBase::Flags required_flags,
@@ -358,7 +357,7 @@ class BASE_EXPORT StatisticsRecorder {
   std::unique_ptr<RecordHistogramChecker> record_checker_;
 
   // Previous global recorder that existed when this one was created.
-  raw_ptr<StatisticsRecorder> previous_ = nullptr;
+  StatisticsRecorder* previous_ = nullptr;
 
   // Global lock for internal synchronization. Uses an absl::Mutex to
   // support read/write lock semantics.

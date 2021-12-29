@@ -23,7 +23,7 @@
 #include "build/build_config.h"
 #include "third_party/blink/renderer/core/svg/svg_path_byte_stream.h"
 #include "third_party/blink/renderer/core/svg/svg_path_data.h"
-#include "ui/gfx/geometry/point_f.h"
+#include "third_party/blink/renderer/platform/geometry/float_point.h"
 
 namespace blink {
 
@@ -56,10 +56,10 @@ class SVGPathByteStreamSource {
   bool ReadFlag() { return ReadType<bool>(); }
   float ReadFloat() { return ReadType<float>(); }
   uint16_t ReadSVGSegmentType() { return ReadType<uint16_t>(); }
-  gfx::PointF ReadPoint() {
+  FloatPoint ReadFloatPoint() {
     float x = ReadType<float>();
     float y = ReadType<float>();
-    return gfx::PointF(x, y);
+    return FloatPoint(x, y);
   }
 
   SVGPathByteStream::DataIterator stream_current_;

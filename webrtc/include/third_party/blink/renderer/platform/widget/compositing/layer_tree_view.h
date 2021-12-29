@@ -16,6 +16,8 @@
 #include "cc/trees/layer_tree_host_client.h"
 #include "cc/trees/layer_tree_host_single_thread_client.h"
 #include "cc/trees/paint_holding_reason.h"
+#include "cc/trees/swap_promise.h"
+#include "cc/trees/swap_promise_monitor.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/widget/compositing/layer_tree_view_delegate.h"
 #include "ui/gfx/geometry/rect.h"
@@ -29,6 +31,10 @@ class LayerTreeSettings;
 class RenderFrameMetadataObserver;
 class TaskGraphRunner;
 }  // namespace cc
+
+namespace gfx {
+class RenderingPipeline;
+}  // namespace gfx
 
 namespace blink {
 
@@ -56,7 +62,9 @@ class PLATFORM_EXPORT LayerTreeView
   void Initialize(const cc::LayerTreeSettings& settings,
                   scoped_refptr<base::SingleThreadTaskRunner> main_thread,
                   scoped_refptr<base::SingleThreadTaskRunner> compositor_thread,
-                  cc::TaskGraphRunner* task_graph_runner);
+                  cc::TaskGraphRunner* task_graph_runner,
+                  gfx::RenderingPipeline* main_thread_pipeline,
+                  gfx::RenderingPipeline* compositor_thread_pipeline);
 
   // Drops any references back to the delegate in preparation for being
   // destroyed.
@@ -84,7 +92,7 @@ class PLATFORM_EXPORT LayerTreeView
   void RequestNewLayerTreeFrameSink() override;
   void DidInitializeLayerTreeFrameSink() override;
   void DidFailToInitializeLayerTreeFrameSink() override;
-  void WillCommit(const cc::CommitState&) override;
+  void WillCommit() override;
   void DidCommit(base::TimeTicks commit_start_time,
                  base::TimeTicks commit_finish_time) override;
   void DidCommitAndDrawFrame() override;

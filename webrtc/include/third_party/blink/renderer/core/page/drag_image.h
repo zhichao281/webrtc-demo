@@ -29,6 +29,8 @@
 #include <memory>
 
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/platform/geometry/float_size.h"
+#include "third_party/blink/renderer/platform/geometry/int_size.h"
 #include "third_party/blink/renderer/platform/graphics/graphics_types.h"
 #include "third_party/blink/renderer/platform/graphics/image_orientation.h"
 #include "third_party/blink/renderer/platform/graphics/paint/display_item_client.h"
@@ -36,8 +38,6 @@
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/skia/include/core/SkBitmap.h"
-#include "ui/gfx/geometry/size.h"
-#include "ui/gfx/geometry/size_f.h"
 
 namespace blink {
 
@@ -55,7 +55,7 @@ class CORE_EXPORT DragImage {
       float device_scale_factor = 1,
       InterpolationQuality = kInterpolationDefault,
       float opacity = 1,
-      gfx::Vector2dF image_scale = gfx::Vector2dF(1, 1));
+      FloatSize image_scale = FloatSize(1, 1));
 
   static std::unique_ptr<DragImage> Create(const KURL&,
                                            const String& label,
@@ -66,15 +66,13 @@ class CORE_EXPORT DragImage {
   DragImage& operator=(const DragImage&) = delete;
   ~DragImage();
 
-  static gfx::Vector2dF ClampedImageScale(const gfx::Size&,
-                                          const gfx::Size&,
-                                          const gfx::Size& max_size);
+  static FloatSize ClampedImageScale(const IntSize&,
+                                     const IntSize&,
+                                     const IntSize& max_size);
 
   const SkBitmap& Bitmap() { return bitmap_; }
   float ResolutionScale() const { return resolution_scale_; }
-  gfx::Size Size() const {
-    return gfx::Size(bitmap_.width(), bitmap_.height());
-  }
+  IntSize Size() const { return IntSize(bitmap_.width(), bitmap_.height()); }
 
   void Scale(float scale_x, float scale_y);
 

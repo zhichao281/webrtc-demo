@@ -55,7 +55,7 @@ class PLATFORM_EXPORT Pattern : public RefCounted<Pattern> {
                                                    RepeatMode = kRepeatModeXY);
   static scoped_refptr<Pattern> CreatePaintRecordPattern(
       sk_sp<PaintRecord>,
-      const gfx::RectF& record_bounds,
+      const FloatRect& record_bounds,
       RepeatMode = kRepeatModeXY);
   Pattern(const Pattern&) = delete;
   Pattern& operator=(const Pattern&) = delete;

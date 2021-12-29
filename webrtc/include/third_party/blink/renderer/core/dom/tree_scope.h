@@ -27,13 +27,11 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_DOM_TREE_SCOPE_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_DOM_TREE_SCOPE_H_
 
-#include "third_party/blink/renderer/bindings/core/v8/v8_observable_array_css_style_sheet.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/tree_ordered_map.h"
 #include "third_party/blink/renderer/core/html/forms/radio_button_group_scope.h"
 #include "third_party/blink/renderer/core/layout/hit_test_request.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
-#include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 
@@ -145,21 +143,15 @@ class CORE_EXPORT TreeScope : public GarbageCollectedMixin {
 
   SVGTreeScopeResources& EnsureSVGTreeScopedResources();
 
-  V8ObservableArrayCSSStyleSheet* AdoptedStyleSheets() const {
-    return adopted_style_sheets_;
-  }
   bool HasAdoptedStyleSheets() const;
-  void SetAdoptedStyleSheetsForTesting(HeapVector<Member<CSSStyleSheet>>&);
-  void ClearAdoptedStyleSheets();
+  const HeapVector<Member<CSSStyleSheet>>& AdoptedStyleSheets();
+  void SetAdoptedStyleSheets(HeapVector<Member<CSSStyleSheet>>&);
+  void SetAdoptedStyleSheets(HeapVector<Member<CSSStyleSheet>>&,
+                             ExceptionState&);
 
  protected:
-  explicit TreeScope(ContainerNode&,
-                     Document&,
-                     V8ObservableArrayCSSStyleSheet::SetAlgorithmCallback,
-                     V8ObservableArrayCSSStyleSheet::DeleteAlgorithmCallback);
-  explicit TreeScope(Document&,
-                     V8ObservableArrayCSSStyleSheet::SetAlgorithmCallback,
-                     V8ObservableArrayCSSStyleSheet::DeleteAlgorithmCallback);
+  TreeScope(ContainerNode&, Document&);
+  explicit TreeScope(Document&);
   virtual ~TreeScope();
 
   void ResetTreeScope();
@@ -167,22 +159,9 @@ class CORE_EXPORT TreeScope : public GarbageCollectedMixin {
   void SetParentTreeScope(TreeScope&);
   void SetNeedsStyleRecalcForViewportUnits();
 
-  virtual void OnAdoptedStyleSheetSet(ScriptState*,
-                                      V8ObservableArrayCSSStyleSheet&,
-                                      uint32_t,
-                                      Member<CSSStyleSheet>&,
-                                      ExceptionState&);
-  virtual void OnAdoptedStyleSheetDelete(ScriptState*,
-                                         V8ObservableArrayCSSStyleSheet&,
-                                         uint32_t,
-                                         ExceptionState&);
-
  private:
   Element* HitTestPointInternal(Node*, HitTestPointType) const;
   Element* FindAnchorWithName(const String& name);
-
-  void StyleSheetWasAdded(CSSStyleSheet* sheet);
-  void StyleSheetWasRemoved(CSSStyleSheet* sheet);
 
   Member<ContainerNode> root_node_;
   Member<Document> document_;
@@ -201,7 +180,7 @@ class CORE_EXPORT TreeScope : public GarbageCollectedMixin {
 
   Member<SVGTreeScopeResources> svg_tree_scoped_resources_;
 
-  Member<V8ObservableArrayCSSStyleSheet> adopted_style_sheets_;
+  HeapVector<Member<CSSStyleSheet>> adopted_style_sheets_;
 };
 
 inline bool TreeScope::HasElementWithId(const AtomicString& id) const {

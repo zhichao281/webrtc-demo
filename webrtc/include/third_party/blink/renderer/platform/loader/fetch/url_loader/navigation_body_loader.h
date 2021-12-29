@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/macros.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "mojo/public/cpp/base/big_buffer.h"
@@ -62,7 +63,7 @@ class NavigationBodyLoader : public WebNavigationBodyLoader,
   //
   // StartLoadingBody
   //   request code cache
-  // ContinueWithCodeCache
+  // CodeCacheReceived
   //   notify client about cache
   // BindURLLoaderAndContinue
   // OnStartLoadingResponseBody
@@ -82,7 +83,6 @@ class NavigationBodyLoader : public WebNavigationBodyLoader,
   void SetDefersLoading(WebLoaderFreezeMode mode) override;
   void StartLoadingBody(WebNavigationBodyLoader::Client* client,
                         CodeCacheHost* code_cache_host) override;
-  void StartLoadingCodeCache(CodeCacheHost* code_cache_host) override;
 
   // network::mojom::URLLoaderClient implementation.
   void OnReceiveEarlyHints(network::mojom::EarlyHintsPtr early_hints) override;
@@ -100,9 +100,10 @@ class NavigationBodyLoader : public WebNavigationBodyLoader,
       mojo::ScopedDataPipeConsumerHandle handle) override;
   void OnComplete(const network::URLLoaderCompletionStatus& status) override;
 
-  void CodeCacheReceived(base::Time response_time, mojo_base::BigBuffer data);
-  void ContinueWithCodeCache(base::TimeTicks start_time,
-                             base::Time response_head_response_time);
+  void CodeCacheReceived(base::TimeTicks start_time,
+                         base::Time response_head_response_time,
+                         base::Time response_time,
+                         mojo_base::BigBuffer data);
   void BindURLLoaderAndContinue();
   void OnConnectionClosed();
   void OnReadable(MojoResult unused);
@@ -161,18 +162,6 @@ class NavigationBodyLoader : public WebNavigationBodyLoader,
   const KURL original_url_;
 
   const bool is_main_frame_;
-
-  // The time the loader started waiting for the code cache. If this is
-  // non-null, |ContinueWithCodeCache()| should be called when the cache is
-  // available.
-  base::TimeTicks code_cache_wait_start_time_;
-  // The response time from the response head.
-  base::Time response_head_response_time_;
-
-  // These fields will be filled with the code cache response to be used when
-  // needed.
-  base::Time code_cache_response_time_;
-  absl::optional<mojo_base::BigBuffer> code_cache_data_;
 
   base::WeakPtrFactory<NavigationBodyLoader> weak_factory_{this};
 };

@@ -14,6 +14,10 @@
 
 namespace base {
 class TickClock;
+
+namespace sequence_manager {
+class TimeDomain;
+}
 }  // namespace base
 
 namespace v8 {
@@ -41,12 +45,13 @@ class PLATFORM_EXPORT ThreadSchedulerImpl : public ThreadScheduler,
 
   virtual scoped_refptr<base::SingleThreadTaskRunner> ControlTaskRunner() = 0;
 
-  virtual const base::TickClock* GetTickClock() const = 0;
+  virtual void RegisterTimeDomain(
+      base::sequence_manager::TimeDomain* time_domain) = 0;
+  virtual void UnregisterTimeDomain(
+      base::sequence_manager::TimeDomain* time_domain) = 0;
+  virtual base::sequence_manager::TimeDomain* GetActiveTimeDomain() = 0;
 
-  // Allow places in the scheduler to do some work after the current task.
-  // The primary use case here is batching – to allow updates to be processed
-  // only once per task.
-  void ExecuteAfterCurrentTask(base::OnceClosure on_completion_task);
+  virtual const base::TickClock* GetTickClock() = 0;
 
   void SetV8Isolate(v8::Isolate* isolate) override { isolate_ = isolate; }
   v8::Isolate* isolate() const { return isolate_; }
@@ -55,14 +60,6 @@ class PLATFORM_EXPORT ThreadSchedulerImpl : public ThreadScheduler,
   ThreadSchedulerImpl() {}
   ~ThreadSchedulerImpl() override = default;
 
-  // Returns the list of callbacks to execute after the current task.
-  virtual WTF::Vector<base::OnceClosure>& GetOnTaskCompletionCallbacks() = 0;
-
-  // Dispatch the callbacks which requested to be executed after the current
-  // task.
-  void DispatchOnTaskCompletionCallbacks();
-
- private:
   v8::Isolate* isolate_ = nullptr;
 };
 

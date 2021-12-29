@@ -11,6 +11,8 @@
 #include <type_traits>
 #include <utility>
 
+#include "base/macros.h"
+
 namespace base {
 namespace win {
 

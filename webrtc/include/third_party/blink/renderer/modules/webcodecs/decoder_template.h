@@ -24,13 +24,10 @@
 #include "third_party/blink/renderer/modules/webcodecs/hardware_preference.h"
 #include "third_party/blink/renderer/modules/webcodecs/reclaimable_codec.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
-#include "third_party/blink/renderer/platform/heap/collection_support/heap_deque.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/heap/heap.h"
+#include "third_party/blink/renderer/platform/heap/heap_allocator.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
-
-namespace base {
-class SingleThreadTaskRunner;
-}
 
 namespace media {
 class GpuVideoAcceleratorFactories;
@@ -204,7 +201,7 @@ class MODULES_EXPORT DecoderTemplate
   // Could be a configure, flush, or reset. Decodes go in |pending_decodes_|.
   Member<Request> pending_request_;
 
-  std::unique_ptr<CodecLogger<media::Status>> logger_;
+  std::unique_ptr<CodecLogger> logger_;
 
   // Empty - GPU factories haven't been retrieved yet.
   // nullptr - We tried to get GPU factories, but acceleration is unavailable.
@@ -230,9 +227,6 @@ class MODULES_EXPORT DecoderTemplate
 
   // Keyframes are required after configure(), flush(), and reset().
   bool require_key_frame_ = true;
-
-  // Task runner for main thread.
-  scoped_refptr<base::SingleThreadTaskRunner> main_thread_task_runner_;
 };
 
 }  // namespace blink

@@ -14,16 +14,22 @@ class PaymentRequestDelegate;
 class ScriptState;
 class ScriptValue;
 
-class UpdatePaymentDetailsFunction : public NewScriptFunction::Callable {
+class UpdatePaymentDetailsFunction : public ScriptFunction {
  public:
   enum class ResolveType {
     kFulfill,
     kReject,
   };
 
-  UpdatePaymentDetailsFunction(PaymentRequestDelegate*, ResolveType);
+  static v8::Local<v8::Function> CreateFunction(ScriptState*,
+                                                PaymentRequestDelegate*,
+                                                ResolveType);
+
+  UpdatePaymentDetailsFunction(ScriptState*,
+                               PaymentRequestDelegate*,
+                               ResolveType);
   void Trace(Visitor*) const override;
-  ScriptValue Call(ScriptState*, ScriptValue) override;
+  ScriptValue Call(ScriptValue) override;
 
  private:
   Member<PaymentRequestDelegate> delegate_;

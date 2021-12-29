@@ -12,15 +12,12 @@
 #include "third_party/blink/renderer/platform/text/text_direction.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
-namespace gfx {
-class Rect;
-}
-
 namespace blink {
 
 class Color;
 class ComputedStyle;
 class FillLayer;
+class IntRect;
 class NinePieceImage;
 struct PaintInfo;
 struct PhysicalOffset;
@@ -95,7 +92,7 @@ class InlineBoxPainterBase {
   };
   virtual BorderPaintingType GetBorderPaintType(
       const PhysicalRect& adjusted_frame_rect,
-      gfx::Rect& adjusted_clip_rect,
+      IntRect& adjusted_clip_rect,
       bool object_has_multiple_boxes) const = 0;
 
   const ImageResourceObserver& image_observer_;

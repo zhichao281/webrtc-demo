@@ -181,6 +181,8 @@ class Visitor {
 };
 
 namespace internal {
+class GarbageCollectedBase {};
+
 class StrongMemberTag;
 class WeakMemberTag;
 
@@ -221,9 +223,9 @@ class BasicCrossThreadPersistent : public PersistentBase {
 }  // namespace internal
 
 template <typename T>
-class GarbageCollected {};
+class GarbageCollected : public internal::GarbageCollectedBase {};
 
-class GarbageCollectedMixin {
+class GarbageCollectedMixin : public internal::GarbageCollectedBase {
  public:
   virtual void AdjustAndMark(Visitor*) const = 0;
   virtual bool IsHeapObjectAlive(Visitor*) const = 0;

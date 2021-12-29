@@ -127,8 +127,8 @@ class CORE_EXPORT ComputedStyleUtils {
                                          const LayoutObject*,
                                          const ComputedStyle&);
   static CSSValue* ValueForGridPosition(const GridPosition&);
-  static gfx::SizeF UsedBoxSize(const LayoutObject&);
-  static CSSValue* RenderTextDecorationFlagsToCSSValue(TextDecorationLine);
+  static FloatSize UsedBoxSize(const LayoutObject&);
+  static CSSValue* RenderTextDecorationFlagsToCSSValue(TextDecoration);
   static CSSValue* ValueForTextDecorationStyle(ETextDecorationStyle);
   static CSSValue* ValueForTextDecorationSkipInk(ETextDecorationSkipInk);
   static CSSValue* TouchActionFlagsToCSSValue(TouchAction);
@@ -171,13 +171,12 @@ class CORE_EXPORT ComputedStyleUtils {
   static CSSFunctionValue* ValueForTransformOperation(
       const TransformOperation&,
       float zoom,
-      gfx::SizeF box_size = gfx::SizeF(0, 0));
+      FloatSize box_size = FloatSize(0, 0));
   // Serialize a transform list.
   static CSSValue* ValueForTransformList(const TransformOperations&,
                                          float zoom,
-                                         gfx::SizeF box_size = gfx::SizeF(0,
-                                                                          0));
-  static gfx::RectF ReferenceBoxForTransform(
+                                         FloatSize box_size = FloatSize(0, 0));
+  static FloatRect ReferenceBoxForTransform(
       const LayoutObject&,
       UsePixelSnappedBox = kUsePixelSnappedBox);
   // The LayoutObject parameter is only used for converting unreperesentable

@@ -49,7 +49,7 @@ class InlineFlowBoxPainter : public InlineBoxPainterBase {
                            const PhysicalRect& rect) override;
   BorderPaintingType GetBorderPaintType(
       const PhysicalRect& adjusted_frame_rect,
-      gfx::Rect& adjusted_clip_rect,
+      IntRect& adjusted_clip_rect,
       bool object_has_multiple_boxes) const override;
 
   void PaintBackgroundBorderShadow(const PaintInfo&,
@@ -63,11 +63,6 @@ class InlineFlowBoxPainter : public InlineBoxPainterBase {
   // special touch action if any. This should be called in the background paint
   // phase even if there is no other painted content.
   void RecordHitTestData(const PaintInfo&, const PhysicalOffset& paint_offset);
-
-  // Records the bounds of the current paint chunk for potential cropping later
-  // as part of tab capture.
-  void RecordRegionCaptureData(const PaintInfo& paint_info,
-                               const PhysicalOffset& paint_offset);
 
   const InlineFlowBox& inline_flow_box_;
 };

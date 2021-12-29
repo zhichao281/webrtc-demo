@@ -45,9 +45,12 @@
 #include "third_party/blink/renderer/core/timing/performance_navigation.h"
 #include "third_party/blink/renderer/core/timing/performance_timing.h"
 #include "third_party/blink/renderer/core/timing/responsiveness_metrics.h"
+#include "third_party/blink/renderer/platform/heap/heap_allocator.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
 
 namespace blink {
+
+class IntSize;
 
 class CORE_EXPORT WindowPerformance final : public Performance,
                                             public PerformanceMonitor::Client,
@@ -129,11 +132,11 @@ class CORE_EXPORT WindowPerformance final : public Performance,
 
   void AddElementTiming(const AtomicString& name,
                         const String& url,
-                        const gfx::RectF& rect,
+                        const FloatRect& rect,
                         base::TimeTicks start_time,
                         base::TimeTicks load_time,
                         const AtomicString& identifier,
-                        const gfx::Size& intrinsic_size,
+                        const IntSize& intrinsic_size,
                         const AtomicString& id,
                         Element*);
 
@@ -143,14 +146,12 @@ class CORE_EXPORT WindowPerformance final : public Performance,
   // PageVisibilityObserver
   void PageVisibilityChanged() override;
 
-  void OnLargestContentfulPaintUpdated(
-      base::TimeTicks paint_time,
-      uint64_t paint_size,
-      base::TimeTicks load_time,
-      base::TimeTicks first_animated_frame_time,
-      const AtomicString& id,
-      const String& url,
-      Element*);
+  void OnLargestContentfulPaintUpdated(base::TimeTicks paint_time,
+                                       uint64_t paint_size,
+                                       base::TimeTicks load_time,
+                                       const AtomicString& id,
+                                       const String& url,
+                                       Element*);
 
   void Trace(Visitor*) const override;
 

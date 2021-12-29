@@ -35,6 +35,7 @@
 namespace blink {
 
 class DocumentMarker;
+class TextMarkerBase;
 
 class CORE_EXPORT InlineTextBox : public InlineBox {
  public:
@@ -144,12 +145,12 @@ class CORE_EXPORT InlineTextBox : public InlineBox {
                                    bool grammar) const;
   virtual void PaintTextMarkerForeground(const PaintInfo&,
                                          const PhysicalOffset& box_origin,
-                                         const DocumentMarker&,
+                                         const TextMarkerBase&,
                                          const ComputedStyle&,
                                          const Font&) const;
   virtual void PaintTextMarkerBackground(const PaintInfo&,
                                          const PhysicalOffset& box_origin,
-                                         const DocumentMarker&,
+                                         const TextMarkerBase&,
                                          const ComputedStyle&,
                                          const Font&) const;
 

@@ -40,6 +40,7 @@
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/shared_buffer.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
+
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "third_party/skia/include/core/SkImageInfo.h"
 #include "third_party/skia/include/third_party/skcms/skcms.h"
@@ -249,12 +250,12 @@ class PLATFORM_EXPORT ImageDecoder {
 
   bool IsDecodedSizeAvailable() const { return !failed_ && size_available_; }
 
-  virtual gfx::Size Size() const { return size_; }
+  virtual IntSize Size() const { return size_; }
   virtual Vector<SkISize> GetSupportedDecodeSizes() const { return {}; }
 
   // Decoders which downsample images should override this method to
   // return the actual decoded size.
-  virtual gfx::Size DecodedSize() const { return Size(); }
+  virtual IntSize DecodedSize() const { return Size(); }
 
   // The YUV subsampling of the image.
   virtual cc::YUVSubsampling GetYUVSubsampling() const {
@@ -263,9 +264,9 @@ class PLATFORM_EXPORT ImageDecoder {
 
   // Image decoders that support YUV decoding must override this to
   // provide the size of each component.
-  virtual gfx::Size DecodedYUVSize(cc::YUVIndex) const {
+  virtual IntSize DecodedYUVSize(cc::YUVIndex) const {
     NOTREACHED();
-    return gfx::Size();
+    return IntSize();
   }
 
   // Image decoders that support YUV decoding must override this to
@@ -300,7 +301,7 @@ class PLATFORM_EXPORT ImageDecoder {
   // sizes. This does NOT differ from Size() for GIF or WebP, since
   // decoding GIF or WebP composites any smaller frames against previous
   // frames to create full-size frames.
-  virtual gfx::Size FrameSizeAtIndex(wtf_size_t) const { return Size(); }
+  virtual IntSize FrameSizeAtIndex(wtf_size_t) const { return Size(); }
 
   // Returns whether the size is legal (i.e. not going to result in
   // overflow elsewhere).  If not, marks decoding as failed.
@@ -312,7 +313,7 @@ class PLATFORM_EXPORT ImageDecoder {
     if (SizeCalculationMayOverflow(width, height, decoded_bytes_per_pixel))
       return SetFailed();
 
-    size_ = gfx::Size(width, height);
+    size_ = IntSize(width, height);
     size_available_ = true;
     return true;
   }
@@ -352,7 +353,7 @@ class PLATFORM_EXPORT ImageDecoder {
   virtual wtf_size_t FrameBytesAtIndex(wtf_size_t) const;
 
   ImageOrientation Orientation() const { return orientation_; }
-  gfx::Size DensityCorrectedSize() const { return density_corrected_size_; }
+  IntSize DensityCorrectedSize() const { return density_corrected_size_; }
 
   bool IgnoresColorSpace() const { return color_behavior_.IsIgnore(); }
   const ColorBehavior& GetColorBehavior() const { return color_behavior_; }
@@ -399,7 +400,7 @@ class PLATFORM_EXPORT ImageDecoder {
 
   // If the image has a cursor hot-spot, stores it in the argument
   // and returns true. Otherwise returns false.
-  virtual bool HotSpot(gfx::Point&) const { return false; }
+  virtual bool HotSpot(IntPoint&) const { return false; }
 
   virtual void SetMemoryAllocator(SkBitmap::Allocator* allocator) {
     // This currently doesn't work for images with multiple frames.
@@ -536,7 +537,7 @@ class PLATFORM_EXPORT ImageDecoder {
   const HighBitDepthDecodingOption high_bit_depth_decoding_option_;
   const ColorBehavior color_behavior_;
   ImageOrientation orientation_;
-  gfx::Size density_corrected_size_;
+  IntSize density_corrected_size_;
 
   // The maximum amount of memory a decoded image should require. Ideally,
   // image decoders should downsample large images to fit under this limit
@@ -602,7 +603,7 @@ class PLATFORM_EXPORT ImageDecoder {
   // previous frame. This condition is different for GIF and WEBP.
   virtual bool CanReusePreviousFrameBuffer(wtf_size_t) const { return false; }
 
-  gfx::Size size_;
+  IntSize size_;
   bool size_available_ = false;
   bool is_all_data_received_ = false;
   bool failed_ = false;

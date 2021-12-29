@@ -32,7 +32,7 @@
 
 namespace blink {
 
-enum LightType { kLsDistant, kLsPoint, kLsSpot };
+enum LightType { LS_DISTANT, LS_POINT, LS_SPOT };
 
 class PLATFORM_EXPORT LightSource : public RefCounted<LightSource> {
 

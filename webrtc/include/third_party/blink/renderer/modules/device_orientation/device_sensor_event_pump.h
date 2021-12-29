@@ -25,11 +25,11 @@ class MODULES_EXPORT DeviceSensorEventPump : public GarbageCollectedMixin {
       base::Time::kMicrosecondsPerSecond / kDefaultPumpFrequencyHz;
 
   // The pump is a tri-state automaton with allowed transitions as follows:
-  // kStopped -> kPendingStart
-  // kPendingStart -> kRunning
-  // kPendingStart -> kStopped
-  // kRunning -> kStopped
-  enum class PumpState { kStopped, kRunning, kPendingStart };
+  // STOPPED -> PENDING_START
+  // PENDING_START -> RUNNING
+  // PENDING_START -> STOPPED
+  // RUNNING -> STOPPED
+  enum class PumpState { STOPPED, RUNNING, PENDING_START };
 
   void HandleSensorProviderError();
 

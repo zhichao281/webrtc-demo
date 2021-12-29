@@ -8,6 +8,7 @@
 #include <objbase.h>
 
 #include "base/check.h"
+#include "base/macros.h"
 
 namespace base {
 namespace win {

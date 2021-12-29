@@ -15,7 +15,6 @@
 #ifndef THIRD_PARTY_PRIVATE_MEMBERSHIP_SRC_PRIVATE_MEMBERSHIP_RLWE_CLIENT_H_
 #define THIRD_PARTY_PRIVATE_MEMBERSHIP_SRC_PRIVATE_MEMBERSHIP_RLWE_CLIENT_H_
 
-#include "third_party/private_membership/base/private_membership_export.h"
 #include "third_party/private-join-and-compute/src/crypto/ec_commutative_cipher.h"
 #include "third_party/private_membership/src/private_membership.pb.h"
 #include "third_party/private_membership/src/membership_response_map.h"
@@ -31,7 +30,7 @@ namespace rlwe {
 namespace internal {
 
 // PRNG seed generator which supports deterministic seed generation.
-class PRIVATE_MEMBERSHIP_EXPORT PrngSeedGenerator {
+class PrngSeedGenerator {
  public:
   // Creates a non deterministic PRNG seed generator.
   static std::unique_ptr<PrngSeedGenerator> Create();
@@ -55,7 +54,7 @@ class PRIVATE_MEMBERSHIP_EXPORT PrngSeedGenerator {
 
 // Lightweight wrapper for processing PIR related requests and responses.
 // Thread safe.
-class PRIVATE_MEMBERSHIP_EXPORT PirClient {
+class PirClient {
  public:
   virtual ~PirClient() = default;
 
@@ -80,7 +79,7 @@ class PRIVATE_MEMBERSHIP_EXPORT PirClient {
 
 // Thread safe.
 template <typename ModularInt>
-class PRIVATE_MEMBERSHIP_EXPORT PirClientImpl : public PirClient {
+class PirClientImpl : public PirClient {
  public:
   static ::rlwe::StatusOr<std::unique_ptr<PirClientImpl<ModularInt>>> Create(
       const RlweParameters& rlwe_params, int total_entry_count,
@@ -143,7 +142,7 @@ class PRIVATE_MEMBERSHIP_EXPORT PirClientImpl : public PirClient {
 }  // namespace internal
 
 // Client for the Private Membership RLWE protocol.
-class PRIVATE_MEMBERSHIP_EXPORT PrivateMembershipRlweClient {
+class PrivateMembershipRlweClient {
  public:
   // PrivateMembershipRlweClient is neither copyable nor copy assignable.
   PrivateMembershipRlweClient(const PrivateMembershipRlweClient&) = delete;

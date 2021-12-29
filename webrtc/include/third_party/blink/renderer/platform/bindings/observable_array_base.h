@@ -6,7 +6,6 @@
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_BINDINGS_OBSERVABLE_ARRAY_BASE_H_
 
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
-#include "third_party/blink/renderer/platform/heap/member.h"
 #include "v8/include/v8-forward.h"
 
 // Overview of Blink implementation of Web IDL observable arrays
@@ -30,14 +29,13 @@
 //
 // For Blink developers, the backing list object looks the primary object.
 // However, when exposing an observable array to web developers, the exotic
-// object must be exposed instead of the backing list object.  This is done in
-// auto-generated bindings (generated bindings automatically call
-// GetExoticObject()).
+// object must be exposed instead of the backing list object.
 //
 //   class MyIdlInterface : public ScriptWrappable {
 //    public:
-//     V8ObservableArrayNode* myAttr() const {
-//       return my_observable_array_;
+//     ObservableArrayExoticObject* myAttr() const {
+//       // Expose the exotic object to web developers.
+//       return my_observable_array_->GetExoticObject();
 //     }
 //    private:
 //     // my_observable_array_ is a backing list object.
@@ -54,8 +52,7 @@
 //   +-- bindings::ObservableArrayExoticObjectImpl -- the implementation class
 //
 //   v8_exotic_object (= JS Proxy)
-//       --(proxy target)--> v8_array (= JS Array)
-//       --(private property)--> v8_backing_list_object
+//       --(proxy target)--> v8_backing_list_object
 //       --(internal field)--> blink_backing_list_object
 //       --(data member)--> blink_exotic_object
 //       --(ToV8Traits)--> v8_exotic_object

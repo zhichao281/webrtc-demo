@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+#include "base/macros.h"
+
 namespace hunspell {
 
 class DicNode;

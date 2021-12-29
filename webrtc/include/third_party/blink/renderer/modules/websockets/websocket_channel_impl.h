@@ -50,7 +50,6 @@
 #include "third_party/blink/renderer/modules/websockets/websocket_channel.h"
 #include "third_party/blink/renderer/modules/websockets/websocket_message_chunk_accumulator.h"
 #include "third_party/blink/renderer/platform/heap/handle.h"
-#include "third_party/blink/renderer/platform/heap/prefinalizer.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
@@ -282,8 +281,8 @@ class MODULES_EXPORT WebSocketChannelImpl final
 
    public:
     enum class CountStatus {
-      kOkayToConnect,
-      kShouldNotConnect,
+      OKAY_TO_CONNECT,
+      SHOULD_NOT_CONNECT,
     };
 
     ConnectionCountTrackerHandle() = default;

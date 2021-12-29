@@ -22,9 +22,9 @@
 
 #include "third_party/blink/renderer/core/svg/properties/svg_property_helper.h"
 #include "third_party/blink/renderer/core/svg/svg_parsing_error.h"
+#include "third_party/blink/renderer/platform/geometry/float_rect.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
-#include "ui/gfx/geometry/rect_f.h"
 
 namespace blink {
 
@@ -36,27 +36,26 @@ class SVGRect final : public SVGPropertyHelper<SVGRect> {
 
   static SVGRect* CreateInvalid() {
     SVGRect* rect = MakeGarbageCollected<SVGRect>();
-    rect->is_valid_ = false;
+    rect->SetInvalid();
     return rect;
   }
 
-  SVGRect() = default;
-  SVGRect(float x, float y, float width, float height)
-      : x_(x), y_(y), width_(width), height_(height) {}
+  SVGRect();
+  SVGRect(const FloatRect&);
 
   SVGRect* Clone() const;
 
-  // Negative width_/height_ will be clamped to 0.
-  gfx::RectF Rect() const { return gfx::RectF(x_, y_, width_, height_); }
+  const FloatRect& Value() const { return value_; }
+  void SetValue(const FloatRect& v) { value_ = v; }
 
-  float X() const { return x_; }
-  float Y() const { return y_; }
-  float Width() const { return width_; }
-  float Height() const { return height_; }
-  void SetX(float f) { x_ = f; }
-  void SetY(float f) { y_ = f; }
-  void SetWidth(float f) { width_ = f; }
-  void SetHeight(float f) { height_ = f; }
+  float X() const { return value_.x(); }
+  float Y() const { return value_.y(); }
+  float Width() const { return value_.width(); }
+  float Height() const { return value_.height(); }
+  void SetX(float f) { value_.set_x(f); }
+  void SetY(float f) { value_.set_y(f); }
+  void SetWidth(float f) { value_.set_width(f); }
+  void SetHeight(float f) { value_.set_height(f); }
 
   String ValueAsString() const override;
   SVGParsingError SetValueAsString(const String&);
@@ -73,23 +72,17 @@ class SVGRect final : public SVGPropertyHelper<SVGRect> {
   float CalculateDistance(const SVGPropertyBase* to,
                           const SVGElement* context_element) const override;
 
+  bool IsValid() const { return is_valid_; }
+  void SetInvalid();
+
   static AnimatedPropertyType ClassType() { return kAnimatedRect; }
 
  private:
-  friend class SVGFitToViewBox;
-  bool IsValid() const { return is_valid_; }
-
   template <typename CharType>
   SVGParsingError Parse(const CharType*& ptr, const CharType* end);
-  void Set(float x, float y, float width, float height);
-  void Add(float x, float y, float width, float height);
 
-  bool is_valid_ = true;
-  // Not using gfx::RectF because width_ and height_ can be negative.
-  float x_ = 0;
-  float y_ = 0;
-  float width_ = 0;
-  float height_ = 0;
+  bool is_valid_;
+  FloatRect value_;
 };
 
 template <>

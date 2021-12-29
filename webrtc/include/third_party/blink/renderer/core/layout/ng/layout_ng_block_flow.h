@@ -20,15 +20,12 @@ extern template class CORE_EXTERN_TEMPLATE_EXPORT
 class CORE_EXPORT LayoutNGBlockFlow
     : public LayoutNGBlockFlowMixin<LayoutBlockFlow> {
  public:
-  explicit LayoutNGBlockFlow(ContainerNode*);
+  explicit LayoutNGBlockFlow(Element*);
   ~LayoutNGBlockFlow() override;
 
   void UpdateBlockLayout(bool relayout_children) override;
 
-  const char* GetName() const override {
-    NOT_DESTROYED();
-    return "LayoutNGBlockFlow";
-  }
+  const char* GetName() const override { return "LayoutNGBlockFlow"; }
 
  protected:
   bool IsOfType(LayoutObjectType) const override;

@@ -6,7 +6,6 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_XR_XR_REFERENCE_SPACE_H_
 
 #include <memory>
-#include <string>
 
 #include "device/vr/public/mojom/vr_service.mojom-blink.h"
 #include "third_party/blink/renderer/modules/xr/xr_space.h"
@@ -31,23 +30,22 @@ class XRReferenceSpace : public XRSpace {
   ~XRReferenceSpace() override;
 
   absl::optional<TransformationMatrix> NativeFromViewer(
-      const absl::optional<TransformationMatrix>& mojo_from_viewer)
-      const override;
+      const absl::optional<TransformationMatrix>& mojo_from_viewer) override;
 
-  absl::optional<TransformationMatrix> MojoFromNative() const override;
+  absl::optional<TransformationMatrix> MojoFromNative() override;
 
   bool IsStationary() const override;
 
-  TransformationMatrix NativeFromOffsetMatrix() const override;
-  TransformationMatrix OffsetFromNativeMatrix() const override;
+  TransformationMatrix NativeFromOffsetMatrix() override;
+  TransformationMatrix OffsetFromNativeMatrix() override;
 
   // We override getPose to ensure that the viewer pose in viewer space returns
   // the identity pose instead of the result of multiplying inverse matrices.
-  XRPose* getPose(const XRSpace* other_space) const override;
+  XRPose* getPose(XRSpace* other_space) override;
 
   device::mojom::blink::XRReferenceSpaceType GetType() const;
 
-  XRReferenceSpace* getOffsetReferenceSpace(XRRigidTransform* transform) const;
+  XRReferenceSpace* getOffsetReferenceSpace(XRRigidTransform* transform);
 
   DEFINE_ATTRIBUTE_EVENT_LISTENER(reset, kReset)
 
@@ -61,16 +59,16 @@ class XRReferenceSpace : public XRSpace {
 
  private:
   virtual XRReferenceSpace* cloneWithOriginOffset(
-      XRRigidTransform* origin_offset) const;
+      XRRigidTransform* origin_offset);
 
   // Updates the mojo_from_floor_ transform to match the one present in the
   // latest display parameters of a session.
-  void SetMojoFromFloor() const;
+  void SetMojoFromFloor();
 
-  mutable uint32_t stage_parameters_id_ = 0;
+  uint32_t stage_parameters_id_ = 0;
 
   // Floor from mojo (aka local-floor_from_mojo) transform.
-  mutable std::unique_ptr<TransformationMatrix> mojo_from_floor_;
+  std::unique_ptr<TransformationMatrix> mojo_from_floor_;
   Member<XRRigidTransform> origin_offset_;
   device::mojom::blink::XRReferenceSpaceType type_;
 };

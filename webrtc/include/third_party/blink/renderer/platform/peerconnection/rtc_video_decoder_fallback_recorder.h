@@ -18,8 +18,7 @@ enum class RTCVideoDecoderFallbackReason {
   kReinitializationFailed = 2,
   kPreviousErrorOnDecode = 3,
   kPreviousErrorOnRegisterCallback = 4,
-  kConsecutivePendingBufferOverflowDuringInit = 5,
-  kMaxValue = kConsecutivePendingBufferOverflowDuringInit,
+  kMaxValue = kPreviousErrorOnRegisterCallback,
 };
 
 void RecordRTCVideoDecoderFallbackReason(

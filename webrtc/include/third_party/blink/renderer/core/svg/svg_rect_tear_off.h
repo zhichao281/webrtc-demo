@@ -34,22 +34,13 @@
 #include "third_party/blink/renderer/core/svg/properties/svg_property_tear_off.h"
 #include "third_party/blink/renderer/core/svg/svg_rect.h"
 
-namespace gfx {
-class RectF;
-}
-
 namespace blink {
 
 class SVGRectTearOff : public SVGPropertyTearOff<SVGRect> {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static SVGRectTearOff* CreateDetached(const gfx::RectF& r);
-  // Use this form if width/height may be negative.
-  static SVGRectTearOff* CreateDetached(float x,
-                                        float y,
-                                        float width,
-                                        float height);
+  static SVGRectTearOff* CreateDetached(const FloatRect&);
 
   SVGRectTearOff(SVGRect*,
                  SVGAnimatedPropertyBase* binding,

@@ -53,7 +53,7 @@ class MockImageDecoderClient {
   // MockImageDecoder::decodedSize() to return the same thing as
   // MockImageDecoder::size(). See the precise implementation of
   // MockImageDecoder::decodedSize() below.
-  virtual gfx::Size DecodedSize() const { return gfx::Size(); }
+  virtual IntSize DecodedSize() const { return IntSize(); }
 
   void ForceFirstFrameToBeEmpty() { first_frame_forced_to_be_empty_ = true; }
 
@@ -77,7 +77,7 @@ class MockImageDecoder : public ImageDecoder {
 
   ~MockImageDecoder() override { client_->DecoderBeingDestroyed(); }
 
-  gfx::Size DecodedSize() const override {
+  IntSize DecodedSize() const override {
     return client_->DecodedSize().IsEmpty() ? Size() : client_->DecodedSize();
   }
 
@@ -144,12 +144,12 @@ class MockImageDecoderFactory : public ImageDecoderFactory {
       MockImageDecoderClient* client,
       const SkISize& decoded_size) {
     return base::WrapUnique(new MockImageDecoderFactory(
-        client, gfx::Size(decoded_size.width(), decoded_size.height())));
+        client, IntSize(decoded_size.width(), decoded_size.height())));
   }
 
   static std::unique_ptr<MockImageDecoderFactory> Create(
       MockImageDecoderClient* client,
-      const gfx::Size& decoded_size) {
+      const IntSize& decoded_size) {
     return base::WrapUnique(new MockImageDecoderFactory(client, decoded_size));
   }
 
@@ -162,11 +162,11 @@ class MockImageDecoderFactory : public ImageDecoderFactory {
 
  private:
   MockImageDecoderFactory(MockImageDecoderClient* client,
-                          const gfx::Size& decoded_size)
+                          const IntSize& decoded_size)
       : client_(client), decoded_size_(decoded_size) {}
 
   MockImageDecoderClient* client_;
-  gfx::Size decoded_size_;
+  IntSize decoded_size_;
 };
 
 }  // namespace blink

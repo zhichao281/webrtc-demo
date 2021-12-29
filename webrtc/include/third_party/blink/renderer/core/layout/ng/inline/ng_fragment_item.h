@@ -33,7 +33,7 @@ struct NGSvgFragmentData {
  public:
   scoped_refptr<const ShapeResultView> shape_result;
   NGTextOffset text_offset;
-  gfx::RectF rect;
+  FloatRect rect;
   float length_adjust_scale;
   float angle;
   float baseline_shift;
@@ -123,14 +123,13 @@ class CORE_EXPORT NGFragmentItem {
   void SetSvgLineLocalRect(const PhysicalRect& unscaled_rect);
 
   // A sequence number of fragments generated from a |LayoutObject|.
-  // For line boxes, this is a sequence number for the containing
-  // |LayoutBlockFlow|, starting at |kInitialLineFragmentId|.
+  // For line boxes, please see |kInitialLineFragmentId|.
   wtf_size_t FragmentId() const {
-    DCHECK(Type() != kLine || fragment_id_ >= kInitialLineFragmentId);
+    DCHECK_NE(Type(), kLine);
     return fragment_id_;
   }
   void SetFragmentId(wtf_size_t id) const {
-    DCHECK(Type() != kLine || id >= kInitialLineFragmentId);
+    DCHECK_NE(Type(), kLine);
     fragment_id_ = id;
   }
   // The initial framgent_id for line boxes.
@@ -138,6 +137,8 @@ class CORE_EXPORT NGFragmentItem {
   // its |LayoutBlockFlow| as their |DisplayItemClient|, but multicol also uses
   // fragment id for |LayoutBlockFlow| today. The plan is to make |FragmentData|
   // a |DisplayItemClient| instead.
+  // TODO(kojii): The fragment id for line boxes must be unique across NG block
+  // fragmentation. This is not implemented yet.
   static constexpr wtf_size_t kInitialLineFragmentId = 0x80000000;
 
   // Return true if this is the first fragment generated from a node.
@@ -189,7 +190,7 @@ class CORE_EXPORT NGFragmentItem {
   // This function returns a transformed unscaled glyph bounds for kSvgText
   // type.
   // Do not call this for other types.
-  gfx::RectF ObjectBoundingBox(const NGFragmentItems& items) const;
+  FloatRect ObjectBoundingBox(const NGFragmentItems& items) const;
 
   // Returns a point transformed by the inverse of
   // BuildSvgTransformForBoundingBox(). The return value can be compared with
@@ -201,9 +202,9 @@ class CORE_EXPORT NGFragmentItem {
   float ScaleInlineOffset(LayoutUnit inline_offset) const;
 
   // Returns true if |position|, which is a point in the IFC's coordinate
-  // system, is in the transformed rectangle (including the edges) of this item.
+  // system, is in the transformed rectangle of this item.
   // This works only for kSvgText type.
-  bool InclusiveContains(const gfx::PointF& position) const;
+  bool Contains(const FloatPoint& position) const;
 
   const PhysicalOffset& OffsetInContainerFragment() const {
     return rect_.offset;
@@ -452,7 +453,7 @@ class CORE_EXPORT NGFragmentItem {
   bool HasSvgTransformForBoundingBox() const;
   // A transform which should be used on computing a bounding box.
   // This contains no transform for lengthAdjust=spacingAndGlyphs because
-  // RectInContainerFragment() already takes into account of
+  // FloatRectInContainerFragment() already takes into account of
   // lengthAdjust=spacingAndGlyphs.
   AffineTransform BuildSvgTransformForBoundingBox() const;
 

@@ -23,10 +23,7 @@ class CORE_EXPORT LayoutNGProgress
 
   void UpdateBlockLayout(bool relayout_children) override;
 
-  const char* GetName() const override {
-    NOT_DESTROYED();
-    return "LayoutNGProgress";
-  }
+  const char* GetName() const override { return "LayoutNGProgress"; }
 
  protected:
   bool IsOfType(LayoutObjectType type) const override;

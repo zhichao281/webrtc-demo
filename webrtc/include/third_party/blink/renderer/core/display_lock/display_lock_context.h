@@ -5,8 +5,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_DISPLAY_LOCK_DISPLAY_LOCK_CONTEXT_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_DISPLAY_LOCK_DISPLAY_LOCK_CONTEXT_H_
 
-#include <utility>
-
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/style_recalc.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
@@ -69,8 +67,6 @@ class CORE_EXPORT DisplayLockContext final
     : public GarbageCollected<DisplayLockContext>,
       public LocalFrameView::LifecycleNotificationObserver {
  public:
-  // Note the order of the phases matters. Each phase implies all previous ones
-  // as well.
   enum class ForcedPhase { kStyleAndLayoutTree, kLayout, kPrePaint };
 
   explicit DisplayLockContext(Element*);
@@ -136,10 +132,6 @@ class CORE_EXPORT DisplayLockContext final
     blocked_child_recalc_change_ = blocked_child_recalc_change_.Combine(change);
   }
 
-  StyleRecalcChange TakeBlockedStyleRecalcChange() {
-    return std::exchange(blocked_child_recalc_change_, StyleRecalcChange());
-  }
-
   void NotifyReattachLayoutTreeWasBlocked() {
     blocked_child_recalc_change_ =
         blocked_child_recalc_change_.ForceReattachLayoutTree();
@@ -147,8 +139,20 @@ class CORE_EXPORT DisplayLockContext final
 
   void NotifyChildLayoutWasBlocked() { child_layout_was_blocked_ = true; }
 
+  void NotifyCompositingRequirementsUpdateWasBlocked() {
+    needs_compositing_requirements_update_ = true;
+  }
   void NotifyCompositingDescendantDependentFlagUpdateWasBlocked() {
     needs_compositing_dependent_flag_update_ = true;
+  }
+
+  void NotifyGraphicsLayerRebuildBlocked() {
+    DCHECK(!RuntimeEnabledFeatures::CompositeAfterPaintEnabled());
+    needs_graphics_layer_rebuild_ = true;
+  }
+
+  void NotifyForcedGraphicsLayerUpdateBlocked() {
+    forced_graphics_layer_update_blocked_ = true;
   }
 
   // Notify this element will be disconnected.
@@ -157,8 +161,6 @@ class CORE_EXPORT DisplayLockContext final
   // Called when the element disconnects or connects.
   void ElementDisconnected();
   void ElementConnected();
-
-  void DetachLayoutTree();
 
   void NotifySubtreeLostFocus();
   void NotifySubtreeGainedFocus();
@@ -175,6 +177,12 @@ class CORE_EXPORT DisplayLockContext final
         needs_blocking_wheel_event_handler_update;
     needs_prepaint_subtree_walk_ = true;
   }
+
+  // This is called by the style recalc code in lieu of
+  // MarkForStyleRecalcIfNeeded() in order to adjust the child change if we need
+  // to recalc children nodes here.
+  StyleRecalcChange AdjustStyleRecalcChangeForChildren(
+      StyleRecalcChange change);
 
   void DidForceActivatableDisplayLocks() {
     if (IsLocked() && IsActivatable(DisplayLockActivationReason::kAny)) {
@@ -214,8 +222,6 @@ class CORE_EXPORT DisplayLockContext final
   // Top layer implementation.
   void NotifyHasTopLayerElement();
   void ClearHasTopLayerElement();
-
-  void ScheduleTopLayerCheck();
 
  private:
   // Give access to |NotifyForcedUpdateScopeStarted()| and
@@ -403,6 +409,7 @@ class CORE_EXPORT DisplayLockContext final
   bool needs_effective_allowed_touch_action_update_ = false;
   bool needs_blocking_wheel_event_handler_update_ = false;
   bool needs_prepaint_subtree_walk_ = false;
+  bool needs_compositing_requirements_update_ = false;
   bool needs_compositing_dependent_flag_update_ = false;
 
   // Will be true if child traversal was blocked on a previous layout run on the
@@ -434,6 +441,10 @@ class CORE_EXPORT DisplayLockContext final
   // lifecycle. If nothing else is keeping it unlocked, then it will be locked
   // again at the start of the lifecycle.
   bool keep_unlocked_until_lifecycle_ = false;
+
+  bool needs_graphics_layer_rebuild_ = false;
+
+  bool forced_graphics_layer_update_blocked_ = false;
 
   // This is set to true if we're in the 'auto' mode and had our first
   // intersection / non-intersection notification. This is reset to false if the
@@ -485,10 +496,6 @@ class CORE_EXPORT DisplayLockContext final
   // If true, we need to clear the fact that we have a top layer at the start of
   // the next frame.
   bool has_pending_clear_has_top_layer_ = false;
-
-  // If ture, we need to check if this subtree has any top layer elements at the
-  // start of the next frame.
-  bool has_pending_top_layer_check_ = false;
 };
 
 }  // namespace blink

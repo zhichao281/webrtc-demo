@@ -33,14 +33,13 @@ class PLATFORM_EXPORT FEGaussianBlur final : public FilterEffect {
 
   // Compute which destination area will be affected when applying a gaussian
   // blur effect with |stdDeviation| to an area |rect|.
-  static gfx::RectF MapEffect(const gfx::SizeF& std_deviation,
-                              const gfx::RectF&);
+  static FloatRect MapEffect(const FloatSize& std_deviation, const FloatRect&);
 
   WTF::TextStream& ExternalRepresentation(WTF::TextStream&,
                                           int indention) const override;
 
  private:
-  gfx::RectF MapEffect(const gfx::RectF&) const override;
+  FloatRect MapEffect(const FloatRect&) const override;
 
   sk_sp<PaintFilter> CreateImageFilter() override;
 

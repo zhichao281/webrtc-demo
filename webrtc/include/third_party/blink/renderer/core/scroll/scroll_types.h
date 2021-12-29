@@ -30,7 +30,8 @@
 #include "third_party/blink/public/mojom/input/scroll_direction.mojom-blink.h"
 #include "third_party/blink/public/mojom/scroll/scroll_enums.mojom-blink.h"
 #include "third_party/blink/public/mojom/scroll/scroll_into_view_params.mojom-blink.h"
-#include "ui/gfx/geometry/vector2d_f.h"
+#include "third_party/blink/renderer/platform/geometry/float_point.h"
+#include "third_party/blink/renderer/platform/geometry/float_size.h"
 
 namespace blink {
 
@@ -39,7 +40,15 @@ namespace blink {
 // concept of "location", nor is it necessarily coincident with the top/left of
 // the ScrollableArea's overflow rect.  See core/layout/README.md for more
 // information.
-using ScrollOffset = gfx::Vector2dF;
+typedef FloatSize ScrollOffset;
+
+inline ScrollOffset ToScrollOffset(const FloatPoint& p) {
+  return ScrollOffset(p.x(), p.y());
+}
+
+inline ScrollOffset ToScrollOffset(const gfx::PointF& p) {
+  return ScrollOffset(p.x(), p.y());
+}
 
 using ui::ScrollGranularity;
 

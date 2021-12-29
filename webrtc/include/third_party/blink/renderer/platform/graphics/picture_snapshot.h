@@ -43,18 +43,16 @@
 #include "third_party/skia/include/core/SkPictureRecorder.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
 
-namespace gfx {
-class RectF;
-}
-
 namespace blink {
+
+class FloatRect;
 
 class PLATFORM_EXPORT PictureSnapshot : public RefCounted<PictureSnapshot> {
   USING_FAST_MALLOC(PictureSnapshot);
 
  public:
   struct TilePictureStream : RefCounted<TilePictureStream> {
-    gfx::PointF layer_offset;
+    FloatPoint layer_offset;
     sk_sp<SkPicture> picture;
   };
 
@@ -70,7 +68,7 @@ class PLATFORM_EXPORT PictureSnapshot : public RefCounted<PictureSnapshot> {
                          double scale = 1.0) const;
   Vector<Vector<base::TimeDelta>> Profile(unsigned min_iterations,
                                           base::TimeDelta min_duration,
-                                          const gfx::RectF* clip_rect) const;
+                                          const FloatRect* clip_rect) const;
   std::unique_ptr<JSONArray> SnapshotCommandLog() const;
   bool IsEmpty() const;
 

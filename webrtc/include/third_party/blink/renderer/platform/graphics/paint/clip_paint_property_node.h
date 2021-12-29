@@ -10,7 +10,6 @@
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/platform/geometry/float_rounded_rect.h"
 #include "third_party/blink/renderer/platform/geometry/layout_rect.h"
-#include "third_party/blink/renderer/platform/graphics/paint/float_clip_rect.h"
 #include "third_party/blink/renderer/platform/graphics/paint/geometry_mapper_clip_cache.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_property_node.h"
 #include "third_party/blink/renderer/platform/graphics/paint/transform_paint_property_node.h"
@@ -74,10 +73,10 @@ class PLATFORM_EXPORT ClipPaintPropertyNode
  public:
   // To make it less verbose and more readable to construct and update a node,
   // a struct with default values is used to represent the state.
-  struct PLATFORM_EXPORT State {
+  struct State {
     State(scoped_refptr<const TransformPaintPropertyNodeOrAlias>
               local_transform_space,
-          const gfx::RectF& layout_clip_rect,
+          const FloatRect& layout_clip_rect,
           const FloatRoundedRect& paint_clip_rect)
         : local_transform_space(std::move(local_transform_space)) {
       SetClipRect(layout_clip_rect, paint_clip_rect);
@@ -88,15 +87,26 @@ class PLATFORM_EXPORT ClipPaintPropertyNode
     absl::optional<FloatClipRect> layout_clip_rect_excluding_overlay_scrollbars;
     scoped_refptr<const RefCountedPath> clip_path;
 
-    void SetClipRect(const gfx::RectF& layout_clip_rect_arg,
+    void SetClipRect(const FloatRect& layout_clip_rect_arg,
                      const FloatRoundedRect& paint_clip_rect_arg) {
-      layout_clip_rect.SetRect(layout_clip_rect_arg);
+      layout_clip_rect.SetRect(ToGfxRectF(layout_clip_rect_arg));
       if (paint_clip_rect_arg.IsRounded())
         layout_clip_rect.SetHasRadius();
       paint_clip_rect = paint_clip_rect_arg;
     }
 
-    PaintPropertyChangeType ComputeChange(const State& other) const;
+    PaintPropertyChangeType ComputeChange(const State& other) const {
+      if (local_transform_space != other.local_transform_space ||
+          paint_clip_rect != other.paint_clip_rect ||
+          clip_path != other.clip_path) {
+        return PaintPropertyChangeType::kChangedOnlyValues;
+      }
+      if (layout_clip_rect_excluding_overlay_scrollbars !=
+          other.layout_clip_rect_excluding_overlay_scrollbars) {
+        return PaintPropertyChangeType::kChangedOnlyNonRerasterValues;
+      }
+      return PaintPropertyChangeType::kUnchanged;
+    }
 
     friend class ClipPaintPropertyNode;
 

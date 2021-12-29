@@ -61,7 +61,7 @@ class EllipsisBox final : public InlineBox {
                    const PhysicalOffset& accumulated_offset,
                    LayoutUnit line_top,
                    LayoutUnit line_bottom) override;
-  gfx::Rect SelectionRect() const;
+  IntRect SelectionRect() const;
 
   LayoutUnit VirtualLogicalHeight() const override { return height_; }
   const AtomicString& EllipsisStr() const { return str_; }

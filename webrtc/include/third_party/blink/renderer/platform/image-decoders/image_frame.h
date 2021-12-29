@@ -27,15 +27,13 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_IMAGE_DECODERS_IMAGE_FRAME_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_IMAGE_DECODERS_IMAGE_FRAME_H_
 
-#include "base/notreached.h"
-#include "base/time/time.h"
 #include "third_party/blink/public/platform/web_vector.h"
+#include "third_party/blink/renderer/platform/geometry/int_rect.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
-#include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
+
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColorPriv.h"
-#include "ui/gfx/geometry/rect.h"
 
 class SkImage;
 
@@ -96,7 +94,7 @@ class PLATFORM_EXPORT ImageFrame final {
   // These do not touch other metadata, only the raw pixel data.
   void ClearPixelData();
   void ZeroFillPixelData();
-  void ZeroFillFrameRect(const gfx::Rect&);
+  void ZeroFillFrameRect(const IntRect&);
 
   // Makes this frame have an independent copy of the provided image's
   // pixel data, so that modifications in one frame are not reflected in
@@ -131,7 +129,7 @@ class PLATFORM_EXPORT ImageFrame final {
 
   bool HasAlpha() const { return has_alpha_; }
   PixelFormat GetPixelFormat() const { return pixel_format_; }
-  const gfx::Rect& OriginalFrameRect() const { return original_frame_rect_; }
+  const IntRect& OriginalFrameRect() const { return original_frame_rect_; }
   Status GetStatus() const { return status_; }
   base::TimeDelta Duration() const { return duration_; }
   DisposalMethod GetDisposalMethod() const { return disposal_method_; }
@@ -155,7 +153,7 @@ class PLATFORM_EXPORT ImageFrame final {
   }
   void SetHasAlpha(bool alpha);
   void SetPixelFormat(PixelFormat format) { pixel_format_ = format; }
-  void SetOriginalFrameRect(const gfx::Rect& r) { original_frame_rect_ = r; }
+  void SetOriginalFrameRect(const IntRect& r) { original_frame_rect_ = r; }
   void SetStatus(Status);
   void SetDuration(base::TimeDelta duration) { duration_ = duration; }
   void SetDisposalMethod(DisposalMethod disposal_method) {
@@ -312,7 +310,7 @@ class PLATFORM_EXPORT ImageFrame final {
   PixelFormat pixel_format_;
   // This will always just be the entire buffer except for GIF or WebP
   // frames whose original rect was smaller than the overall image size.
-  gfx::Rect original_frame_rect_;
+  IntRect original_frame_rect_;
   Status status_;
   base::TimeDelta duration_;
   DisposalMethod disposal_method_;

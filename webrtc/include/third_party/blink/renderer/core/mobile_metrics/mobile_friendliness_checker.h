@@ -7,20 +7,14 @@
 
 #include "third_party/blink/public/common/mobile_metrics/mobile_friendliness.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/frame/local_frame_view.h"
-#include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/heap/heap.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
 #include "third_party/blink/renderer/platform/heap/visitor.h"
-#include "third_party/blink/renderer/platform/timer.h"
 
 namespace blink {
 
 class LocalFrameView;
 class LayoutObject;
-
-namespace mobile_metrics_test_helpers {
-struct MobileFriendlinessTree;
-}  // namespace mobile_metrics_test_helpers
 
 struct ViewportDescription;
 
@@ -28,24 +22,20 @@ struct ViewportDescription;
 // smart phone devices are checked. The calculated value will be sent as a part
 // of UKM.
 class CORE_EXPORT MobileFriendlinessChecker
-    : public GarbageCollected<MobileFriendlinessChecker>,
-      public LocalFrameView::LifecycleNotificationObserver {
+    : public GarbageCollected<MobileFriendlinessChecker> {
  public:
   explicit MobileFriendlinessChecker(LocalFrameView& frame_view);
   virtual ~MobileFriendlinessChecker();
 
-  // LocalFrameView::LifecycleNotificationObserver implementation
-  void DidFinishLifecycleUpdate(const LocalFrameView&) override;
-
-  void NotifyPaint();
-  void WillBeRemovedFromFrame();
+  void NotifyFirstContentfulPaint();
   void NotifyViewportUpdated(const ViewportDescription&);
   void NotifyInvalidatePaint(const LayoutObject& object);
   const blink::MobileFriendliness& GetMobileFriendliness() const {
     return mobile_friendliness_;
   }
+  void EvaluateNow();
 
-  void Trace(Visitor* visitor) const override;
+  void Trace(Visitor* visitor) const;
   struct TextAreaWithFontSize {
     double small_font_area = 0;
     double total_text_area = 0;
@@ -53,8 +43,6 @@ class CORE_EXPORT MobileFriendlinessChecker
   };
 
  private:
-  void Activate(TimerBase*);
-
   void ComputeSmallTextRatio(const LayoutObject& object);
 
   // Returns the percentage of the width of the content that overflows the
@@ -67,15 +55,13 @@ class CORE_EXPORT MobileFriendlinessChecker
   int ComputeBadTapTargetsRatio();
 
  private:
-  friend struct mobile_metrics_test_helpers::MobileFriendlinessTree;
-
   TextAreaWithFontSize text_area_sizes_;
   Member<LocalFrameView> frame_view_;
   MobileFriendliness mobile_friendliness_;
-  bool enabled_;
+  bool font_size_check_enabled_;
+  bool tap_target_check_enabled_;
   float viewport_scalar_;
-  HeapTaskRunnerTimer<MobileFriendlinessChecker> timer_;
-  base::TimeTicks last_evaluated_;
+  bool fcp_detected_;
 };
 
 }  // namespace blink

@@ -94,6 +94,7 @@ class PLATFORM_EXPORT V8PrivateProperty {
    public:
     SymbolKey() = default;
 
+   private:
     SymbolKey(const SymbolKey&) = delete;
     SymbolKey& operator=(const SymbolKey&) = delete;
   };

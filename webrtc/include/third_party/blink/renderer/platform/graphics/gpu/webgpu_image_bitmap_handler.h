@@ -11,10 +11,6 @@
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/ref_counted.h"
 
-namespace gfx {
-class Rect;
-}
-
 namespace blink {
 
 struct WebGPUImageUploadSizeInfo {
@@ -22,18 +18,19 @@ struct WebGPUImageUploadSizeInfo {
   uint32_t wgpu_bytes_per_row;
 };
 
+class IntRect;
 class StaticBitmapImage;
 
 WebGPUImageUploadSizeInfo PLATFORM_EXPORT
 ComputeImageBitmapWebGPUUploadSizeInfo(
-    const gfx::Rect& rect,
+    const IntRect& rect,
     const WGPUTextureFormat& destination_format);
 bool PLATFORM_EXPORT
 CopyBytesFromImageBitmapForWebGPU(scoped_refptr<StaticBitmapImage> image,
                                   base::span<uint8_t> dst,
-                                  const gfx::Rect& rect,
+                                  const IntRect& rect,
                                   const WGPUTextureFormat destination_format,
-                                  bool dst_premultiplied_alpha,
+                                  bool premultipliedAlpha,
                                   bool flipY);
 
 uint64_t PLATFORM_EXPORT

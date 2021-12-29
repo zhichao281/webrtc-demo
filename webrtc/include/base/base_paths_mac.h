@@ -15,7 +15,6 @@ enum {
   PATH_MAC_START = 200,
 
   DIR_APP_DATA,  // ~/Library/Application Support
-                 // Data for specific applications is stored in subdirectories.
 
   PATH_MAC_END
 };

@@ -50,8 +50,7 @@ class MediaControlElementsHelper final {
 
   // Utility function for getting the size in pixels of an element. If the
   // element has not been laid out then returns the supplied default.
-  MODULES_EXPORT static gfx::Size GetSizeOrDefault(const Element&,
-                                                   const gfx::Size&);
+  static gfx::Size GetSizeOrDefault(const Element&, const gfx::Size&);
 
   // Utility function for quickly creating div elements with a predefined
   // element ID.

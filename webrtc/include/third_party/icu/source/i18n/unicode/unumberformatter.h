@@ -204,6 +204,7 @@ typedef enum UNumberUnitWidth {
      */
             UNUM_UNIT_WIDTH_ISO_CODE = 3,
 
+#ifndef U_HIDE_DRAFT_API
     /**
      * Use the formal variant of the currency symbol; for example, "NT$" for the New Taiwan
      * dollar in zh-TW.
@@ -211,7 +212,7 @@ typedef enum UNumberUnitWidth {
      * <p>
      * Behavior of this option with non-currency units is not defined at this time.
      *
-     * @stable ICU 68
+     * @draft ICU 68
      */
             UNUM_UNIT_WIDTH_FORMAL = 4,
 
@@ -222,9 +223,10 @@ typedef enum UNumberUnitWidth {
      * <p>
      * Behavior of this option with non-currency units is not defined at this time.
      *
-     * @stable ICU 68
+     * @draft ICU 68
      */
             UNUM_UNIT_WIDTH_VARIANT = 5,
+#endif  // U_HIDE_DRAFT_API
 
     /**
      * Format the number according to the specified unit, but do not display the unit. For currencies, apply
@@ -770,6 +772,7 @@ unumf_resultGetAllFieldPositions(const UFormattedNumber* uresult, UFieldPosition
                                  UErrorCode* ec);
 
 
+#ifndef U_HIDE_DRAFT_API
 /**
  * Extracts the formatted number as a "numeric string" conforming to the
  * syntax defined in the Decimal Arithmetic Specification, available at
@@ -786,7 +789,7 @@ unumf_resultGetAllFieldPositions(const UFormattedNumber* uresult, UFieldPosition
  *                       If U_BUFFER_OVERFLOW_ERROR: Returns number of chars for
  *                       preflighting.
  * @return Number of chars in the data.  Does not include a trailing NUL.
- * @stable ICU 68
+ * @draft ICU 68
  */
 U_CAPI int32_t U_EXPORT2
 unumf_resultToDecimalNumber(
@@ -794,6 +797,7 @@ unumf_resultToDecimalNumber(
        char* dest,
        int32_t destCapacity,
        UErrorCode* ec);
+#endif // U_HIDE_DRAFT_API
 
 
 /**

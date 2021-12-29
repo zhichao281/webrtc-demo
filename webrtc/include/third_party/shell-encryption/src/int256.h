@@ -18,15 +18,13 @@
 
 #include "absl/numeric/int128.h"
 #include "integral_types.h"
-#include "third_party/shell-encryption/base/shell_encryption_export.h"
-#include "third_party/shell-encryption/base/shell_encryption_export_template.h"
 
 namespace rlwe {
 
 struct uint256_pod;
 
 // An unsigned 256-bit integer type. Thread-compatible.
-class SHELL_ENCRYPTION_EXPORT uint256 {
+class uint256 {
  public:
   constexpr uint256();
   constexpr uint256(absl::uint128 top, absl::uint128 bottom);
@@ -76,11 +74,11 @@ class SHELL_ENCRYPTION_EXPORT uint256 {
   uint256& operator-=(const uint256& b);
   uint256& operator*=(const uint256& b);
   // Long division/modulo for uint256.
-  SHELL_ENCRYPTION_EXPORT uint256& operator/=(const uint256& b);
-  SHELL_ENCRYPTION_EXPORT uint256& operator%=(const uint256& b);
+  uint256& operator/=(const uint256& b);
+  uint256& operator%=(const uint256& b);
   uint256 operator++(int);
   uint256 operator--(int);
-  SHELL_ENCRYPTION_EXPORT uint256& operator<<=(int);
+  uint256& operator<<=(int);
   uint256& operator>>=(int);
   uint256& operator&=(const uint256& b);
   uint256& operator|=(const uint256& b);
@@ -92,7 +90,7 @@ class SHELL_ENCRYPTION_EXPORT uint256 {
   friend absl::uint128 Uint256High128(const uint256& v);
 
   // We add "std::" to avoid including all of port.h.
-  friend SHELL_ENCRYPTION_EXPORT std::ostream& operator<<(std::ostream& o, const uint256& b);
+  friend std::ostream& operator<<(std::ostream& o, const uint256& b);
 
  private:
   static void DivModImpl(uint256 dividend, uint256 divisor,
@@ -123,7 +121,7 @@ constexpr uint256 Uint256Max() {
 
 // This is a POD form of uint256 which can be used for static variables which
 // need to be operated on as uint256.
-struct SHELL_ENCRYPTION_EXPORT uint256_pod {
+struct uint256_pod {
   // Note: The ordering of fields is different than 'class uint256' but the
   // same as its 2-arg constructor.  This enables more obvious initialization
   // of static instances, which is the primary reason for this struct in the

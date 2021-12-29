@@ -13,7 +13,6 @@ namespace blink {
 
 class AbortSignal;
 class ExecutionContext;
-class ScriptValue;
 
 // Implementation of https://dom.spec.whatwg.org/#interface-abortcontroller
 // See also design doc at
@@ -33,8 +32,7 @@ class CORE_EXPORT AbortController : public ScriptWrappable {
   AbortSignal* signal() const { return signal_.Get(); }
 
   // https://dom.spec.whatwg.org/#dom-abortcontroller-abort
-  void abort(ScriptState*);
-  void abort(ScriptState*, ScriptValue reason);
+  void abort();
 
   void Trace(Visitor*) const override;
 

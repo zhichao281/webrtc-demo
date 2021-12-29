@@ -24,6 +24,7 @@
 #include "src/trace_processor/importers/common/chunked_trace_reader.h"
 #include "src/trace_processor/importers/proto/proto_incremental_state.h"
 #include "src/trace_processor/importers/proto/proto_trace_tokenizer.h"
+#include "src/trace_processor/util/trace_blob_view.h"
 
 namespace protozero {
 struct ConstBytes;
@@ -57,7 +58,7 @@ class ProtoTraceReader : public ChunkedTraceReader {
   ~ProtoTraceReader() override;
 
   // ChunkedTraceReader implementation.
-  util::Status Parse(TraceBlobView) override;
+  util::Status Parse(std::unique_ptr<uint8_t[]>, size_t size) override;
   void NotifyEndOfFile() override;
 
  private:

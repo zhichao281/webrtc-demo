@@ -12,7 +12,6 @@
 #include "third_party/blink/renderer/modules/credentialmanager/authenticator_response.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
-#include "third_party/blink/renderer/platform/heap/member.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {

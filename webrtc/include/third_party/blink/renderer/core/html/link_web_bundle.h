@@ -49,11 +49,10 @@ class CORE_EXPORT LinkWebBundle final : public LinkResource,
   String GetCacheIdentifier() const override;
   const KURL& GetBundleUrl() const override;
   const base::UnguessableToken& WebBundleToken() const override;
-  void NotifyLoadingFinished() override;
+  void NotifyLoaded() override;
   void OnWebBundleError(const String& message) const override;
   bool IsScriptWebBundle() const override;
   bool WillBeReleased() const override;
-  network::mojom::CredentialsMode GetCredentialsMode() const override;
 
   // Returns a valid absolute URL if |str| can be parsed as a valid
   // absolute URL, or a relative URL with a given |base_url|.
@@ -75,7 +74,6 @@ class CORE_EXPORT LinkWebBundle final : public LinkResource,
                                CompleteURLCallback complete_url_callback);
 
  private:
-  void AddConsoleMessage(const String& message) const;
   bool ResourcesOrScopesMatch(const KURL& url) const;
   void ReleaseBundleLoader();
 

@@ -6,7 +6,6 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LOADER_WEB_BUNDLE_WEB_BUNDLE_LOADER_H_
 
 #include "services/network/public/mojom/web_bundle_handle.mojom-blink.h"
-#include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/renderer/core/html/cross_origin_attribute.h"
 #include "third_party/blink/renderer/core/loader/threadable_loader_client.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver_set.h"
@@ -31,12 +30,11 @@ class WebBundleLoader : public GarbageCollected<WebBundleLoader>,
   WebBundleLoader(SubresourceWebBundle& subresource_web_bundle,
                   Document& document,
                   const KURL& url,
-                  network::mojom::CredentialsMode credentials_mode);
+                  CrossOriginAttributeValue cross_origin_attribute_value);
 
   void Trace(Visitor* visitor) const override;
 
-  bool HasLoaded() const { return load_state_ == LoadState::kSuccess; }
-  bool HasFailed() const { return load_state_ == LoadState::kFailed; }
+  bool HasLoaded() const { return !failed_; }
 
   // ThreadableLoaderClient
   void DidStartLoadingResponseBody(BytesConsumer& consumer) override;
@@ -61,13 +59,11 @@ class WebBundleLoader : public GarbageCollected<WebBundleLoader>,
   void ClearReceivers();
 
  private:
-  enum class LoadState { kInProgress, kFailed, kSuccess };
-
   void DidFailInternal();
 
   Member<SubresourceWebBundle> subresource_web_bundle_;
   Member<ThreadableLoader> loader_;
-  LoadState load_state_ = LoadState::kInProgress;
+  bool failed_ = false;
   KURL url_;
   scoped_refptr<SecurityOrigin> security_origin_;
   base::UnguessableToken web_bundle_token_;

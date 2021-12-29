@@ -354,8 +354,6 @@ class CORE_EXPORT HTMLInputElement
     form_element_pii_type_ = form_element_pii_type;
   }
 
-  void showPicker(ExceptionState&);
-
  protected:
   void DefaultEventHandler(Event&) override;
   void CreateShadowSubtree();

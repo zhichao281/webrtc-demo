@@ -29,6 +29,7 @@
 #include <type_traits>
 
 #include "base/check_op.h"
+#include "base/macros.h"
 
 template <typename T>
 class Vector2;

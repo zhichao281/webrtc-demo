@@ -16,7 +16,7 @@ class Element;
 
 // This class is an implementation of 'CustomStateSet' IDL interface.
 class CustomStateSet final : public ScriptWrappable,
-                             public SetlikeIterable<String, IDLString> {
+                             public SetlikeIterable<String> {
   DEFINE_WRAPPERTYPEINFO();
 
  public:

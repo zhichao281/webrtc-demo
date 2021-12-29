@@ -9,6 +9,7 @@
 
 #include <string>
 
+#include "base/macros.h"
 #include "third_party/webrtc/api/peer_connection_interface.h"
 
 namespace blink {

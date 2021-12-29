@@ -7,15 +7,13 @@
 
 #include "third_party/blink/renderer/platform/heap/handle.h"
 
-namespace gfx {
-class Rect;
-class Vector2d;
-}
-
 namespace blink {
 
 class CullRect;
+class DisplayItemClient;
 class GraphicsContext;
+class IntPoint;
+class IntRect;
 class Scrollbar;
 struct PaintInfo;
 class PaintLayerScrollableArea;
@@ -31,17 +29,16 @@ class ScrollableAreaPainter {
   ScrollableAreaPainter(const ScrollableAreaPainter&) = delete;
   ScrollableAreaPainter& operator=(const ScrollableAreaPainter&) = delete;
 
-  void PaintOverflowControls(const PaintInfo&,
-                             const gfx::Vector2d& paint_offset);
+  void PaintOverflowControls(const PaintInfo&, const IntPoint& paint_offset);
   void PaintScrollbar(GraphicsContext&,
                       Scrollbar&,
-                      const gfx::Vector2d& paint_offset,
+                      const IntPoint& paint_offset,
                       const CullRect&);
   void PaintResizer(GraphicsContext&,
-                    const gfx::Vector2d& paint_offset,
+                    const IntPoint& paint_offset,
                     const CullRect&);
   void PaintScrollCorner(GraphicsContext&,
-                         const gfx::Vector2d& paint_offset,
+                         const IntPoint& paint_offset,
                          const CullRect&);
 
   // Records a scroll hit test data to force main thread handling of events
@@ -51,9 +48,10 @@ class ScrollableAreaPainter {
 
  private:
   void DrawPlatformResizerImage(GraphicsContext&,
-                                const gfx::Rect& resizer_corner_rect);
+                                const IntRect& resizer_corner_rect);
 
   PaintLayerScrollableArea& GetScrollableArea() const;
+  const DisplayItemClient& DisplayItemClientForCorner() const;
 
   PaintLayerScrollableArea* scrollable_area_;
 };

@@ -6,6 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_MEDIASTREAM_MEDIA_STREAM_VIDEO_RENDERER_SINK_H_
 
 #include "base/callback.h"
+#include "base/macros.h"
 #include "base/memory/weak_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "third_party/blink/public/common/media/video_capture.h"
@@ -60,9 +61,9 @@ class MODULES_EXPORT MediaStreamVideoRendererSink
  private:
   friend class MediaStreamVideoRendererSinkTest;
   enum State {
-    kStarted,
-    kPaused,
-    kStopped,
+    STARTED,
+    PAUSED,
+    STOPPED,
   };
 
   // MediaStreamVideoSink implementation. Called on the main thread.

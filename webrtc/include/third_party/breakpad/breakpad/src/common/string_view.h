@@ -38,8 +38,7 @@
 namespace google_breakpad {
 
 // A StringView is a string reference to a string object, but not own the
-// string object. It's a compatibile layer until we can use std::string_view in
-// C++17.
+// string object.
 class StringView {
  private:
   // The start of the string, in an external buffer. It doesn't have to be
@@ -53,7 +52,7 @@ class StringView {
   StringView() = default;
 
   // Disallow construct StringView from nullptr.
-  StringView(std::nullptr_t) = delete;
+  StringView(nullptr_t) = delete;
 
   // Construct a StringView from a cstring.
   StringView(const char* str) : data_(str) {

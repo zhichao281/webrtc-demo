@@ -20,7 +20,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_SVG_SVG_MARKER_DATA_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_SVG_SVG_MARKER_DATA_H_
 
-#include "base/notreached.h"
 #include "third_party/blink/renderer/core/svg/svg_path_consumer.h"
 #include "third_party/blink/renderer/platform/graphics/path.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
@@ -36,7 +35,7 @@ class SVGPathByteStream;
 struct MarkerPosition {
   DISALLOW_NEW();
   MarkerPosition(SVGMarkerType use_type,
-                 const gfx::PointF& use_origin,
+                 const FloatPoint& use_origin,
                  float use_angle)
       : type(use_type), origin(use_origin), angle(use_angle) {}
 
@@ -57,7 +56,7 @@ struct MarkerPosition {
   }
 
   SVGMarkerType type;
-  gfx::PointF origin;
+  FloatPoint origin;
   float angle;
 };
 
@@ -99,15 +98,15 @@ class SVGMarkerDataBuilder : private SVGPathConsumer {
   void UpdateAngle(bool ends_subpath);
 
   struct SegmentData {
-    gfx::Vector2dF start_tangent;  // Tangent in the start point of the segment.
-    gfx::Vector2dF end_tangent;    // Tangent in the end point of the segment.
-    gfx::PointF position;          // The end point of the segment.
+    FloatSize start_tangent;  // Tangent in the start point of the segment.
+    FloatSize end_tangent;    // Tangent in the end point of the segment.
+    FloatPoint position;      // The end point of the segment.
   };
 
   static void ComputeQuadTangents(SegmentData&,
-                                  const gfx::PointF& start,
-                                  const gfx::PointF& control,
-                                  const gfx::PointF& end);
+                                  const FloatPoint& start,
+                                  const FloatPoint& control,
+                                  const FloatPoint& end);
   SegmentData ExtractPathElementFeatures(const PathElement&) const;
   void UpdateFromPathElement(const PathElement&);
   void Flush();
@@ -115,11 +114,11 @@ class SVGMarkerDataBuilder : private SVGPathConsumer {
   Vector<MarkerPosition>& positions_;
   unsigned last_moveto_index_;
   PathElementType last_element_type_;
-  gfx::PointF origin_;
-  gfx::PointF subpath_start_;
-  gfx::Vector2dF in_slope_;
-  gfx::Vector2dF out_slope_;
-  gfx::Vector2dF last_moveto_out_slope_;
+  FloatPoint origin_;
+  FloatPoint subpath_start_;
+  FloatSize in_slope_;
+  FloatSize out_slope_;
+  FloatSize last_moveto_out_slope_;
 };
 
 }  // namespace blink

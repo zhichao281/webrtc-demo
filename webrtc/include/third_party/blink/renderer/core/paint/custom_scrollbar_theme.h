@@ -50,7 +50,7 @@ class CustomScrollbarTheme final : public ScrollbarTheme {
   void PaintScrollCorner(GraphicsContext&,
                          const Scrollbar* vertical_scrollbar,
                          const DisplayItemClient&,
-                         const gfx::Rect& corner_rect,
+                         const IntRect& corner_rect,
                          mojom::blink::ColorScheme color_scheme) override;
 
   bool ShouldCenterOnThumb(const Scrollbar& scrollbar,
@@ -86,45 +86,41 @@ class CustomScrollbarTheme final : public ScrollbarTheme {
                             const PhysicalRect&);
 
  protected:
-  ScrollbarPart HitTest(const Scrollbar&, const gfx::Point&) override;
+  ScrollbarPart HitTest(const Scrollbar&, const IntPoint&) override;
 
   bool HasButtons(const Scrollbar&) override;
   bool HasThumb(const Scrollbar&) override;
 
-  gfx::Rect BackButtonRect(const Scrollbar&) override;
-  gfx::Rect ForwardButtonRect(const Scrollbar&) override;
-  gfx::Rect TrackRect(const Scrollbar&) override;
+  IntRect BackButtonRect(const Scrollbar&) override;
+  IntRect ForwardButtonRect(const Scrollbar&) override;
+  IntRect TrackRect(const Scrollbar&) override;
 
   void PaintTrackAndButtons(GraphicsContext&,
                             const Scrollbar&,
-                            const gfx::Vector2d&) override;
+                            const IntPoint&) override;
   void PaintButton(GraphicsContext&,
                    const Scrollbar&,
-                   const gfx::Rect&,
+                   const IntRect&,
                    ScrollbarPart) override;
-  void PaintThumb(GraphicsContext&,
-                  const Scrollbar&,
-                  const gfx::Rect&) override;
+  void PaintThumb(GraphicsContext&, const Scrollbar&, const IntRect&) override;
   void PaintTickmarks(GraphicsContext&,
                       const Scrollbar&,
-                      const gfx::Rect&) override;
+                      const IntRect&) override;
 
-  gfx::Rect ConstrainTrackRectToTrackPieces(const Scrollbar&,
-                                            const gfx::Rect&) override;
+  IntRect ConstrainTrackRectToTrackPieces(const Scrollbar&,
+                                          const IntRect&) override;
 
  private:
-  gfx::Rect ButtonRect(const Scrollbar&, ScrollbarPart);
+  IntRect ButtonRect(const Scrollbar&, ScrollbarPart);
   void PaintScrollbarBackground(GraphicsContext&, const Scrollbar&);
-  void PaintTrackBackground(GraphicsContext&,
-                            const Scrollbar&,
-                            const gfx::Rect&);
+  void PaintTrackBackground(GraphicsContext&, const Scrollbar&, const IntRect&);
   void PaintTrackPiece(GraphicsContext&,
                        const Scrollbar&,
-                       const gfx::Rect&,
+                       const IntRect&,
                        ScrollbarPart);
   void PaintPart(GraphicsContext&,
                  const Scrollbar&,
-                 const gfx::Rect&,
+                 const IntRect&,
                  ScrollbarPart);
 };
 

@@ -42,7 +42,6 @@
 #ifndef PROCESSOR_STATIC_CONTAINED_RANGE_MAP_H__
 #define PROCESSOR_STATIC_CONTAINED_RANGE_MAP_H__
 
-#include <vector>
 #include "processor/static_map-inl.h"
 
 namespace google_breakpad {
@@ -59,11 +58,6 @@ class StaticContainedRangeMap {
   // to support a sparsely-populated root range.  If no descendant range
   // encompasses the address, returns false.
   bool RetrieveRange(const AddressType& address, const EntryType*& entry) const;
-
-  // Retrieves the vector of entries encompassing the specified address from the
-  // innermost entry to the outermost entry.
-  bool RetrieveRanges(const AddressType& address,
-                      std::vector<const EntryType*>& entry) const;
 
  private:
   friend class ModuleComparer;

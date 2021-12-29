@@ -68,7 +68,6 @@ class WebTimeRanges;
 
 namespace gfx {
 class ColorSpace;
-class Rect;
 class Size;
 }  // namespace gfx
 
@@ -367,12 +366,6 @@ struct CrossThreadCopier<SkISize>
 template <>
 struct CrossThreadCopier<gfx::Size>
     : public CrossThreadCopierPassThrough<gfx::Size> {
-  STATIC_ONLY(CrossThreadCopier);
-};
-
-template <>
-struct CrossThreadCopier<gfx::Rect>
-    : public CrossThreadCopierPassThrough<gfx::Rect> {
   STATIC_ONLY(CrossThreadCopier);
 };
 

@@ -10,6 +10,7 @@
 #include <unordered_set>
 
 #include "base/base_export.h"
+#include "base/macros.h"
 #include "base/trace_event/trace_event_filter.h"
 
 namespace base {

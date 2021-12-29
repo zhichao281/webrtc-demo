@@ -15,6 +15,7 @@
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
+
 #include "v8/include/v8.h"
 
 #if BUILDFLAG(RCS_COUNT_EVERYTHING)
@@ -402,8 +403,6 @@ class PLATFORM_EXPORT RuntimeCallStatsScopedTracer {
 
   RuntimeCallStats* stats_ = nullptr;
 };
-
-PLATFORM_EXPORT void LogRuntimeCallStats();
 
 }  // namespace blink
 

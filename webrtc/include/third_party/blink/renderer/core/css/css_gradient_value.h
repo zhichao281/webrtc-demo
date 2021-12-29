@@ -96,7 +96,7 @@ class CSSGradientValue : public CSSImageGeneratorValue {
   scoped_refptr<Image> GetImage(const ImageResourceObserver&,
                                 const Document&,
                                 const ComputedStyle&,
-                                const gfx::SizeF&) const;
+                                const FloatSize&) const;
 
   void AddStop(const CSSGradientColorStop& stop) {
     stops_.push_back(stop);
@@ -170,7 +170,7 @@ class CSSLinearGradientValue final : public CSSGradientValue {
 
   // Create the gradient for a given size.
   scoped_refptr<Gradient> CreateGradient(const CSSToLengthConversionData&,
-                                         const gfx::SizeF&,
+                                         const FloatSize&,
                                          const Document&,
                                          const ComputedStyle&) const;
 
@@ -190,7 +190,7 @@ class CSSLinearGradientValue final : public CSSGradientValue {
   Member<const CSSPrimitiveValue> angle_;
 };
 
-class CORE_EXPORT CSSRadialGradientValue final : public CSSGradientValue {
+class CSSRadialGradientValue final : public CSSGradientValue {
  public:
   CSSRadialGradientValue(const CSSValue* first_x,
                          const CSSValue* first_y,
@@ -268,7 +268,7 @@ class CORE_EXPORT CSSRadialGradientValue final : public CSSGradientValue {
 
   // Create the gradient for a given size.
   scoped_refptr<Gradient> CreateGradient(const CSSToLengthConversionData&,
-                                         const gfx::SizeF&,
+                                         const FloatSize&,
                                          const Document&,
                                          const ComputedStyle&) const;
 
@@ -314,7 +314,7 @@ class CSSConicGradientValue final : public CSSGradientValue {
 
   // Create the gradient for a given size.
   scoped_refptr<Gradient> CreateGradient(const CSSToLengthConversionData&,
-                                         const gfx::SizeF&,
+                                         const FloatSize&,
                                          const Document&,
                                          const ComputedStyle&) const;
 

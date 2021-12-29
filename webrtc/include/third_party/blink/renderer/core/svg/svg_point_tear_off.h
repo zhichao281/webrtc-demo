@@ -42,7 +42,7 @@ class SVGPointTearOff : public SVGPropertyTearOff<SVGPoint> {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static SVGPointTearOff* CreateDetached(const gfx::PointF&);
+  static SVGPointTearOff* CreateDetached(const FloatPoint&);
 
   SVGPointTearOff(SVGPoint*,
                   SVGAnimatedPropertyBase* binding,

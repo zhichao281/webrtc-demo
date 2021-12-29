@@ -6,7 +6,6 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_PAINT_PAINT_TIMING_DETECTOR_H_
 
 #include "third_party/blink/public/common/input/web_input_event.h"
-#include "third_party/blink/public/common/performance/largest_contentful_paint_type.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/layout_box_model_object.h"
 #include "third_party/blink/renderer/core/paint/paint_timing_visualizer.h"
@@ -15,7 +14,6 @@
 #include "third_party/blink/renderer/platform/heap/member.h"
 #include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
-#include "ui/gfx/geometry/rect.h"
 
 namespace blink {
 
@@ -124,14 +122,14 @@ class CORE_EXPORT PaintTimingDetector
       const Image&,
       const StyleFetchedImage&,
       const PropertyTreeStateOrAlias& current_paint_chunk_properties,
-      const gfx::Rect& image_border);
+      const IntRect& image_border);
   static void NotifyImagePaint(
       const LayoutObject&,
-      const gfx::Size& intrinsic_size,
+      const IntSize& intrinsic_size,
       const ImageResourceContent& cached_image,
       const PropertyTreeStateOrAlias& current_paint_chunk_properties,
-      const gfx::Rect& image_border);
-  inline static void NotifyTextPaint(const gfx::Rect& text_visual_rect);
+      const IntRect& image_border);
+  inline static void NotifyTextPaint(const IntRect& text_visual_rect);
 
   void NotifyImageFinished(const LayoutObject&, const ImageResourceContent*);
   void LayoutObjectWillBeDestroyed(const LayoutObject&);
@@ -142,9 +140,17 @@ class CORE_EXPORT PaintTimingDetector
   void NotifyScroll(mojom::blink::ScrollType);
 
   // The returned value indicates whether the candidates have changed.
+  // To compute experimental LCP (including removals) for images we need to know
+  // the time and size of removed images in order to account for cases where the
+  // largest image is removed while it is still loading: in this case, we would
+  // first update the experimental LCP size to be the image size, so we need to
+  // be able to decrease the size. To do this, the simplest way to achieve the
+  // correct results is to store the largest image removed which did receive a
+  // paint time.
   bool NotifyIfChangedLargestImagePaint(base::TimeTicks image_paint_time,
                                         uint64_t image_size,
-                                        bool is_animated);
+                                        base::TimeTicks removed_image_time,
+                                        uint64_t removed_image_size);
   bool NotifyIfChangedLargestTextPaint(base::TimeTicks, uint64_t size);
 
   void DidChangePerformanceTiming();
@@ -155,9 +161,9 @@ class CORE_EXPORT PaintTimingDetector
     return tracing_enabled;
   }
 
-  gfx::RectF BlinkSpaceToDIPs(const gfx::RectF& float_rect) const;
-  gfx::RectF CalculateVisualRect(const gfx::Rect& visual_rect,
-                                 const PropertyTreeStateOrAlias&) const;
+  FloatRect BlinkSpaceToDIPs(const FloatRect& float_rect) const;
+  FloatRect CalculateVisualRect(const IntRect& visual_rect,
+                                const PropertyTreeStateOrAlias&) const;
 
   TextPaintTimingDetector* GetTextPaintTimingDetector() const {
     DCHECK(text_paint_timing_detector_);
@@ -173,14 +179,27 @@ class CORE_EXPORT PaintTimingDetector
     return largest_image_paint_time_;
   }
   uint64_t LargestImagePaintSize() const { return largest_image_paint_size_; }
-  LargestContentfulPaintTypeMask LargestContentfulPaintType() const {
-    return largest_contentful_paint_type_;
-  }
   base::TimeTicks LargestTextPaint() const { return largest_text_paint_time_; }
   uint64_t LargestTextPaintSize() const { return largest_text_paint_size_; }
 
   base::TimeTicks LargestContentfulPaint() const {
     return largest_contentful_paint_time_;
+  }
+
+  // Experimental counterparts of the above methods. Currently these values are
+  // computed by looking at the largest content seen so far, but excluding
+  // content that is removed.
+  base::TimeTicks ExperimentalLargestImagePaint() const {
+    return experimental_largest_image_paint_time_;
+  }
+  uint64_t ExperimentalLargestImagePaintSize() const {
+    return experimental_largest_image_paint_size_;
+  }
+  base::TimeTicks ExperimentalLargestTextPaint() const {
+    return experimental_largest_text_paint_time_;
+  }
+  uint64_t ExperimentalLargestTextPaintSize() const {
+    return experimental_largest_text_paint_size_;
   }
 
   base::TimeTicks FirstInputOrScrollNotifiedTimestamp() const {
@@ -224,10 +243,14 @@ class CORE_EXPORT PaintTimingDetector
 
   base::TimeTicks largest_image_paint_time_;
   uint64_t largest_image_paint_size_ = 0;
-  LargestContentfulPaintTypeMask largest_contentful_paint_type_ = 0;
   base::TimeTicks largest_text_paint_time_;
   uint64_t largest_text_paint_size_ = 0;
   base::TimeTicks largest_contentful_paint_time_;
+
+  base::TimeTicks experimental_largest_image_paint_time_;
+  uint64_t experimental_largest_image_paint_size_ = 0;
+  base::TimeTicks experimental_largest_text_paint_time_;
+  uint64_t experimental_largest_text_paint_size_ = 0;
 };
 
 // Largest Text Paint and Text Element Timing aggregate text nodes by these
@@ -261,7 +284,7 @@ class ScopedPaintTimingDetectorBlockPaintHook {
 
  private:
   friend class PaintTimingDetector;
-  inline static void AggregateTextPaint(const gfx::Rect& visual_rect) {
+  inline static void AggregateTextPaint(const IntRect& visual_rect) {
     // Ideally we'd assert that |top_| exists, but there may be text nodes that
     // do not have an ancestor non-anonymous block layout objects in the layout
     // tree. An example of this is a multicol div, since the
@@ -285,7 +308,7 @@ class ScopedPaintTimingDetectorBlockPaintHook {
     const LayoutBoxModelObject& aggregator_;
     const PropertyTreeStateOrAlias& property_tree_state_;
     TextPaintTimingDetector* detector_;
-    gfx::Rect aggregated_visual_rect_;
+    IntRect aggregated_visual_rect_;
   };
   absl::optional<Data> data_;
   static ScopedPaintTimingDetectorBlockPaintHook* top_;
@@ -293,7 +316,7 @@ class ScopedPaintTimingDetectorBlockPaintHook {
 
 // static
 inline void PaintTimingDetector::NotifyTextPaint(
-    const gfx::Rect& text_visual_rect) {
+    const IntRect& text_visual_rect) {
   if (IgnorePaintTimingScope::ShouldIgnore())
     return;
   ScopedPaintTimingDetectorBlockPaintHook::AggregateTextPaint(text_visual_rect);
@@ -301,14 +324,23 @@ inline void PaintTimingDetector::NotifyTextPaint(
 
 class LCPRectInfo {
  public:
-  LCPRectInfo(const gfx::Rect& frame_rect_info, const gfx::Rect& root_rect_info)
+  LCPRectInfo(IntRect frame_rect_info, IntRect root_rect_info)
       : frame_rect_info_(frame_rect_info), root_rect_info_(root_rect_info) {}
 
-  void OutputToTraceValue(TracedValue&) const;
+  void OutputToTraceValue(TracedValue& value) {
+    value.SetInteger("frame_x", frame_rect_info_.x());
+    value.SetInteger("frame_y", frame_rect_info_.y());
+    value.SetInteger("frame_width", frame_rect_info_.width());
+    value.SetInteger("frame_height", frame_rect_info_.height());
+    value.SetInteger("root_x", root_rect_info_.x());
+    value.SetInteger("root_y", root_rect_info_.y());
+    value.SetInteger("root_width", root_rect_info_.width());
+    value.SetInteger("root_height", root_rect_info_.height());
+  }
 
  private:
-  gfx::Rect frame_rect_info_;
-  gfx::Rect root_rect_info_;
+  IntRect frame_rect_info_;
+  IntRect root_rect_info_;
 };
 
 }  // namespace blink

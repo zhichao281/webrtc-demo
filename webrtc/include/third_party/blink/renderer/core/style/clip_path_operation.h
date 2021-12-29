@@ -40,7 +40,7 @@ class ClipPathOperation : public RefCounted<ClipPathOperation> {
   USING_FAST_MALLOC(ClipPathOperation);
 
  public:
-  enum OperationType { kReference, kShape };
+  enum OperationType { REFERENCE, SHAPE };
 
   virtual ~ClipPathOperation() = default;
 

@@ -443,11 +443,9 @@ class flat_hash_set
 // erase_if(flat_hash_set<>, Pred)
 //
 // Erases all elements that satisfy the predicate `pred` from the container `c`.
-// Returns the number of erased elements.
 template <typename T, typename H, typename E, typename A, typename Predicate>
-typename flat_hash_set<T, H, E, A>::size_type erase_if(
-    flat_hash_set<T, H, E, A>& c, Predicate pred) {
-  return container_internal::EraseIf(pred, &c);
+void erase_if(flat_hash_set<T, H, E, A>& c, Predicate pred) {
+  container_internal::EraseIf(pred, &c);
 }
 
 namespace container_internal {

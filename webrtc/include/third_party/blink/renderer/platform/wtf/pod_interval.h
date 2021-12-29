@@ -31,7 +31,6 @@
 #endif
 
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
-#include "third_party/blink/renderer/platform/wtf/gc_plugin_ignore.h"
 
 namespace WTF {
 
@@ -148,7 +147,12 @@ class PODInterval {
  private:
   T low_;
   T high_;
-  GC_PLUGIN_IGNORE("https://crbug.com/513116") UserData data_;
+// https://crbug.com/513116.
+#if defined(__clang__)
+  __attribute__((annotate("blink_gc_plugin_ignore"))) UserData data_;
+#else
+  UserData data_;
+#endif
   T min_low_;
   T max_high_;
 };

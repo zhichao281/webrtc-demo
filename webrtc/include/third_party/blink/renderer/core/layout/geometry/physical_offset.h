@@ -10,10 +10,6 @@
 #include "third_party/blink/renderer/platform/geometry/layout_size.h"
 #include "third_party/blink/renderer/platform/geometry/layout_unit.h"
 #include "third_party/blink/renderer/platform/text/writing_direction_mode.h"
-#include "ui/gfx/geometry/point.h"
-#include "ui/gfx/geometry/point_f.h"
-#include "ui/gfx/geometry/vector2d.h"
-#include "ui/gfx/geometry/vector2d_f.h"
 
 namespace blink {
 
@@ -94,26 +90,28 @@ struct CORE_EXPORT PhysicalOffset {
   constexpr LayoutPoint ToLayoutPoint() const { return {left, top}; }
   constexpr LayoutSize ToLayoutSize() const { return {left, top}; }
 
+  explicit PhysicalOffset(const IntPoint& point)
+      : left(point.x()), top(point.y()) {}
+  explicit PhysicalOffset(const IntSize& size)
+      : left(size.width()), top(size.height()) {}
   explicit PhysicalOffset(const gfx::Point& point)
       : left(point.x()), top(point.y()) {}
-  explicit PhysicalOffset(const gfx::Vector2d& vector)
-      : left(vector.x()), top(vector.y()) {}
 
-  static PhysicalOffset FromPointFFloor(const gfx::PointF& point) {
+  static PhysicalOffset FromFloatPointFloor(const FloatPoint& point) {
     return {LayoutUnit::FromFloatFloor(point.x()),
             LayoutUnit::FromFloatFloor(point.y())};
   }
-  static PhysicalOffset FromPointFRound(const gfx::PointF& point) {
+  static PhysicalOffset FromFloatPointRound(const FloatPoint& point) {
     return {LayoutUnit::FromFloatRound(point.x()),
             LayoutUnit::FromFloatRound(point.y())};
   }
-  static PhysicalOffset FromVector2dFFloor(const gfx::Vector2dF& vector) {
-    return {LayoutUnit::FromFloatFloor(vector.x()),
-            LayoutUnit::FromFloatFloor(vector.y())};
+  static PhysicalOffset FromFloatSizeFloor(const FloatSize& size) {
+    return {LayoutUnit::FromFloatFloor(size.width()),
+            LayoutUnit::FromFloatFloor(size.height())};
   }
-  static PhysicalOffset FromVector2dFRound(const gfx::Vector2dF& vector) {
-    return {LayoutUnit::FromFloatRound(vector.x()),
-            LayoutUnit::FromFloatRound(vector.y())};
+  static PhysicalOffset FromFloatSizeRound(const FloatSize& size) {
+    return {LayoutUnit::FromFloatRound(size.width()),
+            LayoutUnit::FromFloatRound(size.height())};
   }
 
   void Scale(float s) {
@@ -121,31 +119,21 @@ struct CORE_EXPORT PhysicalOffset {
     top *= s;
   }
 
-  constexpr explicit operator gfx::PointF() const { return {left, top}; }
-  constexpr explicit operator gfx::Vector2dF() const { return {left, top}; }
+  constexpr explicit operator FloatPoint() const { return {left, top}; }
+  constexpr explicit operator FloatSize() const { return {left, top}; }
 
   String ToString() const;
 };
 
 // TODO(crbug.com/962299): These functions should upgraded to force correct
 // pixel snapping in a type-safe way.
-inline gfx::Point ToRoundedPoint(const PhysicalOffset& o) {
+inline IntPoint RoundedIntPoint(const PhysicalOffset& o) {
   return {o.left.Round(), o.top.Round()};
 }
-inline gfx::Point ToFlooredPoint(const PhysicalOffset& o) {
+inline IntPoint FlooredIntPoint(const PhysicalOffset& o) {
   return {o.left.Floor(), o.top.Floor()};
 }
-inline gfx::Point ToCeiledPoint(const PhysicalOffset& o) {
-  return {o.left.Ceil(), o.top.Ceil()};
-}
-
-inline gfx::Vector2d ToRoundedVector2d(const PhysicalOffset& o) {
-  return {o.left.Round(), o.top.Round()};
-}
-inline gfx::Vector2d ToFlooredVector2d(const PhysicalOffset& o) {
-  return {o.left.Floor(), o.top.Floor()};
-}
-inline gfx::Vector2d ToCeiledVector2d(const PhysicalOffset& o) {
+inline IntPoint CeiledIntPoint(const PhysicalOffset& o) {
   return {o.left.Ceil(), o.top.Ceil()};
 }
 

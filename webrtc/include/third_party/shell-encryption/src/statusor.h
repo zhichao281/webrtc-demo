@@ -22,12 +22,11 @@
 #include "absl/base/attributes.h"
 #include "absl/status/status.h"
 #include "absl/types/optional.h"
-#include "third_party/shell-encryption/base/shell_encryption_export.h"
 
 namespace rlwe {
 
 template <typename T>
-class SHELL_ENCRYPTION_EXPORT StatusOr {
+class StatusOr {
  public:
   // Construct a new StatusOr with Status::UNKNOWN status
   StatusOr();
@@ -113,12 +112,12 @@ class SHELL_ENCRYPTION_EXPORT StatusOr {
 
 namespace internal {
 
-class SHELL_ENCRYPTION_EXPORT StatusOrHelper {
+class StatusOrHelper {
  public:
   // Move type-agnostic error handling to the .cc.
-  static SHELL_ENCRYPTION_EXPORT absl::Status HandleInvalidStatusCtorArg();
-  static SHELL_ENCRYPTION_EXPORT absl::Status HandleNullObjectCtorArg();
-  static SHELL_ENCRYPTION_EXPORT void Crash(const absl::Status& status);
+  static absl::Status HandleInvalidStatusCtorArg();
+  static absl::Status HandleNullObjectCtorArg();
+  static void Crash(const absl::Status& status);
 
   // Customized behavior for StatusOr<T> vs. StatusOr<T*>
   template <typename T>
@@ -126,13 +125,13 @@ class SHELL_ENCRYPTION_EXPORT StatusOrHelper {
 };
 
 template <typename T>
-struct SHELL_ENCRYPTION_EXPORT StatusOrHelper::Specialize {
+struct StatusOrHelper::Specialize {
   // For non-pointer T, a reference can never be NULL.
   static inline bool IsValueNull(const T& t) { return false; }
 };
 
 template <typename T>
-struct SHELL_ENCRYPTION_EXPORT StatusOrHelper::Specialize<T*> {
+struct StatusOrHelper::Specialize<T*> {
   static inline bool IsValueNull(const T* t) { return t == nullptr; }
 };
 

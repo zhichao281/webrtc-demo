@@ -14,7 +14,6 @@
 #include "base/memory/weak_ptr.h"
 #include "base/types/pass_key.h"
 #include "base/unguessable_token.h"
-#include "build/build_config.h"
 #include "components/viz/common/surfaces/frame_sink_id.h"
 #include "services/network/public/mojom/web_sandbox_flags.mojom-shared.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -55,7 +54,7 @@
 
 namespace gfx {
 class Point;
-class PointF;
+class Vector2dF;
 }  // namespace gfx
 
 namespace ui {
@@ -97,10 +96,6 @@ struct WebPrintPageDescription;
 struct WebPrintParams;
 struct WebPrintPresetOptions;
 struct WebScriptSource;
-
-#if defined(OS_WIN)
-struct WebFontFamilyNames;
-#endif
 
 namespace mojom {
 enum class TreeScopeType;
@@ -175,10 +170,6 @@ class WebLocalFrame : public WebFrame {
   // if the context is detached from the frame, or if the context doesn't
   // correspond to a frame (e.g., workers).
   BLINK_EXPORT static WebLocalFrame* FrameForContext(v8::Local<v8::Context>);
-
-  // Returns the frame associated with the |frame_token|.
-  BLINK_EXPORT static WebLocalFrame* FromFrameToken(
-      const LocalFrameToken& frame_token);
 
   virtual WebLocalFrameClient* Client() const = 0;
 
@@ -258,11 +249,6 @@ class WebLocalFrame : public WebFrame {
   // in this WebLocalFrame.
   virtual const absl::optional<base::UnguessableToken>& GetEmbeddingToken()
       const = 0;
-
-  // "Returns true if the frame the document belongs to, or any of its ancestor
-  // nodes is a fenced frame. See blink::Frame::IsInFencedFrameTree() for more
-  // details.
-  virtual bool IsInFencedFrameTree() const = 0;
 
   // Navigation Ping --------------------------------------------------------
 
@@ -416,16 +402,6 @@ class WebLocalFrame : public WebFrame {
     kAsynchronousBlockingOnload
   };
 
-  enum class PromiseBehavior {
-    // If the result of the executed script is a promise or other then-able,
-    // wait for it to settle and pass the result of the promise to the caller.
-    // If the promise (and any subsequent thenables) resolves, this passes the
-    // value. If the promise rejects, the corresponding value will be empty.
-    kAwait,
-    // Don't wait for any promise to settle.
-    kDontWait,
-  };
-
   // Executes the script in the main world of the page.
   // Use kMainDOMWorldId to execute in the main world; otherwise,
   // `world_id` must be a positive integer and less than kEmbedderWorldIdLimit.
@@ -434,8 +410,7 @@ class WebLocalFrame : public WebFrame {
                                     bool user_gesture,
                                     ScriptExecutionType,
                                     WebScriptExecutionCallback*,
-                                    BackForwardCacheAware,
-                                    PromiseBehavior) = 0;
+                                    BackForwardCacheAware) = 0;
 
   // Logs to the console associated with this frame. If |discard_duplicates| is
   // set, the message will only be added if it is unique (i.e. has not been
@@ -502,6 +477,11 @@ class WebLocalFrame : public WebFrame {
   virtual void TextSelectionChanged(const WebString& selection_text,
                                     uint32_t offset,
                                     const gfx::Range& range) = 0;
+
+  // Expands the selection to a word around the caret and returns
+  // true. Does nothing and returns false if there is no caret or
+  // there is ranged selection.
+  virtual bool SelectWordAroundCaret() = 0;
 
   // DEPRECATED: Use moveRangeSelection.
   virtual void SelectRange(const gfx::Point& base,
@@ -701,13 +681,8 @@ class WebLocalFrame : public WebFrame {
   // not be accurate if the page layout is out-of-date.
 
   // The scroll offset from the top-left corner of the frame in pixels.
-  // Note: This is actually corresponds to "scroll position" instead of
-  // "scroll offset" in blink renderer. We use the term "scroll offset" here
-  // because it is the term used throughout Chrome (except for blink renderer)
-  // where there is no concept of scroll origin.
-  // See renderer/core/scroll/scroll_area.h for details.
-  virtual gfx::PointF GetScrollOffset() const = 0;
-  virtual void SetScrollOffset(const gfx::PointF&) = 0;
+  virtual gfx::Vector2dF GetScrollOffset() const = 0;
+  virtual void SetScrollOffset(const gfx::Vector2dF&) = 0;
 
   // The size of the document in this frame.
   virtual gfx::Size DocumentSize() const = 0;
@@ -825,13 +800,6 @@ class WebLocalFrame : public WebFrame {
 
   // See |blink::Frame::LastActivationWasRestricted()|.
   virtual bool LastActivationWasRestricted() const = 0;
-
-  // Fonts --------------------------------------------------------------------
-
-#if defined(OS_WIN)
-  // Returns the font family names currently used.
-  virtual WebFontFamilyNames GetWebFontFamilyNames() const = 0;
-#endif
 
   // Testing ------------------------------------------------------------------
 

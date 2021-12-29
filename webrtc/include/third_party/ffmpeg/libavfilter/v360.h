@@ -122,7 +122,6 @@ typedef struct V360Context {
     int in, out;
     int interp;
     int alpha;
-    int reset_rot;
     int width, height;
     char *in_forder;
     char *out_forder;

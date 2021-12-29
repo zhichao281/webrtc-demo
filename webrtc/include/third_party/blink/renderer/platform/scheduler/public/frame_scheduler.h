@@ -34,15 +34,24 @@ class PageScheduler;
 
 class FrameScheduler : public FrameOrWorkerScheduler {
  public:
-  class PLATFORM_EXPORT Delegate : public FrameOrWorkerScheduler::Delegate {
+  class PLATFORM_EXPORT Delegate {
    public:
-    ~Delegate() override = default;
+    virtual ~Delegate() = default;
 
     virtual ukm::UkmRecorder* GetUkmRecorder() = 0;
     virtual ukm::SourceId GetUkmSourceId() = 0;
 
     // Called when a frame has exceeded a total task time threshold (100ms).
     virtual void UpdateTaskTime(base::TimeDelta time) = 0;
+
+    // Notify that the list of active features for this frame has changed.
+    // See SchedulingPolicy::Feature for the list of features and the meaning
+    // of individual features.
+    // Note that this method is not called when the frame navigates — it is
+    // the responsibility of the observer to detect this and act reset features
+    // accordingly.
+    virtual void UpdateActiveSchedulerTrackedFeatures(
+        uint64_t features_mask) = 0;
 
     virtual const base::UnguessableToken& GetAgentClusterId() const = 0;
   };

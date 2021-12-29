@@ -32,10 +32,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_DOM_COLLECTION_INDEX_CACHE_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_DOM_COLLECTION_INDEX_CACHE_H_
 
-#include "base/logging.h"
-#include "third_party/blink/renderer/platform/heap/member.h"
-#include "third_party/blink/renderer/platform/heap/visitor.h"
-#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
+#include "third_party/blink/renderer/platform/heap/handle.h"
 
 namespace blink {
 

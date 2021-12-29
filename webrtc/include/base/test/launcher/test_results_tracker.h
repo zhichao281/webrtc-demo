@@ -13,7 +13,6 @@
 
 #include "base/callback.h"
 #include "base/gtest_prod_util.h"
-#include "base/memory/raw_ptr.h"
 #include "base/test/launcher/test_result.h"
 #include "base/threading/thread_checker.h"
 
@@ -107,10 +106,6 @@ class TestResultsTracker {
  private:
   FRIEND_TEST_ALL_PREFIXES(TestResultsTrackerTest,
                            SaveSummaryAsJSONWithLinkInResult);
-  FRIEND_TEST_ALL_PREFIXES(TestResultsTrackerTest,
-                           SaveSummaryAsJSONWithOutTimestampInResult);
-  FRIEND_TEST_ALL_PREFIXES(TestResultsTrackerTest,
-                           SaveSummaryAsJSONWithTimestampInResult);
   void GetTestStatusForIteration(int iteration, TestStatusMap* map) const;
 
   template<typename InputIterator>
@@ -177,7 +172,7 @@ class TestResultsTracker {
   int iteration_;
 
   // File handle of output file (can be NULL if no file).
-  raw_ptr<FILE> out_;
+  FILE* out_;
 };
 
 }  // namespace base

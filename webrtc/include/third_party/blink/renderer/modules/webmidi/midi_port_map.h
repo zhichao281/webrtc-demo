@@ -15,8 +15,7 @@
 namespace blink {
 
 template <typename T>
-class MIDIPortMap : public ScriptWrappable,
-                    public Maplike<String, IDLString, T*, T> {
+class MIDIPortMap : public ScriptWrappable, public Maplike<String, T*> {
  public:
   explicit MIDIPortMap(const HeapVector<Member<T>>& entries)
       : entries_(entries) {}
@@ -34,8 +33,9 @@ class MIDIPortMap : public ScriptWrappable,
   using Entries = HeapVector<Member<T>>;
   using IteratorType = typename Entries::const_iterator;
 
-  typename PairIterable<String, IDLString, T*, T>::IterationSource*
-  StartIteration(ScriptState*, ExceptionState&) override {
+  typename PairIterable<String, T*>::IterationSource* StartIteration(
+      ScriptState*,
+      ExceptionState&) override {
     return MakeGarbageCollected<MapIterationSource>(this, entries_.begin(),
                                                     entries_.end());
   }
@@ -58,7 +58,7 @@ class MIDIPortMap : public ScriptWrappable,
   // Note: This template class relies on the fact that m_map.m_entries will
   // never be modified once it is created.
   class MapIterationSource final
-      : public PairIterable<String, IDLString, T*, T>::IterationSource {
+      : public PairIterable<String, T*>::IterationSource {
    public:
     MapIterationSource(MIDIPortMap<T>* map,
                        IteratorType iterator,
@@ -79,7 +79,7 @@ class MIDIPortMap : public ScriptWrappable,
 
     void Trace(Visitor* visitor) const override {
       visitor->Trace(map_);
-      PairIterable<String, IDLString, T*, T>::IterationSource::Trace(visitor);
+      PairIterable<String, T*>::IterationSource::Trace(visitor);
     }
 
    private:

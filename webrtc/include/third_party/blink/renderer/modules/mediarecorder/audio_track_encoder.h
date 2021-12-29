@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "base/macros.h"
 #include "base/threading/thread_checker.h"
 #include "media/base/audio_bus.h"
 #include "media/base/audio_parameters.h"

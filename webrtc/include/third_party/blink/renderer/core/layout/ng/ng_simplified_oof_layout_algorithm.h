@@ -30,7 +30,8 @@ class CORE_EXPORT NGSimplifiedOOFLayoutAlgorithm
                                  bool should_break_for_oof = false);
 
   scoped_refptr<const NGLayoutResult> Layout() override;
-  MinMaxSizesResult ComputeMinMaxSizes(const MinMaxSizesFloatInput&) override {
+  MinMaxSizesResult ComputeMinMaxSizes(
+      const MinMaxSizesFloatInput&) const override {
     NOTREACHED();
     return MinMaxSizesResult();
   }
